@@ -1,33 +1,24 @@
 'use strict';
-// smb-story-levels.js — authored story level maps (layout + world-space set dressing)
-// Depends on: smb-globals.js (ctx, canvas, frameCount, GAME_W), smb-drawing-bg.js
+// Authored story level maps: layout plus world-space set dressing.
+// Depends on: smb-globals.js (ctx, canvas, frameCount, GAME_W), smb-drawing-bg.js.
 //
-// A walkable story chapter normally gets a seeded corridor and its arena's 900px
-// backdrop mirrored across the whole world, so the map says nothing about where
-// the chapter takes place. An entry here replaces both for that chapter:
+// A story chapter entry here replaces the seeded corridor and the mirrored arena
+// backdrop for that chapter. Hooks:
 //
-//   layout(worldLen) → platforms added on top of the generated floor/underground
-//                      (replaces the random surface plateaus)
-//   floor(worldLen)  → optional floor segments replacing the single flat floor
-//                      (not for walk→fight worlds, whose slabs carry the shafts)
+//   layout(worldLen) → platforms added on top of the generated floor
+//   floor(worldLen)  → optional floor segments replacing the flat floor (not for walk→fight worlds)
 //   backdrop(v)      → far parallax layers, drawn instead of the theme panels
 //   back(v)          → world-anchored set pieces behind the fighters
-//   surface(v, a, ph)→ the floor's top face (road, sidewalk, lawn edge) and the
-//                      slab's cross-section. Called twice: ph 'back' before the
-//                      set pieces (everything above the feet line) and ph
-//                      'front' after the platforms (the lip and slab face), so
-//                      props standing on the floor sit ON the road, not under it.
+//   surface(v, a, ph)→ floor top face and slab cross-section. Called with ph 'back'
+//                      before the set pieces and 'front' after the platforms.
 //
-// `v` is the visible world rect { x, y, w, h }. Set pieces are world-anchored,
-// so they sit at the place the story says they are. Collidable props are drawn
-// from the same constants their platforms are built from, so art and collision
-// cannot drift. Not used for multi-chapter regions (one-map stitched worlds).
-// Chapter entries live in js/story/levels/chNN.js, loaded after this file.
+// `v` is the visible world rect { x, y, w, h }. Collidable props use the same
+// constants as their platforms, so art and collision cannot drift. Not used for
+// multi-chapter regions. Chapter entries live in js/story/levels/chNN.js.
 
 const STORY_LEVELS = {};
 
-// `levelId` lets a derived chapter (a branch chapter's playable beat) borrow another
-// chapter's authored map.
+// `levelId` lets a derived chapter borrow another chapter's map.
 function storyLevelId(ch) {
   return ch ? (ch.levelId != null ? ch.levelId : ch.id) : null;
 }
@@ -42,12 +33,9 @@ function _storyLevelView() {
   return [v.x, v.y, v.w, v.h].every(Number.isFinite) ? v : null;
 }
 
-// One-map regions (STORY_REGIONS) stitch several chapters' 6000px segments into
-// one world; `a.storyRegion` = [{ id, off, len }] for the segments with a map.
-// Each visible segment's level draws in its own local coordinates (translated
-// by `off`, clipped to its span) against a shim arena whose platforms and
-// underground rects are shifted the same way — so a level never needs to know
-// it is part of a region, provided it reads geometry from `a`, not currentArena.
+// One-map regions (STORY_REGIONS) stitch several chapters' 6000px segments into one
+// world. `a.storyRegion` = [{ id, off, len }]. Each segment draws in local coordinates
+// (shifted by `off`) against a shim arena, so a level must read geometry from `a`, not currentArena.
 function _storyRegionShim(a, sg) {
   const inSeg = p => p.x + p.w > sg.off - 400 && p.x < sg.off + sg.len + 400;
   const sh = p => Object.assign({}, p, { x: p.x - sg.off });
@@ -102,11 +90,8 @@ function _storyLevelCall(a, part, arg) {
   return true;
 }
 
-// Arena-fight chapters (duels, assassinations — anything that is not a walkable
-// world). An entry with `arena: { base, platforms(), worldWidth, ... }` builds a
-// per-chapter arena under one temp key, on top of the base arena's rules
-// (lava, gravity, modifiers), and the level's backdrop/back/surface draw on it.
-// Called by every launcher in smb-story-engine-flow.js that sets selectedArena.
+// Arena-fight chapters (duels, assassinations). An entry with `arena: { base, platforms(), worldWidth }`
+// builds a per-chapter arena on top of the base arena's rules. Every launcher in smb-story-engine-flow.js calls this.
 function storyLevelArenaKey(ch, fallbackKey) {
   const lv = storyLevelFor(ch);
   if (!lv || !lv.arena || typeof ARENAS === 'undefined') return fallbackKey;
@@ -134,7 +119,7 @@ function drawStoryLevelBack(a) {
 }
 function drawStoryLevelGround() { return _storyLevelCall(currentArena, 'surface', 'front'); }
 
-// Deterministic 0..1 hash — set dressing must not re-roll per frame.
+// Deterministic 0..1 hash. Set dressing must not re-roll per frame.
 function _slHash(n) {
   let s = Math.imul((n | 0) ^ 0x5bd1e995, 2654435761);
   s ^= s >>> 15; s = Math.imul(s, 2246822519); s ^= s >>> 13;
@@ -151,7 +136,7 @@ function _slParallax(v, par, fn) {
 
 function _slVisible(v, x0, x1) { return x1 > v.x - 40 && x0 < v.x + v.w + 40; }
 
-// ── Shared street furniture ──────────────────────────────────────────────────
+// Shared street furniture.
 function _slStreetLamp(x, G, lit) {
   ctx.fillStyle = '#3a3f46';
   ctx.fillRect(x - 3, G - 190, 6, 190);
@@ -348,7 +333,7 @@ function _slShopfront(x, G, w, h, wall, sign, signColor, awning, lit) {
 }
 
 // Sky above y=0. drawBackground paints from y=0 down, so a level that climbs
-// above the screen top must fill the space itself or the camera shows void.
+// above the screen top must fill that space itself.
 function _slSkyAbove(v, top) {
   if (v.y >= 0) return;
   ctx.fillStyle = top;
@@ -361,8 +346,7 @@ function _slFloorSeg(x, y, w, h) { return { x, y, w, h: h || (520 - y + 80), isF
 // Standable one-way top (art drawn separately) and a solid in-lane block.
 function _slLedge(P, x, y, w) { P.push({ x, y, w, h: 10, passUnder: true, noDraw: true }); }
 function _slBlock(P, x, y, w, h) { P.push({ x, y, w, h, isStructure: true, noDraw: true }); }
-// Moving one-way top: sways by ±ax horizontally and/or ±ay vertically. `tag`
-// lets the art find the live platform (_slPlat) since its position changes.
+// Moving one-way top: sways by ±ax and/or ±ay. `tag` lets the art find the live platform (_slPlat).
 function _slMover(P, tag, x, y, w, ax, ay, speed, phase) {
   const pl = { x, y, w, h: 10, passUnder: true, noDraw: true, slTag: tag, oscSpeed: speed || 0.018, oscPhase: phase || 0 };
   if (ax) { pl.ox = x; pl.oscX = ax; }
@@ -371,12 +355,10 @@ function _slMover(P, tag, x, y, w, ax, ay, speed, phase) {
 }
 function _slPlat(a, tag) { return (a && a.platforms || []).find(p => p.slTag === tag) || null; }
 
-// Optional loot stashes. A spec { id, x, y, w, steps:[[x,y,w],..], guard?, contents? } is an
-// off-path ledge stack (each step <=110px, one single jump) ending in a chest ledge. With
-// `guard` ({name, weaponKey, classKey, health, color}) the chest is the better one and an
-// OPTIONAL elite holds the ledge (isChestGuardian: leashed, exempt from the level-clear gate,
-// the exit never waits on it). Use _slStashPlats in layout() and return _slStashLoot(list)
-// from the level's `loot()` hook (read by _launchExplorationChapter).
+// Optional loot stashes: { id, x, y, w, steps:[[x,y,w],..], guard?, contents? }.
+// Steps are <=110px so one jump clears each. An optional guard holds the chest ledge
+// and is exempt from the level-clear gate. Use _slStashPlats in layout() and return
+// _slStashLoot(list) from loot().
 function _slStashPlats(P, list) {
   for (const s of list) {
     for (const [x, y, w] of (s.steps || [])) P.push({ x, y, w, h: 12, passUnder: true });
@@ -549,7 +531,7 @@ function _slRubble(x, G, w, h, col) {
   for (let k = 0; k < 3; k++) { const rx = x + w * (0.25 + k * 0.22); ctx.beginPath(); ctx.moveTo(rx, G - h * 0.3); ctx.lineTo(rx + 14 - k * 9, G - h * 0.9 - 10); ctx.stroke(); }
 }
 
-// Rooftop furniture ----------------------------------------------------------
+// Rooftop furniture.
 function _slAcUnit(x, y, w, h) {
   ctx.fillStyle = '#9aa1a6'; ctx.fillRect(x, y, w, h);
   ctx.fillStyle = '#7f868b'; ctx.fillRect(x, y, w, 4);
@@ -692,11 +674,9 @@ function _slJag(x0, y0, x1, y1, n, amp, seed) {
   return out;
 }
 
-// ── Generic floor surfaces ───────────────────────────────────────────────────
-// `zones` = [{ x0, x1, kind, face }]. Every floor platform under a zone gets
-// that surface at its own height, so raised/sunken floor segments are dressed
-// too. kind: asphalt | sidewalk | lawn | alley | roof | rubble | tile | tunnel |
-// parquet | mud | sandstone. face (slab cross-section): soil | brick | concrete | none.
+// Generic floor surfaces. `zones` = [{ x0, x1, kind, face }]. Every floor platform
+// under a zone gets that surface at its own height. kind: asphalt | sidewalk | lawn |
+// alley | roof | rubble | tile | tunnel | parquet | mud | sandstone. face: soil | brick | concrete | none.
 const _SL_SURF = {
   asphalt:  { top: '#4a4c50', bot: '#2f3134', depth: 26, lip: 16, lipCol: '#2f3134' },
   sidewalk: { top: '#b4b0a6', bot: '#a8a49a', depth: 18, lip: 10, lipCol: '#9c988e', joints: 48 },
@@ -785,11 +765,9 @@ function _slSurfaces(v, a, ph, zones) {
   }
 }
 
-// ── Boss arenas (arena.base 'creator') ───────────────────────────────────────
-// The boss floor hazard (bossFloorState in smb-loop-core.js) is drawn by the
-// creator/void theme drawers, which a story arena replaces — call this from the
-// level's surface 'front' phase so the warning flash and the lava / missing
-// floor still read. The floor slab is x0..x1 at G (the hazard line is 460).
+// Boss arenas (arena.base 'creator'). The boss floor hazard (bossFloorState in
+// smb-loop-core.js) is drawn by theme drawers that a story arena replaces, so call
+// this from the surface 'front' phase. The slab is x0..x1 at G; the hazard line is 460.
 function _slBossFloor(x0, x1, G) {
   if (typeof bossFloorState === 'undefined') return;
   if (bossFloorState === 'warning' && Math.sin(frameCount * 0.35) > 0) {
@@ -803,7 +781,7 @@ function _slBossFloor(x0, x1, G) {
   }
 }
 
-// ── Relay / fracture-tech furniture (Veran's stations, collector nodes) ─────
+// Relay and fracture-tech furniture (Veran's stations, collector nodes).
 // Crystal pillar: a faceted shard on a plinth, glowing in `hue`.
 function _slCrystal(x, base, h, hue, seed) {
   const p = 0.65 + 0.35 * Math.sin(frameCount * 0.04 + (seed || 0));
@@ -858,7 +836,7 @@ function _slHolo(x, y, w, h, hue) {
   for (let k = 0; k < 4; k++) ctx.fillRect(x + 6, y + 6 + k * 6, 18 + ((frameCount >> 3) * 7 + k * 13) % 30, 2);
 }
 
-// ── War-Torn Dimension furniture (chapters 86–89) ───────────────────────────
+// War-torn dimension furniture (chapters 86 to 89).
 // Burning sky: smoke banks, a fire glow on the horizon, flashes of distant
 // impacts. Draw from a level's backdrop.
 function _slWarSky(v, seed) {
@@ -934,9 +912,8 @@ function _slCrater(x, G, w) {
   ctx.beginPath(); ctx.moveTo(x + w / 2 + 14, G); ctx.quadraticCurveTo(x + w / 2, G - 14, x + w / 2 - 10, G - 2); ctx.fill();
 }
 
-// ── Fracture Coast (chapters 113–118) ────────────────────────────────────────
-// The coast splits time into visible layers: every wave line is drawn three
-// times — where it was (faint), where it is, where it will be (faint).
+// Fracture Coast (chapters 113 to 118). Every wave line is drawn three times:
+// where it was (faint), where it is, and where it will be (faint).
 function _slTimeSea(v, top) {
   _slParallax(v, 0.2, (l, r) => {
     ctx.fillStyle = '#0a1830'; ctx.fillRect(l - 20, top, r - l + 40, 440 - top);
@@ -951,8 +928,7 @@ function _slTimeSea(v, top) {
   });
 }
 
-// ── Creator's domain (chapters 128–144) ──────────────────────────────────────
-// "Compressed dimensional logic": a square lattice at a given density.
+// Creator's domain (chapters 128 to 144). A square lattice at a given density.
 function _slLattice(x, y, w, h, a, step) {
   ctx.strokeStyle = `rgba(200,190,255,${a})`; ctx.lineWidth = 1;
   ctx.beginPath();
@@ -961,16 +937,12 @@ function _slLattice(x, y, w, h, a, step) {
   ctx.stroke();
 }
 
-// ── Story scenes on level art ────────────────────────────────────────────────
-// Narrative scenes (smb-story-narrative-scene.js, spec `bg: 'level'` with
-// `level: { ch, x }`) can stand the figures in a chapter's authored map instead
-// of a generic backdrop. Level code draws through the global `ctx`, which is
-// bound to the game canvas, so the art is rendered there, copied into the scene
-// canvas, and the game canvas's own pixels are put back (the menu runs a live
-// background match behind the scene overlay).
+// Story scenes on level art. Narrative scenes (spec `bg: 'level'`, `level: { ch, x }`)
+// can stand figures in a chapter's map. Art draws to the game canvas, is copied into
+// the scene canvas, and the game canvas pixels are restored afterward.
 let _slSceneSnap = null;
-// Default scene spot for a chapter's own map: the duel point for walk→fight
-// chapters, the opening stretch otherwise; a level can set `sceneX`.
+// Default scene spot: the duel point for walk→fight chapters, else the opening stretch.
+// A level can set `sceneX`.
 function storyLevelSceneSpec(ch) {
   const lv = storyLevelFor(ch);
   if (!lv || typeof lv.back !== 'function') return null;
@@ -984,6 +956,7 @@ function drawStoryLevelScene(dst, w, h, footY, spec) {
   const a = { platforms: lv.floor ? lv.floor(WL) : [{ x: -3000, y: G, w: WL + 6000, h: 88, isFloor: true }], undergroundRects: [], storyLevel: spec.ch };
   if (typeof lv.layout === 'function') a.platforms.push(...lv.layout(WL));
   if (lv.arena) a.platforms = lv.arena.platforms();
+  a.scene = spec;
   const cw = canvas.width, chh = canvas.height;
   if (!_slSceneSnap) _slSceneSnap = document.createElement('canvas');
   if (_slSceneSnap.width !== cw || _slSceneSnap.height !== chh) { _slSceneSnap.width = cw; _slSceneSnap.height = chh; }
@@ -1016,10 +989,8 @@ function drawStoryLevelScene(dst, w, h, footY, spec) {
   return true;
 }
 
-// ── Floating islands (fracture network / void chapters) ──────────────────────
-// A torn-off chunk of some world: biome top surface + a jagged rock underside
-// tapering into the void. Draw with ph='back' for the top face behind the feet
-// and ph='front' for the lip and underside (after platforms).
+// Floating islands (fracture network and void chapters). Draw with ph='back' for the
+// top face behind the feet, and ph='front' for the lip and underside.
 const _SL_BIOME = {
   city:   { top: '#4a4c50', lip: '#2f3134', rock: '#3a3436' },
   forest: { top: '#5a7a3e', lip: '#486332', rock: '#3e3226' },
@@ -1052,7 +1023,7 @@ function _slIsland(x0, x1, y, biome, ph, seed) {
   // Lip
   ctx.fillStyle = B.lip; ctx.fillRect(x0, y, x1 - x0, 12);
   ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x0, y, x1 - x0, 1.5);
-  // Torn edges glow faintly where the fracture cut them
+  // Torn edges glow faintly
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   ctx.fillStyle = 'rgba(190,150,255,0.35)'; ctx.fillRect(x0 - 1, y - 16, 2, 60); ctx.fillRect(x1 - 1, y - 16, 2, 60);
   ctx.restore();

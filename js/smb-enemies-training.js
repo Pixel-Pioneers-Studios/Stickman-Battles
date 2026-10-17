@@ -1,14 +1,12 @@
 'use strict';
-// smb-enemies-training.js — Training mode commands, training panel UI, map creator tool, custom weapon creator
-// Depends on: smb-globals.js, smb-fighter.js, smb-data-weapons.js
+// Training mode commands, training panel UI, map creator, custom weapon creator.
+// Depends on smb-globals.js, smb-fighter.js, smb-data-weapons.js.
 
 // Dummy behaviour: 'stand' | 'block' | 'jump' | 'counter'. See Dummy._dummyBehave().
 let dummyBehavior     = 'stand';
 let dummyCounterDelay = 20;   // frames after being hit before a counter swing
 
-// ============================================================
-// DUMMY  (training-mode target — stands still, auto-heals)
-// ============================================================
+// Dummy: training target that stands still and auto-heals.
 class Dummy extends Fighter {
   constructor(x, y) {
     super(x, y, '#888888', 'sword',
@@ -24,21 +22,18 @@ class Dummy extends Fighter {
   }
 
   update() {
-    // Ninja Shadow Realm time dilation — Dummy overrides Fighter.update() entirely,
-    // so the fractional-clock frame skip must be mirrored here
+    // Ninja time dilation: Dummy overrides Fighter.update(), so mirror the frame skip here.
     if (this._domainSlowFactor > 0 && this._domainSlowFactor < 1) {
       this._domainSlowAccum = (this._domainSlowAccum || 0) + this._domainSlowFactor;
       if (this._domainSlowAccum < 1) { this.updateState(); return; }
       this._domainSlowAccum -= 1;
     }
-    // Timers
     if (this.cooldown > 0)         this.cooldown--;
     if (this.invincible > 0)       this.invincible--;
     if (this.hurtTimer > 0)        this.hurtTimer--;
     if (this.stunTimer > 0)        this.stunTimer--;
-    // Swing timers — Dummy overrides Fighter.update() wholesale, so these were
-    // never ticked. Harmless while it was inert, but counter mode leaves
-    // attackEndlag pinned above 0 forever and the dummy would swing exactly once.
+    // Dummy overrides Fighter.update(), so swing timers never tick here. Counter mode would
+    // pin attackEndlag above 0 and the dummy would swing exactly once.
     if (this.attackTimer > 0)      this.attackTimer--;
     if (this.attackEndlag > 0)     this.attackEndlag--;
     if (this.ragdollTimer > 0) {
@@ -49,20 +44,16 @@ class Dummy extends Fighter {
       this.ragdollAngle = 0;
       this.ragdollSpin  = 0;
     }
-    // Gravity + minimal physics
     this.vy += 0.65;
     this.x  += this.vx;
     this.y  += this.vy;
     this.vx *= 0.80;
     this.vy  = clamp(this.vy, -20, 19);
     this.onGround = false;
-    // Ceiling
     const _ceilY = currentArena && currentArena.isLowGravity ? -60 : -20;
     if (this.y < _ceilY) { this.y = _ceilY; if (this.vy < 0) this.vy = 0; }
     for (const pl of currentArena.platforms) this.checkPlatform(pl);
-    // Auto-reset if falls off
     if (this.y > 640) { this.x = this.spawnX; this.y = this.spawnY - 60; this.vy = 0; this.health = this.maxHealth; }
-    // Auto-heal when health hits 0
     if (this.health <= 0) {
       this.health = this.maxHealth;
       this.invincible = 120;
@@ -73,12 +64,8 @@ class Dummy extends Fighter {
     this.updateState();
   }
 
-  // ── CONFIGURABLE BEHAVIOUR ────────────────────────────────────────────────
-  // The dummy used to be completely inert: updateAI() was an empty function and
-  // update() never acted, so it could only ever be hit. That makes it useless for
-  // the three things a training target actually exists to test — whether a mixup
-  // beats a guard, whether a string is safe on block, and whether you can escape
-  // pressure. Each mode below answers one of those.
+  // Modes: 'stand' | 'block' | 'jump' | 'counter'.
+  // It was inert before, so it could only be hit. Each mode tests a mixup, a string on block, or escape from pressure.
   _dummyBehave() {
     const mode = (typeof dummyBehavior !== 'undefined') ? dummyBehavior : 'stand';
     if (mode === 'stand') { this.shielding = false; return; }
@@ -101,9 +88,7 @@ class Dummy extends Fighter {
     }
 
     if (mode === 'counter') {
-      // Retaliate on a fixed delay after the last hit taken. A predictable timer
-      // is deliberate — it is what makes a punish window measurable rather than
-      // a coin flip against live AI.
+      // Fixed delay after the last hit. Predictable, so the punish window is measurable.
       if (locked) return;
       const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
       const hitAt = this._lastAttackerFrame;
@@ -124,9 +109,8 @@ class Dummy extends Fighter {
   updateAI() {}
 
   draw() {
-    // Always draw — explicit override so the dummy is never invisible
+    // Always draw, so the dummy is never invisible
     ctx.save();
-    // Invincibility blink
     if (this.invincible > 0 && Math.floor(this.invincible / 5) % 2 === 1) {
       ctx.globalAlpha = 0.35;
     }
@@ -135,45 +119,35 @@ class Dummy extends Fighter {
     const bw = this.w;      // body width (~20)
     const bh = this.h;      // body height (~50)
 
-    // Hurt flash
     const hurt = this.hurtTimer > 0;
     const bodyCol = hurt ? '#ff6666' : '#999999';
     const headCol = hurt ? '#ffaaaa' : '#cccccc';
 
-    // Ragdoll rotation when knocked back
     if (this.ragdollTimer > 0) {
       ctx.translate(cx, ty + bh * 0.45);
       ctx.rotate(this.ragdollAngle || 0);
       ctx.translate(-cx, -(ty + bh * 0.45));
     }
 
-    // Body (torso)
     ctx.fillStyle = bodyCol;
     ctx.fillRect(cx - bw * 0.3, ty + bh * 0.32, bw * 0.6, bh * 0.38);
 
-    // Head
     ctx.fillStyle = headCol;
     ctx.beginPath();
     ctx.arc(cx, ty + bh * 0.15, bh * 0.14, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes (simple dots)
     ctx.fillStyle = '#444';
     ctx.beginPath(); ctx.arc(cx - 3, ty + bh * 0.13, 2, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(cx + 3, ty + bh * 0.13, 2, 0, Math.PI * 2); ctx.fill();
 
-    // Left arm
     ctx.fillStyle = bodyCol;
     ctx.fillRect(cx - bw * 0.65, ty + bh * 0.33, bw * 0.32, bh * 0.08);
-    // Right arm
     ctx.fillRect(cx + bw * 0.33, ty + bh * 0.33, bw * 0.32, bh * 0.08);
 
-    // Left leg
     ctx.fillRect(cx - bw * 0.32, ty + bh * 0.68, bw * 0.13, bh * 0.32);
-    // Right leg
     ctx.fillRect(cx + bw * 0.19, ty + bh * 0.68, bw * 0.13, bh * 0.32);
 
-    // "DUMMY" label above
     ctx.globalAlpha = 0.85;
     ctx.font = 'bold 8px Arial';
     ctx.textAlign = 'center';
@@ -183,7 +157,6 @@ class Dummy extends Fighter {
     ctx.fillText('DUMMY', cx, ty - 4);
     ctx.shadowBlur = 0;
 
-    // Health bar
     const hpPct = Math.max(0, this.health / this.maxHealth);
     const bw2 = 28, bh2 = 4;
     ctx.globalAlpha = 0.8;
@@ -196,9 +169,7 @@ class Dummy extends Fighter {
   }
 }
 
-// ============================================================
-// TRAINING COMMANDS
-// ============================================================
+// Training commands
 function trainingCmd(cmd) {
   if (!gameRunning || !trainingMode) return;
   const p = players[0];
@@ -240,9 +211,7 @@ function trainingCmd(cmd) {
     bossBeams  = [];
     bossSpikes = [];
     minions    = [];
-    // Reset stale target references — cleared entities still have health > 0,
-    // so without this fix bots in players[] would chase invisible entities
-    // until their 25-tick retarget timer fires.
+    // Clear stale targets too, or bots keep chasing dead entities until their retarget timer fires.
     for (const pl of players) {
       if (pl.target && !players.includes(pl.target)) {
         pl.target = players.find(q => q !== pl && q.health > 0) || null;
@@ -261,7 +230,6 @@ function trainingCmd(cmd) {
     }
   }
   if (cmd === 'spawnBoss') {
-    // Allow multiple bosses — no filter, just spawn another
     const bossX = 150 + Math.random() * 600;
     const tb = new Boss();
     tb.target    = p;
@@ -363,7 +331,6 @@ function toggleMapCreator() {
   panel.style.display = _mcEditorOpen ? 'block' : 'none';
 }
 
-// Convert client (screen) coords to game-world coords
 function _mcScreenToGame(clientX, clientY) {
   const scX = (canvas.width  / GAME_W) * camZoomCur;
   const scY = (canvas.height / GAME_H) * camZoomCur;
@@ -373,7 +340,6 @@ function _mcScreenToGame(clientX, clientY) {
   };
 }
 
-// Snapshot current platforms for undo
 function _mcSnapshot() {
   if (!currentArena) return;
   _creatorHistory.push(currentArena.platforms.map(p => ({ ...p })));
@@ -460,7 +426,7 @@ function importCreatorMap() {
   } catch(e) { alert('Invalid JSON: ' + e.message); }
 }
 
-// ---- Weapon Creator ----
+// Weapon creator
 function createCustomWeapon() {
   const name  = document.getElementById('wcName')?.value?.trim()         || 'Custom';
   const dmg   = parseInt(document.getElementById('wcDmg')?.value)         || 10;
@@ -478,7 +444,6 @@ function createCustomWeapon() {
       if (dist(user, tgt) < range * 1.5) dealDamage(user, tgt, abilDmg, kb * 1.5);
     }
   };
-  // Add to all weapon selects
   document.querySelectorAll('select[id$="Weapon"]').forEach(sel => {
     if (!sel.querySelector(`option[value="${key}"]`)) {
       const opt = document.createElement('option');
@@ -490,11 +455,10 @@ function createCustomWeapon() {
   if (status) { status.textContent = `✅ "${name}" added to weapon list!`; setTimeout(() => { status.textContent = ''; }, 3000); }
 }
 
-// ---- Drag support for platforms ----
+// Platform drag
 canvas.addEventListener('mousedown', (e) => {
   if (!_mcEditorOpen || !gameRunning || !currentArena) return;
   const gp = _mcScreenToGame(e.clientX, e.clientY);
-  // find topmost platform under cursor
   for (let i = currentArena.platforms.length - 1; i >= 0; i--) {
     const pl = currentArena.platforms[i];
     if (gp.x >= pl.x && gp.x <= pl.x + pl.w && gp.y >= pl.y && gp.y <= pl.y + pl.h) {
@@ -517,14 +481,13 @@ canvas.addEventListener('mousemove', (e) => {
   _mcDragPlatform.y = Math.round(gp.y - _mcDragOffY);
   if (_mcDragPlatform.ox !== undefined) _mcDragPlatform.ox = _mcDragPlatform.x;
   if (_mcDragPlatform.naturalY !== undefined) _mcDragPlatform.naturalY = _mcDragPlatform.y;
-  // Sync input fields if this is the only selected platform
   const xEl = document.getElementById('mcX'); if (xEl) xEl.value = _mcDragPlatform.x;
   const yEl = document.getElementById('mcY'); if (yEl) yEl.value = _mcDragPlatform.y;
 });
 
 canvas.addEventListener('mouseup', () => {
   if (_mcDragPlatform) {
-    // If barely moved, pop the snapshot (no meaningful change)
+      // Barely moved: drop the undo snapshot.
     if (Math.abs(_mcDragPlatform.x - _mcDragOriginX) < 2 && Math.abs(_mcDragPlatform.y - _mcDragOriginY) < 2) {
       _creatorHistory.pop();
     }
@@ -533,23 +496,16 @@ canvas.addEventListener('mouseup', () => {
 });
 
 
-// ============================================================
-// TRAINING LAB — measurement HUD
-// ============================================================
-// Everything below exists because the sandbox could spawn a boss but could not
-// tell you why you were losing to it. The balance bugs found on 2026-08-23 —
-// a launcher that skipped every knockback guard, a lockout ceiling that had
-// never once fired, a weapon shipping with no recovery frames at all — were all
-// invisible in-game and had to be found with hand-written browser instrumentation.
-// These panels surface exactly those numbers.
+// Training lab measurement HUD. The sandbox could spawn a boss but not say why you lost.
+// Lockouts, governed launches and raw-vs-applied damage are shown here instead of hand instrumentation.
 //
-// Panels (F5 cycles): off -> frame data -> +lockout -> +hit log -> off
+// F5 cycles panels: off, frame data, +lockout, +hit log
 let tlabMode      = 0;                 // 0 = off, 1 = frames, 2 = +lockout, 3 = +hitlog
 let tlabHits      = [];                // recent hits, newest last
 let tlabLaunches  = [];                // recent governed launches
 const TLAB_MAX_HITS = 7;
 
-// Per-fighter rolling lockout stats, keyed by fighter object.
+// Rolling lockout stats per fighter, keyed by fighter object.
 const tlabLock = new WeakMap();
 
 function _tlabStats(f) {
@@ -558,8 +514,7 @@ function _tlabStats(f) {
   return s;
 }
 
-// Called from dealDamage() AFTER all scaling and caps. The raw-vs-applied pairing
-// is the useful part: "22 -> 22" and "16 -> 20 (capped)" tell very different stories.
+// Called from dealDamage() after scaling and caps, so raw vs applied damage shows.
 function _tlabRecordHit(attacker, target, rawDmg, dmg, rawKb, kb) {
   if (!target) return;
   tlabHits.push({
@@ -574,8 +529,7 @@ function _tlabRecordHit(attacker, target, rawDmg, dmg, rawKb, kb) {
   if (tlabHits.length > TLAB_MAX_HITS) tlabHits.shift();
 }
 
-// Attaches to the most recent hit when a launch follows it in the same frame, so
-// the log reads as one event rather than two.
+// Attaches to the newest hit when a launch follows it in the same frame.
 function _tlabRecordLaunch(target, requested, granted, n) {
   const fc = (typeof frameCount !== 'undefined') ? frameCount : 0;
   const last = tlabHits[tlabHits.length - 1];
@@ -587,9 +541,7 @@ function _tlabRecordLaunch(target, requested, granted, n) {
   if (tlabLaunches.length > 4) tlabLaunches.shift();
 }
 
-// Classifies where the fighter is in its attack, using the same fields the
-// combat code reads. "recovery" is the punish window — the number that was
-// missing entirely from the Knight.
+// Where the fighter is in its attack. 'recovery' is the punish window.
 function _tlabPhase(f) {
   if (!f) return '-';
   if (f.stunTimer   > 0) return 'STUNNED';
@@ -625,9 +577,7 @@ function _tlabPanel(ctx, x, y, w, lines, title) {
   return h;
 }
 
-// Ticks the rolling stats and draws the panels. One per-frame hook, called from
-// gameLoop — the tracking has to run every frame even when a panel is hidden or
-// the percentages would only count frames you were looking at.
+// Ticks rolling stats and draws the panels. Runs every frame, even when hidden, or percentages undercount.
 function renderTrainingLab(ctx) {
   if (!gameRunning || !trainingMode) return;
 
@@ -652,7 +602,7 @@ function renderTrainingLab(ctx) {
   let y = 88;   // clears the super/Q/S meter bars stacked at the top of the HUD
   const X = 8, W = 232;
 
-  // ---- Frame data (always shown when the lab is on) ----
+  // Frame data (always shown when the lab is on)
   if (p) {
     const wp = p.weapon || {};
     const ph = _tlabPhase(p);
@@ -672,7 +622,7 @@ function renderTrainingLab(ctx) {
     y += 6;
   }
 
-  // ---- Lockout (the number that predicts oppressive matchups) ----
+  // Lockout: predicts oppressive matchups
   if (tlabMode >= 2 && foe) {
     const s = _tlabStats(foe);
     const pctL = s.frames ? (s.locked / s.frames * 100) : 0;
@@ -690,7 +640,7 @@ function renderTrainingLab(ctx) {
     y += 6;
   }
 
-  // ---- Hit log: requested vs actually applied ----
+  // Hit log: requested vs actually applied
   if (tlabMode >= 3) {
     const lines = [];
     if (!tlabHits.length) lines.push({ s: '(no hits yet)', c: '#666' });

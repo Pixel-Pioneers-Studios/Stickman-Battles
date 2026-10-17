@@ -1,34 +1,17 @@
 'use strict';
-// smb-finisher-moves.js — every move scene has its own finisher. When a Q or E
-// lands the killing blow, the kill plays out as that move carried to its end
-// (MOVE_FINISHERS['axe:q']) instead of the weapon's generic finisher. The
-// finishers speak the move scenes' language: the same pose rig (_movePose),
-// the same slash/ring/star FX, the move's colour.
-//
-// A kill belongs to a move while its scene runs and for MS_KILL_TAIL frames
-// after (a cast's projectiles are still in the air), unless the performer has
-// started a normal swing since — see Fighter._msKill in smb-move-scenes.js.
-//
-// A def (mfDefine in smb-finisher-moves-defs.js):
-//   name, color, len           title card, accent, duration in frames
-//   line                       optional subtitle under the action
-//   me / them                  pose tracks (move-scene schema) for performer / victim
-//   tick(s)                    per frame: stage bodies with go()/fly(), fire FX on at()
-//   draw(s, ctx)               optional world-space drawing
-//   exit: [vx, vy]             victim's velocity (facing space) when the death takes over
-//
-// Staging is in facing space around the performer's spot when the kill
-// landed: (mx, my) is the performer's centre offset, (vx, vy) the victim's.
-// The performer is tethered to the stage span; the victim may go anywhere.
-//
+// smb-finisher-moves.js: per-move finishers. A killing Q/E plays its move carried to the end (MOVE_FINISHERS['axe:q']).
+// Uses the move scenes' pose rig and FX, so it looks like the same move.
+// A kill counts as the move's while its scene runs plus MS_KILL_TAIL frames, unless the performer swings again first (Fighter._msKill).
+// Def fields (mfDefine in smb-finisher-moves-defs.js): name, color, len (frames), line (optional subtitle),
+//   me / them (pose tracks), tick(s) (per frame), draw(s, ctx) (optional), exit [vx, vy] (victim velocity on death).
+// Staging is in facing space around the performer's spot at the kill. (mx, my) is the performer's offset, (vx, vy) the victim's.
 // Depends on: smb-move-scenes.js (msSample, msEase, msLerpAngle, MS_VPOSE,
 //   MS_POSE_KEYS, MS_BLEND_OUT, MoveScene, _msGroundTop, _msSpan),
 //   smb-finisher-helpers.js (_finTitle, _finBars, _finSubtitle, _finGameTransform).
 // Picked by triggerFinisher() in smb-finisher-engine.js.
-// ============================================================
 
 const MOVE_FINISHERS = {};
-const MF_BLEND_IN = 7;       // frames to ease from the kill-frame pose into the finisher's
+const MF_BLEND_IN = 7;       // frames to ease from the kill-frame pose into the finisher
 
 function _mfRgba(hex, a) {
   const h = String(hex || '#ffffff').replace('#', '');
@@ -73,9 +56,8 @@ const MF_PROTO = {
   u(a, b, e) { return msEase(e || 'lin', (this.t - a) / (b - a)); },
   every(n, a, b) { return this.t >= (a || 0) && this.t < (b === undefined ? 1e9 : b) && (this.t - (a || 0)) % n === 0; },
 
-  // Ease a body ('m' performer, 'v' victim) from wherever it is at frame a to
-  // (x, y) by frame b. null leaves that axis alone. Once it arrives it lets go,
-  // so anything written afterwards sticks.
+  // Ease body 'm' (performer) or 'v' (victim) to (x, y) by frame b. null leaves that axis alone.
+  // Once it arrives it lets go, so later writes stick.
   go(w, x, y, a, b, e) {
     if (this.t < a) return;
     const id = w + ':' + a + ':' + b;
@@ -98,7 +80,6 @@ const MF_PROTO = {
     this[w + 'y'] = c.y + vy * d + 0.5 * (g || 0) * d * d;
   },
 
-  // World coordinates.
   wx(dx) { return this.hx + this.f * dx; },
   wy(dy) { return this.hy + dy; },
   ax() { return this.att.cx(); },
@@ -109,7 +90,7 @@ const MF_PROTO = {
 
   vpose(name, extra) { this.vp = Object.assign({}, MF_VPOSE[name] || MS_VPOSE[name] || MS_VPOSE.reel, extra || null); },
 
-  // ── FX: the move scenes' own vocabulary ──────────────────────────────────
+  // FX, same vocabulary as the move scenes.
   // Crescent at world (x, y), angles in facing space.
   arc(x, y, r, a0, a1, o) {
     o = o || {};
@@ -215,14 +196,12 @@ function _mfTick(s, timer) {
   att.x = acx - att.w / 2; att.y = acy - att.h / 2;
   att.vx = 0; att.vy = 0;
   att.facing = s.aface;
-  // Victim.
   const vy = s.noFloor ? s.vy : Math.min(s.vy, s.vfloor);
   tgt.x = s.hx + s.f * s.vx - tgt.w / 2; tgt.y = s.hy + vy - tgt.h / 2;
   tgt.vx = 0; tgt.vy = 0;
   tgt.ragdollTimer = 0; tgt.ragdollSpin = 0;
   tgt.facing = s.vface || (att.cx() >= tgt.cx() ? 1 : -1);
 
-  // Poses.
   let p = o.me ? msSample(o.me, timer) : null;
   if (p && o.poseMod) p = o.poseMod(s, p) || p;
   p = _mfBlendIn(p, s.pose0, timer);
@@ -238,7 +217,6 @@ function _mfTick(s, timer) {
     tgt._movePose = out;
   } else tgt._movePose = null;
 
-  // Camera.
   const c = s._cam;
   if (typeof CinCam !== 'undefined') {
     if (c) CinCam.focusPoint(c.x, c.y, c.z);

@@ -1,20 +1,11 @@
 'use strict';
-// smb-icons.js — inline SVG icon set, replacing emoji across the UI.
-//
-// Emoji render differently on every OS, carry their own colour palette that
-// fights the theme, and read as text rather than as game art. These are flat
-// silhouettes on a 24x24 grid drawn in currentColor, so they inherit the
-// colour of whatever they sit in.
-//
-// Two-tone: any element tagged class="a" is the secondary/accent pass — see
-// `.smb-icon .a` in SMB.css. Use it for the part of a shape that should sit
-// back (a blade's fuller, a shield's boss, the far wing of a plane).
-//
-// Depends on: nothing. Loaded early so every later file can call smbIcon().
+// smb-icons.js: inline SVG icon set, replacing emoji across the UI.
+// Flat silhouettes on a 24x24 grid in currentColor, so they take the colour they sit in.
+// class="a" marks the back pass, styled by `.smb-icon .a` in SMB.css.
+// No dependencies. Loaded early so later files can call smbIcon().
 
 const SMB_ICONS = {
 
-  // ── Weapons ───────────────────────────────────────────────
   dice: '<rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="8.5" cy="8.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="15.5" cy="15.5" r="1.6"/>',
 
   sword: '<path d="M12 1.5 14.2 6.2V14H9.8V6.2Z"/><path class="a" d="M11.4 6.6h1.2V14h-1.2z"/><rect x="6.4" y="14" width="11.2" height="2.3" rx="1.15"/><rect x="10.9" y="16.3" width="2.2" height="4.4" rx="1.1"/><rect x="9.6" y="20.4" width="4.8" height="2" rx="1"/>',
@@ -57,7 +48,6 @@ const SMB_ICONS = {
 
   bolt: '<path d="M13.6 1 7 12.4h4L9.8 23 17.4 10h-4.2z"/>',
 
-  // ── Classes ───────────────────────────────────────────────
   crossedswords: '<path d="M3.4 3.4h3.2l11 11-3.2 3.2z"/><path d="M20.6 3.4h-3.2l-11 11 3.2 3.2z"/><rect class="a" x="2.4" y="17.6" width="5.4" height="2.4" rx="1.2" transform="rotate(-45 5.1 18.8)"/><rect class="a" x="16.2" y="17.6" width="5.4" height="2.4" rx="1.2" transform="rotate(45 18.9 18.8)"/>',
 
   circleDash: '<circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3.4 2.8"/>',
@@ -80,9 +70,7 @@ const SMB_ICONS = {
 
   orbit: '<circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r="8.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-dasharray="3 3"/><circle class="a" cx="12" cy="3.2" r="2.1"/><circle class="a" cx="19.6" cy="16.4" r="2.1"/><circle class="a" cx="4.4" cy="16.4" r="2.1"/>',
 
-  // ── Achievements ──────────────────────────────────────────
-  // Drawn to sit inside the hex badge (see achBadgeSVG), so they favour solid
-  // masses over hairlines. Black-at-opacity details read on any tier colour.
+  // Sits inside the hex badge (see achBadgeSVG), so it favours solid masses.
 
   drop: '<path d="M12 2.2C8.6 7.2 5.4 10.9 5.4 14.8a6.6 6.6 0 0 0 13.2 0c0-3.9-3.2-7.6-6.6-12.6z"/><path d="M8.9 14.8a3.1 3.1 0 0 0 3.1 3.1" fill="none" stroke="#000" stroke-width="1.6" opacity=".35"/>',
 
@@ -138,7 +126,6 @@ const SMB_ICONS = {
 
   branches: '<path d="M12 22v-8.4M12 13.6 5.4 6.4M12 13.6l6.6-7.2M12 13.6V4.4" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="5" cy="5.4" r="2.6"/><circle cx="19" cy="5.4" r="2.6"/><circle cx="12" cy="3.2" r="2.6"/><circle class="a" cx="12" cy="20.4" r="2"/>',
 
-  // ── UI chrome ─────────────────────────────────────────────
   cap: '<path d="M12 2.6 23 8l-11 5.4L1 8z"/><path d="M5.4 10.8v4.6c0 2.2 3 3.8 6.6 3.8s6.6-1.6 6.6-3.8v-4.6L12 14z"/><path class="a" d="M21.4 8.8v6.4" fill="none" stroke="currentColor" stroke-width="1.5"/>',
 
   user: '<circle cx="12" cy="7.4" r="4.6"/><path d="M12 13.6c4.8 0 8.6 3 8.6 6.6a1.4 1.4 0 0 1-1.4 1.4H4.8a1.4 1.4 0 0 1-1.4-1.4c0-3.6 3.8-6.6 8.6-6.6z"/>',
@@ -190,9 +177,7 @@ const SMB_ICONS = {
   unknown: '<circle cx="12" cy="12" r="9.4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M9.2 9.2a2.8 2.8 0 0 1 5.6.4c0 1.9-2.8 2.2-2.8 4.2" fill="none" stroke="currentColor" stroke-width="2.1"/><circle cx="12" cy="17.6" r="1.5"/>',
 };
 
-// Which icon each weapon / class / UI slot uses. Kept separate from the
-// shapes so several entries can share one drawing (katana and ronin, bow and
-// archer) without duplicating path data.
+// Icon per weapon, class and UI slot. Kept apart from the shapes so entries can share one drawing.
 const SMB_WEAPON_ICONS = {
   random: 'dice', sword: 'sword', hammer: 'hammer', gun: 'gun', axe: 'axe',
   spear: 'spear', bow: 'bow', shield: 'shield', scythe: 'scythe',

@@ -1,18 +1,9 @@
 'use strict';
-// js/story/levels/ch106.js — Chapter 106 map (story ARENA). See smb-story-levels.js.
+// js/story/levels/ch106.js: Chapter 106 map (story ARENA). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 106 — The Unseen Pattern (Trial of Sense: invisible foe, lantern)
-// The Blind Vault, one screen. A sealed room of Null's geometry whose wall
-// panels shift slowly while you fight — "The vault stopped shifting" only
-// when you've earned it, so here they never settle. In the centre of the
-// floor is the mark where Null set the lantern down. The room is drawn low
-// and dark on purpose: the trial is read from the lantern's stale marks and
-// the construct's live signals (swing, footfall, flinch), so the vault gives
-// nothing that competes with them — no bright set dressing at fighter
-// height, no motion near the floor. The ledges are the null arena's own
-// layout (the trial's AI is tuned on it), drawn as slabs of the vault.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 106, The Unseen Pattern (Trial of Sense: invisible foe, lantern).
+// One sealed screen whose wall panels never settle. Dark and low on purpose, so the
+// fight is read from the lantern's stale marks and the construct's signals.
 (function () {
   const G = 460;
   const SLABS = [[100, 330, 140, 16], [660, 330, 140, 16], [370, 250, 160, 16], [170, 170, 120, 14], [610, 170, 120, 14]];
@@ -25,7 +16,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#04030c');
-    // The vault walls: panels drifting slowly, never settling
     ctx.fillStyle = '#08061a'; ctx.fillRect(v.x - 10, v.y - 10, v.w + 20, G - v.y + 10);
     for (let k = 0; k < 9; k++) {
       const x = -40 + k * 120 + Math.sin(frameCount * 0.003 + k * 1.7) * 18, y = 30 + Math.cos(frameCount * 0.0025 + k) * 10;
@@ -48,7 +38,7 @@
   function surface(v, a, ph) {
     if (ph === 'back') {
       ctx.fillStyle = '#16142a'; ctx.fillRect(-60, G - 10, 1020, 10);
-      // Where Null set the lantern down
+      // Lantern mark
       ctx.strokeStyle = 'rgba(200,190,255,0.25)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.ellipse(450, G - 4, 26, 3, 0, 0, Math.PI * 2); ctx.stroke();
       return;

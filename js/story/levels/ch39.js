@@ -1,16 +1,9 @@
 'use strict';
-// js/story/levels/ch39.js — Chapter 39 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch39.js: Chapter 39 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 39 — Into the Green (traversal)
-// "The forest had no edges. Ash from collapsed worlds drifted through the
-// canopy." Trunks wider than houses rise out of frame; the forest floor dips
-// into root hollows and climbs over root humps; branches step up in three
-// tiers to a canopy road high in the green, so the walk can be taken low
-// (through the hollows, past the scouts) or high (along the canopy, where
-// something large hunts). Ash falls the whole way. The Second Architect's
-// sanctum is a door grown into the last great trunk, hidden in roots.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 39, Into the Green (traversal).
+// Low route through the root hollows, high route along the canopy road.
+// The Second Architect's sanctum is a door grown into the last great trunk.
 (function () {
   const FLOOR = [[0, 500, 440], [500, 760, 470], [760, 1300, 440], [1300, 1500, 410], [1500, 2100, 440], [2100, 2350, 480],
                  [2350, 2900, 440], [2900, 3100, 405], [3100, 4500, 440]];
@@ -30,7 +23,7 @@
   function backdrop(v) {
     _slSkyAbove(v, '#030803');
     _slParallax(v, 0.12, (l, r) => {
-      // Far trunks fading into green haze — no edge, no end
+      // Far trunks fade into haze
       for (let i = Math.floor(l / 90) - 1; i * 90 < r + 90; i++) {
         const x = i * 90 + _slHash(i + 3) * 40, w = 24 + _slHash(i + 4) * 30;
         ctx.fillStyle = `rgba(${16 + _slHash(i) * 10},${34 + _slHash(i + 1) * 14},${16},0.9)`;
@@ -51,18 +44,16 @@
   }
 
   function back(v) {
-    // Great trunks
     for (const tx of TRUNKS) {
       if (!_slVisible(v, tx - 120, tx + 120)) continue;
       ctx.fillStyle = '#2a2016'; ctx.fillRect(tx - 70, v.y - 20, 140, 460 - v.y + 20);
       ctx.fillStyle = '#34281c'; ctx.fillRect(tx - 70, v.y - 20, 18, 460 - v.y + 20);
       ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
       for (let k = 0; k < 6; k++) { const bx = tx - 50 + k * 20; ctx.beginPath(); ctx.moveTo(bx, v.y); ctx.lineTo(bx + _slHash(tx + k) * 8, 440); ctx.stroke(); }
-      // Root flare into the floor
       ctx.fillStyle = '#2a2016';
       ctx.beginPath(); ctx.moveTo(tx - 140, 440); ctx.quadraticCurveTo(tx - 80, 420, tx - 70, 360); ctx.lineTo(tx + 70, 360); ctx.quadraticCurveTo(tx + 80, 420, tx + 140, 440); ctx.fill();
     }
-    // Branches: low and mid are boughs off the trunks, the canopy is a leaf road
+    // Low and mid tiers are boughs, the top tier is the canopy road
     for (const [x, y, w] of LOW.concat(MID)) {
       if (!_slVisible(v, x - 30, x + w + 30)) continue;
       ctx.fillStyle = '#3a2c1c'; ctx.fillRect(x, y, w, 12);
@@ -75,13 +66,12 @@
       leaves(x - 20, y + 4, w + 40, x + 77);
       ctx.fillStyle = '#2a4a22'; ctx.fillRect(x, y - 3, w, 4);
     }
-    // Root hollows: arching roots over the dips in the floor
     for (const [x0, x1, y] of FLOOR) {
       if (y <= 440 || !_slVisible(v, x0 - 40, x1 + 40)) continue;
       ctx.strokeStyle = '#3a2c1c'; ctx.lineWidth = 12;
       ctx.beginPath(); ctx.moveTo(x0 - 20, 440); ctx.quadraticCurveTo((x0 + x1) / 2, 330, x1 + 20, 440); ctx.stroke();
     }
-    // The sanctum: a door grown into the last great trunk, hidden in roots
+    // Sanctum: door in the last great trunk
     if (_slVisible(v, SANCTUM - 300, SANCTUM + 300)) {
       ctx.fillStyle = '#241a10'; ctx.fillRect(SANCTUM - 140, v.y - 20, 280, 460 - v.y + 20);
       ctx.fillStyle = '#100a06';
@@ -94,7 +84,6 @@
       ctx.strokeStyle = '#3a2c1c'; ctx.lineWidth = 9;
       for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.moveTo(SANCTUM - 140 + k * 14, 440); ctx.quadraticCurveTo(SANCTUM - 60, 300 - k * 10, SANCTUM + 20 + k * 20, 260 + k * 6); ctx.stroke(); }
     }
-    // Ash from collapsed worlds, drifting down through the canopy
     ctx.fillStyle = 'rgba(200,200,190,0.55)';
     for (let k = 0; k < 40; k++) {
       const fx = v.x + ((_slHash(k) * v.w + frameCount * (0.2 + _slHash(k + 1) * 0.3)) % v.w);

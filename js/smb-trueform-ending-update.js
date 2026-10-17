@@ -1,15 +1,13 @@
 'use strict';
-// smb-trueform-ending-update.js — updateTFEnding state machine, _tfeResumeAfterIntro, _tfeUnlockPatrolMode, trySkipTFEnding
-// Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js
+// smb-trueform-ending-update.js: updateTFEnding state machine, _tfeResumeAfterIntro, _tfeUnlockPatrolMode, trySkipTFEnding.
+// Depends on smb-globals.js, smb-particles-core.js and smb-combat.js.
 
-// ── Update ────────────────────────────────────────────────────────────────────
 function updateTFEnding() {
   const sc = tfEndingScene;
   if (!sc) return;
   sc.timer++;
   const t = sc.timer;
 
-  // ── REALIZATION ─────────────────────────────────────────────────────────────
   if (sc.phase === 'realization') {
     // Cycle through 3 dialogue lines, each 100 frames
     const lineLen = 100;
@@ -21,7 +19,7 @@ function updateTFEnding() {
                        lineT < 70  ? 1 :
                        lineT < 95  ? 1 - (lineT - 70) / 25 : 0;
 
-    // Spawn bouncing "0" damage pops at boss position (simulating attacks doing nothing)
+    // Bouncing "0" pops at boss position, as if attacks do nothing
     if (t % 18 === 5 && _tfeZeroPops.length < 12) {
       _tfeZeroPops.push({
         x:     sc.boss.cx() + (Math.random() - 0.5) * 60,
@@ -32,7 +30,6 @@ function updateTFEnding() {
         bounces: 0,
       });
     }
-    // Update zero pops
     for (let i = _tfeZeroPops.length - 1; i >= 0; i--) {
       const zp = _tfeZeroPops[i];
       zp.timer++;
@@ -55,13 +52,12 @@ function updateTFEnding() {
     }
   }
 
-  // ── PUNCH ───────────────────────────────────────────────────────────────────
   else if (sc.phase === 'punch') {
     const bx = sc.boss.cx(), by = sc.boss.cy();
     const hx = sc.hero.cx(), hy = sc.hero.cy();
     const punchDir = bx < hx ? 1 : -1; // direction hero will be launched
 
-    // Frames 0–8: freeze + dramatic slow-motion buildup (anticipation)
+    // Frames 0-8: freeze and slow-motion wind-up
     if (t < 8) {
       slowMotion = Math.max(0.05, 1 - t * 0.12);
     }
@@ -70,7 +66,6 @@ function updateTFEnding() {
     if (t < 18) {
       sc.boss.x += (hx - bx - sc.boss.w / 2) * 0.22;
       sc.boss.y += (hy - by - sc.boss.h / 2) * 0.22;
-      // Charge particles spiraling around boss
       if (settings.particles && t % 2 === 0 && particles.length < MAX_PARTICLES) {
         const _p = _getParticle();
         const ang = (t / 18) * Math.PI * 4;
@@ -83,7 +78,7 @@ function updateTFEnding() {
       }
     }
 
-    // Frame 18: time snaps back — IMPACT
+    // Frame 18: time snaps back, impact
     if (t === 18) {
       slowMotion = 1.0;
       sc.boss.attackTimer    = 22;
@@ -91,17 +86,14 @@ function updateTFEnding() {
       sc.boss.facing         = punchDir;
     }
 
-    // Frame 22: PUNCH LANDS — directional blast
+    // Frame 22: punch lands, directional blast
     if (t === 22) {
       screenShake = 75;
-      // Shockwave at hero position
       CinFX.shockwave(hx, hy, '#ffffff', { count: 3, maxR: 280, lw: 6, dur: 60 });
-      // Directional speed-line burst in punch direction
       CinFX.flash('#ffffff', 0.95, 14);
       spawnParticles(hx, hy, '#ffffff', 55);
       spawnParticles(hx, hy, '#8800ff', 25);
       spawnParticles(hx + punchDir * 30, hy, '#ffffff', 30);
-      // Directional speed lines: particles blast in punch direction
       if (settings.particles) {
         for (let i = 0; i < 30 && particles.length < MAX_PARTICLES; i++) {
           const _p = _getParticle();
@@ -116,7 +108,6 @@ function updateTFEnding() {
         }
       }
       SoundManager.heavyHit && SoundManager.heavyHit();
-      // Camera snap to launch direction
       cinematicCamOverride = true;
       cinematicZoomTarget  = 1.6;
       cinematicFocusX      = hx + punchDir * 80;
@@ -139,11 +130,9 @@ function updateTFEnding() {
     }
   }
 
-  // ── LAUNCH ──────────────────────────────────────────────────────────────────
   else if (sc.phase === 'launch') {
     const totalDur = 300;
     sc.launchT = Math.min(1, t / totalDur);
-    // Ease-in acceleration
     const eased = sc.launchT * sc.launchT * (3 - 2 * sc.launchT);
     const pos = _tfeSpline(sc.launchPts, eased);
     sc.heroPrevX   = sc.heroScreenX;
@@ -151,14 +140,11 @@ function updateTFEnding() {
     sc.heroScreenX = pos.x;
     sc.heroScreenY = pos.y;
 
-    // Cycle dimension panels based on progress
     const panelCount = _TFE_BG_PANELS.length;
     sc.bgPanelIdx = Math.min(panelCount - 1, Math.floor(sc.launchT * panelCount));
 
-    // Reality tear grows as speed increases
     sc.tearAlpha = Math.min(0.65, sc.launchT * 1.1);
 
-    // Panel-transition flash
     const expectedPanel = Math.floor(sc.launchT * panelCount);
     if (expectedPanel > (sc._lastPanel || 0)) {
       sc._lastPanel = expectedPanel;
@@ -166,7 +152,6 @@ function updateTFEnding() {
       screenShake = 18 + expectedPanel * 4;
     }
 
-    // Trail particles
     if (t % 2 === 0) {
       const _p = _getParticle();
       _p.x = pos.x + (Math.random()-0.5)*18; _p.y = pos.y + (Math.random()-0.5)*18;
@@ -194,14 +179,13 @@ function updateTFEnding() {
     }
   }
 
-  // ── CODEREALM ───────────────────────────────────────────────────────────────
   else if (sc.phase === 'coderealm') {
     sc.rainAlpha = Math.min(0.92, t / 50);
 
     // Keep hero fully immune to damage and hazards throughout coderealm
     sc.hero.invincible = 999999;
 
-    // Free-flight physics — no gravity, directional control (jump=up, shield=down)
+    // Free-flight physics: no gravity, directional control (jump=up, shield=down)
     const ctrl = sc.hero.controls;
     if (ctrl) {
       const spd = 3.8;
@@ -215,13 +199,12 @@ function updateTFEnding() {
       sc.crHeroY = Math.max(18, Math.min(GAME_H - 18, sc.crHeroY));
     }
 
-    // Update node pulse
     for (const nd of sc.codeNodes) {
       nd.pulse += 0.07;
       if (nd.hitTimer > 0) nd.hitTimer--;
     }
 
-    // Corrupt node on proximity contact — no attack required, generous radius
+    // Corrupt node on proximity contact: no attack required, generous radius
     for (const nd of sc.codeNodes) {
       if (!nd.corrupted) {
         const dx = nd.x - sc.crHeroX, dy = nd.y - sc.crHeroY;
@@ -242,9 +225,7 @@ function updateTFEnding() {
 
     if (sc.crFlashTimer > 0) sc.crFlashTimer--;
 
-    // All nodes corrupted → proceed
     if (sc.nodesCorrupted >= 5 && t > 60) {
-      // Transition after a beat
       if (!sc._crDoneTimer) sc._crDoneTimer = 0;
       sc._crDoneTimer++;
       if (sc._crDoneTimer === 1) {
@@ -260,7 +241,6 @@ function updateTFEnding() {
         sc.returnY  = -80;
         sc.returnVY = 3;
         sc.boss.backstageHiding = true;
-        // Place hero back in arena visually
         const floor = currentArena && currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
         const floorY = floor ? floor.y : GAME_H - 30;
         sc.hero.x = GAME_W / 2 - sc.hero.w / 2;
@@ -270,7 +250,6 @@ function updateTFEnding() {
       }
     }
 
-    // Rain animation
     for (const col of _tfeRainCols) {
       col.y += col.speed;
       if (col.y > GAME_H + 50) col.y = -Math.random() * 60;
@@ -281,9 +260,7 @@ function updateTFEnding() {
     }
   }
 
-  // ── RETURN ──────────────────────────────────────────────────────────────────
   else if (sc.phase === 'return') {
-    // Hero descends back into arena through a dimensional tear in the sky
     sc.returnY  += sc.returnVY;
     sc.returnVY += 0.4;
     sc.rainAlpha = Math.max(0, sc.rainAlpha - 0.04);
@@ -297,7 +274,7 @@ function updateTFEnding() {
       screenShake = 28;
       CinFX.flash('#ffffff', 0.55, 8);
       spawnParticles(GAME_W/2, floorY, '#ffffff', 20);
-      // Intro mode: skip finisher/aura/powers/fall — go straight to fadeout
+      // Intro mode: skip finisher/aura/powers/fall, go straight to fadeout
       if (sc.isIntro) {
         sc.phase = 'fadeout';
         sc.timer = 0;
@@ -312,7 +289,6 @@ function updateTFEnding() {
       sc.hero.x = GAME_W / 2 - sc.hero.w / 2;
       sc.hero.y = sc.returnY;
       sc.boss.backstageHiding = false;
-      // Position boss facing hero
       sc.boss.x = GAME_W / 2 - sc.boss.w / 2 - 120;
       sc.boss.y = floorY - sc.boss.h;
       sc.finisherBossX = sc.boss.cx();
@@ -321,7 +297,6 @@ function updateTFEnding() {
     }
   }
 
-  // ── FINISHER ─────────────────────────────────────────────────────────────────
   else if (sc.phase === 'finisher') {
     if (sc.finisherFlash > 0) sc.finisherFlash--;
 
@@ -334,21 +309,18 @@ function updateTFEnding() {
         sc.finisherPrompt = 0;
         screenShake = 38 + sc.finisherHits * 10;
         CinFX.flash(_TFE_QTE_FLASH_COLORS[sc.finisherHits - 1] || '#ffffff', 0.7, 12);
-        // Each hit strips a layer of void corruption — purple/dark particles peel away
+        // Each hit strips a void layer, dark particles peel away
         spawnParticles(sc.boss.cx(), sc.boss.cy(), '#8844ff', 28);
         spawnParticles(sc.boss.cx(), sc.boss.cy(), '#330066', 20);
         spawnParticles(sc.boss.cx(), sc.boss.cy(), '#ffffff', 14);
         SoundManager.heavyHit && SoundManager.heavyHit();
-        // Launch boss backward
         const dir = sc.boss.cx() < sc.hero.cx() ? -1 : 1;
         sc.finisherBossVX = dir * (8 + sc.finisherHits * 4);
         sc.finisherBossVY = -12 - sc.finisherHits * 3;
-        // Re-prompt after boss lands
         sc._finisherPauseTimer = 0;
       }
     }
 
-    // Animate boss ragdoll
     sc.finisherBossVY += 0.7;
     sc.finisherBossX  += sc.finisherBossVX;
     sc.finisherBossY  += sc.finisherBossVY;
@@ -361,7 +333,6 @@ function updateTFEnding() {
       if (Math.abs(sc.finisherBossVY) < 1) sc.finisherBossVY = 0;
     }
 
-    // Re-show prompt after boss settles and we haven't finished
     if (sc.finisherHits < neededHits && sc.finisherPrompt === 0) {
       if (!sc._finisherPauseTimer) sc._finisherPauseTimer = 0;
       sc._finisherPauseTimer++;
@@ -371,7 +342,6 @@ function updateTFEnding() {
       }
     }
 
-    // After all hits and boss has settled
     if (sc.finisherHits >= neededHits) {
       if (!sc._finisherEndTimer) sc._finisherEndTimer = 0;
       sc._finisherEndTimer++;
@@ -390,18 +360,17 @@ function updateTFEnding() {
     }
   }
 
-  // ── RESONANCE — Kael's fragment finds Axiom's buried energy ─────────────
-  // The connection is imprecise: Axiom's fragment is dissolved, Kael's is crystallized.
-  // Two different states of the same thing. The resonance fires anyway — not cleanly.
+// Resonance: Kael's fragment finds Axiom's buried energy. The fit is imprecise (Axiom's is
+// dissolved, Kael's crystallized), and it fires anyway, not cleanly.
   else if (sc.phase === 'aura') {
     const dur = 150;
-    // Pulse stays at Axiom's last position — it does not flow to the hero.
+    // Pulse stays at Axiom's last position: it does not flow to the hero.
     if (sc._resonanceFlicker === undefined) sc._resonanceFlicker = 1;
     sc._resonanceFlicker = Math.random() < 0.15
-      ? Math.random() * 0.4                        // sudden drop — interference
+      ? Math.random() * 0.4                        // sudden drop, interference
       : Math.min(1, sc._resonanceFlicker + 0.07);  // uneven recovery
 
-    // Erratic scattered particles — not streaming, not directed
+    // Erratic scattered particles, not streaming
     if (settings.particles && t % 3 === 0 && _tfeAuraParticles.length < 28) {
       const angle = Math.random() * Math.PI * 2;
       const rad   = 10 + Math.random() * 40;
@@ -421,7 +390,6 @@ function updateTFEnding() {
       if (ap.life <= 0) _tfeAuraParticles.splice(i, 1);
     }
 
-    // Resonance interference shudders — uneven, not a clean crescendo
     if (t === 35) { screenShake = Math.max(screenShake, 10); }
     if (t === 70) { CinFX.flash('#8844ff', 0.22, 8); screenShake = Math.max(screenShake, 14); }
     if (t === 100) { CinFX.flash('#ffffff', 0.30, 10); screenShake = Math.max(screenShake, 20); }
@@ -434,9 +402,7 @@ function updateTFEnding() {
     }
   }
 
-  // ── SOVEREIGN ARRIVAL — drops in, extracts the kernel, departs ───────────
-  // Awakened Sovereign was watching. It takes the kernel — Axiom's compressed
-  // identity — the instant his defenses collapse. Surgical. No announcement.
+// Sovereign arrives, takes the kernel (Axiom's compressed identity) once his defenses collapse, then leaves.
   else if (sc.phase === 'kernelFlight') {
     if (t === 1) {
       sc._kfX    = sc.auraX;
@@ -453,7 +419,6 @@ function updateTFEnding() {
       sc._sovPhase = 'descend'; // 'descend' | 'hold' | 'ascend' | 'gone'
     }
 
-    // ── Sovereign descends (t 1–25) ─────────────────────────────────────────
     if (sc._sovPhase === 'descend') {
       sc._sovAlpha = Math.min(1, sc._sovAlpha + 0.08);
       sc._sovY    += sc._sovVY;
@@ -461,13 +426,12 @@ function updateTFEnding() {
       if (t >= 25) {
         sc._sovPhase = 'hold';
         sc._sovY     = sc._kfY - 30; // hover just above kernel position
-        sc._kfAlpha  = 0;            // kernel taken — vanishes instantly
+        sc._kfAlpha  = 0;            // kernel taken: vanishes instantly
         CinFX.flash('#ffffff', 0.65, 10);
         CinFX.shake(36);
       }
     }
 
-    // ── Sovereign holds briefly (t 25–45) ────────────────────────────────────
     else if (sc._sovPhase === 'hold') {
       if (t >= 45) {
         sc._sovPhase = 'ascend';
@@ -475,7 +439,6 @@ function updateTFEnding() {
       }
     }
 
-    // ── Sovereign exits (t 45+) ──────────────────────────────────────────────
     else if (sc._sovPhase === 'ascend') {
       sc._sovY    += sc._sovVY;
       sc._sovVY   *= 1.14; // accelerate out
@@ -483,7 +446,6 @@ function updateTFEnding() {
       if (sc._sovAlpha <= 0) sc._sovPhase = 'gone';
     }
 
-    // ── Dialogue: after Sovereign is gone, outer form lies still ─────────────
     const _kfDialogue = [
       { speaker: 'KAEL', text: 'He stopped.', side: 'left' },
       { speaker: '',     text: 'For a moment, Axiom was there.', side: 'right' },
@@ -516,7 +478,6 @@ function updateTFEnding() {
     }
   }
 
-  // ── POWERS ──────────────────────────────────────────────────────────────────
   else if (sc.phase === 'powers') {
     sc.powersAlpha = t < 30 ? t/30 : t < 200 ? 1 : Math.max(0, 1 - (t-200)/40);
     if (t >= 260) {
@@ -528,7 +489,6 @@ function updateTFEnding() {
     }
   }
 
-  // ── FALL ────────────────────────────────────────────────────────────────────
   else if (sc.phase === 'fall') {
     sc.hero.vy += 1.2;
     sc.hero.x  += sc.hero.vx;
@@ -540,7 +500,6 @@ function updateTFEnding() {
     }
   }
 
-  // ── FADEOUT ──────────────────────────────────────────────────────────────────
   else if (sc.phase === 'fadeout') {
     sc.heroFallAlpha = 0;
     if (t >= 80) {
@@ -551,7 +510,7 @@ function updateTFEnding() {
       } else {
         _tfeUnlockPatrolMode();
         if (typeof activateParadoxCompanion === 'function') activateParadoxCompanion();
-        // TF is left alive/invincible for the ending, so endGame can't see a 0-HP boss — award here
+        // TF is left alive/invincible for the ending, so endGame can't see a 0-HP boss: award here
         if (typeof unlockAchievement === 'function' && !players.some(p => !p.isBoss && p.weapon && p.weapon._isCustom)) unlockAchievement('true_form');
         endGame();
       }
@@ -559,11 +518,10 @@ function updateTFEnding() {
   }
 }
 
-// ── Resume gameplay after intro dimension-punch cinematic ─────────────────────
-// Player returns from Code Realm to see TrueForm apparently dying.
-// A shadow clone then executes a command to reset the fight (triggerFalseVictory).
+// Resume after the intro dimension-punch cinematic. TrueForm appears to die, then the shadow clone
+// resets the fight (triggerFalseVictory).
 function _tfeResumeAfterIntro(sc) {
-  // Advance state machine to backstage — from here normal death/ending logic is allowed
+  // Advance state machine to backstage, from here normal death/ending logic is allowed
   if (typeof tfCinematicState !== 'undefined') tfCinematicState = 'backstage';
 
   // Restore boss visually (shadow clone will resurrect it via triggerFalseVictory)
@@ -573,12 +531,12 @@ function _tfeResumeAfterIntro(sc) {
     sc.boss.vy = 0;
   }
 
-  // Restore hero — player keeps the gauntlet (fists) after absorbing Paradox.
+  // Restore hero: player keeps the gauntlet (fists) after absorbing Paradox.
   // Paradox's power is expressed through raw combat, not weapons.
   if (sc.hero) {
     sc.hero.backstageHiding = false;
     sc.hero.invincible      = Math.max(sc.hero.invincible, 60);
-    // Switch to gauntlet (fists) — the player fights bare-handed from here on.
+    // Switch to gauntlet (fists): the player fights bare-handed from here on.
     if (typeof WEAPONS !== 'undefined' && WEAPONS['gauntlet']) {
       sc.hero.weapon = WEAPONS['gauntlet'];
     }
@@ -611,12 +569,8 @@ function _tfeResumeAfterIntro(sc) {
   screenShake = Math.max(screenShake, 35);
   if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.5, 14);
 
-  // ── Round 2 resumes in normal space ──────────────────────────────────────
-  // The reality-warping Z-axis "depth phase" is deliberately NOT triggered here
-  // — it is reserved for a later, higher being. The Depth Phase machinery
-  // (tfDepthPhaseActive gate, set3DView, Z-axis attacks) remains intact but
-  // dormant so it can be wired into the apex fight. Punctuate the reset with a
-  // fracture jolt instead.
+// Round 2 stays in normal space. The Z-axis depth phase (tfDepthPhaseActive, set3DView, Z attacks)
+// is kept intact but dormant, reserved for the apex fight. A fracture jolt marks the reset.
   if (typeof setCameraDrama === 'function') setCameraDrama('focus', 90, null, 1.08);
   if (typeof cinScreenFlash !== 'undefined')
     cinScreenFlash = { color: '#440088', alpha: 0.4, timer: 16, maxTimer: 16 };
@@ -627,12 +581,10 @@ function _tfeResumeAfterIntro(sc) {
     showBossDialogue('You broke my world. I\'ll break yours.', 220);
 
   gameRunning = true;
-  // No requestAnimationFrame here: the main loop is already self-scheduling
-  // (it is what drives updateTFEnding to reach this point) — re-queuing it
-  // spawned a duplicate rAF chain running the game twice per frame.
+// No requestAnimationFrame here: the main loop already drives updateTFEnding, and queuing
+// another chain ran the game twice per frame.
 }
 
-// ── Unlock post-ending features ───────────────────────────────────────────────
 function _tfeUnlockPatrolMode() {
   const pm = document.getElementById('modePatrol');
   if (pm) { pm.style.display = ''; pm.classList.add('tf-unlocked'); }
@@ -640,7 +592,6 @@ function _tfeUnlockPatrolMode() {
   if (m3d) { m3d.style.display = ''; }
 }
 
-// ── Skip handler ──────────────────────────────────────────────────────────────
 function trySkipTFEnding() {
   const sc = tfEndingScene;
   if (!sc || !sc.skippable) return false;

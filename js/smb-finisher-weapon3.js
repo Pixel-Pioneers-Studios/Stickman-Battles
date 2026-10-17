@@ -1,5 +1,5 @@
 'use strict';
-// smb-finisher-weapon3.js — finishers for the Arsenal weapons (bomb, fragment, knives, glassblade, anchor, crossbow)
+// smb-finisher-weapon3.js, finishers for the Arsenal weapons (bomb, fragment, knives, glassblade, anchor, crossbow)
 // Depends on: smb-finisher-helpers.js, smb-finisher-weapon.js (WEAPON_FINISHERS, _wfDef, _wfBaseSetup, _wfTick, _wfDrawAura, _wfPassThroughFace)
 
 function _wf3GroundY() {
@@ -12,7 +12,6 @@ function _wf3Hand(att, dir) {
 
 Object.assign(WEAPON_FINISHERS, {
 
-  // ── bomb ─────────────────────────────────────────────────────
   bomb: _wfDef('CHAIN REACTION','rgba(255,120,40,1)',130,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.blasts=[]; data.bigA=0;
       const h=_wf3Hand(att,data.dir); data.hx=h.x; data.hy=h.y;
@@ -26,7 +25,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:44,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusOn(tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=16; }},
         {frame:60,fn(){ CinCam.slowMo(1.0); CinCam.zoomTo(1.5); }},
         {frame:80,fn(){
-          // The chain meets in the middle — one blast for all six
+          // The chain meets in the middle, one blast for all six
           data.bigA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.shake(58);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -119,7 +118,6 @@ Object.assign(WEAPON_FINISHERS, {
         holds:[{at:60,frames:3,shake:10,zoom:1.5},{at:80,frames:6,shake:30}] }
   ),
 
-  // ── fragment ─────────────────────────────────────────────────
   fragment: _wfDef('THE LESSON','rgba(143,216,255,1)',130,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.pullA=0; data.waves=[]; data.laserA=0; data.laserW=0;
       data.pullX = data.dir>0 ? data.ax0+att.w+18 : data.ax0-tgt.w-18;
@@ -189,7 +187,7 @@ Object.assign(WEAPON_FINISHERS, {
           ctx.beginPath(); ctx.arc(att.cx(),att.cy(),R,0,Math.PI*2); ctx.stroke();
         }
       }
-      // Punch shockwaves — forward-facing arcs
+      // Punch shockwaves, forward-facing arcs
       for(const w of data.waves){
         if(w.a<=0) continue;
         ctx.strokeStyle=`rgba(200,240,255,${w.a})`; ctx.lineWidth=3; ctx.shadowColor='#8fd8ff'; ctx.shadowBlur=18;
@@ -224,12 +222,11 @@ Object.assign(WEAPON_FINISHERS, {
         holds:[{at:50,frames:2,shake:8,zoom:false},{at:68,frames:3,shake:14,zoom:false},{at:76,frames:6,shake:28}] }
   ),
 
-  // ── knives ───────────────────────────────────────────────────
   knives: _wfDef('RECALL','rgba(205,214,224,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashes=[]; data.caught=0;
       const h=_wf3Hand(att,data.dir); data.hx=h.x; data.hy=h.y;
       data.groundY=_wf3GroundY();
-      // Every throw lands PAST them, on purpose
+      // Every throw lands past them, on purpose
       data.knives=[];
       for(let i=0;i<6;i++){
         const far=data.tx0+tgt.w/2+data.dir*(56+i*20);
@@ -330,7 +327,6 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:[{at:16,dur:6},{at:22,dur:6},{at:28,dur:6},{at:44,dur:10}], impact:58 }
   ),
 
-  // ── glassblade ───────────────────────────────────────────────
   glassblade: _wfDef('SHATTERPOINT','rgba(191,230,238,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.cutA=0; data.crackA=0; data.burstA=0; data.reformA=0;
       data.behindX = data.dir>0 ? data.tx0+tgt.w+40 : data.tx0-att.w-40;
@@ -351,7 +347,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:12,fn(){ CinCam.focusOn(att); CinCam.zoomTo(1.42); }},
         {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.6); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=10; }},
         {frame:38,fn(){
-          // Through them — and the blade breaks on the way out
+          // Through them, and the blade breaks on the way out
           data.cutA=1; data.crackA=1;
           CinCam.slowMo(0.12); CinCam.shake(22);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:2});
@@ -444,7 +440,6 @@ Object.assign(WEAPON_FINISHERS, {
         holds:[{at:38,frames:4,shake:16,zoom:false},{at:66,frames:5,shake:26}] }
   ),
 
-  // ── anchor ───────────────────────────────────────────────────
   anchor: _wfDef('DEAD WEIGHT','rgba(130,160,185,1)',132,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.craterA=0;
       data.groundY=_wf3GroundY();
@@ -544,7 +539,6 @@ Object.assign(WEAPON_FINISHERS, {
         holds:[{at:28,frames:2,shake:10,zoom:false},{at:62,frames:6,shake:34}] }
   ),
 
-  // ── crossbow ─────────────────────────────────────────────────
   crossbow: _wfDef('PINNED','rgba(215,180,120,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.sightA=0; data.boltX=0; data.flying=false; data.dustA=0;
       const h=_wf3Hand(att,data.dir); data.hx=h.x+data.dir*18; data.hy=h.y;
@@ -570,7 +564,7 @@ Object.assign(WEAPON_FINISHERS, {
           spawnParticles(tgt.cx(),data.boltY,'#e8dcc0',20);
         }},
         {frame:70,fn(){
-          // THUNK — the tip buries itself in the floor
+          // Thunk: the tip buries itself in the floor
           data.dustA=1; CinCam.shake(42); CinCam.focusOn(tgt); CinCam.zoomTo(1.5);
           if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
           spawnParticles(data.stakeX,data.groundY-4,'#a8998a',26);
@@ -625,7 +619,7 @@ Object.assign(WEAPON_FINISHERS, {
         drawBolt(bx,by,1);
       }
       if(timer>=58&&timer<70){
-        // Bolt through the body — tip out the far side, fletching on the near side
+        // Bolt through the body, tip out the far side, fletching on the near side
         drawBolt(tgt.cx()+data.dir*(tgt.w*0.5+6),data.boltY+(tgt.y-data.ty0),1);
       }
       if(timer>=70){

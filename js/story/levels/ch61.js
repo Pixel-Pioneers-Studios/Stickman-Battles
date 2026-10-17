@@ -1,18 +1,6 @@
 'use strict';
-// js/story/levels/ch61.js — Chapter 61 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 61 — Against the Architect (walk → duel vs the Third Architect + a
-// Creator construct)
-// The confrontation point. "Just long enough for the trade to finalize." The
-// walk passes the Third Architect's last frost-glass slates, each one a model
-// of this exact moment; the duel ground is the open square in front of the
-// trade itself — a tall portal in the Creator's white, with the fifty-two
-// absorbed dimensions rising out of it as points of light, one by one, while
-// the fight runs. Once the duel is won the portal finishes: all fifty-two
-// lights are free. Slate stands and ice terraces are the climbs; the cache
-// shafts are frost-cut vents.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 61 map (walk, then duel with the Third Architect and a Creator construct). Contract: smb-story-levels.js.
+// The duel ground is the trade portal. Its absorbed dimensions come free once the duel is won.
 (function () {
   const G = 440, SQUARE = 3000, PORTAL = 3000;
   const TERR = [[420, 350, 100], [540, 270, 120], [1150, 340, 110], [1280, 260, 110], [2220, 350, 100], [2340, 270, 120],
@@ -60,7 +48,7 @@
     for (const vx of VENTS) if (_slVisible(v, vx - 80, vx + 80)) {
       ctx.fillStyle = 'rgba(150,190,225,0.6)'; ctx.beginPath(); ctx.moveTo(vx - 90, G); ctx.lineTo(vx - 70, G - 40); ctx.lineTo(vx - 46, G); ctx.moveTo(vx + 90, G); ctx.lineTo(vx + 66, G - 50); ctx.lineTo(vx + 46, G); ctx.fill();
     }
-    // The trade: a white portal, the absorbed dimensions rising free from it
+    // Portal and absorbed dimensions
     if (_slVisible(v, PORTAL - 500, PORTAL + 500)) {
       const n = freed();
       ctx.save(); ctx.globalCompositeOperation = 'lighter';

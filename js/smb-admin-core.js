@@ -1,76 +1,51 @@
 'use strict';
-// smb-admin-core.js — Admin identity, isAdmin, ban records/helpers, ban/unban/kick actions, player chapter/items/reset, lobby management
+// smb-admin-core.js: admin identity, ban records, ban/unban/kick actions, player chapter/items/reset, lobby management.
 // Depends on: smb-globals.js, smb-state.js, smb-accounts.js
 
-// smb-admin.js — Developer admin control system
-// Loaded after smb-save.js. Story/network globals are referenced at call-time,
-// not at parse-time, so load order relative to those files is not critical.
+// Loaded after smb-save.js. Story and network globals are read at call time, not parse time.
 'use strict';
 
-// ── Admin identity ─────────────────────────────────────────────────────────────
 // Add account IDs here to grant admin powers.
 const ADMIN_IDS = ['acct_mp4wuj48_4k52s', 'acct_mp4wvabe_5rp7h', 'acct_mp4wwgnw_3r0r3'];
 
-// Google/Supabase emails that always have admin — checked at call-time against
-// the live Supabase session so no account ID needs to be hardcoded for new browsers.
+// Supabase admin emails, checked against the live session, so new browsers need no hardcoded ID.
 const ADMIN_EMAILS = ['gupta.aarush2018@gmail.com'];
 
-// All achievement IDs — kept in sync with smb-achievements.js
+// All achievement IDs: keep in sync with smb-achievements.js
 const _ADMIN_ALL_ACH_IDS = [
-  // Combat
   'first_blood', 'hat_trick', 'survivor', 'untouchable', 'combo_king',
   'perfectionist', 'legend', 'speedrun',
-  // Weapons & Classes
   'gunslinger', 'hammer_time', 'clash_master', 'super_saver',
   'class_collector',
-  // Finishers
   'first_finisher', 'finisher_master',
-  // Minigames
   'wave_5', 'wave_10', 'survival_win', 'koth_win',
   'chaos_survivor', 'chaos_all', 'nexus_defender',
-  // Online
   'online_winner',
-  // Bosses
   'boss_slayer', 'true_form', 'yeti_hunter', 'beast_tamer',
   'sovereign_slayer', 'god_slayer', 'absolute_axiom_slayer',
-  // Story
   'story_begin', 'story_complete', 'lab_infiltrator',
-  // Multiverse
   'multiverse_warrior', 'multiverse_master',
-  // Progression
   'fracture_explorer', 'ship_builder',
 ];
 
-// ── Server-side admin overrides cache ─────────────────────────────────────────
 // Populated by syncAdminOverridesFromServer() at startup.
 // Keys are account IDs; values are true (granted) or false (revoked).
 let _serverAdminOverrides = {};
 
-// ── isAdmin ────────────────────────────────────────────────────────────────────
 // Legacy helper kept for external callers. New internal code should use _isAdmin().
 function isAdmin(accountId) {
   return _isAdmin(String(accountId));
 }
 
-// ── _isAdmin ───────────────────────────────────────────────────────────────────
-// Authoritative admin check used by all internal admin logic.
-//
-// Precedence:
-//   1. GameState.getPersistent().admin.overrides[id] — explicit local grant/revoke wins.
-//   2. Server-side overrides fetched from /api/admin/overrides at startup.
-//   3. ADMIN_IDS hardcoded list.
-//   4. Active Supabase session email is in ADMIN_EMAILS AND id is the active account.
+// Admin check for all internal logic. Precedence: local override, server override, ADMIN_IDS,
+// then an ADMIN_EMAILS match on the active account.
 function _isAdmin(id) {
-  // 1. Local runtime overrides
   try {
     const overrides = GameState.getPersistent().admin.overrides;
     if (overrides && overrides.hasOwnProperty(id)) return !!overrides[id];
   } catch(e) {}
-  // 2. Server-side overrides (cross-device grants from admin panel)
   if (_serverAdminOverrides.hasOwnProperty(id)) return !!_serverAdminOverrides[id];
-  // 3. Hardcoded IDs
   if (ADMIN_IDS.includes(String(id))) return true;
-  // 4. Supabase email — grants admin to the account that's actively signed in
   try {
     if (window.SupabaseBridge && SupabaseBridge.isSignedIn()) {
       const user = SupabaseBridge.getUser();
@@ -86,10 +61,7 @@ function _isAdmin(id) {
   return false;
 }
 
-// ── syncAdminOverridesFromServer ───────────────────────────────────────────────
-// Fetches server-side admin overrides and populates _serverAdminOverrides.
-// Called at startup (smb-admin-panels.js) alongside syncBansFromServer().
-// Fails silently if the server is unreachable or caller is not an admin.
+// Fetches server admin overrides into _serverAdminOverrides at startup. Fails silently if offline or not admin.
 async function syncAdminOverridesFromServer() {
   const base = (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url)
     ? String(SERVER_CONFIG.url).replace(/\/$/, '') : null;
@@ -110,9 +82,7 @@ async function syncAdminOverridesFromServer() {
   }
 }
 
-// ── grantAdminRemote ───────────────────────────────────────────────────────────
-// Posts a grant or revoke to the server. Does not require a local account lookup —
-// the target account ID can belong to a player on a completely different device.
+// Posts a grant or revoke. The target may be a player on another device, so no local lookup.
 // granted=true → admin, granted=false → explicit revoke, call with no arg to remove override.
 async function grantAdminRemote(accountId, granted) {
   if (!_adminPanelIsAllowed()) { console.warn('[AdminOverrides] Not an admin.'); return false; }
@@ -142,7 +112,6 @@ async function grantAdminRemote(accountId, granted) {
   }
 }
 
-// ── Internal helpers ───────────────────────────────────────────────────────────
 
 // Returns the AccountManager entry for the given id, or null.
 function _adminGetAcct(accountId) {
@@ -176,7 +145,6 @@ function _adminMutateRawSave(accountId, mutFn) {
   }
 }
 
-// ── Ban helpers ───────────────────────────────────────────────────────────────
 
 function _adminGetBanRecords() {
   const p = GameState.getPersistent();
@@ -396,7 +364,7 @@ function _adminStoreBan(bundle, minutes, reason, kind, note) {
   });
   GameState.save();
 
-  // Push to server (non-blocking — fails gracefully if server is offline)
+  // Push to server (non-blocking: fails gracefully if server is offline)
   _serverPostBan(key, record).then(function(result) {
     if (result && result.ok) {
       _adminLog('Ban synced to server: ' + (record.targetLabel || key));
@@ -546,21 +514,19 @@ function adminNetStatus() {
   return { connected: connected, host: host, slot: slot, roster: roster };
 }
 
-// ── setPlayerChapter ───────────────────────────────────────────────────────────
 // Sets the story chapter pointer. Marks all previous chapters as defeated so
 // the chapter is reachable via normal story flow.
 function setPlayerChapter(accountId, chapterId) {
   chapterId = parseInt(chapterId, 10) || 0;
 
   if (_adminIsActive(accountId)) {
-    // Active account — use live story functions so the UI updates immediately.
+    // Active account: use live story functions so the UI updates immediately.
     const story = (typeof getStoryDataForSave === 'function') ? getStoryDataForSave() : null;
     if (story) {
       story.chapter = chapterId;
-      // Mark every prior chapter as defeated so none are gated.
       story.defeated = story.defeated || [];
       for (let i = 0; i < chapterId; i++) {
-        const k = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2[i]) ? STORY_CHAPTERS2[i].id : i; // defeated is keyed by ch.id
+        const k = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2[i]) ? STORY_CHAPTERS2[i].id : i; // keyed by ch.id
         if (story.defeated.indexOf(k) === -1) story.defeated.push(k);
       }
       if (typeof restoreStoryDataFromSave === 'function') restoreStoryDataFromSave(story);
@@ -570,20 +536,19 @@ function setPlayerChapter(accountId, chapterId) {
     return;
   }
 
-  // Non-active account — modify the raw save blob directly.
+  // Non-active account: modify the raw save blob directly.
   _adminMutateRawSave(accountId, function(data) {
     if (!data.story) data.story = {};
     data.story.chapter  = chapterId;
     data.story.defeated = data.story.defeated || [];
     for (let i = 0; i < chapterId; i++) {
-      const k = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2[i]) ? STORY_CHAPTERS2[i].id : i; // defeated is keyed by ch.id
+      const k = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2[i]) ? STORY_CHAPTERS2[i].id : i; // keyed by ch.id
       if (data.story.defeated.indexOf(k) === -1) data.story.defeated.push(k);
     }
   });
   _adminLog('Chapter set to ' + chapterId + ' on account ' + accountId + '.');
 }
 
-// ── unlockAllItems ─────────────────────────────────────────────────────────────
 function unlockAllItems(accountId) {
   const allLetters = [0, 1, 2, 3, 4, 5, 6, 7];
 
@@ -622,12 +587,10 @@ function unlockAllItems(accountId) {
   _adminLog('All items unlocked on account ' + accountId + '.');
 }
 
-// ── resetAccount ──────────────────────────────────────────────────────────────
 function resetAccount(accountId) {
   const acct = _adminGetAcct(accountId);
   if (!acct) return;
 
-  // Wipe save blobs from localStorage.
   try { localStorage.removeItem(acct.saveKey); } catch(e) {}
   try { localStorage.removeItem(acct.saveKey + '_backup'); } catch(e) {}
 
@@ -641,15 +604,12 @@ function resetAccount(accountId) {
   _adminLog('Account ' + accountId + ' save data cleared.');
 }
 
-// ── forceJoinLobby ─────────────────────────────────────────────────────────────
-// Legacy helper — wraps adminJoinAnyLobby for backwards compat with panel buttons.
+// Legacy helper: wraps adminJoinAnyLobby for backwards compat with panel buttons.
 function forceJoinLobby(lobbyId) {
   adminJoinAnyLobby(lobbyId);
 }
 
-// ── adminJoinAnyLobby ─────────────────────────────────────────────────────────
-// Admin bypasses normal join flow — no UI input required, leaves current lobby
-// first. Uses LobbyManager when available so presence state stays consistent.
+// Admin join: skips the normal flow and leaves the current lobby first. Uses LobbyManager so presence stays consistent.
 function adminJoinAnyLobby(lobbyId) {
   if (!_adminPanelIsAllowed()) { _adminLog('adminJoinAnyLobby: not admin'); return; }
   if (!lobbyId) { _adminToast('Enter a lobby ID', true); return; }
@@ -665,10 +625,7 @@ function adminJoinAnyLobby(lobbyId) {
   _adminLog('Joined lobby: ' + id);
 }
 
-// ── adminKickPlayer ───────────────────────────────────────────────────────────
-// Broadcasts a kick event to all peers. The peer whose account ID matches
-// receives it via handleAdminNetworkEvent and disconnects itself.
-// Replaces the old kickPlayer() stub.
+// Broadcasts a kick to all peers. The matching peer disconnects itself (see handleAdminNetworkEvent).
 function adminKickPlayer(accountId) {
   if (!_adminPanelIsAllowed()) { _adminLog('adminKickPlayer: not admin'); return; }
   if (!accountId) return;
@@ -703,9 +660,7 @@ function adminKickPlayer(accountId) {
 // Keep old name as alias so existing panel buttons still work.
 function kickPlayer(accountId) { adminKickPlayer(accountId); }
 
-// ── adminSetChapterLive ───────────────────────────────────────────────────────
-// Sets chapter on the target account locally AND broadcasts to connected peers
-// so the target applies the change in their live session.
+// Sets the chapter on this device's account. Peers' saves can't be changed remotely.
 function adminSetChapterLive(accountId, chapter) {
   if (!_adminPanelIsAllowed()) { _adminLog('adminSetChapterLive: not admin'); return; }
   chapter = parseInt(chapter, 10) || 0;
@@ -715,25 +670,15 @@ function adminSetChapterLive(accountId, chapter) {
     setPlayerChapter(accountId, chapter);
   }
 
-  // Broadcast to peers — the matching peer applies it on receipt.
-  if (window.NetworkManager && typeof NetworkManager.sendGameEvent === 'function') {
-    NetworkManager.sendGameEvent('adminSetChapter', {
-      targetAccountId: accountId,
-      chapter:         chapter,
-    });
-  }
-
-  _adminLog('Chapter ' + chapter + ' set live for account: ' + accountId);
+  _adminLog('Chapter ' + chapter + ' set for account: ' + accountId);
 }
 
-// ── handleAdminNetworkEvent ───────────────────────────────────────────────────
 // Called from smb-network.js _handleGameEvent for every incoming gameEvent.
 // Returns true if handled (stops further processing), false otherwise.
 function handleAdminNetworkEvent(msg, fromSlot) {
   if (!msg || !msg.event) return false;
-  if (fromSlot !== 0) return false; // only the host may originate admin packets
+  if (fromSlot !== 0) return false; // only the host sends admin packets
 
-  // ── adminKick ──────────────────────────────────────────────────────────────
   if (msg.event === 'adminKick') {
     if (window.AccountManager) {
       const active = AccountManager.getActiveAccount();
@@ -746,7 +691,6 @@ function handleAdminNetworkEvent(msg, fromSlot) {
     return true;
   }
 
-  // ── adminBan ───────────────────────────────────────────────────────────────
   if (msg.event === 'adminBan') {
     if (window.AccountManager) {
       const active = AccountManager.getActiveAccount();
@@ -765,23 +709,13 @@ function handleAdminNetworkEvent(msg, fromSlot) {
     return true;
   }
 
-  // ── adminSetChapter ────────────────────────────────────────────────────────
-  if (msg.event === 'adminSetChapter') {
-    if (window.AccountManager && typeof msg.targetAccountId === 'string') {
-      const active = AccountManager.getActiveAccount();
-      if (active && active.id === msg.targetAccountId) {
-        const ch = parseInt(msg.chapter, 10) || 0;
-        setPlayerChapter(active.id, ch);
-        _adminLog('Chapter set to ' + ch + ' by remote admin.');
-      }
-    }
-    return true;
-  }
+  // Any host can send this (the host check proves nothing in an edited copy),
+  // so it must never touch the guest's save.
+  if (msg.event === 'adminSetChapter') return true;
 
   return false;
 }
 
-// ── deleteAccount (admin shortcut) ────────────────────────────────────────────
 function adminDeleteAccount(accountId) {
   if (!window.AccountManager) return;
   AccountManager.deleteAccount(accountId);
@@ -789,7 +723,6 @@ function adminDeleteAccount(accountId) {
   _adminPanelRefresh();
 }
 
-// ── Console log helper ────────────────────────────────────────────────────────
 function _adminLog(msg) {
   const prefix = '[Admin] ';
   console.log(prefix + msg);
@@ -804,9 +737,6 @@ function _adminLog(msg) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Admin Panel UI
-// ═══════════════════════════════════════════════════════════════════════════════
 
 let _adminPanelOpen = false;
 

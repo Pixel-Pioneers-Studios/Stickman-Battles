@@ -1,31 +1,15 @@
 'use strict';
-// smb-public-hub.js — client for the Public Server (hostless shared lobbies).
-//
-// The server (pubhub.js) owns the lobby rules: roster, the hub -> vote ->
-// round clock, votes and teams. This module turns that into a game:
-//   • HUB    — free-for-all on Mega City with roaming bots, infinite respawns.
-//              A PRIVATE lobby waits in a room instead: no bots, a pad on the
-//              floor for each game, and the host starts the round.
-//   • VOTE   — an overlay; the server tallies and picks the next mode.
-//   • ROUND  — one of STAGES below: team sports, Loadout Scramble, Infection,
-//              King of the Hill or co-op Horde Defense.
-//
-// A lobby is either public (anyone lands in it) or private (reached only by
-// its join code — a shared link or a friend's invite).
-//
-// Every browser simulates only its OWN fighter and sends its state 20x a second.
-// Everyone else appears as a network-driven puppet (isRemote + _pubRemote).
-// Shared objects — the bots and the soccer ball — are simulated by exactly one
-// browser, the "authority" the server designates, and mirrored everywhere else.
-// When the authority leaves, the server names a new one and that browser turns
-// the mirrored bots back into real ones from the last snapshot.
-//
-// Hits are decided on the attacker's machine (same model as 1v1 online) and
-// routed through the server: a hit on a player goes to that player, a hit on a
-// bot goes to the authority.
-//
-// Load order: after smb-online.js. Everything else it touches (Fighter,
-// players, startGame, dealDamage, sports) is read at call time.
+// smb-public-hub.js: client for the Public Server (hostless shared lobbies).
+// The server (pubhub.js) owns the lobby rules: roster, hub -> vote -> round clock, teams.
+// HUB: free-for-all on Mega City with roaming bots and infinite respawns. A private lobby
+//      waits in a room instead: no bots, a pad per game, and the host starts the round.
+// VOTE: an overlay. The server tallies and picks the next mode.
+// ROUND: one of STAGES below (sports, Loadout Scramble, Infection, King of the Hill, Horde).
+// Each browser simulates only its own fighter and sends state 20x a second. Other players
+// are network puppets (isRemote + _pubRemote). Bots and the soccer ball are simulated by one
+// "authority" browser and mirrored elsewhere. When it leaves, the server names a new one.
+// Hits are decided on the attacker's machine and routed through the server.
+// Load after smb-online.js. Fighter, players, startGame, dealDamage, sports are read at call time.
 
 const PubHub = (() => {
   const STATE_EVERY   = 3;    // frames between own-state sends (20 Hz)
@@ -60,7 +44,7 @@ const PubHub = (() => {
   let _roster = {};            // slot -> { name, color }
   let _phase = null;           // last phase payload from the server
   let _skew = 0;               // serverNow - Date.now()
-  let _stage = null;           // key into STAGES — which local match is running
+  let _stage = null;           // key into STAGES: which local match is running
   let _code = '';              // this lobby's join code
   let _private = false;
   let _host = -1;              // private lobbies: the slot that starts rounds
@@ -87,7 +71,7 @@ const PubHub = (() => {
   let _sportsResetSeen = 0;
   let _sportsResetSeq = 0;
 
-  // ── Small helpers ─────────────────────────────────────────────────────────
+  // Small helpers
   function _toast(msg, ms) {
     if (typeof showToast === 'function') showToast(msg, ms || 2600);
   }
@@ -110,9 +94,11 @@ const PubHub = (() => {
   function _hasBots() { return !!_def().bots || _stage === 'horde'; }
 
   function _serverUrl() {
-    // Local dev: `node server.js` serves the game and the lobby from one origin.
+    // Local dev: `node server.js` serves the game and the lobby from one origin
+    // (port 3001). Any other local server (VS Code Live Server / Live Preview,
+    // python http.server) has no lobby, so it uses the hosted one.
     const local = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
-    if (local) return location.origin;
+    if (local && location.port === '3001') return location.origin;
     const u = (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url) || location.origin;
     return String(u).replace(/\/$/, '');
   }
@@ -130,7 +116,7 @@ const PubHub = (() => {
     });
   }
 
-  // ── Joining and leaving ───────────────────────────────────────────────────
+  // Joining and leaving
   // opts: { code } joins that lobby, { create: 'private' } opens a new private
   // one, nothing joins any public lobby.
   async function join(opts) {
@@ -253,7 +239,7 @@ const PubHub = (() => {
     _sock = null;
   }
 
-  // fromMenu: backToMenu() is already tearing the match down — don't call it again.
+  // fromMenu: backToMenu() is already tearing the match down: don't call it again.
   function leave(fromMenu) {
     if (!_active && !_sock) return;
     const wasActive = _active;
@@ -293,7 +279,7 @@ const PubHub = (() => {
     _myVote = null;
   }
 
-  // ── Server messages ───────────────────────────────────────────────────────
+  // Server messages
   // Background tabs stop running the game loop; tell the server so the bots and
   // ball move to a player who is actually watching.
   function _reportVisibility() {
@@ -405,7 +391,6 @@ const PubHub = (() => {
       delete _botBuf[id];
     }
     if (_def().bots) _balanceBots();
-    // Horde: carry on from the wave the last authority reached.
     if (_stage === 'horde') { _hordeWave = Math.max(_hordeWave, (_round && _round.wave) || 0); _hordeGap = 120; }
     // Sports: the ball state we were mirroring becomes the simulation.
     if (_isSport() && _world && typeof sportsBalls !== 'undefined') {
@@ -422,7 +407,6 @@ const PubHub = (() => {
     if (p.round) _round = p.round;
     _skew = (p.serverNow || Date.now()) - Date.now();
     if (p.phase !== 'vote') _myVote = null;
-    // Which local match should be running for this phase?
     const want = (p.phase === 'round' || p.phase === 'results') && STAGES[p.mode] ? p.mode : (_private ? 'room' : 'hub');
     if (want !== _stage) _startStage(want);
     else if (STAGES[want].sport && p.teams) _applyTeams();
@@ -431,7 +415,7 @@ const PubHub = (() => {
     _renderVote();
   }
 
-  // ── Local match lifecycle ─────────────────────────────────────────────────
+  // Local match lifecycle
   function _startStage(stage) {
     _stage = stage;
     _setupDone = false;
@@ -523,7 +507,7 @@ const PubHub = (() => {
     }
   }
 
-  // ── Puppets (other players) ───────────────────────────────────────────────
+  // Puppets (other players)
   function _ensurePuppet(slot) {
     // Before setup, players[] still belongs to the previous (or loading) match;
     // a puppet pushed into it would be lost when the new match replaces it.
@@ -623,7 +607,7 @@ const PubHub = (() => {
     if (_setupDone) _ensurePuppet(m.slot);
   }
 
-  // ── Bots ──────────────────────────────────────────────────────────────────
+  // Bots
   function _humanCount() { return Object.keys(_roster).length || 1; }
 
   function _balanceBots() {
@@ -698,7 +682,7 @@ const PubHub = (() => {
     if (w.soccer && _isSport()) { _world = w.soccer; _worldFresh = true; }
   }
 
-  // ── Hits ──────────────────────────────────────────────────────────────────
+  // Hits
   // Called from dealDamage() for every hit this browser resolves. Only hits
   // authored HERE are forwarded; hits applied because a packet told us to are
   // made by a puppet attacker and are never echoed back.
@@ -733,7 +717,6 @@ const PubHub = (() => {
   function _onEvent(ev) {
     if (!_active || !ev) return;
     if (ev.type === 'goal') {
-      // Soccer banners arrive with the snapshot; nothing else to do.
     }
     if (ev.type === 'infected') {
       const who = ev.slot === _slot ? 'You are' : ((_roster[ev.slot] && _roster[ev.slot].name) || 'A player') + ' is';
@@ -741,7 +724,7 @@ const PubHub = (() => {
     }
   }
 
-  // ── Rounds ────────────────────────────────────────────────────────────────
+  // Rounds
   function _slotOf(f) {
     if (!f) return null;
     if (f === _me()) return _slot;
@@ -855,7 +838,7 @@ const PubHub = (() => {
     _hordeGap = 150;
   }
 
-  // ── Waiting room (private lobbies) ────────────────────────────────────────
+  // Waiting room (private lobbies)
   // One pad per game along the arena floor. Standing on a pad is your pick.
   function _pads() {
     if (_stage !== 'room' || !_phase) return [];
@@ -947,7 +930,7 @@ const PubHub = (() => {
     _sock.emit('pub:emote', id);
   }
 
-  // ── Soccer mirroring ──────────────────────────────────────────────────────
+  // Soccer mirroring
   function _packSoccer() {
     if (typeof sportsBalls === 'undefined') return null;
     return {
@@ -969,7 +952,6 @@ const PubHub = (() => {
     sportsBalls.length = w.balls.length;
     w.balls.forEach((s, i) => {
       const b = sportsBalls[i];
-      // Mirrors ease toward the authority's ball rather than teleporting.
       const k = takeOver ? 1 : 0.45;
       b.x += (s.x - b.x) * k; b.y += (s.y - b.y) * k;
       b.vx = s.vx; b.vy = s.vy; b.r = s.r || b.r;
@@ -1020,7 +1002,7 @@ const PubHub = (() => {
     _sock.emit('pub:event', { type: 'roundOver', winner: team, score: sportsScore.slice() });
   }
 
-  // ── Per-frame ─────────────────────────────────────────────────────────────
+  // Per-frame
   function tick() {
     if (!_active) return;
     if (!_setupDone) {
@@ -1044,7 +1026,6 @@ const PubHub = (() => {
     }
     for (const k of Object.keys(_emotes)) if (--_emotes[k].t <= 0) delete _emotes[k];
 
-    // Drive puppets from their buffered packets.
     for (const slot of Object.keys(_puppets)) {
       const s = _sample(_buf[slot]);
       if (s) _applyPacked(_puppets[slot], s);
@@ -1162,7 +1143,7 @@ const PubHub = (() => {
     ctx.fillText('THE HILL', z.x, z.y - 156);
   }
 
-  // ── HUD, vote and results overlays (DOM) ──────────────────────────────────
+  // HUD, vote and results overlays (DOM)
   let _hud = null, _vote = null, _results = null, _emoteBar = null;
 
   function _ensureDom() {

@@ -1,16 +1,7 @@
 'use strict';
-// js/story/levels/ch43.js — Chapter 43 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch43.js: Chapter 43 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 43 — The Pessimist (walk → duel vs the Third Architect)
-// "Come up here, and fight me yourself." The summit of the ice dimension:
-// you're above the weather now — a sea of cloud below the ridge, wind
-// tearing across it ("summit winds — knockback is amplified at altitude").
-// The ridge path passes the Architect's instruments: frost-glass slates where
-// the outcomes are computed. At the midpoint, the observatory platform under
-// the spire, and the great slate counting the fight — 812, then 813, then
-// 814 once you've won. Ice-cave mouths are the cache shafts.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 43: The Pessimist (walk, then duel vs the Third Architect). Summit winds amplify knockback.
 (function () {
   const G = 440, SPIRE = 3000;
   const CRAG = [[420, 350, 110], [540, 260, 120], [1180, 340, 120], [1320, 250, 110], [2220, 350, 110], [2350, 270, 110],
@@ -18,8 +9,7 @@
   const SLATES = [900, 1400, 2400, 3900, 4300, 5400];
   const CAVES = [1800, 4680];
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+  // Optional loot (see level.loot in smb-story-levels.js). The better cache is guarded by an optional elite.
   const STASH = [
     { id: 'a', x: 2060, y: 250, w: 140, steps: [[1990, 345, 90]] },
     { id: 'b', x: 4250, y: 250, w: 190, steps: [[4180, 345, 90]], gx: 60, guard: { name: 'Frost Warden', weaponKey: 'sword', classKey: 'warrior', health: 165, color: '#6aa8d8' } },
@@ -40,7 +30,6 @@
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       for (let i = Math.floor(l / 40); i * 40 < r; i++) if (_slHash(i + 2) < 0.18) ctx.fillRect(i * 40 + _slHash(i) * 30, -300 + _slHash(i + 9) * 380, 1.4, 1.4);
     });
-    // Sea of cloud below the ridge
     _slParallax(v, 0.18, (l, r) => {
       for (let i = Math.floor(l / 140) - 1; i * 140 < r + 140; i++) {
         const cx = i * 140 + ((frameCount * 0.2) % 140), cy = 380 + _slHash(i) * 30;
@@ -51,21 +40,18 @@
   }
 
   function back(v) {
-    // Wind tearing across the summit
     ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
     for (let k = 0; k < 24; k++) {
       const wy = v.y + _slHash(k) * v.h * 0.8, len = 40 + _slHash(k + 1) * 80;
       const wx = v.x + ((_slHash(k + 2) * v.w * 2 + frameCount * (9 + _slHash(k + 3) * 6)) % (v.w + 200)) - 100;
       ctx.beginPath(); ctx.moveTo(wx, wy); ctx.lineTo(wx + len, wy + 2); ctx.stroke();
     }
-    // Ridge crags
     for (const [x, y, w] of CRAG) {
       if (!_slVisible(v, x - 40, x + w + 40)) continue;
       ctx.fillStyle = '#6a86a0';
       ctx.beginPath(); ctx.moveTo(x - 30, G); ctx.lineTo(x, y + 6); ctx.lineTo(x + w, y); ctx.lineTo(x + w + 30, G); ctx.fill();
       ctx.fillStyle = '#e8f2fa'; ctx.fillRect(x, y, w, 6);
     }
-    // Frost-glass slates with outcome tallies
     for (const sx of SLATES) {
       if (!_slVisible(v, sx - 50, sx + 50)) continue;
       ctx.fillStyle = '#4a6280'; ctx.fillRect(sx - 3, G - 120, 6, 120);
@@ -74,14 +60,12 @@
       ctx.fillStyle = 'rgba(30,50,80,0.7)';
       for (let t = 0; t < 12; t++) ctx.fillRect(sx - 30 + (t % 6) * 11, G - 182 + Math.floor(t / 6) * 16, t % 5 === 4 ? 9 : 2, 10);
     }
-    // Ice-cave mouths over the cache shafts
     for (const cx of CAVES) {
       if (!_slVisible(v, cx - 100, cx + 100)) continue;
       ctx.fillStyle = '#6a86a0';
       ctx.beginPath(); ctx.moveTo(cx - 100, G); ctx.quadraticCurveTo(cx - 80, G - 90, cx, G - 96); ctx.quadraticCurveTo(cx + 80, G - 90, cx + 100, G); ctx.lineTo(cx + 46, G); ctx.quadraticCurveTo(cx, G - 50, cx - 46, G); ctx.fill();
       ctx.fillStyle = '#e8f2fa'; ctx.fillRect(cx - 60, G - 94, 120, 4);
     }
-    // The observatory: spire, gallery, and the great slate counting the fight
     if (_slVisible(v, SPIRE - 520, SPIRE + 520)) {
       ctx.fillStyle = '#5a7896';
       ctx.beginPath(); ctx.moveTo(SPIRE - 90, 250); ctx.lineTo(SPIRE, -120); ctx.lineTo(SPIRE + 90, 250); ctx.fill();

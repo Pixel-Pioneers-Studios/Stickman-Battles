@@ -1,27 +1,17 @@
 'use strict';
-// smb-story-engine-events.js — storyState, event bus, _handleBuiltinEvent, freezeGame, unlock overlay, boss cinematic intro
-// Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
+// Story event bus, storyState, built-in event responses, freezeGame, unlock overlay, boss intro.
+// Depends on smb-globals.js, smb-story-registry.js (and earlier story-engine splits).
 
 (function _story2Init() {
-  // Restore hidden power level from completed chapter count so returning
-  // players don't lose their accumulated scaling on page reload.
+  // Restore hidden power level from the cleared-chapter count, so reloads keep scaling.
   _storyRecomputePowerLevel();
 })();
 
-// ── Hidden power level ────────────────────────────────────────────────────────
-// +2% damage per cleared chapter, capped at 3.0 (= +200% power level, which
-// smb-combat.js scales to +30% damage). Derived from the cleared-chapter COUNT
-// rather than incremented, so it is idempotent and self-healing.
-//
-// Saga builds count only chapters inside the active saga, so each saga re-runs
-// the ramp from its own baseline. Without this a Saga III build loaded with a
-// carried save would start at the 3.0 cap — Kael at full Absolute-Kael power in
-// the opening chapter. On a 'full' build the saga scope IS the whole story, so
-// this is identical to the old behaviour.
-//
-// smb-saga-structure.js loads AFTER this file, so the saga helpers are absent
-// during the load-time call above; it falls back to the global count and the
-// saga file re-runs this once its own definitions exist.
+// Hidden power level
+// Hidden power level: +2% damage per cleared chapter, capped at 3.0 (smb-combat.js maps it to +30% damage).
+// Derived from the count, not incremented, so it is idempotent. Saga builds count only chapters in the active saga,
+// so each saga ramps from its own baseline. smb-saga-structure.js loads after this file, so the call below falls
+// back to the global count, and the saga file re-runs this once its helpers exist.
 function _storyRecomputePowerLevel() {
   if (typeof playerPowerLevel === 'undefined') return;
   if (!_story2 || !Array.isArray(_story2.defeated)) return;
@@ -36,18 +26,13 @@ function _storyRecomputePowerLevel() {
 }
 
 
-// ╔══════════════════════════════════════════════════════════════════╗
-// ║  STORY EVENT SYSTEM — event-driven character progression        ║
-// ║  triggerEvent(name, data) → registered handlers + built-ins     ║
-// ╚══════════════════════════════════════════════════════════════════╝
 
-// ── storyState: single source of truth for story progression ─────────────────
+// Story state
 const storyState = {
-  // Live chapter index (mirrors _story2.chapter so UI stays consistent)
+// Mirrors _story2.chapter so the UI stays in sync
   get chapter() { return _story2 ? _story2.chapter : 0; },
 
-  // Which abilities the player has earned through story events
-  // (These also gate the _storyPlayerOverride flags applied at fight start)
+// Abilities earned through story events. Gates the _storyPlayerOverride flags at fight start.
   abilities: {
     sword:       true,   // player always has a sword
     doubleJump:  false,
@@ -55,12 +40,11 @@ const storyState = {
     superMeter:  false,
   },
 
-  // Persistent flags written to localStorage so they survive reload
+// Persistent flags, saved to localStorage so they survive reload
   flags: {},
 };
 
-// Restore ability state from saved chapter progress on load.
-// Abilities are now gated ONLY by skill tree (not chapter index).
+// Restore ability state from chapter progress on load. Abilities are gated by skill tree only.
 (function _restoreStoryStateAbilities() {
   const sk = (typeof _story2 !== 'undefined' && _story2.skillTree) ? _story2.skillTree : {};
   storyState.abilities.doubleJump    = !!sk.doubleJump;
@@ -74,79 +58,58 @@ const storyState = {
   Object.assign(storyState.flags, bf);
 })();
 
-// ── Event bus ─────────────────────────────────────────────────────────────────
+// Event bus
 const _storyEventHandlers = {};   // { [eventName]: [fn, ...] }
 
-/**
- * Register a listener for a named story event.
- * @param {string} name  — event key, e.g. 'FIRST_KILL'
- * @param {function} fn  — handler(data)
- */
+/** Register a listener for a story event name (e.g. 'FIRST_KILL'). fn receives data. */
 function onStoryEvent(name, fn) {
   if (!_storyEventHandlers[name]) _storyEventHandlers[name] = [];
   _storyEventHandlers[name].push(fn);
 }
 
-/**
- * Fire a story event.  Calls registered listeners then runs built-in logic.
- * Only fires once per fight (guarded by storyEventFired) unless force=true.
- * @param {string} name
- * @param {*}      [data]
- * @param {boolean} [force]  skip dedup guard
- */
+/** Fire a story event: runs listeners, then built-in logic. Fires once per fight unless force is true. */
 function triggerEvent(name, data, force) {
   if (!storyModeActive) return;
   if (!force && storyEventFired[name]) return;
   storyEventFired[name] = true;
 
-  // Notify external listeners first
   const handlers = _storyEventHandlers[name] || [];
   handlers.forEach(fn => { try { fn(data); } catch(e) { console.warn('[StoryEvent]', name, e); } });
 
-  // Built-in narrative/cinematic responses
   _handleBuiltinEvent(name, data);
 }
 
-// ── Built-in event responses ──────────────────────────────────────────────────
+// Built-in event responses
 function _handleBuiltinEvent(name, data) {
   switch (name) {
 
-    // ── Player kills their first enemy ───────────────────────────────────────
     case 'FIRST_KILL': {
-      // Abilities are no longer granted passively — Double Jump is bought in
-      // the skill tree (Mobility branch). No unlock ceremony here.
+      // Double Jump is bought in the skill tree (Mobility), not granted here.
       break;
     }
 
-    // ── Player's health drops to 20% or below ────────────────────────────────
     case 'SURVIVAL_EVENT': {
-      // No ability is granted here. Just flash the screen red to signal danger.
+      // Grants nothing, just the red flash.
       if (typeof hitStopFrames !== 'undefined') hitStopFrames = Math.max(hitStopFrames, 2);
       break;
     }
 
-    // ── Weapon ability unlocked (ch 4 first kill with ability available) ─────
     case 'ABILITY_UNLOCK': {
-      // Weapon Ability is no longer granted passively — bought in the skill
-      // tree (Combat branch: "Weapon Mastery").
+      // Bought in the skill tree (Combat: Weapon Mastery), not granted here.
       break;
     }
 
-    // ── Super meter unlocked ──────────────────────────────────────────────────
     case 'SUPER_UNLOCK': {
-      // Super Meter is no longer granted passively — bought in the skill tree
-      // (Resilience branch: "Inner Power"). No unlock ceremony here.
+      // Bought in the skill tree (Resilience: Inner Power), not granted here.
       break;
     }
 
-    // ── Reality starts breaking (ch 7+) ──────────────────────────────────────
     case 'REALITY_BREAK': {
-      // Ramp up the visual distortion level (drawn in smc-drawing.js)
+      // Visual distortion ramp (drawn in smc-drawing.js)
       const targetDistort = Math.min(1.0, 0.25 + (storyState.chapter - 7) * 0.08);
       storyDistortLevel = Math.max(storyDistortLevel, targetDistort);
-      // Short screen shake
       if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = Math.max(screenShakeIntensity || 0, 6);
-      // Schedule a director sequence for the full reality-break moment
+      // Full reality-break moment runs as a director sequence.
       if (typeof directorSchedule === 'function') {
         directorSchedule([
           {
@@ -159,8 +122,10 @@ function _handleBuiltinEvent(name, data) {
           },
           {
             id: 'rb_subtitle', delay: 30,
-            condition: () => gameRunning,
+            condition: () => gameRunning && typeof _story2 !== 'undefined' && _story2 && !_story2.rejectLineSeen,
             action: () => {
+              _story2.rejectLineSeen = true;
+              if (typeof _saveStory2 === 'function') _saveStory2();
               storyFightSubtitle = {
                 text: 'The world rejects you. Fight back.',
                 timer: 230, maxTimer: 230, color: '#cc44ff'
@@ -188,13 +153,11 @@ function _handleBuiltinEvent(name, data) {
       break;
     }
 
-    // ── Boss discovered through story ─────────────────────────────────────────
     case 'BOSS_INTRO': {
       _showBossCinematicIntro(data && data.bossRef);
       break;
     }
 
-    // ── Boss defeated → unlock boss mode in menu ──────────────────────────────
     case 'BOSS_DEFEATED': {
       bossBeaten = true;
       if (typeof saveGame === 'function') saveGame();
@@ -203,7 +166,6 @@ function _handleBuiltinEvent(name, data) {
       break;
     }
 
-    // ── True Form unlocked after boss beat + all letters ──────────────────────
     case 'TRUE_FORM_UNLOCK': {
       unlockedTrueBoss = true;
       if (typeof saveGame === 'function') saveGame();
@@ -220,7 +182,6 @@ function _handleBuiltinEvent(name, data) {
   }
 }
 
-// ── freezeGame: halt physics for a brief cinematic moment ─────────────────────
 /**
  * Freeze game physics (not rendering) for `frames` game frames.
  * smc-loop.js checks storyFreezeTimer > 0 and skips physics when set.
@@ -229,11 +190,8 @@ function freezeGame(frames) {
   storyFreezeTimer = Math.max(storyFreezeTimer, frames || 30);
 }
 
-// ── slowMotionFor: set slowMotion then restore after ms ───────────────────────
-// Token-cancelled: repeated calls (e.g. the QTE warning window calls this every
-// frame) must not stack dozens of restore timers — only the NEWEST timer may
-// restore, and _slowMoInvalidate() voids all pending restores (called when a
-// QTE/cinematic takes explicit ownership of slowMotion).
+// Repeated calls (the QTE warning calls this every frame) must not stack restore timers. Only the newest restores;
+// _slowMoInvalidate() voids pending restores when a QTE or cinematic takes slowMotion.
 let _slowMoToken = 0;
 function _slowMoInvalidate() { _slowMoToken++; }
 function slowMotionFor(factor, ms) {
@@ -242,7 +200,6 @@ function slowMotionFor(factor, ms) {
   setTimeout(() => { if (_t === _slowMoToken && slowMotion < 0.9) slowMotion = 1.0; }, ms);
 }
 
-// ── Mid-fight ability unlock overlay ─────────────────────────────────────────
 /**
  * Shows a small non-blocking HUD banner mid-fight.
  * @param {{ icon, name, desc, color }} opts
@@ -251,7 +208,6 @@ function _showMidFightUnlock(opts) {
   // Freeze for a beat so the player can read it
   freezeGame(55);
 
-  // Build overlay element
   let banner = document.getElementById('storyMidUnlockBanner');
   if (!banner) {
     banner = document.createElement('div');
@@ -283,13 +239,11 @@ function _showMidFightUnlock(opts) {
   banner.style.borderTop    = `2px solid ${col}`;
   banner.style.borderBottom = `1px solid rgba(${_hexToRgb(col)},0.25)`;
 
-  // Animate in
   requestAnimationFrame(() => requestAnimationFrame(() => {
     banner.style.opacity   = '1';
     banner.style.transform = 'translate(-50%,-50%) scale(1)';
   }));
 
-  // Auto-dismiss after 2.2 s
   clearTimeout(banner._hideTimer);
   banner._hideTimer = setTimeout(() => {
     banner.style.opacity   = '0';
@@ -304,11 +258,7 @@ function _hexToRgb(hex) {
   return `${r},${g},${b}`;
 }
 
-// ── Boss cinematic intro ──────────────────────────────────────────────────────
-/**
- * Called by triggerEvent('BOSS_INTRO') before the boss fight starts.
- * Shows a 3-beat fullscreen overlay with typewriter lines.
- */
+/** Boss intro: three-beat fullscreen overlay with typewriter lines. Called from triggerEvent('BOSS_INTRO'). */
 function _showBossCinematicIntro(_bossRef) {
   const lines = [
     { text: 'The fracture system was not an accident.',              delay: 0,    color: '#dde4ff' },
@@ -341,7 +291,6 @@ function _showBossCinematicIntro(_bossRef) {
   ov.innerHTML = '';
   ov.appendChild(linesEl);
 
-  // Red pulse glow behind text
   const glow = document.createElement('div');
   glow.style.cssText = [
     'position:absolute', 'inset:0', 'z-index:-1',
@@ -353,7 +302,6 @@ function _showBossCinematicIntro(_bossRef) {
   ov.style.display = 'flex';
   requestAnimationFrame(() => { ov.style.opacity = '1'; });
 
-  // Inject keyframe if not already present
   if (!document.getElementById('bossCinKeyframes')) {
     const style = document.createElement('style');
     style.id = 'bossCinKeyframes';
@@ -361,7 +309,6 @@ function _showBossCinematicIntro(_bossRef) {
     document.head.appendChild(style);
   }
 
-  // Reveal lines on schedule
   lines.forEach(line => {
     setTimeout(() => {
       const p = document.createElement('p');
@@ -379,7 +326,6 @@ function _showBossCinematicIntro(_bossRef) {
     }, line.delay);
   });
 
-  // Dismiss after all lines + pause
   const totalMs = lines[lines.length - 1].delay + 2200;
   setTimeout(() => {
     ov.style.opacity = '0';

@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch95.js — Chapter 95 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch95.js: chapter 95 map (walk, then duel the Phase Hunters). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 95 — The Unseen Court (walk → duel vs the Phase Hunters)
-// The Court of the Shadow Realm, which "operated on a single rule: if you
-// could be found, you lost." The walk is its outer galleries — tiered benches
-// of black stone rising in steps (the climbs), every seat empty, faceless
-// hooded statues standing between them with their backs to the walls. The
-// midpoint is the floor of the court itself, sunk below the galleries: a
-// round floor inlaid with a ring that lights wherever someone has stood, and
-// the high bench at the back where nobody sits, its one lamp unlit. Phase
-// Hunters leave afterimages; the court's walls are hung with veils that move
-// when nothing has touched them. The cache shafts are grated drains.
-// ═════════════════════════════════════════════════════════════════════════════
+// Shadow Realm court: empty tiered galleries, then a sunken round floor that lights where people stand.
 (function () {
   const G = 440, COURT = 3000;
   const BENCH = [[440, 380, 120], [560, 320, 120], [680, 260, 110], [1120, 370, 120], [1240, 300, 120], [2200, 370, 110], [2320, 300, 110],

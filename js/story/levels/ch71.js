@@ -1,17 +1,7 @@
 'use strict';
-// js/story/levels/ch71.js — Chapter 71 map (story ARENA, damnation). See smb-story-levels.js.
+// js/story/levels/ch71.js. Chapter 71 map (story ARENA, damnation). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 71 — The First Reset (Eternal Damnation waves, one screen)
-// The loop dimension Axiom built for you, dying from the edges in. "The loop
-// resets. The exit you found — gone." The exit stands in the right wall as a
-// lit doorway that keeps flickering back to blank stone. Over the arena hangs
-// the reset dial: its hand sweeps and snaps back, and one tick lights for each
-// reset cycle you survive. Along the back wall, constructs stand dormant in
-// alcoves ("the constructs remember what you did") — their eyes open as the
-// waves go on. The six platforms are exactly the
-// damnation arena's, in order: falls remove them by index.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 71, damnation arena. Six platforms in order: falls remove them by index.
 (function () {
   const G = 460;
   const PL = [[300, 310, 300], [80, 240, 140], [680, 240, 140], [200, 160, 120], [580, 160, 120]];
@@ -57,7 +47,7 @@
   }
 
   function back() {
-    // The exit you found, set into the right wall — flickering back to stone
+    // The exit you found, set into the right wall, flickering back to stone
     const on = (frameCount % 160) < 40 && _slHash(frameCount >> 4) > 0.3;
     ctx.fillStyle = '#220606'; ctx.fillRect(838, G - 150, 62, 150);
     ctx.fillStyle = on ? 'rgba(255,220,190,0.75)' : '#1a0404'; ctx.fillRect(852, G - 130, 38, 130);
@@ -65,7 +55,7 @@
     if (!on) for (let y = G - 126; y < G; y += 14) { ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.moveTo(852, y); ctx.lineTo(890, y); ctx.stroke(); }
   }
 
-  // Slabs: basalt with red veins; a faint copy of each, offset — the loop repeating it
+  // Slabs: basalt with red veins; a faint offset copy of each, the loop repeating it
   function slabs(a) {
     const pls = (a.platforms || []).slice(1, 6);
     for (let i = 0; i < pls.length; i++) {

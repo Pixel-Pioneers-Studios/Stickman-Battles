@@ -1,15 +1,8 @@
-// smb-boss-cinematics.js
-// Cinematic sequencer: startCinematic/endCinematic/updateCinematic, phase transition factories.
-// Depends on: smb-globals.js, smb-cinematics.js
-// Must load: AFTER smb-boss.js, BEFORE smb-loop.js
+// Boss cinematic sequencer: phase transition factories.
+// Depends on: smb-globals.js, smb-cinematics.js. Loads after smb-boss.js, before smb-loop.js.
+// startCinematic, updateCinematic and endCinematic live in smb-boss-phase-cin.js, which loads next.
 
-// startCinematic / updateCinematic / endCinematic are defined in smb-boss-phase-cin.js
-// (loaded immediately after this file). That version is the canonical one — it includes
-// setCombatLock/clearCombatLock and the null-safe pickSafeSpawn fallback.
-
-// ============================================================
-// CINEMATIC SEQUENCES — one factory per boss × phase
-// ============================================================
+// Boss cinematic sequences, one factory per boss and phase.
 function _makeBossPhase2Cinematic(boss) {
   return {
     durationFrames: 150, // 2.5 s
@@ -198,9 +191,7 @@ function _makeTFPhase3Cinematic(tf) {
   };
 }
 
-// ============================================================
-// CINEMATIC SEQUENCES — ForestBeast and Yeti
-// ============================================================
+// Cinematic sequences for ForestBeast and Yeti.
 function _makeBeastPhase2Cinematic(beast) {
   return {
     durationFrames: 150, // 2.5 s
@@ -283,7 +274,7 @@ function _makeYetiPhase2Cinematic(yetiEnt) {
       if (t >= 1.2 && !this._slamFired) {
         this._slamFired = true;
         if (yetiEnt) {
-          yetiEnt.vy = Math.max(yetiEnt.vy, 18); // force downward
+          yetiEnt.vy = Math.max(yetiEnt.vy, 18);
           for (let i = 0; i < 6; i++) {
             phaseTransitionRings.push({
               cx: yetiEnt.cx(), cy: yetiEnt.cy(),
@@ -317,10 +308,9 @@ function _makeYetiPhase2Cinematic(yetiEnt) {
   };
 }
 
-// triggerPhaseTransition is defined in smb-boss-tf-attacks1.js (loaded after this file)
-// to avoid silent divergence between duplicate copies.
+// triggerPhaseTransition lives in smb-boss-tf-attacks1.js, so there is one copy.
 
-// ── GRAB CINEMATIC ────────────────────────────────────────────────────────────
+// Grab cinematic
 function _makeTFGrabCinematic(tf, target) {
   let _phase1Done = false, _phase2Done = false, _phase3Done = false;
   return {
@@ -345,7 +335,7 @@ function _makeTFGrabCinematic(tf, target) {
           tf.y = target.y;
           tf.vx = 0; tf.vy = 0;
           target.vx = 0; target.vy = 0;
-          target.stunTimer = 55; // player is grabbed — brief stun
+          target.stunTimer = 55; // brief stun while grabbed
           screenShake = Math.max(screenShake, 18);
           spawnParticles(tf.cx(), tf.cy(), '#000000', 22);
           spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);

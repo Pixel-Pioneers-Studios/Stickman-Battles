@@ -1,0 +1,7 @@
+mirror      on 51% 0.93 late 0.95  wipe60 51% 1.03 late 1.02  wipe1 55% 0.97 late 0.99
+hunter      on 71% 1.43 late 1.40  wipe60 63% 1.28 late 1.24  wipe1 62% 1.28 late 1.23
+hunter2     on 57% 1.13 late 1.19  wipe60 62% 1.19 late 1.23  wipe1 63% 1.23 late 1.26
+hunter3     on 56% 1.12 late 1.19  wipe60 55% 1.06 late 1.01  wipe1 54% 1.07 late 1.06
+hunter4     on 39% 0.79 late 0.80  wipe60 42% 0.86 late 0.90  wipe1 35% 0.75 late 0.76
+Checkpoint iteration 12756, 200 matches per style per arm, seed 1, top choice. Each arm: win%, dmg dealt/taken, same after the first 10 s.
+all styles  on 54.8%  wipe60 54.2%  wipe1 53.7%   (one style, one arm: +-3.5 pts worst case)

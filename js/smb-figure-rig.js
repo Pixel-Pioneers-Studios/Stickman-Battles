@@ -1,37 +1,18 @@
 'use strict';
-// smb-figure-rig.js — Keyframed skeletal rig for story-scene stick figures.
+// Keyframed skeletal rig for story-scene stick figures.
 //
-// WHY THIS EXISTS
-// The figures were posed by evaluating sine waves per named state, inline in
-// _drawFigure. That produces motion with no keyframes, no holds, no anticipation
-// and no follow-through — the "floaty diagram" read. Hand animation (Animator vs
-// Animation and everything like it) works the other way round: an animator draws
-// POSES, then times them. This module is that method expressed as data — poses are
-// joint angles instead of drawings, and clips time them.
+// Poses are joint angles and clips time them (draw poses, then time them). This
+// replaces the old per-state sine waves in _drawFigure, which had no holds or anticipation.
 //
-// PUBLIC API (globals, per repo convention — no modules):
-//   FigureRig.hasClip(state)                  -> bool
-//   FigureRig.sample(state, t, opts)          -> pose object
-//   FigureRig.solve(pose, x, y, scale, facing)-> {joints, squash, ...} in canvas px
-//   FigureRig.POSES / FigureRig.CLIPS         -> the libraries (extend freely)
+// Globals: FigureRig.hasClip(state), .sample(state, t, opts) -> pose,
+//   .solve(pose, x, y, scale, facing) -> {joints, squash, ...} in canvas px,
+//   .POSES / .CLIPS (extend freely).
+// Depends on nothing. GSAP eases are used if present, with local fallbacks.
 //
-// Depends on: nothing. GSAP is used for easing IF present, with a local fallback,
-// so load order is not a constraint.
-//
-// ── ANGLE CONVENTION (read before authoring a pose) ─────────────────────────────
-// Every limb angle is ABSOLUTE, in canonical facing-RIGHT space, in radians,
-// measured from +X with +Y pointing DOWN the canvas. So:
-//        0     = pointing right        PI/2  = pointing straight down
-//       -PI/2  = pointing straight up  PI    = pointing left
-// A limb angle is the direction of that BONE, not a joint bend. `foreArmL` is the
-// world direction elbow->hand, not an elbow flex. That makes poses readable: an
-// arm held straight out forward is upper=0, fore=0.
-// Mirroring for facing:-1 is handled in solve(); author everything facing right.
-//
-// ── PROPORTIONS ────────────────────────────────────────────────────────────────
-// Deliberately identical to the old inline figure so this is a drop-in swap:
-// hip sits 17px above the anchor, spine 34, chest->head-centre 21, arm 13+13,
-// leg 15+15. Changing these changes every story scene — don't.
+// Angles are ABSOLUTE, in facing-right space: radians from +X, +Y down.
+// 0 = right, PI/2 = down, -PI/2 = up, PI = left. A limb angle is the bone's direction,
+// not a joint bend. Mirroring for facing -1 happens in solve(), so author facing right.
+// Proportions match the old inline figure. Changing them changes every story scene.
 (function () {
 
   var L = {
@@ -45,9 +26,7 @@
     shoulderDrop: 5 // chest y -> shoulder pivot
   };
 
-  // ── Easing ────────────────────────────────────────────────────────────────────
-  // GSAP ships with the game already (cinematic sequencing), so its named eases
-  // are free. Fallbacks keep this file standalone and make it testable headless.
+  // GSAP is already loaded for cinematics. Fallbacks keep this file testable headless.
   var _fallback = {
     'none':        function (p) { return p; },
     'linear':      function (p) { return p; },
@@ -84,9 +63,7 @@
     return fn(p);
   }
 
-  // ── Pose channels ─────────────────────────────────────────────────────────────
-  // Every pose is a sparse override of BASE. Anything omitted inherits, so a pose
-  // can say only what it changes — which is what makes the library readable.
+  // Each pose overrides BASE. Omitted channels inherit.
   var CH = ['spine','headTilt','upperArmF','foreArmF','upperArmB','foreArmB',
             'thighF','shinF','thighB','shinB','rootY','rootX','rootRot',
             'squash','lean'];
@@ -94,16 +71,12 @@
   var BASE = {
     spine:     -Math.PI/2,        // straight up
     headTilt:   0,                // extra head rotation, additive
-    // Arm hang. At -0.18/+0.20 the hands sat ~2px off the torso: at scene scale the
-    // arms merged into the body line entirely and the figures read as armless
-    // pillars. A resting arm clears the ribcage; this is that.
+    // Arm hang. Tighter angles merged the arms into the torso at scene scale.
     upperArmF:  Math.PI/2 - 0.30, // front arm hangs, slightly forward
     foreArmF:   Math.PI/2 - 0.15,
     upperArmB:  Math.PI/2 + 0.33, // back arm hangs, slightly behind
     foreArmB:   Math.PI/2 + 0.19,
-    // Stance width. At +/-0.06 the two legs overlapped into a single column and a
-    // standing figure read as one-legged; a real standing pose has the feet apart
-    // and the shins angled back under the hips.
+    // Stance width. Legs close together read as one column.
     thighF:     Math.PI/2 - 0.14,
     shinF:      Math.PI/2 + 0.07,
     thighB:     Math.PI/2 + 0.15,
@@ -118,14 +91,12 @@
   function P(o) { return o; } // authoring sugar: keeps the tables scannable
 
   var POSES = {
-    // ── stance ──────────────────────────────────────────────────────────────────
     stand:     P({}),
     standSettle: P({ rootY: 1.1, lean: 1.2,
                      upperArmF: Math.PI/2 - 0.24, upperArmB: Math.PI/2 + 0.28,
                      thighF: Math.PI/2 - 0.10, thighB: Math.PI/2 + 0.19 }),
     breatheIn: P({ rootY: -1.1, spine: -Math.PI/2 - 0.012 }),
 
-    // ── talk / listen ───────────────────────────────────────────────────────────
     talkA: P({ upperArmF: Math.PI/2 - 0.55, foreArmF: Math.PI/2 - 1.05, headTilt: -0.04, lean: 1 }),
     talkB: P({ upperArmF: Math.PI/2 - 0.30, foreArmF: Math.PI/2 - 0.62, headTilt:  0.03 }),
     talkC: P({ upperArmF: Math.PI/2 - 0.72, foreArmF: Math.PI/2 - 1.25, headTilt: -0.07, lean: 2 }),
@@ -134,8 +105,7 @@
                  upperArmB: Math.PI/2 + 0.30, foreArmB: Math.PI/2 + 0.22 }),
     listenNod: P({ headTilt: 0.20, rootY: 1.8, spine: -Math.PI/2 + 0.03 }),
 
-    // ── locomotion ──────────────────────────────────────────────────────────────
-    // Authored as a real 4-key cycle: contact -> passing -> contact -> passing.
+    // Real 4-key cycle: contact, passing, contact, passing.
     walkContactF: P({
       thighF: Math.PI/2 - 0.42, shinF: Math.PI/2 - 0.10,
       thighB: Math.PI/2 + 0.38, shinB: Math.PI/2 + 0.52,
@@ -194,9 +164,7 @@
       rootY: -4.0, spine: -Math.PI/2 + 0.26, lean: 3, squash: 0.05
     }),
 
-    // ── combat ──────────────────────────────────────────────────────────────────
-    // The punch is four poses because that is what a punch is: coil, throw,
-    // contact, recover. A single lerp from A to B is the thing that reads wrong.
+    // Four poses: coil, throw, contact, recover. One lerp from A to B reads wrong.
     punchCoil: P({
       upperArmF: Math.PI/2 + 0.55, foreArmF: Math.PI + 0.35,
       upperArmB: Math.PI/2 - 0.25, foreArmB: Math.PI/2 - 0.55,
@@ -247,7 +215,6 @@
       squash: -0.05, rootRot: -0.04
     }),
 
-    // ── expressive / narrative ──────────────────────────────────────────────────
     reach: P({
       upperArmF: -0.34, foreArmF: -0.50,
       upperArmB: Math.PI/2 + 0.40, foreArmB: Math.PI/2 + 0.30,
@@ -263,6 +230,35 @@
       upperArmF: Math.PI/2 - 0.95, foreArmF: Math.PI/2 - 1.60, // hand shading eyes
       upperArmB: Math.PI/2 + 0.14,
       headTilt: -0.10, spine: -Math.PI/2 - 0.04
+    }),
+    // Forearm across the face, weight in the front foot: bracing against a blast.
+    brace: P({
+      upperArmF: -0.20, foreArmF: -Math.PI/2 + 0.05,
+      upperArmB: Math.PI/2 + 0.72, foreArmB: Math.PI/2 + 0.38,
+      spine: -Math.PI/2 + 0.12, lean: 3, rootY: 4, headTilt: 0.10,
+      thighF: Math.PI/2 - 0.50, shinF: Math.PI/2 + 0.28,
+      thighB: Math.PI/2 + 0.52, shinB: Math.PI/2 + 0.12, squash: -0.05
+    }),
+    // Faceless figures can't aim their eyes, so looking up is the whole body.
+    lookUp: P({
+      spine: -Math.PI/2 - 0.16, headTilt: -0.42, rootY: 0.5, lean: -1,
+      upperArmF: Math.PI/2 - 0.10, foreArmF: Math.PI/2 - 0.02,
+      upperArmB: Math.PI/2 + 0.42, foreArmB: Math.PI/2 + 0.34,
+      thighF: Math.PI/2 - 0.10, thighB: Math.PI/2 + 0.20
+    }),
+    // Looking at his own hands. `reach` can't play this inward beat.
+    hands: P({
+      upperArmF: Math.PI/2 - 0.50, foreArmF: -0.35,
+      upperArmB: Math.PI/2 - 0.30, foreArmB: -0.20,
+      spine: -Math.PI/2 + 0.10, headTilt: 0.40, rootY: 1
+    }),
+    // Fists up by the chin, knees soft.
+    stance: P({
+      upperArmF: Math.PI/2 - 0.75, foreArmF: -Math.PI/2 + 0.45,
+      upperArmB: Math.PI/2 - 0.25, foreArmB: -Math.PI/2 + 0.25,
+      spine: -Math.PI/2 + 0.12, rootY: 5, headTilt: 0.04,
+      thighF: Math.PI/2 - 0.42, shinF: Math.PI/2 + 0.22,
+      thighB: Math.PI/2 + 0.40, shinB: Math.PI/2 + 0.05, squash: -0.04
     }),
     crouch: P({
       thighF: Math.PI/2 - 0.72, shinF: Math.PI/2 + 0.62,
@@ -301,11 +297,8 @@
     })
   };
 
-  // ── Clips ─────────────────────────────────────────────────────────────────────
-  // `t` is in frames at 60fps. `ease` applies to the segment ENDING at that key,
-  // which is how animation software works and how these read when scanning.
-  // `hold` keeps the previous pose for N frames before easing into this one — the
-  // single most important control for snap, and the thing sine waves cannot do.
+  // `t` is in frames at 60fps. `ease` applies to the segment ending at that key.
+  // `hold` keeps the previous pose N frames before easing in. This is the snap control.
   var CLIPS = {
     idle: { loop: true, dur: 190, keys: [
       { t: 0,   pose: 'stand' },
@@ -344,16 +337,16 @@
       { t: 18, pose: 'runAirB',     ease: 'quad.out' },
       { t: 24, pose: 'runContactF', ease: 'cubic.in' }
     ]},
-    // Attack: coil slowly, throw in 3 frames, contact hard, recover slowly.
-    // The asymmetry IS the punch. Loops so a held beat keeps striking.
-    attack: { loop: true, dur: 78, keys: [
+    // One committed strike, then a ready stance. Looping it swung at air every 1.3s.
+    // Coil slow, throw fast, contact hard: the asymmetry is the punch.
+    attack: { loop: false, hold: true, dur: 78, keys: [
       { t: 0,  pose: 'stand' },
       { t: 14, pose: 'punchCoil',    ease: 'back.in' },     // anticipation
       { t: 20, pose: 'punchCoil' },                          // hold the coil
       { t: 23, pose: 'punchThrow',   ease: 'expo.out' },     // 3-frame throw
       { t: 27, pose: 'punchContact', ease: 'back.out' },     // overshoot + settle
       { t: 40, pose: 'punchRecover', ease: 'cubic.out' },
-      { t: 78, pose: 'stand',        ease: 'sine.inOut' }
+      { t: 78, pose: 'guard',        ease: 'sine.inOut' }
     ]},
     hit: { loop: false, dur: 70, keys: [
       { t: 0,  pose: 'stand' },
@@ -368,13 +361,15 @@
       { t: 68,  pose: 'guard', ease: 'sine.inOut' },
       { t: 120, pose: 'guard' }
     ]},
-    reach: { loop: true, dur: 130, keys: [
+    // Entered poses go in once, then HOLD (see `hold` in sample()). Looping them snapped
+    // back to stand and knelt again every couple of seconds.
+    reach: { loop: false, hold: true, dur: 130, keys: [
       { t: 0,   pose: 'stand' },
       { t: 26,  pose: 'reach', ease: 'back.out' },
       { t: 104, pose: 'reach' },
       { t: 130, pose: 'reach', ease: 'sine.inOut' }
     ]},
-    point: { loop: true, dur: 150, keys: [
+    point: { loop: false, hold: true, dur: 150, keys: [
       { t: 0,   pose: 'stand' },
       { t: 15,  pose: 'point', ease: 'back.out' },
       { t: 150, pose: 'point', ease: 'sine.inOut' }
@@ -384,17 +379,37 @@
       { t: 100, pose: 'look' },
       { t: 200, pose: 'look' }
     ]},
-    crouch: { loop: true, dur: 150, keys: [
+    brace: { loop: false, hold: true, dur: 120, keys: [
+      { t: 0,   pose: 'stand' },
+      { t: 7,   pose: 'brace', ease: 'expo.out' },
+      { t: 120, pose: 'brace' }
+    ]},
+    lookUp: { loop: false, hold: true, dur: 150, keys: [
+      { t: 0,   pose: 'stand' },
+      { t: 30,  pose: 'lookUp', ease: 'cubic.out' },
+      { t: 150, pose: 'lookUp' }
+    ]},
+    hands: { loop: false, hold: true, dur: 150, keys: [
+      { t: 0,   pose: 'stand' },
+      { t: 26,  pose: 'hands', ease: 'cubic.out' },
+      { t: 150, pose: 'hands' }
+    ]},
+    stance: { loop: false, hold: true, dur: 120, keys: [
+      { t: 0,   pose: 'stand' },
+      { t: 12,  pose: 'stance', ease: 'back.out' },
+      { t: 120, pose: 'stance' }
+    ]},
+    crouch: { loop: false, hold: true, dur: 150, keys: [
       { t: 0,   pose: 'stand' },
       { t: 18,  pose: 'crouch', ease: 'cubic.out' },
       { t: 150, pose: 'crouch' }
     ]},
-    kneel: { loop: true, dur: 160, keys: [
+    kneel: { loop: false, hold: true, dur: 160, keys: [
       { t: 0,   pose: 'stand' },
       { t: 24,  pose: 'kneel', ease: 'cubic.out' },
       { t: 160, pose: 'kneel' }
     ]},
-    fall: { loop: true, dur: 90, keys: [
+    fall: { loop: false, hold: true, dur: 90, keys: [
       { t: 0,  pose: 'stand' },
       { t: 10, pose: 'fall', ease: 'cubic.in' },
       { t: 90, pose: 'fall', ease: 'sine.inOut' }
@@ -406,7 +421,6 @@
     ]}
   };
 
-  // ── Sampling ──────────────────────────────────────────────────────────────────
   function resolve(name) { return POSES[name] || POSES.stand; }
 
   function blend(a, b, p, out) {
@@ -420,6 +434,8 @@
   }
 
   function hasClip(state) { return !!CLIPS[state]; }
+  // Held clips run from the moment the figure entered the state.
+  function isHeld(state) { return !!(CLIPS[state] && CLIPS[state].hold); }
 
   // Sample a clip at time t (frames). opts.phase offsets the clip so two figures
   // in the same state don't move in lockstep. opts.speed scales playback.
@@ -435,22 +451,23 @@
     var keys = clip.keys, i = 0;
     for (var k = 0; k < keys.length; k++) if (tt >= keys[k].t) i = k;
     var cur = keys[i], nxt = keys[i + 1];
-    if (!nxt) return blend(resolve(cur.pose), resolve(cur.pose), 0, {});
+    if (!nxt) {
+      var held = blend(resolve(cur.pose), resolve(cur.pose), 0, {});
+      // A held pose still breathes; a frozen figure reads as a paused video.
+      if (clip.hold) held.rootY += Math.sin((t + (opts.phase || 0)) * 0.035) * 0.9;
+      return held;
+    }
     var span = nxt.t - cur.t;
     var raw  = span > 0 ? (tt - cur.t) / span : 1;
     var p    = ease(nxt.ease, raw);
     return blend(resolve(cur.pose), resolve(nxt.pose), p, {});
   }
 
-  // ── Solve to canvas-space joint positions ─────────────────────────────────────
-  // Returns absolute pixel points so the caller draws bones, and can also hang
-  // face/cape/effects off named joints without re-deriving the maths.
+  // Returns absolute pixel points for bones, and for hanging face/cape/effects off joints.
   function solve(pose, x, y, scale, facing) {
     scale = scale || 1;
     var f = (facing < 0) ? -1 : 1;
-    // Mirroring: reflect every absolute angle about the vertical axis, which is
-    // theta -> PI - theta. Negating instead flips the figure upside-down — the
-    // same trap the weapon-facing code hit.
+    // Mirror by reflecting angles: theta -> PI - theta. Negating flips the figure upside down.
     function A(a) { return f > 0 ? a : Math.PI - a; }
 
     var sq   = pose.squash || 0;
@@ -470,19 +487,14 @@
 
     var chest = step(hipX, hipY, pose.spine, L.spine);
     var headC = step(chest.x, chest.y, pose.spine + (pose.headTilt || 0) * f, L.neck);
-    // The NECK is where the torso should stop — the point on the chest->head line
-    // that sits on the surface of the skull. Deriving it (rather than assuming the
-    // head sits straight up from the chest) is what keeps the head attached when
-    // the body rotates: a falling or running figure whose spine is tilted 30
-    // degrees had its torso drawn to a point directly BELOW the head, leaving a
-    // visible gap between skull and shoulders.
+    // The neck is where the chest->head line meets the skull. Deriving it keeps the head
+    // attached when the spine tilts (a tilted torso otherwise left a gap).
     var _hr = 13 * scale * (1 - sq * 0.42);
     var _ndx = headC.x - chest.x, _ndy = headC.y - chest.y;
     var _nlen = Math.sqrt(_ndx*_ndx + _ndy*_ndy) || 1;
     var neck = { x: headC.x - (_ndx / _nlen) * _hr * 0.80,
                  y: headC.y - (_ndy / _nlen) * _hr * 0.80 };
-    // Shoulders sit just below the chest ALONG THE SPINE, not straight down, for
-    // the same reason.
+    // Shoulders sit along the spine, for the same reason.
     var _sdx = chest.x - hipX, _sdy = chest.y - hipY;
     var _slen = Math.sqrt(_sdx*_sdx + _sdy*_sdy) || 1;
     var shoulder = { x: chest.x - (_sdx/_slen) * L.shoulderDrop * scale,
@@ -515,7 +527,7 @@
   }
 
   window.FigureRig = {
-    hasClip: hasClip, sample: sample, solve: solve, ease: ease,
+    hasClip: hasClip, isHeld: isHeld, sample: sample, solve: solve, ease: ease, blend: blend,
     POSES: POSES, CLIPS: CLIPS, BASE: BASE, LENGTHS: L
   };
 })();

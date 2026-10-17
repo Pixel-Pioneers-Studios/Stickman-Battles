@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch49.js — Chapter 49 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch49.js: Chapter 49 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 49 — The Assembly (stealth)
-// "The neutral dimension — the anchor point." A grey plain that belongs to no
-// world: no sun, no weather, a flat sky the colour of paper, and standing
-// monoliths of every faction's architecture planted as neutral markers. The
-// Creator's scouts sweep it; each post's scan beam lights exactly its
-// detection zone on the floor (detection sits at guard y = 395). Every post
-// has a high route over it: a marker stone to step on, then a long lintel
-// bridging two monoliths clear of the zone. The Assembly Hall — a ring of
-// seats under an open dome, the four Architects' colours on its pillars — is
-// the far end.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 49, The Assembly (stealth). Scan beams light each guard's zone; every post has a high route over it.
 (function () {
   const G = 440;
   const POSTS = [[750, 85], [1200, 90], [1900, 100], [2600, 90], [3200, 100]];   // mirrors stealthGuardDefs
@@ -28,7 +17,6 @@
   function backdrop(v) {
     _slSkyAbove(v, '#9a9a9e');
     _slParallax(v, 0.1, (l, r) => {
-      // Neutral markers far off: silhouettes of every faction's architecture
       for (let i = Math.floor(l / 160) - 1; i * 160 < r + 160; i++) {
         const x = i * 160 + _slHash(i) * 60, h = 60 + _slHash(i + 1) * 120, kind = Math.floor(_slHash(i + 2) * 3);
         ctx.fillStyle = 'rgba(110,110,118,0.6)';
@@ -40,7 +28,6 @@
   }
 
   function back(v) {
-    // Lintel routes: marker stone, two monoliths, a slab across them
     for (const R of ROUTES) {
       const [sx, sy, sw] = R.step, [lx, ly, lw] = R.lintel;
       if (!_slVisible(v, sx - 20, lx + lw + 20)) continue;
@@ -50,7 +37,6 @@
       ctx.fillStyle = '#74747c'; ctx.fillRect(lx, ly, lw, 12);
       ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(lx, ly, lw, 2);
     }
-    // Scout posts: a hovering scan drone whose beam lights its detection zone
     for (const [x, r] of POSTS) {
       if (!_slVisible(v, x - r - 40, x + r + 40)) continue;
       const hy = 150 + Math.sin(frameCount * 0.03 + x) * 6;
@@ -62,7 +48,6 @@
       ctx.fillStyle = '#3a3a48'; ctx.beginPath(); ctx.ellipse(x, hy, 18, 7, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffcc44'; ctx.fillRect(x - 3, hy + 3, 6, 3);
     }
-    // The Assembly Hall: ring of seats under an open dome, Architects' colours
     if (_slVisible(v, HALL - 300, HALL + 400)) {
       ctx.fillStyle = '#7a7a82'; ctx.fillRect(HALL - 220, 160, 440, 280);
       ctx.fillStyle = '#8a8a92'; ctx.beginPath(); ctx.arc(HALL, 160, 220, Math.PI, 0); ctx.fill();

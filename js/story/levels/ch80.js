@@ -1,18 +1,6 @@
 'use strict';
-// js/story/levels/ch80.js — Chapter 80 map (story ARENA, boss). See smb-story-levels.js.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 80 — Proof of Understanding (boss vs the Fallen God, one screen)
-// The Fallen God's trial ground, at the centre of the thing it built: the
-// walls between dimensions, seen from inside as rings of gold light nested
-// out to the horizon, each with a world faintly showing through it — the
-// blueprint from the origin vault, made real. The dais you fight on is
-// inlaid with the same plan. High on the back wall is the seat it no longer
-// sits in, cracked down the middle. The walls brighten through the fight as
-// it is satisfied ("Good. Do not stop."). Golden stepping stones in the
-// void-arena layout the boss floor hazard was tuned for. Built on the
-// Creator arena's boss rules.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch. 80 map: boss fight vs the Fallen God, one screen. Gold rings for the walls
+// between dimensions, golden stepping stones for the boss floor hazard.
 (function () {
   const G = 460;
   const STONES = [[350, 225, 200], [80, 295, 140], [680, 295, 140], [205, 378, 110], [585, 378, 110], [150, 152, 110], [640, 152, 110]];
@@ -32,7 +20,6 @@
   function backdrop(v) {
     _slSkyAbove(v, '#040308');
     const s = stage();
-    // Gold dust
     for (let k = 0; k < 90; k++) {
       ctx.fillStyle = `rgba(255,220,140,${0.15 + 0.35 * _slHash(k + 800) * (0.6 + 0.4 * Math.sin(frameCount * 0.02 + k))})`;
       ctx.fillRect(v.x + _slHash(k + 801) * v.w, v.y + _slHash(k + 802) * (G - v.y), 1.5, 1.5);
@@ -43,7 +30,6 @@
       const R = 60 + k * 70, ry = R * 0.32, cy = 290;
       ctx.strokeStyle = `rgba(255,${200 - k * 8},${120 - k * 8},${0.10 + s * 0.15 + (k === 6 ? 0.05 : 0)})`; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(450, cy, R, ry, 0, 0, Math.PI * 2); ctx.stroke();
-      // A world showing through each wall, faintly
       const hue = Math.floor(_slHash(k + 805) * 360);
       for (let j = 0; j < 4; j++) {
         const a = Math.PI * (1.15 + j * 0.23) + k * 0.4;

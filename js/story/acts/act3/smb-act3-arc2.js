@@ -247,7 +247,7 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Protocol Components',
     preText: 'Veran needs the salvaged protocol components to reconstruct the fourth step. Collect all five pieces before the interference wave erases them.',
     scavengeItemDefs: [
-      // Placed on the workshop's fixtures (js/story/levels/ch62.js)
+      // On the workshop fixtures (js/story/levels/ch62.js)
       { wx: 500,  y: 330, name: 'Step-3 Blueprint',  icon: '📜' },   // drafting table
       { wx: 1335, y: 160, name: 'Fragment Conduit',  icon: '🔩' },   // crane hook
       { wx: 1925, y: 470, name: 'Closure Catalyst',  icon: '⚗️' },   // tank pit
@@ -280,8 +280,7 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Research Core',
     preText: 'Veran\'s research archive is partitioned behind three sequence locks. Unlock them in order to recover the original fracture event data — the full truth.',
     puzzleSwitchDefs: [
-      // Out of order through Veran's archive (js/story/levels/ch63.js):
-      // top of the filing stacks, her desk, the middle shelf.
+      // Out of order through Veran's archive (js/story/levels/ch63.js).
       { wx: 2295, y: 170, label: '1' },
       { wx: 610,  y: 380, label: '2' },
       { wx: 1440, y: 240, label: '3' },
@@ -362,7 +361,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'Act IV complete. The Creator\'s domain opens ahead. Three Architects. One fragment bearer. One rift entity. Forward.',
   },
 
-  // ─────── Side mission: Lab Infiltration (id 62) ────────────────────
+  // Side mission: Lab Infiltration (id 62)
   // Damnation arc follows in smb-act5-arc-damnation.js (ids 63–68)
   // Fallen God arc follows in smb-act6-arc1.js / smb-act6-arc2.js (ids 69–74)
   // Multiverse arcs follow in smb-act4mv-arc1.js / arc2.js / arc3.js (ids 75–95)

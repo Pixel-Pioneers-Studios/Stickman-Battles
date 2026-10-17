@@ -1,0 +1,373 @@
+{
+ "LABEL": "summ50-fighter",
+ "MODE": "classes",
+ "BRAIN": "fighter",
+ "ARENA": "flat",
+ "MATCHES": 16,
+ "PATCH": {},
+ "ents": [
+  "none",
+  "warrior",
+  "thor",
+  "kratos",
+  "ninja",
+  "gunner",
+  "archer",
+  "paladin",
+  "berserker",
+  "pugilist",
+  "ronin",
+  "reaper",
+  "summoner",
+  "demolitionist",
+  "warden",
+  "adept"
+ ],
+ "st": {
+  "none": {
+   "w": 6,
+   "l": 10,
+   "d": 0,
+   "n": 16,
+   "dFor": 6842,
+   "dAg": 8135,
+   "f": 36995
+  },
+  "warrior": {
+   "w": 8,
+   "l": 8,
+   "d": 0,
+   "n": 16,
+   "dFor": 6411,
+   "dAg": 7211,
+   "f": 34482
+  },
+  "thor": {
+   "w": 5,
+   "l": 11,
+   "d": 0,
+   "n": 16,
+   "dFor": 6200,
+   "dAg": 7298,
+   "f": 32793
+  },
+  "kratos": {
+   "w": 2,
+   "l": 14,
+   "d": 0,
+   "n": 16,
+   "dFor": 5959,
+   "dAg": 6482,
+   "f": 28794
+  },
+  "ninja": {
+   "w": 2,
+   "l": 14,
+   "d": 0,
+   "n": 16,
+   "dFor": 4987,
+   "dAg": 6683,
+   "f": 28956
+  },
+  "gunner": {
+   "w": 0,
+   "l": 16,
+   "d": 0,
+   "n": 16,
+   "dFor": 3584,
+   "dAg": 5867,
+   "f": 24493
+  },
+  "archer": {
+   "w": 2,
+   "l": 14,
+   "d": 0,
+   "n": 16,
+   "dFor": 5232,
+   "dAg": 6587,
+   "f": 31091
+  },
+  "paladin": {
+   "w": 10,
+   "l": 6,
+   "d": 0,
+   "n": 16,
+   "dFor": 7076,
+   "dAg": 6048,
+   "f": 35845
+  },
+  "berserker": {
+   "w": 6,
+   "l": 10,
+   "d": 0,
+   "n": 16,
+   "dFor": 6394,
+   "dAg": 6731.98,
+   "f": 31817
+  },
+  "pugilist": {
+   "w": 6,
+   "l": 10,
+   "d": 0,
+   "n": 16,
+   "dFor": 6168,
+   "dAg": 6864,
+   "f": 31511
+  },
+  "ronin": {
+   "w": 4,
+   "l": 12,
+   "d": 0,
+   "n": 16,
+   "dFor": 6304,
+   "dAg": 7343,
+   "f": 31632
+  },
+  "reaper": {
+   "w": 7,
+   "l": 9,
+   "d": 0,
+   "n": 16,
+   "dFor": 7259,
+   "dAg": 8271,
+   "f": 36261
+  },
+  "summoner": {
+   "w": 165,
+   "l": 75,
+   "d": 0,
+   "n": 240,
+   "dFor": 104521.98,
+   "dAg": 90540,
+   "f": 485171
+  },
+  "demolitionist": {
+   "w": 0,
+   "l": 16,
+   "d": 0,
+   "n": 16,
+   "dFor": 5484,
+   "dAg": 6845,
+   "f": 31461
+  },
+  "warden": {
+   "w": 12,
+   "l": 4,
+   "d": 0,
+   "n": 16,
+   "dFor": 7030,
+   "dAg": 7362,
+   "f": 38978
+  },
+  "adept": {
+   "w": 5,
+   "l": 11,
+   "d": 0,
+   "n": 16,
+   "dFor": 5610,
+   "dAg": 6794,
+   "f": 30062
+  }
+ },
+ "mir": {
+  "none": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "warrior": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "thor": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "kratos": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "ninja": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "gunner": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "archer": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "paladin": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "berserker": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "pugilist": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "ronin": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "reaper": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "summoner": {
+   "a": 8,
+   "b": 8,
+   "d": 0
+  },
+  "demolitionist": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "warden": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  },
+  "adept": {
+   "a": 0,
+   "b": 0,
+   "d": 0
+  }
+ },
+ "cell": {
+  "none|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "kratos|summoner": {
+   "aw": 2,
+   "bw": 14,
+   "d": 0
+  },
+  "ninja|summoner": {
+   "aw": 2,
+   "bw": 14,
+   "d": 0
+  },
+  "paladin|summoner": {
+   "aw": 10,
+   "bw": 6,
+   "d": 0
+  },
+  "berserker|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "reaper|summoner": {
+   "aw": 7,
+   "bw": 9,
+   "d": 0
+  },
+  "summoner|warden": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "warrior|summoner": {
+   "aw": 8,
+   "bw": 8,
+   "d": 0
+  },
+  "thor|summoner": {
+   "aw": 5,
+   "bw": 11,
+   "d": 0
+  },
+  "gunner|summoner": {
+   "aw": 0,
+   "bw": 16,
+   "d": 0
+  },
+  "archer|summoner": {
+   "aw": 2,
+   "bw": 14,
+   "d": 0
+  },
+  "pugilist|summoner": {
+   "aw": 6,
+   "bw": 10,
+   "d": 0
+  },
+  "ronin|summoner": {
+   "aw": 4,
+   "bw": 12,
+   "d": 0
+  },
+  "summoner|demolitionist": {
+   "aw": 16,
+   "bw": 0,
+   "d": 0
+  },
+  "summoner|adept": {
+   "aw": 11,
+   "bw": 5,
+   "d": 0
+  }
+ },
+ "bugs": {
+  "nonFinite": {},
+  "offArena": {},
+  "stall": {},
+  "timeout": {},
+  "err": {}
+ },
+ "rmse": 27.59925270727452,
+ "src": {
+  "sword": {
+   "dmg": [
+    107956,
+    57951,
+    58606
+   ],
+   "hits": [
+    8945,
+    3147,
+    3793
+   ],
+   "casts": [
+    15597,
+    3229,
+    1469
+   ],
+   "gap": 1626272.5176753737,
+   "near": 10280,
+   "combo": {
+    "open": 6391,
+    "len": [
+     0,
+     6391,
+     3957,
+     2552,
+     1370,
+     1615
+    ],
+    "dmg": 224513,
+    "max": 147
+   }
+  }
+ }
+}

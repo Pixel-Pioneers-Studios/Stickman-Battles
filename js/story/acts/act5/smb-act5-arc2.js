@@ -1,4 +1,4 @@
-// Appends chapters for act5/smb-act5-arc2.js.
+// Act 5 arc 2 chapters. Bridge and later acts continue in other files.
 STORY_CHAPTER_REGISTRY.push(
   {
     id: 150, title: 'Cosmic Axiom',
@@ -44,8 +44,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'Cosmic Axiom unravels. Not destroyed \u2014 resolved. Your fragment pulses outward, involuntary, and finds what five thousand years of corruption had buried: the thing he used to be. For one moment he is the person who stepped through a portal because he believed in something. The outer form collapses around that moment like a building losing its occupant \u2014 and this time, the moment is not taken from him. You reach through it. You hold it open. What walks out of the empty architecture is a man. Diminished. Free. Himself. Far above you, something small and precise hangs in the dark, watching \u2014 then withdraws without descending. You don\'t see it. The man does. He says nothing. The fracture system loses its anchor. Seventeen dimensions stabilize simultaneously. And you are standing in the void next to Axiom.',
   },
 
-  // Act VIII bridge (ids 136–139) continues in smb-act5-bridge.js.
-  // Act IX — Absolute Axiom (ids 140–155) continues in act7/ files.
-  // Act X — The Substrate (ids 156–166) continues in actvoidmind/ files.
+  // Act VIII bridge continues in smb-act5-bridge.js.
+  // Act IX and X continue in act7/ and actvoidmind/.
 
 );

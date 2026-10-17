@@ -1,25 +1,16 @@
 'use strict';
-// js/story/levels/ch01.js — Chapter 1 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 1 — First Contact (stealth)
-// Night, the service alley behind the shop block chapter 0 ends at. Scouts
-// patrol the ground; detection zones sit at ground height (guard y = 395), so
-// every patrol post has an overhead route — fire escapes, a pipe catwalk, a
-// loading-dock canopy, a skybridge — that clears its radius. Staying low is the
-// fast way; going high is the quiet way. Veran's signal beacon is wired to a
-// utility pole where the alley opens onto the next street.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 1 map (stealth). Contract: smb-story-levels.js.
+// Scouts patrol at ground height, so every patrol post has an overhead route that clears its radius.
 (function () {
   const G = 440;
   const BEACON_X = 3270;
-  // Building backs lining the alley: [x0, x1, top, base colour]
+  // Building backs: [x0, x1, top, base colour]
   const BLDG = [
     [-200, 380, G - 360, '#5b3a30'], [380, 900, G - 400, '#4f4440'], [900, 1380, G - 330, '#634236'],
     [1380, 2000, G - 420, '#4a4a4c'], [2000, 2560, G - 370, '#5a3c34'], [2560, 3200, G - 400, '#4e4742'],
     [3200, 3700, G - 340, '#5d4034'],
   ];
-  // Overhead routes (each clears the patrol radius below it)
+  // Overhead routes, each clears the patrol radius below it
   const DUMP1   = { x: 500, w: 92, h: 54 };
   const ESC1    = { x: 590, w: 250, ys: [G - 140, G - 240] };
   const CRATES  = [{ x: 960, y: G - 46, s: 46 }, { x: 1006, y: G - 46, s: 46 }, { x: 985, y: G - 92, s: 46 }];
@@ -50,7 +41,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#05070d');
-    // Night sky + the glow of the city over the rooftops
     _slParallax(v, 0.06, (l, r) => {
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       for (let i = Math.floor(l / 40); i * 40 < r; i++) if (_slHash(i) < 0.35) ctx.fillRect(i * 40 + _slHash(i + 3) * 30, 10 + _slHash(i + 8) * 120, 1.2, 1.2);
@@ -71,7 +61,7 @@
   }
 
   function back(v) {
-    // Building backs, world-anchored: the alley's two walls collapsed into one plane
+    // World-anchored so it parallaxes with the walls
     for (const [x0, x1, top, col] of BLDG) {
       if (!_slVisible(v, x0, x1)) continue;
       _slBrick(x0, top, x1 - x0, G - top, col);
@@ -79,11 +69,10 @@
       ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(x1 - 6, top, 6, G - top);
       _slWindowGrid(x0 + 10, top + 24, x1 - x0 - 20, G - top - 150, Math.max(2, Math.round((x1 - x0) / 80)), Math.max(1, Math.round((G - top - 150) / 80)),
         { lit: 0.22, seed: x0, glow: true, dark: '#1a1e24' });
-      // Downpipe
       ctx.fillStyle = '#2c2f33'; ctx.fillRect(x0 + 18, top + 8, 6, G - top - 8);
       ctx.fillRect(x0 + 14, G - 12, 14, 6);
     }
-    // Back doors with caged lamps — the light pools the scouts stand in
+    // Light pools the scouts stand in
     for (const [dx, warm] of [[260, true], [720, false], [1210, true], [1800, true], [2410, false], [3010, true]]) {
       if (!_slVisible(v, dx - 90, dx + 90)) continue;
       ctx.fillStyle = '#2b2f33'; ctx.fillRect(dx - 22, G - 84, 44, 84);
@@ -93,7 +82,6 @@
       ctx.fillText(dx % 3 ? 'DELIVERIES' : 'NO ENTRY', dx, G - 90);
       _slWallLamp(dx, G - 110, G, warm);
     }
-    // Graffiti
     const tag = (x, y, txt, col, rot) => {
       if (!_slVisible(v, x - 80, x + 80)) return;
       ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.font = 'italic bold 22px Arial'; ctx.textAlign = 'center';
@@ -102,12 +90,10 @@
     tag(420, G - 60, 'NO KINGS', '#c8486a', -0.08);
     tag(1500, G - 200, '17', '#64c8d8', 0.05);
     tag(2650, G - 70, 'THEY CAME FROM UP', '#d8c048', -0.03);
-    // Steam vents
     for (const sx of [880, 2090, 3140]) if (_slVisible(v, sx - 40, sx + 40)) {
       ctx.fillStyle = '#34383c'; ctx.fillRect(sx - 14, G - 120, 28, 18);
       _slSmoke(sx, G - 120, 140, false, sx);
     }
-    // Laundry line strung across the alley
     if (_slVisible(v, 1400, 1700)) {
       ctx.strokeStyle = 'rgba(200,200,200,0.5)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(1400, G - 250); ctx.quadraticCurveTo(1550, G - 220, 1700, G - 255); ctx.stroke();
@@ -119,14 +105,14 @@
       }
     }
 
-    // ── Route 1: dumpster → fire escape over the first patrol ─────────────
+    // Route 1: dumpster, fire escape
     if (_slVisible(v, 460, 880)) {
       _slTrashBags(470, G, 2);
       _slDumpster(DUMP1.x, G, DUMP1.w, DUMP1.h, '#2e5a46');
       _slFireEscape(ESC1.x, ESC1.w, ESC1.ys);
       _slWindowGrid(ESC1.x + 30, G - 300, ESC1.w - 60, 180, 3, 2, { lit: 0.3, seed: 77 });
     }
-    // ── Route 2: crates → pipe catwalk → AC box ──────────────────────────
+    // Route 2: crates, pipe catwalk, AC box
     if (_slVisible(v, 940, 1450)) {
       for (const c of CRATES) _slCrate(c.x, c.y, c.s);
       ctx.fillStyle = '#5d636a'; ctx.fillRect(PIPE.x - 10, PIPE.y, PIPE.w + 20, 12);
@@ -136,17 +122,15 @@
       ctx.fillStyle = '#ffd04a'; ctx.font = 'bold 7px Arial'; ctx.textAlign = 'left'; ctx.fillText('GAS · DO NOT STEP', PIPE.x + 100, PIPE.y + 10);
       _slAcUnit(ACBOX.x, G - ACBOX.h, ACBOX.w, ACBOX.h);
     }
-    // ── Route 3: loading dock → corrugated canopy ────────────────────────
+    // Route 3: loading dock, canopy
     if (_slVisible(v, 1500, 2000)) {
       ctx.fillStyle = '#5a5c5e'; ctx.fillRect(DOCK.x, G - DOCK.h, DOCK.w, DOCK.h);
       ctx.fillStyle = '#2a2a2a'; ctx.fillRect(DOCK.x + 6, G - DOCK.h + 8, DOCK.w - 12, 6);
       ctx.fillStyle = '#d0a020';
       for (let k = 0; k < 6; k++) ctx.fillRect(DOCK.x + k * 20, G - DOCK.h, 10, 4);
-      // Roll-up door behind the dock
       ctx.fillStyle = '#7c8086'; ctx.fillRect(DOCK.x + 140, G - 130, 160, 130);
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       for (let ry = G - 126; ry < G; ry += 8) { ctx.beginPath(); ctx.moveTo(DOCK.x + 140, ry); ctx.lineTo(DOCK.x + 300, ry); ctx.stroke(); }
-      // Canopy: corrugated sheet on brackets
       ctx.fillStyle = '#6a7076'; ctx.fillRect(CANOPY.x, CANOPY.y, CANOPY.w, 10);
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       for (let cx = CANOPY.x; cx < CANOPY.x + CANOPY.w; cx += 8) ctx.fillRect(cx, CANOPY.y + 2, 3, 8);
@@ -155,7 +139,7 @@
         ctx.beginPath(); ctx.moveTo(bx, CANOPY.y + 10); ctx.lineTo(bx + 30, CANOPY.y - 40); ctx.stroke();
       }
     }
-    // ── Route 4: tall fire escape ────────────────────────────────────────
+    // Route 4: tall fire escape
     if (_slVisible(v, 2200, 2600)) {
       _slWindowGrid(ESC2.x + 30, G - 390, ESC2.w - 60, 300, 3, 3, { lit: 0.3, seed: 123 });
       _slFireEscape(ESC2.x, ESC2.w, ESC2.ys);
@@ -164,7 +148,7 @@
       for (let ly = ESC2.ys[0] + 10; ly < G - 40; ly += 12) { ctx.beginPath(); ctx.moveTo(ESC2.x + 20, ly); ctx.lineTo(ESC2.x + 34, ly); ctx.stroke(); }
       _slTrashBags(2560, G, 3);
     }
-    // ── Route 5: pallets → shed → skybridge ──────────────────────────────
+    // Route 5: pallets, shed, skybridge
     if (_slVisible(v, 2700, 3200)) {
       _slChainFence(2600, G, 130, 110);
       ctx.fillStyle = '#9a7a4c';
@@ -172,7 +156,6 @@
       ctx.fillStyle = '#5c4630'; ctx.fillRect(SHED.x + 6, SHED.y, SHED.w - 12, G - SHED.y);
       ctx.fillStyle = '#3c3e40'; ctx.fillRect(SHED.x, SHED.y, SHED.w, 8);
       ctx.fillStyle = '#2a1e14'; ctx.fillRect(SHED.x + 30, G - 60, 30, 60);
-      // Enclosed skybridge between the two buildings
       ctx.fillStyle = '#3e4246'; ctx.fillRect(BRIDGE.x, BRIDGE.y - 70, BRIDGE.w, 80);
       ctx.fillStyle = '#2a2e32'; ctx.fillRect(BRIDGE.x, BRIDGE.y, BRIDGE.w, 10);
       ctx.fillStyle = 'rgba(200,220,240,0.20)';
@@ -181,7 +164,7 @@
       ctx.fillStyle = '#26292c';
       ctx.fillRect(BRIDGE.x + 40, BRIDGE.y + 10, 8, G - BRIDGE.y - 10); ctx.fillRect(BRIDGE.x + BRIDGE.w - 48, BRIDGE.y + 10, 8, G - BRIDGE.y - 10);
     }
-    // ── Exit: Veran's beacon on the utility pole, street light beyond ─────
+    // Exit: Veran's beacon on the utility pole
     if (_slVisible(v, BEACON_X - 200, BEACON_X + 400)) {
       const sg = ctx.createLinearGradient(BEACON_X + 40, 0, BEACON_X + 300, 0);
       sg.addColorStop(0, 'rgba(255,200,130,0)'); sg.addColorStop(1, 'rgba(255,200,130,0.22)');
@@ -190,7 +173,6 @@
       ctx.fillRect(BEACON_X - 30, G - 290, 60, 5);
       ctx.strokeStyle = '#1c1c1c'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(BEACON_X - 30, G - 288); ctx.quadraticCurveTo(BEACON_X - 300, G - 250, BEACON_X - 600, G - 292); ctx.stroke();
-      // Taped-on device: a phone, a battery pack and a coil of wire
       ctx.fillStyle = '#1e2226'; ctx.fillRect(BEACON_X - 12, G - 150, 24, 36);
       ctx.fillStyle = '#c8c0a8'; ctx.fillRect(BEACON_X - 14, G - 140, 28, 5); ctx.fillRect(BEACON_X - 14, G - 124, 28, 5);
       const on = (frameCount % 60) < 30;
@@ -205,7 +187,7 @@
       ctx.beginPath(); ctx.moveTo(BEACON_X + 12, G - 120); ctx.bezierCurveTo(BEACON_X + 30, G - 110, BEACON_X + 10, G - 90, BEACON_X + 26, G - 70); ctx.stroke();
       ctx.fillStyle = '#e8e2d0'; ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillText('V.', BEACON_X, G - 104);
     }
-    // Light rain, world-anchored so it parallaxes with the walls
+    // World-anchored so it parallaxes with the walls
     ctx.strokeStyle = 'rgba(180,200,230,0.20)'; ctx.lineWidth = 1;
     for (let k = 0; k < 60; k++) {
       const rx = v.x + ((_slHash(k) * v.w + frameCount * 1.5) % v.w);

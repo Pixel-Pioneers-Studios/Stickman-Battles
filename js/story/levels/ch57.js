@@ -1,16 +1,7 @@
 'use strict';
-// js/story/levels/ch57.js — Chapter 57 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch57.js. Chapter 57 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 57 — Empty Sanctum (escape)
-// The Third Architect's post inside the interference layer, abandoned. "They
-// didn't flee. They left on their own terms." Their instruments are still
-// running on the floating plates of the post — frost-glass slates mid-
-// calculation, the outcome board frozen on its last number, a stool pushed
-// back from a desk. The interference static eats the post from behind as the
-// constructs sweep in; the plates have short gaps (one jump each). The
-// Fallback Point, a doorway of the Architects' colours, is the far end.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 57, escape. Floating plates with one-jump gaps; the Fallback Point is the far end.
 (function () {
   const PLATES = [[0, 560, 440], [640, 1080, 425], [1160, 1560, 445], [1640, 2000, 430], [2080, 2560, 440],
                   [2640, 3000, 430], [3080, 3480, 440], [3560, 4200, 440]];

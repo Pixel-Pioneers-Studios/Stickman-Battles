@@ -213,6 +213,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The fragment is a piece of who the rift entity used to be. And it chose you. That means something — you just don\'t know what yet.',
   },
 
-  // ─────── Arc 2-1: Forest & Ice (ids 35–41) ───────────────────────
+  // Arc 2-1: Forest & Ice (ids 35-41)
 
 );

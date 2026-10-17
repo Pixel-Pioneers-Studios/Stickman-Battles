@@ -1,17 +1,13 @@
 'use strict';
-// js/story/scenes/act5.js — cinematic scene specs for act5.
-// Split out of the former single-file js/smb-story-scenes.js; content unchanged.
-// Every file here merges into the shared window.STORY_SCENE_SPECS, so load order
-// AMONG these files does not matter — only that they all load BEFORE
-// js/smb-story-narrative-scene.js, which reads the table.
-//
-// 9 specs — chapter ids: 70, 72, 148, 149, 150, 151, 152, 153, 154
+// js/story/scenes/act5.js: cinematic scene specs for act5.
+// Merges into window.STORY_SCENE_SPECS. Must load before smb-story-narrative-scene.js.
+// Chapters 70, 72, 148-154.
 
 window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
 (function (S) {
 
-  // ─── Chapter 70 — The Weight of What's Coming ──────────────────────────
+  // Chapter 70: The Weight of What's Coming
   S[70] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
@@ -132,7 +128,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 72 — What Axiom Wants ───────────────────────────────────────
+  // Chapter 72: What Axiom Wants
   S[72] = {
     // The loop's repeated corridor, at chapter 73's first arch
     bg: 'level', level: { ch: 73, x: 620 },
@@ -249,7 +245,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 148 — Before the End ────────────────────────────────────────
+  // Chapter 148: Before the End
   S[148] = {
     // Cosmic Axiom's threshold, past the ninety-four lights (ch146)
     bg: 'level', level: { ch: 146, x: 3400 },
@@ -274,18 +270,17 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.82,
       },
       {
-        // TrueForm lists what it's done. Player just... stands there.
-        // The stillness is the statement. Everything this being says just makes them more certain.
+        // The stillness is the statement.
         letterbox: true,
         playerExpr: 'cool',
         camAnim: [
           { at: 0,  zoom: 1.18, cx: 0.50, cy: 0.50 },
-          { at: 35, zoom: 1.40, cx: 0.30, cy: 0.48 }, // drift to player — let the camera say what they won't
+          { at: 35, zoom: 1.40, cx: 0.30, cy: 0.48 }, // drift to player
           { at: 80, zoom: 1.32, cx: 0.50, cy: 0.50 },
         ],
         playerPos: [
           { at: 0,  x: 0.28, state: 'look', facing: 1, expr: 'cool' },
-          { at: 40, x: 0.28, state: 'idle', facing: 1, expr: 'cool' }, // settles. Not affected.
+          { at: 40, x: 0.28, state: 'idle', facing: 1, expr: 'cool' }, // settles
         ],
         effectsBehind: [
           { type: 'fragment_pulse', color: '#cc44ff', alpha: 0.60, fadeIn: 20 },
@@ -298,13 +293,11 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.82,
       },
       {
-        // "I am telling you this so it is not a secret. Walk in with the truth."
-        // Player absorbs it. Serene. They already knew.
         letterbox: true,
         playerExpr: 'serene',
         camAnim: [
           { at: 0,   zoom: 1.32, cx: 0.50, cy: 0.50 },
-          { at: 35,  zoom: 1.55, cx: 0.28, cy: 0.46 }, // tight on player — hold there
+          { at: 35,  zoom: 1.55, cx: 0.28, cy: 0.46 }, // tight on player
           { at: 100, zoom: 1.45, cx: 0.30, cy: 0.48 },
         ],
         playerPos: [
@@ -323,19 +316,17 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.82,
       },
       {
-        // The choice is at hand. Player carries ninety-four bearers plus the truth.
-        // Camera holds close. The expression says everything.
         letterbox: true,
         playerExpr: 'serene',
         camAnim: [
           { at: 0,  zoom: 1.45, cx: 0.50, cy: 0.50 },
-          { at: 40, zoom: 1.62, cx: 0.28, cy: 0.46 }, // final close — face only
+          { at: 40, zoom: 1.62, cx: 0.28, cy: 0.46 }, // final close
           { at: 90, zoom: 1.48, cx: 0.30, cy: 0.48 },
         ],
         camShake: [{ at: 38, strength: 5, dur: 24 }],
         playerPos: [
           { at: 0,  x: 0.28, state: 'look', facing: 1, expr: 'serene' },
-          { at: 35, x: 0.28, state: 'idle', facing: 1, expr: 'serene' }, // perfectly still. Decided.
+          { at: 35, x: 0.28, state: 'idle', facing: 1, expr: 'serene' }, // still
         ],
         effectsBehind: [
           { type: 'fragment_pulse', color: '#cc44ff', alpha: 0.85, fadeIn: 10 },
@@ -353,9 +344,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 149 — Same Frequency (6 beats) ──────────────────────────────────
-  // Paradox explains the mechanism: same radiation, same frequency, interference.
-  // Paradox has no body here — it comes through the fragment, so no npc figure.
+  // Chapter 149: Same Frequency. Paradox has no body here, it comes through the fragment.
   S[149] = {
     // Cosmic Axiom's threshold, past the ninety-four lights (ch146)
     bg: 'level', level: { ch: 146, x: 3400 },
@@ -380,7 +369,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#cc44ff', alpha: 0.26 }],
       },
       {
-        // Same radiation, same origin — two pulses beating against each other.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.12, cx: 0.46, cy: 0.50 }, { at: 80, zoom: 1.30, cx: 0.44, cy: 0.48 }],
         camShake: [{ at: 40, strength: 3, dur: 40 }],
@@ -391,7 +379,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         ],
       },
       {
-        // None of the ninety-four could sustain it.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.30, cx: 0.44, cy: 0.48 }, { at: 90, zoom: 1.02, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
@@ -403,7 +390,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#8866aa', alpha: 0.22 }],
       },
       {
-        // "One more thing." The damage clears corruption.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.02, cx: 0.50, cy: 0.50 }, { at: 70, zoom: 1.18, cx: 0.44, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.40, state: 'listen', facing: 1 }],
@@ -412,7 +398,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 150 — True Form ──────────────────────────────────────────────
+  // Chapter 150: True Form
   S[150] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
@@ -503,11 +489,9 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 151 — The Silence After (11 beats) ──────────────────────────────
-  // Saga III's opening. The network has stopped humming and the man who built it
-  // is standing next to you. Wide, still, almost no camera movement.
+  // Chapter 151: The Silence After. Saga III opens with the network gone quiet.
   S[151] = {
-    // The void after the network went quiet — the substrate's beam (ch156)
+    // Void after the network went quiet, on the substrate beam (ch156)
     bg: 'level', level: { ch: 156, x: 300 },
     npcColor: '#bb99cc',
     beats: [
@@ -525,7 +509,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'static_noise', alpha: 0.06 }],
       },
       {
-        // The hum stops. Absence, rendered as the pulse going out.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 0.96, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 1.04, cx: 0.50, cy: 0.48 }],
         playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
@@ -533,7 +516,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#332244', alpha: 0.16 }],
       },
       {
-        // Seventeen dimensions still standing.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.04, cx: 0.50, cy: 0.48 }, { at: 90, zoom: 0.88, cx: 0.50, cy: 0.44 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
@@ -541,14 +523,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'multi_portals', color: '#5566aa', alpha: 0.20, count: 6 }],
       },
       {
-        // He is revealed standing beside you — no fanfare, just there.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 0.88, cx: 0.50, cy: 0.44 }, { at: 70, zoom: 1.06, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
         npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1, alpha: 0.0 }, { at: 40, x: 0.58, state: 'idle', facing: 1, alpha: 1.0 }],
       },
       {
-        // Not the Creator. Not the True Form. A man.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.06, cx: 0.54, cy: 0.50 }, { at: 80, zoom: 1.30, cx: 0.58, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
@@ -562,7 +542,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
       },
       {
-        // "Your signal reads two people."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.10, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
@@ -570,21 +549,18 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#7788aa', alpha: 0.24 }],
       },
       {
-        // He looks up at the room he built, from inside it.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.10, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 0.92, cx: 0.58, cy: 0.40 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
         npcPos:    [{ at: 0, x: 0.58, state: 'look', facing: 1 }],
       },
       {
-        // "Five thousand years."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 0.92, cx: 0.58, cy: 0.40 }, { at: 80, zoom: 1.24, cx: 0.58, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
         npcPos:    [{ at: 0, x: 0.58, state: 'talk',   facing: 1 }],
       },
       {
-        // "It wasn't an apology. It was a measurement."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.24, cx: 0.58, cy: 0.49 }, { at: 90, zoom: 0.90, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
@@ -593,8 +569,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 152 — The Cost (13 beats) ───────────────────────────────────────
-  // Axiom is dying of the same corruption he watched ninety-four people die of.
+  // Chapter 152: The Cost. Axiom is dying of the corruption he watched ninety-four people die of.
   S[152] = {
     // Still in the void's aftermath, on the substrate beam (ch156)
     bg: 'level', level: { ch: 156, x: 900 },
@@ -620,7 +595,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
       },
       {
-        // The account you couldn't stop running was standing next to you.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.16, cx: 0.54, cy: 0.50 }, { at: 80, zoom: 1.34, cx: 0.58, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
@@ -628,7 +602,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#aa66cc', alpha: 0.30 }],
       },
       {
-        // The excavation cut both ways.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.34, cx: 0.58, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
@@ -642,7 +615,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
       },
       {
-        // "You had seen this before." — the fragment recognises the pattern.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.12, cx: 0.44, cy: 0.50 }, { at: 70, zoom: 1.28, cx: 0.40, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.42, state: 'look', facing: 1 }],
@@ -656,7 +628,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.58, state: 'idle', facing: 1 }],
       },
       {
-        // "I watched every one of them die of this."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.18, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 1.36, cx: 0.58, cy: 0.48 }],
         camShake: [{ at: 44, strength: 3, dur: 44 }],
@@ -665,14 +636,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#8866aa', alpha: 0.26 }],
       },
       {
-        // He wasn't looking at you.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.36, cx: 0.58, cy: 0.48 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
         npcPos:    [{ at: 0, x: 0.58, state: 'look', facing: 1 }],
       },
       {
-        // "I arrived at the end and collected what was left."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.36, cx: 0.58, cy: 0.48 }, { at: 70, zoom: 1.20, cx: 0.54, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.42, state: 'listen', facing: 1 }],
@@ -680,7 +649,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'static_noise', alpha: 0.14 }],
       },
       {
-        // He closed the hand.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.20, cx: 0.58, cy: 0.52 }, { at: 60, zoom: 1.42, cx: 0.60, cy: 0.54 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle',  facing: 1 }],
@@ -688,7 +656,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#aa66cc', alpha: 0.36 }],
       },
       {
-        // "It does not feel slow."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.42, cx: 0.60, cy: 0.54 }, { at: 90, zoom: 0.94, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.42, state: 'idle', facing: 1 }],
@@ -697,8 +664,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 153 — The Bond (12 beats) ───────────────────────────────────────
-  // Kael teaches the man who built the fracture system how to stop building.
+  // Chapter 153: The Bond. Kael teaches the man who built the fracture system to stop building.
   S[153] = {
     // The teaching, on the substrate beam (ch156)
     bg: 'level', level: { ch: 156, x: 1800 },
@@ -730,7 +696,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
       },
       {
-        // His first attempts are walls. The energy goes straight through.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.20, cx: 0.58, cy: 0.50 }, { at: 70, zoom: 1.32, cx: 0.62, cy: 0.49 }],
         camShake: [{ at: 40, strength: 5, dur: 22 }],
@@ -742,14 +707,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         ],
       },
       {
-        // "Stop building."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.32, cx: 0.46, cy: 0.50 }, { at: 50, zoom: 1.22, cx: 0.44, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.40, state: 'talk',   facing: 1 }],
         npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
       },
       {
-        // Like being asked to stop breathing.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.22, cx: 0.56, cy: 0.50 }, { at: 70, zoom: 1.38, cx: 0.60, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
@@ -762,7 +725,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.60, state: 'listen', facing: -1 }],
       },
       {
-        // Part of what you already are.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.18, cx: 0.48, cy: 0.50 }, { at: 80, zoom: 1.04, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
@@ -770,7 +732,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.42 }],
       },
       {
-        // Five thousand years of engineering, set down.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.04, cx: 0.58, cy: 0.50 }, { at: 90, zoom: 1.24, cx: 0.60, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.40, state: 'idle',  facing: 1 }],
@@ -778,14 +739,12 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
       },
       {
-        // Underneath it: the man from before.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.24, cx: 0.60, cy: 0.50 }, { at: 70, zoom: 1.36, cx: 0.60, cy: 0.48 }],
         playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
         npcPos:    [{ at: 0, x: 0.60, state: 'idle', facing: -1 }],
       },
       {
-        // The light under his skin steadies.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.36, cx: 0.60, cy: 0.48 }, { at: 90, zoom: 1.00, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.40, state: 'idle', facing: 1 }],
@@ -795,8 +754,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 154 — The Compass Points (long) ─────────────────────────────────
-  // The trail points down. Held wide — this is a chapter of decision, not action.
+  // Chapter 154: The Compass Points. A chapter of decision, not action.
   S[154] = {
     // The trail through the void-between: Sovereign's footprints (ch156)
     bg: 'level', level: { ch: 156, x: 2700 },
@@ -815,7 +773,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.60, state: 'talk',   facing: -1 }],
       },
       {
-        // The trail points down.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.06, cx: 0.50, cy: 0.50 }, { at: 80, zoom: 0.90, cx: 0.50, cy: 0.66 }],
         playerPos: [{ at: 0, x: 0.40, state: 'look',  facing: 1 }],

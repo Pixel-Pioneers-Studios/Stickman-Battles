@@ -1,5 +1,5 @@
 'use strict';
-// smb-sitelock.js — host allowlist ("sitelock")
+// smb-sitelock.js: host allowlist ("sitelock")
 // Load order: first, before any game script. Depends on nothing.
 //
 // Portals ask for this so a stolen copy of the build cannot be re-hosted and
@@ -21,11 +21,11 @@
     /(^|\.)github.io$/i,
     // CrazyGames: portal (all regional TLDs), game-file CDN, and the mobile apps
     /(^|\.)crazygames\.(com|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2,3})$/i,
-    // itch.io — HTML5 uploads are served from itch.zone / the hwcdn edge
+    // itch.io: HTML5 uploads are served from itch.zone / the hwcdn edge
     /(^|\.)itch\.io$/i,
     /(^|\.)itch\.zone$/i,
     /(^|\.)hwcdn\.net$/i,
-    // Newgrounds — uploads are served from ungrounded.net
+    // Newgrounds: uploads are served from ungrounded.net
     /(^|\.)newgrounds\.com$/i,
     /(^|\.)ungrounded\.net$/i,
     // Game Jolt
@@ -34,7 +34,7 @@
 
   var host = String(location.hostname || '').toLowerCase();
 
-  // No hostname at all (file://, a packaged app shell) — allow rather than
+  // No hostname at all (file://, a packaged app shell): allow rather than
   // lock a legitimate offline copy out of the game.
   if (!host || location.protocol === 'file:') return;
 

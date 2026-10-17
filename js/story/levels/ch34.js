@@ -1,16 +1,6 @@
 'use strict';
-// js/story/levels/ch34.js — Chapter 34 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 34 — Echo Storm (walk → duel vs the Storm Echo)
-// Segment 3 of the Multiversal Core region (local 0..6000, geometry from `a`).
-// "A cascade of fracture-born fighters generated from residual dimensional
-// energy. The storm has an eye. A generator." The sky is a magenta vortex;
-// half-formed echo silhouettes flicker in and out along the walk; storm
-// wreckage — torn slabs of other worlds — piles into climbable heaps. The
-// generator stands at the midpoint, its coil feeding the storm, guarded by
-// the echo that "looks like someone you know." Cache shafts are storm vents.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 34 map (walk, then duel vs the Storm Echo). See smb-story-levels.js.
+// Segment 3 of the Multiversal Core region. Geometry is local 0..6000 from `a`.
 (function () {
   const G = 440, GEN = 3000;
   const WRECK = [[500, 360, 110], [640, 280, 100], [1250, 350, 130], [2200, 360, 90], [2320, 280, 120],
@@ -26,7 +16,7 @@
   }
 
   function backdrop(v) {
-    // The vortex: bands spiralling in toward the eye of the storm
+    // Vortex bands spiral toward the eye
     _slParallax(v, 0.05, (l, r) => {
       const cx = l + (r - l) * 0.5, cy = 60, t = frameCount * 0.004;
       for (let k = 0; k < 14; k++) {
@@ -40,7 +30,7 @@
       ctx.fillStyle = g; ctx.fillRect(cx - 130, cy - 130, 260, 260);
       ctx.restore();
     });
-    // Lightning: rare jagged strikes far behind the walk
+    // Rare strikes, far behind the walk
     _slParallax(v, 0.2, (l, r) => {
       const slot = Math.floor(frameCount / 50);
       if (_slHash(slot) > 0.35 || (frameCount % 50) > 8) return;
@@ -53,7 +43,7 @@
   }
 
   function back(v) {
-    // Echo silhouettes flickering in and out along the walk
+    // Echoes flicker in and out along the walk
     for (let k = Math.floor((v.x - 100) / 260); k * 260 < v.x + v.w + 100; k++) {
       if (k < 0 || k * 260 > 6000 || Math.abs(k * 260 - GEN) < 500) continue;
       const on = Math.sin(frameCount * 0.03 + k * 2.1) > 0.4;
@@ -64,7 +54,7 @@
       ctx.moveTo(ex, G - 141); ctx.lineTo(ex, G - 100); ctx.lineTo(ex - 10, G - 62); ctx.moveTo(ex, G - 100); ctx.lineTo(ex + 10, G - 62);
       ctx.moveTo(ex - 14, G - 128); ctx.lineTo(ex + 14, G - 120); ctx.stroke();
     }
-    // Wreckage heaps: torn slabs of other worlds
+    // Wreckage heaps are climbable
     for (let i = 0; i < WRECK.length; i++) {
       const [x, y, w] = WRECK[i];
       if (!_slVisible(v, x - 30, x + w + 30)) continue;
@@ -84,7 +74,7 @@
       }
     }
     ctx.restore();
-    // The generator: coil tower feeding the storm, its beam into the vortex
+    // Generator coil; its beam feeds the vortex
     if (_slVisible(v, GEN - 500, GEN + 500)) {
       const p = 0.6 + 0.4 * Math.sin(frameCount * 0.09);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';

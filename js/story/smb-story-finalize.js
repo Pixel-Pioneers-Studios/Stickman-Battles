@@ -1,43 +1,27 @@
-// Loads AFTER smb-story-engine.js AND all arc data files.
-// Calls engine helpers - do NOT reorder relative to smb-story-engine.js.
+// Loads after smb-story-engine.js and all arc files. Calls engine helpers, so keep the order.
 
-// Step 1: Sort registry by id and validate no gaps
+// Sort the registry by id and check for gaps.
 STORY_CHAPTER_REGISTRY.sort((a, b) => a.id - b.id);
 STORY_CHAPTER_REGISTRY.forEach((ch, i) => {
   if (ch.id !== i) console.error(`[Story] id mismatch: index ${i} has id ${ch.id}`);
 });
 
-// Step 2: Expose backward-compatible alias (engine refs use this name)
+// Backward-compatible alias. Engine code uses this name.
 const STORY_CHAPTERS2 = STORY_CHAPTER_REGISTRY;
 
-// Initial _story2 loaded before the registry existed; normalise its defeated keys to ch.id now.
+// _story2 loads before the registry exists, so normalise its defeated keys here.
 try { if (typeof _story2 !== 'undefined' && _migrateStory2DefeatedKeys(_story2)) _saveStory2(); } catch (e) { /* non-fatal */ }
 
-// Step 3: Promote noFight chapters to exploration chapters (sets noFight=false, type='exploration')
-//         Must run before expansion. Epilogues are explicitly skipped and remain unchanged.
+// Promote noFight chapters to exploration. Runs before expansion. Epilogues are skipped.
 _promotePassiveStoryChapters();
 
-// Step 4: Phase prebuild - parity with live code; caches .phases on original chapter objects
-//         for any caller that reads the property directly outside the expansion path.
-//         NOTE: _expandStoryChaptersInPlace() rebuilds phases independently on its own copy;
-//         this loop is NOT a dependency for expansion correctness.
+// Caches .phases on the original chapters for direct readers. Expansion rebuilds
+// its own phases, so this loop is not needed for correctness.
 for (const _ch of STORY_CHAPTERS2) {
   if (_ch && !_ch.isEpilogue) _storyBuildPhases(_ch);
 }
 
-// Step 5: Act/Arc structure - must live here, NOT inside any arc file
-//         Chapter ranges use the registered chapter IDs (pre-expansion).
-//         10 acts:
-//           I   Initial Encounter  (0–5)
-//           II  City + Fragment Echoes (6–16)
-//           III Rifts / Veran      (17–32)
-//           IV  Rural              (33–49)
-//           V   Stickman Universe + Calix (50–69)
-//           VI  Damnation + Fallen God + Multiverse + Betrayal (70–125)
-//           VII Creator            (126–142)
-//           VIII True Form + Aftermath (143–152)
-//           IX  Absolute Axiom     (153–169)
-//           X   The Substrate      (170–183)
+// Act and arc ranges use pre-expansion chapter IDs. Keep this in this file, not in an arc file.
 const STORY_ACT_STRUCTURE = [
   {
     id: 'act1', label: 'Act I — Initial Encounter', color: '#88aacc',
@@ -77,7 +61,6 @@ const STORY_ACT_STRUCTURE = [
     ],
   },
   {
-    // Damnation (70–75) + Fallen God (76–85) + multiverse worlds (86–120) + Betrayal (121–125)
     id: 'act6', label: 'Act VI — The Loop & Multiverse', color: '#bb88ff',
     arcs: [
       { id: 'arc5-damnation', label: 'The Damnation Loop',      chapterRange: [70, 75]  },
@@ -126,12 +109,11 @@ const STORY_ACT_STRUCTURE = [
   },
 ];
 
-// Step 6: Expand chapters in-place - also rebuilds STORY_ACT_STRUCTURE chapterRanges
+// Expands chapters in place and rebuilds STORY_ACT_STRUCTURE chapterRanges.
 _expandStoryChaptersInPlace();
 
-// Step 7: One-time save migrations that depend on expanded chapter indices.
-//         The initial _story2 loads in smb-story-config.js before expansion runs,
-//         so migrate it here; later restores go through restoreStoryDataFromSave.
+// One-time save migrations that need expanded indices.
+// The initial _story2 loads before expansion, so migrate it here.
 window.__SMB_STORY_EXPANDED = true;
 if (typeof _story2 !== 'undefined' && _migrateStory2ThreshArc(_story2)) {
   try { _saveStory2(); } catch (e) {}

@@ -1,29 +1,17 @@
 'use strict';
-// smb-smk2-data.js — SovereignMK2 data: action classifier, dialogue pools, stage names
-// Depends on: smb-globals.js, smb-adaptive-ai.js
-
-// ============================================================
-// SOVEREIGN Ω  —  Next-Generation Adaptive AI
-// Extends AdaptiveAI with five new systems:
-//   A. Prediction  — bigram sequence learning; preemptive counters
-//   B. Punishment  — spam/repetition detection; aggro-burst mode
-//   C. Limiter Break — permanent power-up at peak intelligence
-//   D. Anti-Exploit — stall / edge-camp / button-spam detection
-//   E. Humanization — early delays + fake-outs; ramps to inhuman
-//
-// Used ONLY in gameMode === 'sovereign'. Story mode keeps AdaptiveAI.
-// ============================================================
+// smb-smk2-data.js: SovereignMK2 data (action classifier, dialogue pools, stage names).
+// Depends on smb-globals.js and smb-adaptive-ai.js. Used only when gameMode is 'sovereign'.
+// Extends AdaptiveAI with prediction (bigram sequences), punishment (spam detection),
+// limiter break, anti-exploit (stalling, edge camping) and humanized delays and fake-outs.
 'use strict';
 
-// ── Action classifier priority ──────────────────────────────
 // Returns a string tag for the player's current action each AI tick.
 // Priority: attack > shield > dodge > jump > idle
 function _smk2ClassifyAction(t, prevT) {
   if (t.attackTimer > 0 && !(prevT && prevT.attacking))  return 'attack'; // rising edge
   if (t.shielding  && !(prevT && prevT.shielding))        return 'shield'; // rising edge
-  // Require the player was already moving (|prevVx| > 3) AND is now moving fast in the
-  // opposite direction (|vx| > 4.5) — prevents normal walking direction changes from
-  // being logged as dodges and corrupting the bigram table.
+  // Dodge needs the player already moving and reversing fast (|vx| > 4.5). Otherwise normal
+  // direction changes get logged as dodges and corrupt the bigram table.
   const wasMoving = prevT && Math.abs(prevT.vx || 0) > 3;
   const vxFlip    = wasMoving && Math.abs(t.vx) > 4.5 && Math.sign(t.vx) !== Math.sign(prevT.vx || 0);
   if (vxFlip)                                             return 'dodge';
@@ -31,7 +19,6 @@ function _smk2ClassifyAction(t, prevT) {
   return 'idle';
 }
 
-// ── Dialogue pools ───────────────────────────────────────────
 const SMK2_PUNISH_LINES = [
   'You keep doing that.',
   'Three times. Same thing.',
@@ -66,36 +53,29 @@ const SMK2_PREDICT_LINES = [
   'Predictable.',
   'There it is.',
 ];
-// Habit engine C1 (js/smb-sov-habits.js, _habitGate in smb-smk2-class.js): the
-// first line spoken the first time a match's air-avoidance veto engages. Cold,
-// precise, about the opponent specifically — never generic taunts.
+// Habit engine C1: first line when the air-avoidance veto first engages. Cold, precise, opponent-specific.
 const SMK2_HABIT_AIR_LINES = [
   'You wait for me to leave the ground.',
   'I stay down. You\'ll have to come to me.',
   'You punish the air. So I won\'t give it to you.',
   'Not this time. I keep my feet.',
 ];
-// Habit engine C2 (js/smb-sov-habits.js descentArm/descentRecord, _descentControl
-// in smb-smk2-class.js): the first line spoken the first time he picks a
-// non-default descent option in a match, once this opponent has punished
-// `default` at least 3 times. Cold, precise, about the specific moment.
+// Habit engine C2: first line when he picks a non-default descent option, after the player
+// has punished `default` 3 or more times.
 const SMK2_HABIT_DESCENT_LINES = [
   'You wait under me. I\'ll stop coming down to you.',
   'That gap where I land unarmed — I see it too now.',
   'You\'ve been catching my landings. Not anymore.',
   'I won\'t float into your reach again.',
 ];
-// One-strike scars (SovereignMK2._scarBurn): said the first time a method is
-// barred for the rest of the match.
+// One-strike scars (SovereignMK2._scarBurn): said once a method is barred for the match.
 const SMK2_SCAR_LINES = [
   'Once.',
   'That worked one time. It won\'t work twice.',
   'Noted. Never again.',
   'You only get that once.',
 ];
-// Match-start read (SovereignMK2._habitDossierLine): what his persisted habit
-// record already says about THIS player — gathered in earlier fights with him and
-// scouted from the player's fights with everyone else (js/smb-sov-habits.js).
+// Match-start read (SovereignMK2._habitDossierLine): what his persisted record says about this player.
 const SMK2_DOSSIER_LINES = {
   descent: [
     'You wait under me for the landing. I remember.',
@@ -110,8 +90,7 @@ const SMK2_DOSSIER_LINES = {
     'Every enemy you\'ve fought told me something about you.',
   ],
 };
-// Gamble mode (SovereignMK2._gambleTick): spoken when he commits to a new plan,
-// keyed by the plan he is switching TO.
+// Gamble mode (SovereignMK2._gambleTick): keyed by the plan he is switching to.
 const SMK2_GAMBLE_LINES = {
   pressure_ground: [
     'No more feeling you out.',
@@ -146,7 +125,6 @@ const SMK2_DOMINANCE_LINES = [
 ];
 const SMK2_STAGE_NAMES = ['OBSERVING', 'READING', 'DOMINATING', 'TYRANT'];
 
-// ── Edge / Corner pressure ────────────────────────────────────
 const SMK2_CORNER_LINES = [
   'You\'re running out of room.',
   'The edge is right there.',
@@ -155,7 +133,6 @@ const SMK2_CORNER_LINES = [
   'One more step and it\'s over.',
 ];
 
-// ── Platform control ─────────────────────────────────────────
 const SMK2_PLATFORM_LINES = [
   'You keep coming back here.',
   'I know exactly where you\'re going.',
@@ -163,7 +140,6 @@ const SMK2_PLATFORM_LINES = [
   'Predictable path.',
 ];
 
-// ── Post-knockback read ───────────────────────────────────────
 const SMK2_POSTKB_LINES = [
   'You always do that after a hit.',
   'Same reflex. Same result.',
@@ -171,8 +147,7 @@ const SMK2_POSTKB_LINES = [
   'Predictable recovery.',
 ];
 
-// ── Pre-attack telegraph warnings ────────────────────────────
-// Short lines that fire when Axiom arms an attack — gives player a verbal cue to react.
+// Short lines fired when Axiom arms an attack, as a verbal cue.
 const SMK2_ATTACK_WARN_LINES = [
   'Here.',
   'Watch.',
@@ -186,10 +161,8 @@ const SMK2_ATTACK_WARN_LINES = [
   'Your move.',
 ];
 
-// ── Tactic-swap (Stage 3) ─────────────────────────────────────
-// When a locked counter-strategy keeps failing, Sovereign switches LATERALLY to
-// a different plan rather than stubbornly re-locking a losing one. Each entry maps
-// a failing strategy → the alternative to try next.
+// A failing counter-strategy switches sideways to a different plan. Each entry maps
+// the failing strategy to the next one to try.
 const SMK2_STRATEGY_SWAP = Object.freeze({
   'anti-air':    'intercept',   // jumping beats the anti-air → cut off the approach instead
   'parry':       'guard-break', // their attacks slip the parry → pressure and break the guard
@@ -198,7 +171,7 @@ const SMK2_STRATEGY_SWAP = Object.freeze({
   'pressure':    'intercept',   // pressure isn't landing → read and cut their movement
 });
 
-// Spoken on a tactic-swap — the audible "you adapted, so will I" moment.
+// Spoken on a tactic swap.
 const SMK2_TACTIC_SWAP_LINES = [
   'That stopped working.',
   'New plan.',
@@ -208,7 +181,7 @@ const SMK2_TACTIC_SWAP_LINES = [
   'Change of pace.',
 ];
 
-// ── Profile-read dialogue — fires once when the AI first locks a player pattern ──
+// Profile-read dialogue: fires once when the AI locks a player pattern
 // Super profiles
 const SMK2_PROFILE_SUPER_HEALER = [
   'You save that for when you\'re low. Fear threshold: noted.',
@@ -247,9 +220,8 @@ const SMK2_PROFILE_ABILITY_CLOSER = [
   'Close-pressure trigger. Filed.',
 ];
 
-// ── Genome: tunable decision-system parameters ────────────────────────────────
-// Default values match Sovereign's hand-tuned baseline.
-// SMK2Trainer evolves these via self-play and persists the winner to localStorage.
+// Genome: tunable decision parameters. Defaults are Sovereign's hand-tuned baseline.
+// SMK2Trainer evolves these by self-play and saves the winner to localStorage.
 const SMK2_DEFAULT_GENOME = Object.freeze({
   aggression:        0.90,  // aiMemory.aggression base      range [0.40, 0.99]
   spacing:           0.12,  // aiMemory.spacing base         range [0.02, 0.55]
@@ -260,18 +232,9 @@ const SMK2_DEFAULT_GENOME = Object.freeze({
   superChargeWeight: 0.50,  // super meter spacing ramp      range [0.15, 0.80]
   moveSpdBase:       4.5,   // base movement speed           range [3.5,  5.5 ]
 
-  // ── Opponent-adaptation gains ────────────────────────────────────────────
-  // These scale the opponent-conditioned offsets in _oppAdaptTerms(): how hard
-  // his dials swing in response to the opponent's reach and endlag, to how hard
-  // the opponent hits, and to the opponent's measured BEHAVIOUR (guard share,
-  // attack share, spacing, airborne share).
-  //
-  // Putting them in the genome is the point, not a convenience. Until now the
-  // genome held only Sovereign's own baseline, so evolution could breed a fighter
-  // but never breed the ADAPTATION — the reactive coefficients were hardcoded
-  // constants no amount of training could reach. With these here, crossover can
-  // combine a genome that reads heavy weapons well with one that reads rushdown
-  // well, which is the entire reason to have crossover.
+  // Opponent-adaptation gains: how hard the opponent-conditioned offsets in _oppAdaptTerms()
+  // swing, from the opponent's reach and endlag, its damage, and its measured behaviour.
+  // They live in the genome so crossover can breed adaptation, not just the baseline.
   oppKitGain:        1.00,  // reach/endlag response         range [0.00, 2.50]
   oppThreatGain:     1.00,  // damage/knockback response     range [0.00, 2.50]
   oppBehaviorGain:   1.00,  // measured-behaviour response   range [0.00, 2.50]

@@ -1,19 +1,6 @@
 'use strict';
-// js/story/levels/ch89.js — Chapter 89 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 89 — War Champion (walk → duel vs the War Champion, flanked)
-// The front line itself, where the Champion has never lost. The walk is the
-// churned middle of the battle — wreckage of both armies, a siege tower
-// broken in half (its two decks are the climbs), a burning barricade behind
-// you: "Retreat is not an option. Go forward." At the midpoint, the
-// Champion's ground: a ring of weapons planted point-down in the earth, one
-// for every fragment bearer it ended — "every fragment bearer the War-Torn
-// Dimension had ever seen" — rags of their colours still tied to the hilts,
-// the Champion's own standard at the back. Past it, at the far end, "the
-// war-torn sky cracks open": the next fracture, a seam of light splitting
-// the smoke. The cache shafts are collapsed sap tunnels, timber-framed.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch. 89 map: the walk into the War Champion's duel, flanked. Siege-tower climbs,
+// a ring of planted weapons at the Champion's ground, a fracture seam at the far end.
 (function () {
   const G = 440, RING = 3000, CRACK = 5650;
   const TOWER = { x: 1150, lo: [1150, 350, 110], hi: [1280, 260, 120] };
@@ -62,7 +49,6 @@
     if (_slVisible(v, 0, 300)) { _slStakes(80, G, 140); _slFire(70, G, 160, 1.2); _slSmoke(150, G - 40, 260, true, 89); }
     for (const [x, w] of [[860, 70], [1600, 60], [2500, 80], [3500, 60], [4300, 80], [5400, 70]]) if (_slVisible(v, x - w, x + w)) _slCrater(x, G, w);
     for (const [x, c] of [[420, '#2a3a5a'], [1000, '#7a1e14'], [2100, '#2a3a5a'], [4000, '#7a1e14'], [4900, '#2a3a5a']]) if (_slVisible(v, x - 10, x + 60)) _slBanner(x, G, 140, c, x);
-    // Old palisade stubs carrying the outer climbs
     for (let i = 0; i < CLIMB.length; i += 2) {
       if (i === 2) continue;
       const [sx, sy, sw] = CLIMB[i], [hx, hy, hw] = CLIMB[i + 1];
@@ -94,7 +80,6 @@
       ctx.fillStyle = '#3a2a1c'; ctx.fillRect(RING - 14, G - 40, 28, 40);
       for (let i = 0; i < WEAPONS.length; i++) if (Math.abs(WEAPONS[i] - RING) > 40) weapon(WEAPONS[i], i);
     }
-    // Collapsed sap tunnels over the cache shafts
     for (const sx of SAPS) {
       if (!_slVisible(v, sx - 90, sx + 90)) continue;
       ctx.fillStyle = '#3a2a1c'; ctx.fillRect(sx - 56, G - 54, 10, 54); ctx.fillRect(sx + 46, G - 54, 10, 54);

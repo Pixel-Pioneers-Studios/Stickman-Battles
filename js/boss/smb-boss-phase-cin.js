@@ -1,11 +1,6 @@
 'use strict';
-// smb-boss-phase-cin.js — Phase 2/3 cinematics for Boss, TrueForm, Beast, Yeti
-// Depends on: smb-globals.js, smb-cinematics-core.js, smb-boss-tf-misc.js
-// Must load AFTER smb-boss-tf-misc.js, BEFORE smb-boss-tf-legacy.js
+// Phase 2/3 cinematics for Boss, TrueForm, Beast and Yeti. Loads after smb-boss-tf-misc.js, before smb-boss-tf-legacy.js.
 
-// ============================================================
-// CINEMATIC MANAGER
-// ============================================================
 function startCinematic(seq) {
   if (onlineMode) return; // skip cinematics in online multiplayer (sync too complex)
   if (activeCinematic) endCinematic();
@@ -58,8 +53,7 @@ function endCinematic() {
   if (activeCinematic.onEnd) {
     const _self = activeCinematic;
     _self.onEnd();
-    // onEnd may hand off to a new cinematic/scene (e.g. the absorption scene).
-    // If ownership changed, the new owner manages freeze/slow-mo — don't clobber it.
+    // onEnd may hand off to a new cinematic. If ownership changed, the new owner handles freeze and slow-mo.
     if (activeCinematic !== _self) return;
   }
   activeCinematic = null;
@@ -71,9 +65,7 @@ function endCinematic() {
   gameFrozen = false; // resume physics and input
 }
 
-// ============================================================
-// CINEMATIC SEQUENCES — one factory per boss × phase
-// ============================================================
+// One factory per boss and phase.
 function _makeBossPhase2Cinematic(boss) {
   return {
     durationFrames: 150, // 2.5 s
@@ -94,7 +86,7 @@ function _makeBossPhase2Cinematic(boss) {
         cinematicFocusY = boss.cy();
       }
 
-      // 0.6 s: slam — rings + particles + player knockback
+      // 0.6 s: slam, rings + particles + player knockback
       if (t >= 0.6 && !this._slamFired) {
         this._slamFired = true;
         if (boss) {
@@ -266,9 +258,7 @@ function _makeTFPhase3Cinematic(tf) {
   };
 }
 
-// ============================================================
-// CINEMATIC SEQUENCES — ForestBeast and Yeti
-// ============================================================
+// ForestBeast and Yeti sequences.
 function _makeBeastPhase2Cinematic(beast) {
   return {
     durationFrames: 150, // 2.5 s
@@ -289,7 +279,7 @@ function _makeBeastPhase2Cinematic(beast) {
         cinematicFocusY = beast.cy();
       }
 
-      // 0.5 s: ground slam — rings + particles + knockback
+      // 0.5 s: ground slam, rings + particles + knockback
       if (t >= 0.5 && !this._rageFired) {
         this._rageFired = true;
         if (beast) {

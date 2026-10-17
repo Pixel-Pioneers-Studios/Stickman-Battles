@@ -1,18 +1,9 @@
 'use strict';
-// js/story/levels/ch74.js — Chapter 74 map (story ARENA, damnation). See smb-story-levels.js.
+// Chapter 74 map (story arena, damnation). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 74 — Eternal Damnation (escape: three waves, eight anchors, one screen)
-// The same loop as the first reset, now coming apart. The dimensional flaw you
-// reached in the last chapter hangs over the centre of the arena — a seam of
-// white light in the red, exactly where the exit portal opens — and it widens
-// with every reality anchor you collect. Eight anchor sockets ring it and
-// light in turn. The reset dial is broken, its pieces drifting; the back wall
-// has lost whole courses of stone that float away upward into the dark. Each
-// fall strips a slab ("every time you fall, a platform is gone forever") and
-// the surviving slabs crack wider with every one. The six platforms are
-// exactly the damnation arena's, in order: falls remove them by index.
-// ═════════════════════════════════════════════════════════════════════════════
+// Eternal Damnation: escape three waves and eight anchors on one screen. The flaw over
+// the exit portal widens with each anchor. Each fall removes a platform by index, so the
+// six platforms must stay in the damnation arena's order.
 (function () {
   const G = 460, FX = 450, FY = 200;
   const PL = [[300, 310, 300], [80, 240, 140], [680, 240, 140], [200, 160, 120], [580, 160, 120]];
@@ -28,7 +19,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#0a0000');
-    // The back wall, missing courses — the stones drift up and away
     ctx.fillStyle = '#160404'; ctx.fillRect(v.x - 10, 40, v.w + 20, G - 40);
     for (let k = 0; k < 14; k++) {
       const bx = 20 + k * 64 + _slHash(k + 740) * 20, by = 120 + _slHash(k + 741) * 200;
@@ -38,7 +28,6 @@
       ctx.fillStyle = `rgba(40,10,10,${1 - t})`; ctx.fillRect(-24, -12, 48, 24);
       ctx.restore();
     }
-    // The broken reset dial, its pieces drifting off-centre
     for (let k = 0; k < 6; k++) {
       const a = k * Math.PI / 3 + frameCount * 0.002, d = 70 + k * 6 + Math.sin(frameCount * 0.01 + k) * 8;
       ctx.strokeStyle = 'rgba(255,80,50,0.35)'; ctx.lineWidth = 2;
@@ -48,7 +37,6 @@
 
   function back() {
     const n = anchors(), open = n / 8;
-    // The flaw: a seam of white in the red, widening with every anchor
     const pts = _slJag(FX, 40, FX, 380, 16, 10 + open * 22, 74);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(FX, FY, 10, FX, FY, 140 + open * 160);
@@ -58,7 +46,6 @@
     ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
     ctx.lineWidth = 12 + open * 30; ctx.strokeStyle = `rgba(255,170,140,${0.10 + open * 0.15})`; ctx.stroke();
     ctx.restore();
-    // Eight anchor sockets around it
     for (let k = 0; k < 8; k++) {
       const a = Math.PI * (0.1 + 0.8 * k / 7) + Math.PI, sx = FX + Math.cos(a) * 190, sy = FY + 40 + Math.sin(a) * 120;
       ctx.fillStyle = '#2a0808'; ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.fill();

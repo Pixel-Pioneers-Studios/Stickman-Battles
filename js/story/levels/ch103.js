@@ -1,19 +1,7 @@
 'use strict';
-// js/story/levels/ch103.js — Chapter 103 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 103 — Pattern Vaults (scavenge, 4 records)
-// Null's archive layer: walls of drawers numbered 0001 to 0847, one for every
-// being it has catalogued, running the whole length of the level. Four vaults
-// stand out from the wall as glass cells. The first holds Movement Pattern
-// 001 — a figure frozen mid-stride with its motion smeared behind it. The
-// second, Bearer 22, a figure in a column of record strips (the record sits
-// on the vault's plinth). The third, the partial anomalous signature, is a
-// waveform that breaks off halfway across its screen. The fourth is not like
-// the others: a desk under a warm lamp, a chair pushed back, a page in
-// handwriting — "Personal Log — Before" — the only warm light in Null Space.
+// Chapter 103 map (scavenge, 4 records). Contract: smb-story-levels.js.
+// Null's archive: drawer walls and four vaults. The fourth vault's warm light is the only one in Null Space.
 // Drawer stacks are the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
 (function () {
   const G = 440;
   const V1 = 500, V2 = [1250, 370, 100], V3 = 2200, V4 = [2945, 380, 110];
@@ -27,7 +15,7 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#04030c');
-    // The drawer wall: every being catalogued, numbered
+    // Drawer wall
     ctx.fillStyle = '#0e0c1c'; ctx.fillRect(v.x - 10, 40, v.w + 20, G - 40);
     ctx.font = '7px monospace'; ctx.textAlign = 'center';
     for (let c = Math.max(0, Math.floor(v.x / 44)); c * 44 < Math.min(3800, v.x + v.w + 44); c++) for (let r = 0; r < 9; r++) {
@@ -52,9 +40,9 @@
   }
 
   function back(v) {
-    // Vault 1: Pattern 001, frozen mid-stride, motion smeared behind
+    // Vault 1: Pattern 001
     if (_slVisible(v, V1 - 90, V1 + 90)) { cell(V1, 150, 200); for (let k = 4; k >= 0; k--) figure(V1 - k * 14, G - 20, k ? 0.12 : 0.9); }
-    // Vault 2: Bearer 22 in a column of record strips (record on the plinth)
+    // Vault 2: Bearer 22
     if (_slVisible(v, V2[0] - 60, V2[0] + V2[2] + 60)) {
       const cx = V2[0] + V2[2] / 2;
       cell(cx, 170, 300);
@@ -62,7 +50,7 @@
       figure(cx, V2[1] - 30, 0.85);
       ctx.fillStyle = '#262440'; ctx.fillRect(V2[0], V2[1], V2[2], G - V2[1]); ctx.fillStyle = 'rgba(200,190,255,0.6)'; ctx.fillRect(V2[0], V2[1], V2[2], 2);
     }
-    // Vault 3: a waveform that breaks off halfway
+    // Vault 3: partial signature
     if (_slVisible(v, V3 - 100, V3 + 100)) {
       cell(V3, 180, 230);
       ctx.strokeStyle = 'rgba(200,190,255,0.85)'; ctx.lineWidth = 2; ctx.beginPath();
@@ -83,7 +71,6 @@
       ctx.fillStyle = '#efe4c8'; ctx.save(); ctx.translate(x + 30, y - 2); ctx.rotate(-0.08); ctx.fillRect(0, -3, 34, 3); ctx.restore();
       ctx.save(); ctx.translate(x - 30, G); ctx.rotate(-0.2); ctx.fillStyle = '#4a3424'; ctx.fillRect(-14, -36, 28, 5); ctx.fillRect(-12, -31, 4, 31); ctx.fillRect(8, -31, 4, 31); ctx.fillRect(8, -66, 4, 35); ctx.restore();
     }
-    // Drawer stacks (the climbs)
     for (const [x, y, w] of STACKS) if (_slVisible(v, x - 10, x + w + 10)) {
       ctx.fillStyle = '#1a1830'; ctx.fillRect(x, y, w, G - y);
       for (let yy = y + 8; yy < G - 10; yy += 22) { ctx.strokeStyle = 'rgba(120,110,200,0.35)'; ctx.strokeRect(x + 6, yy, w - 12, 18); ctx.fillStyle = 'rgba(170,160,240,0.4)'; ctx.fillRect(x + w / 2 - 6, yy + 8, 12, 2); }

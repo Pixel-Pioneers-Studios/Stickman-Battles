@@ -1,25 +1,12 @@
 'use strict';
-// smb-liveops.js — Live configuration, soft updates, and version gating
-// Load order: after smb-globals.js (needs GAME_VERSION, SERVER_CONFIG)
-//
-// Exposes window.LiveOps with:
-//   LiveOps.config           — current live config object (read-only)
-//   LiveOps.refresh()        — manual fetch
-//   LiveOps.apply(cfg)       — apply a config object directly
-//   LiveOps.notify(msg,clr)  — show a toast notification
-//   LiveOps.startPolling()   — begin 60-second auto-fetch
-//   LiveOps.getCoinMult()    — coinMultiplier (≥1, default 1)
-//   LiveOps.getXPMult()      — xpMultiplier  (≥1, default 1)
-//   LiveOps.getBalance(key)  — balance.key   (default 1)
-//   LiveOps.getEvent(key)    — events.key    (bool)
-//   LiveOps.getShopRot()     — shopRotation  (array)
+// Live config: soft updates, MOTD, toasts and version gating. Load after smb-globals.js (needs GAME_VERSION, SERVER_CONFIG).
+// window.LiveOps: config, refresh(), apply(cfg), notify(msg, clr), startPolling() (60s), getCoinMult(), getXPMult(),
+// getBalance(key), getEvent(key), getShopRot(). Multipliers are >= 1 and default to 1.
 
 (function () {
-  // ── Constants ───────────────────────────────────────────────────────────────
   const POLL_INTERVAL_MS = 60000;
 
-  // Config URL: prefer the running server's /api/live-config, fall back to
-  // a static file at the same origin (live-config.json).
+  // Config URL: the running server's /api/live-config, falling back to live-config.json at the same origin.
   function _configUrl() {
     if (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url) {
       return SERVER_CONFIG.url + '/api/live-config';
@@ -38,29 +25,24 @@
     balance:            {},
   };
 
-  // ── State ───────────────────────────────────────────────────────────────────
   let _config     = Object.assign({}, DEFAULT_CONFIG);
   let _prevConfig = null;   // config before last fetch (for delta detection)
   let _pollTimer  = null;
   let _pendingToasts = [];  // queued while a fight is active
 
-  // ── Semver comparison ───────────────────────────────────────────────────────
   function _semver(v) {
     const p = String(v || '0.0.0').split('.').map(Number);
     return (p[0] || 0) * 1e6 + (p[1] || 0) * 1e3 + (p[2] || 0);
   }
   function _versionGt(a, b) { return _semver(a) > _semver(b); }
 
-  // ── Fight detection ─────────────────────────────────────────────────────────
   function _isInFight() {
     return (typeof gameRunning !== 'undefined' && gameRunning) &&
            !(typeof activeCinematic !== 'undefined' && activeCinematic);
   }
 
-  // ── Logging ─────────────────────────────────────────────────────────────────
   function _log(msg) { console.log('[LIVEOPS]', msg); }
 
-  // ── Toast notifications ─────────────────────────────────────────────────────
   function _showToast(msg, color, duration) {
     if (_isInFight()) {
       _pendingToasts.push({ msg: msg, color: color, duration: duration });
@@ -74,7 +56,7 @@
     color    = color    || '#88ccff';
     duration = duration || 4500;
 
-    // Stack toasts vertically if several appear at once
+    // Stack toasts vertically when several appear at once
     const existing = document.querySelectorAll('.liveops-toast');
     const offset   = existing.length * 54;
 
@@ -109,14 +91,13 @@
     }, duration);
   }
 
-  // Drain queued toasts — called each poll cycle when not in a fight
+  // Drain queued toasts: called each poll cycle when not in a fight
   function _drainPendingToasts() {
     if (_isInFight()) return;
     const q = _pendingToasts.splice(0);
     q.forEach(function (t) { _renderToast(t.msg, t.color, t.duration); });
   }
 
-  // ── Force-update modal ──────────────────────────────────────────────────────
   let _forceUpdateShown = false;
 
   function _showForceUpdateModal(optional) {
@@ -199,7 +180,6 @@
     else document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(modal); });
   }
 
-  // ── MOTD banner ─────────────────────────────────────────────────────────────
   function _setMOTD(text) {
     if (!text) { _removeMOTD(); return; }
     let banner = document.getElementById('liveops-motd');
@@ -226,7 +206,6 @@
     if (b && b.parentNode) b.parentNode.removeChild(b);
   }
 
-  // ── Version check ───────────────────────────────────────────────────────────
   function _checkVersions(cfg) {
     const current = (typeof GAME_VERSION !== 'undefined') ? GAME_VERSION : '0.0.0';
 
@@ -242,15 +221,14 @@
     }
   }
 
-  // ── Apply config ─────────────────────────────────────────────────────────────
   function _apply(cfg) {
     const prev = Object.assign({}, _config);
     _config    = Object.assign({}, DEFAULT_CONFIG, cfg);
 
-    // MOTD — hide during fights, show in menus
+    // MOTD: hide during fights, show in menus
     if (!_isInFight()) _setMOTD(_config.motd);
 
-    // Event toasts — only announce newly-enabled events
+    // Event toasts: only announce newly-enabled events
     const prevEvts = prev.events || {};
     const curEvts  = _config.events || {};
     const EVENT_LABELS = {
@@ -265,7 +243,7 @@
       }
     });
 
-    // Multiplier toasts — only when value actually changed and > 1
+    // Multiplier toasts: only when value actually changed and > 1
     if (_prevConfig !== null) {
       if (_config.coinMultiplier !== prev.coinMultiplier && _config.coinMultiplier > 1) {
         _showToast('⧡ ' + _config.coinMultiplier + 'x Coins active!', '#ffdd44', 6000);
@@ -278,7 +256,6 @@
     _log('config updated');
   }
 
-  // ── Fetch ────────────────────────────────────────────────────────────────────
   function _fetch() {
     _drainPendingToasts();
 
@@ -303,7 +280,6 @@
       });
   }
 
-  // ── Public API ───────────────────────────────────────────────────────────────
   window.LiveOps = {
     get config() { return _config; },
 
@@ -323,7 +299,6 @@
       if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
     },
 
-    // ── Runtime helpers ───────────────────────────────────────────────────────
     getCoinMult: function () {
       const v = _config.coinMultiplier;
       return (typeof v === 'number' && v > 0) ? v : 1;

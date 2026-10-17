@@ -1,16 +1,11 @@
 'use strict';
-// smb-attacktest-exec.js — FORCE_ATTACK_MODE, getSafeSpawnPosition, _atkMakeDummyTarget, _atkEnsureGlobals, forceExecuteAttack, debug tools
+// smb-attacktest-exec.js: FORCE_ATTACK_MODE, forced attack execution, debug tools.
 // Depends on: smb-globals.js, smb-fighter.js, smb-combat.js
 
-// ─── FORCE ATTACK EXECUTION SYSTEM ───────────────────────────
-// Guarantees any attack fires regardless of game state, arena,
-// boss presence, cooldowns, or missing targets.
-// Set window.FORCE_ATTACK_MODE = false to disable.
+// Forces any attack to fire regardless of game state. Set window.FORCE_ATTACK_MODE = false to disable.
 window.FORCE_ATTACK_MODE = true;
 
-/**
- * Returns a safe world position near the firer (or arena center as fallback).
- */
+// Safe spawn point near the firer, or above the arena floor.
 function getSafeSpawnPosition(firer) {
   if (firer && typeof firer.cx === 'function') {
     return { x: clamp(firer.cx(), 40, GAME_W - 40), y: clamp(firer.cy(), 40, GAME_H - 40) };
@@ -22,11 +17,7 @@ function getSafeSpawnPosition(firer) {
   return { x: GAME_W / 2, y: 300 };
 }
 
-/**
- * Creates a lightweight dummy target entity.
- * Temporarily pushed into players[] so _doSpecial can find it via players.find().
- * Removed from players[] after the attack duration expires.
- */
+// Dummy target. Pushed into players[] briefly so _doSpecial can find it.
 function _atkMakeDummyTarget(x, y) {
   return {
     x: x - 9, y: y - 50, w: 18, h: 50,
@@ -50,10 +41,7 @@ function _atkMakeDummyTarget(x, y) {
   };
 }
 
-/**
- * Initializes any global arrays/values that attack functions depend on,
- * in case they're undefined (e.g. called before a game has started).
- */
+// Sets up globals attacks depend on, in case called before a game starts.
 function _atkEnsureGlobals() {
   const arrays = [
     'bossBeams','bossSpikes','bossWarnings','bossMetSafeZones',
@@ -85,10 +73,7 @@ function _atkEnsureGlobals() {
   }
 }
 
-/**
- * Aggressively re-attempt attaching _doSpecial / _bossFireSpecial to ctx.
- * Called right before firing so even a stale ctx gets fresh bindings.
- */
+// Re-attach _doSpecial / _bossFireSpecial to ctx right before firing, in case ctx is stale.
 function _atkEnsureDoSpecial(ctx, isTF) {
   if (isTF) {
     if (!ctx._doSpecial && typeof TrueForm !== 'undefined') {
@@ -108,13 +93,7 @@ function _atkEnsureDoSpecial(ctx, isTF) {
   }
 }
 
-/**
- * Core force-execute wrapper used by _atkSummon, _atkAll, and _atkKitFire.
- * - Injects a dummy target if the attack needs one and none exists.
- * - Ensures all globals are initialized before firing.
- * - Re-attaches _doSpecial if missing.
- * - Logs any exception and detects silent no-ops.
- */
+// Core wrapper for _atkSummon, _atkAll and _atkKitFire. Adds a dummy target if needed, inits globals, logs exceptions.
 function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
   const attackName = entry.label;
   const isTF = classKey === 'trueform';
@@ -125,7 +104,7 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
   _atkEnsureGlobals();
   if (ctx) _atkEnsureDoSpecial(ctx, isTF);
 
-  // Auto-inject dummy target when attack would otherwise silently skip
+  // Inject a dummy target so attacks don't silently skip.
   if (!tgt && window.FORCE_ATTACK_MODE) {
     missing.push('target');
     const sp = getSafeSpawnPosition(_atkCurrentFirer);
@@ -135,16 +114,16 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
     );
     if (typeof players !== 'undefined') {
       players.push(dummy);
-      // Remove after 10 s — long enough for any multi-phase attack
+      // Remove after 10 s, long enough for multi-phase attacks.
       const cleanup = () => { const i = players.indexOf(dummy); if (i >= 0) players.splice(i, 1); };
       setTimeout(cleanup, 10000);
-      dummyCleanup = true; // marks that cleanup is scheduled
+      dummyCleanup = true;
     }
     tgt = dummy;
     fallbackUsed = 'auto-created dummy target at (' + Math.round(tgt.cx()) + ',' + Math.round(tgt.cy()) + ')';
   }
 
-  // Snapshot state to detect silent no-ops
+  // Snapshot to detect silent no-ops.
   const snap = {
     beams:   (typeof bossBeams    !== 'undefined' ? bossBeams.length    : 0),
     spikes:  (typeof bossSpikes   !== 'undefined' ? bossSpikes.length   : 0),
@@ -185,7 +164,7 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
       (typeof tfMultiverse !== 'undefined'&& !!tfMultiverse       !== snap.multi)  ||
       (typeof tfSupernova !== 'undefined' && !!tfSupernova        !== snap.nova);
 
-    // Singleton-state attacks are hard to snapshot — trust they ran if no error
+    // Singleton-state attacks can't be snapshotted, so trust them if no error.
     const usesSingleton = [
       'void_grasp','reality_slash','gravity_well','meteor_crash','shadow_clones',
       'chain_slam','shockwave','phase_shift','teleport_combo','gravity_crush',
@@ -210,26 +189,23 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
   }
 }
 
-// ─── Optional debug tools (set via DevTools console) ──────────
+// Debug tools, set from the DevTools console:
 // window.SMB_SHOW_HITBOXES   = true   → overlay entity bounding boxes
 // window.SMB_SLOW_MOTION     = 0.2    → set game slowMotion factor (0.2–1.0)
 // window.SMB_FREEZE_ON_IMPACT = true  → long hitStop on every hit
-//
-// Apply SMB_SLOW_MOTION each frame (checked in the force RAF below)
+// SMB_SLOW_MOTION is applied in the RAF loop below.
 (function _installForceDebugRAF() {
   let _prevHitboxState = false;
   function _forceDebugTick() {
     requestAnimationFrame(_forceDebugTick);
     if (!window.FORCE_ATTACK_MODE || !gameRunning) return;
-    // Slow motion control
     if (typeof window.SMB_SLOW_MOTION === 'number' && window.SMB_SLOW_MOTION !== 1.0) {
       if (typeof slowMotion !== 'undefined') slowMotion = Math.max(0.05, Math.min(1.0, window.SMB_SLOW_MOTION));
     }
-    // Freeze on impact — extend any active hitStop
     if (window.SMB_FREEZE_ON_IMPACT && typeof hitStopFrames !== 'undefined' && hitStopFrames > 0) {
       hitStopFrames = Math.max(hitStopFrames, 30);
     }
-    // Hitbox overlay drawn on top of canvas (screen-space)
+    // Hitbox overlay, screen space.
     if (window.SMB_SHOW_HITBOXES) {
       if (!_prevHitboxState && typeof canvas !== 'undefined' && typeof ctx !== 'undefined') {
         _prevHitboxState = true;
@@ -256,7 +232,6 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
     } else {
       _prevHitboxState = false;
     }
-    // Show spawn point indicator for dummy targets
     if (window.SMB_SHOW_HITBOXES && typeof players !== 'undefined' && typeof ctx !== 'undefined') {
       for (const p of players) {
         if (!p._isDummy) continue;

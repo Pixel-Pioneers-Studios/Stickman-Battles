@@ -1,16 +1,6 @@
 'use strict';
-// js/story/levels/ch36.js — Chapter 36 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 36 — The Weight of the Core (defense)
-// "The observation resonator is the only thing keeping the fragment stable.
-// Creator probes are targeting it." A single-screen observation deck: the
-// resonator (the nexus, x=450) hums on its tuning frame in front of a vast
-// curved window onto the core's eye. Probes phase in through the window
-// glass at both ends. The deck has a lower ring of instrument consoles, an
-// upper ring of catwalks, and the window's crown arch on top. The resonator's
-// standing wave is drawn on the window — it frays as the resonator is hit.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 36 map (defense). Contract: smb-story-levels.js.
+// Single screen. Protect the resonator from Creator probes that phase in through the window glass.
 (function () {
   const G = 440, NX = 450;
   const DECK = [[70, 350, 150], [680, 350, 150], [190, 255, 120], [590, 255, 120], [350, 165, 200]];
@@ -26,7 +16,7 @@
     _slParallax(v, 0.04, (l, r) => {
       ctx.fillStyle = 'rgba(220,210,255,0.5)';
       for (let i = Math.floor(l / 22); i * 22 < r; i++) if (_slHash(i + 36) < 0.3) ctx.fillRect(i * 22 + _slHash(i) * 18, -200 + _slHash(i + 2) * 600, 1.2, 1.2);
-      // The core's eye, filling the window
+      // Core eye behind the window
       const cx = l + (r - l) / 2;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const g = ctx.createRadialGradient(cx, 230, 20, cx, 230, 420);
@@ -40,12 +30,12 @@
 
   function back(v) {
     const hp = (typeof defenseNexusHP !== 'undefined' && typeof defenseNexusMaxHP !== 'undefined' && defenseNexusMaxHP) ? defenseNexusHP / defenseNexusMaxHP : 1;
-    // Window frame: curved mullions over the core view
+    // Window mullions
     ctx.strokeStyle = '#1e1830'; ctx.lineWidth = 14;
     ctx.beginPath(); ctx.ellipse(NX, G, 470, 420, 0, Math.PI, 0); ctx.stroke();
     ctx.lineWidth = 6;
     for (let k = 1; k < 8; k++) { const a = Math.PI + k / 8 * Math.PI; ctx.beginPath(); ctx.moveTo(NX + Math.cos(a) * 470, G + Math.sin(a) * 420); ctx.lineTo(NX + Math.cos(a) * 150, G + Math.sin(a) * 130); ctx.stroke(); }
-    // Resonator's standing wave across the glass — frays as the resonator is hit
+    // Standing wave, frays when the resonator is hit
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = `rgba(150,230,255,${0.25 + 0.3 * hp})`; ctx.lineWidth = 2;
     ctx.beginPath();
@@ -54,7 +44,7 @@
       ctx.lineTo(x, 120 + Math.sin(x * 0.035 + frameCount * 0.08) * 26 * Math.sin(x / 900 * Math.PI) + fray);
     }
     ctx.stroke(); ctx.restore();
-    // Probe entry points: the window glass rippling at both ends
+    // Probe entry points
     for (const ex of [30, 870]) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let k = 0; k < 4; k++) {
@@ -64,7 +54,7 @@
       }
       ctx.restore();
     }
-    // Consoles (lower ring) and catwalks (upper ring, crown arch)
+    // Consoles (lower ring), catwalks (upper ring)
     for (const [x, y, w] of DECK) {
       ctx.fillStyle = '#2a2240'; ctx.fillRect(x, y, w, 10);
       ctx.fillStyle = 'rgba(150,230,255,0.4)'; ctx.fillRect(x + 4, y + 10, w - 8, 2);
@@ -76,7 +66,7 @@
         ctx.beginPath(); ctx.moveTo(x + 10, y); ctx.lineTo(x + 10, v.y - 10); ctx.moveTo(x + w - 10, y); ctx.lineTo(x + w - 10, v.y - 10); ctx.stroke();
       }
     }
-    // The resonator's tuning frame (the nexus crystal itself is drawn by the mode)
+    // Tuning frame (the nexus crystal is drawn by the mode)
     ctx.fillStyle = '#2a2240'; ctx.fillRect(NX - 44, G - 34, 88, 34);
     ctx.fillStyle = '#3a3058'; ctx.fillRect(NX - 52, G - 40, 104, 8);
     ctx.strokeStyle = '#3a3058'; ctx.lineWidth = 6;

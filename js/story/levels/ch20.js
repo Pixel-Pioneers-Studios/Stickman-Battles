@@ -1,15 +1,7 @@
 'use strict';
-// js/story/levels/ch20.js — Chapter 20 map (story ARENA). See smb-story-levels.js.
+// js/story/levels/ch20.js: Chapter 20 map (story arena). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 20 — The Shattered Mirror (assassination, scrolling)
-// "A bounty hunter materialized in the debris field. Eliminate them before
-// they transmit your location." Three screens of wreckage drifting in a grid
-// dimension: a derelict hull walkway is the floor; airliner fuselage, a slow
-// satellite, a bus, building chunks and rocks float above it. The target runs
-// right toward a transmitter mast at the far end — it charges up as the
-// assassination timer runs down, so the stakes are on screen.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 20: The Shattered Mirror (assassination, scrolling). The timer is the stakes.
 (function () {
   const W = 2700, FLOOR = 470;
   const PLANE = { x: 300, w: 420, y: 330 };
@@ -32,14 +24,12 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#000000');
-    // The grid dimension: green lines receding to a horizon
     _slParallax(v, 0.15, (l, r) => {
       ctx.strokeStyle = 'rgba(0,255,90,0.18)'; ctx.lineWidth = 1;
       for (let y = 40; y < 520; y += 40) { ctx.beginPath(); ctx.moveTo(l - 20, y); ctx.lineTo(r + 20, y); ctx.stroke(); }
       for (let x = Math.floor(l / 60) * 60; x < r + 60; x += 60) { ctx.beginPath(); ctx.moveTo(x, -100); ctx.lineTo(x, 520); ctx.stroke(); }
     });
     _slParallax(v, 0.35, (l, r) => {
-      // Distant debris tumbling
       for (let i = Math.floor(l / 160) - 1; i * 160 < r + 160; i++) {
         const x = i * 160 + _slHash(i) * 80, y = 60 + _slHash(i + 3) * 300, s = 8 + _slHash(i + 5) * 26;
         ctx.save(); ctx.translate(x, y); ctx.rotate(frameCount * 0.004 * (i % 2 ? 1 : -1) + i);
@@ -58,7 +48,6 @@
   }
 
   function back(v) {
-    // Airliner fuselage section, torn at both ends
     if (_slVisible(v, PLANE.x - 40, PLANE.x + PLANE.w + 40)) {
       const P = PLANE;
       ctx.fillStyle = '#c8ccd0'; ctx.beginPath(); ctx.ellipse(P.x + P.w / 2, P.y + 40, P.w / 2, 46, 0, 0, Math.PI * 2); ctx.fill();
@@ -68,7 +57,6 @@
       ctx.fillStyle = '#1a1e22'; ctx.beginPath(); ctx.moveTo(P.x + 160, P.y + 70); ctx.lineTo(P.x + 300, P.y + 70); ctx.lineTo(P.x + 340, P.y + 110); ctx.lineTo(P.x + 140, P.y + 110); ctx.fill();
       ctx.fillStyle = '#e8ecef'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left'; ctx.fillText('NORTHWIND', P.x + 70, P.y + 20);
     }
-    // City bus, upside down
     if (_slVisible(v, BUS.x - 20, BUS.x + BUS.w + 20)) {
       const B = BUS;
       ctx.fillStyle = '#2a6a8a'; ctx.fillRect(B.x, B.y, B.w, 70);
@@ -76,14 +64,12 @@
       ctx.fillStyle = '#16181a'; for (const wx of [B.x + 40, B.x + B.w - 40]) { ctx.beginPath(); ctx.arc(wx, B.y + 2, 13, Math.PI, 0); ctx.fill(); }
     }
     for (const [x, y, w] of ROCKS) if (_slVisible(v, x - 10, x + w + 10)) _rock(x, y, w);
-    // A building chunk: three storeys of an apartment, floating
     if (_slVisible(v, CHUNK.x - 20, CHUNK.x + CHUNK.w + 20)) {
       _slBrick(CHUNK.x, CHUNK.y, CHUNK.w, 110, '#4a3a34');
       _slWindowGrid(CHUNK.x + 10, CHUNK.y + 10, CHUNK.w - 20, 90, 3, 2, { lit: 0.2, seed: 20 });
       ctx.fillStyle = '#2a2420';
       ctx.beginPath(); ctx.moveTo(CHUNK.x, CHUNK.y + 110); ctx.lineTo(CHUNK.x + CHUNK.w, CHUNK.y + 110); ctx.lineTo(CHUNK.x + CHUNK.w * 0.7, CHUNK.y + 150); ctx.lineTo(CHUNK.x + 40, CHUNK.y + 140); ctx.fill();
     }
-    // Satellite drifting on its slow bob (live platform)
     const s = _slPlat(currentArena, 'sat');
     if (s && _slVisible(v, s.x - 60, s.x + s.w + 60)) {
       ctx.fillStyle = '#c8b060'; ctx.fillRect(s.x + 50, s.y, 50, 40);
@@ -92,7 +78,6 @@
       ctx.fillStyle = '#9aa0a6'; ctx.fillRect(s.x, s.y, s.w, 5);
       _slDish(s.x + 75, s.y - 18, 14, 1);
     }
-    // The transmitter: charges toward "location sent" as the timer runs
     if (_slVisible(v, MAST_X - 200, MAST_X + 200)) {
       const ch = (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) || {};
       const total = ch.assassinationTimer || 5400;
@@ -118,7 +103,6 @@
     }
   }
 
-  // Derelict hull walkway: plated, ribbed, open void under it
   function surface(v, a, ph) {
     const x0 = Math.max(-60, v.x - 20), x1 = Math.min(W + 60, v.x + v.w + 20);
     if (ph === 'back') {

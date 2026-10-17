@@ -1,8 +1,7 @@
 'use strict';
-// smb-paradox-ai.js — drawParadoxEffects, paradoxFusionUpdateAI, paradoxAIUseAbility, paradoxPlayerUseAbility, paradoxSpeak, companion
-// Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
+// smb-paradox-ai.js: drawParadoxEffects, paradoxFusionUpdateAI, paradoxAIUseAbility, paradoxPlayerUseAbility, paradoxSpeak, companion
+// Depends on: smb-globals.js, smb-paradox-class.js.
 
-// ============================================================
 function drawParadoxEffects() {
   // Future Strike markers
   for (const s of _paradoxPendingStrikes) {
@@ -75,16 +74,13 @@ function drawParadoxEffects() {
   }
 }
 
-// ============================================================
-// paradoxFusionUpdateAI — deterministic combat loop for Paradox control phase
-// Priority: DODGE > ATTACK > CHASE > REPOSITION
-// Never stands still; always faces boss; forces attack when in range.
-// ============================================================
+// paradoxFusionUpdateAI: deterministic combat loop for Paradox control.
+// Priority: DODGE > ATTACK > CHASE > REPOSITION. Never stands still, always faces the boss.
 function paradoxFusionUpdateAI(fighter) {
   if (!tfParadoxFused || tfFusionControlMode !== 'paradox') return;
   if (!fighter || fighter.health <= 0 || fighter.ragdollTimer > 0 || fighter.stunTimer > 0) return;
 
-  // ── Target ────────────────────────────────────────────────
+  // Target
   const boss = players.find(p => p.isBoss && p.health > 0);
   if (!boss) return;
   fighter.target = boss;
@@ -93,17 +89,15 @@ function paradoxFusionUpdateAI(fighter) {
   const dist = Math.abs(dx);
   const dir  = Math.sign(dx) || 1;
 
-  // Always face the boss
   fighter.facing = dir;
 
-  // Init drift tracker
   if (fighter._pdxDriftDir === undefined) fighter._pdxDriftDir = 0;
   if (fighter._pdxDriftFrames === undefined) fighter._pdxDriftFrames = 0;
 
   const range = (fighter.weapon && fighter.weapon.range) ? fighter.weapon.range : 60;
   const OPTIMAL_DIST = range - 5; // stay just inside attack range
 
-  // ── A. DODGE — check active telegraphs near fighter ───────
+  // A. Dodge: telegraphs near the fighter
   let inDanger = false;
   let dodgeDir = 0;
 
@@ -126,7 +120,6 @@ function paradoxFusionUpdateAI(fighter) {
       const bhDist = Math.hypot(fighter.cx() - bh.x, fighter.cy() - bh.y);
       if (bhDist < bh.r + 60) {
         inDanger = true;
-        // move directly away from black hole
         dodgeDir = Math.sign(fighter.cx() - bh.x) || (Math.random() < 0.5 ? -1 : 1);
         break;
       }
@@ -135,26 +128,25 @@ function paradoxFusionUpdateAI(fighter) {
 
   // Floor hazard
   if (!inDanger && typeof bossFloorState !== 'undefined' && bossFloorState === 'hazard') {
-    // Stay airborne — jump constantly
+    // Stay airborne
     inDanger = true;
     dodgeDir = dir; // keep moving toward boss even during floor hazard
   }
 
-  // ── Execute priority ───────────────────────────────────────
+  // Execute priority
   if (inDanger) {
-    // A. DODGE: sprint away from danger zone
+    // A. Dodge
     fighter.vx = dodgeDir * 7.5;
     if (fighter.onGround) fighter.vy = -17; // jump out of danger
-    // Reset drift counter when dodging
     fighter._pdxDriftDir    = dodgeDir;
     fighter._pdxDriftFrames = 0;
 
   } else if (dist <= range + 10) {
-    // B. ATTACK: in range — must attack; maintain close pressure
+    // B. Attack: in range, keep the pressure on
     if (fighter.cooldown <= 0) {
       fighter.attack(boss);
     }
-    // Maintain optimal distance (slight forward pressure, never retreat)
+    // Hold optimal distance, never retreat
     if (dist > OPTIMAL_DIST) {
       fighter.vx = dir * 2.5;
     } else {
@@ -164,10 +156,10 @@ function paradoxFusionUpdateAI(fighter) {
     fighter._pdxDriftFrames = 0;
 
   } else {
-    // C. CHASE: close the gap aggressively
+    // C. Chase
     fighter.vx = dir * 6.2;
 
-    // D. REPOSITION drift guard — if drifting backward > 30 frames, force forward
+    // D. Drift guard: after 30 frames of backing off, force forward
     if (Math.sign(fighter.vx) !== dir) {
       fighter._pdxDriftFrames++;
     } else {
@@ -185,13 +177,10 @@ function paradoxFusionUpdateAI(fighter) {
     fighter.vy = -18;
   }
 
-  // Use Paradox special abilities on top of movement
   paradoxAIUseAbility(fighter);
 }
 
-// ============================================================
-// paradoxAIUseAbility — called from game loop during AI control phase
-// ============================================================
+// paradoxAIUseAbility: called from the game loop during AI control.
 function paradoxAIUseAbility(fighter) {
   if (!tfParadoxFused || tfFusionControlMode !== 'paradox') return;
   if (!fighter || !fighter.target || fighter.target.health <= 0) return;
@@ -238,9 +227,7 @@ function paradoxAIUseAbility(fighter) {
   if (Math.abs(fighter.y - target.y) < 40 && tryAbility('positionSwap')) return;
 }
 
-// ============================================================
-// paradoxPlayerUseAbility — called from processInput during player control phase
-// ============================================================
+// paradoxPlayerUseAbility: called from processInput during player control.
 function paradoxPlayerUseAbility(fighter) {
   if (!tfParadoxFused || tfFusionControlMode !== 'player') return;
   if (!fighter || fighter.health <= 0) return;
@@ -284,16 +271,12 @@ function paradoxPlayerUseAbility(fighter) {
   }
 }
 
-// ============================================================
-// PARADOX COMPANION  — post-final-boss ambient voice system
-// Activated once by setting localStorage 'smc_paradox_companion'
-// after the TrueForm ending. No UI, no spam.
-// ============================================================
+// Paradox companion: post-finale ambient voice. Enabled by setting localStorage
+// 'smc_paradox_companion' after the TrueForm ending. No UI.
 
 // Hydrated by _refreshRuntimeFromSave(); never read directly from localStorage
 let paradoxCompanionActive = false;
 
-// Internal state
 let _pdxCompIdleTimer    = 0;   // counts up; fires a line at threshold
 let _pdxCompLastArena    = '';  // detect arena change
 let _pdxCompCooldown     = 0;   // global cooldown between any lines (frames)
@@ -356,7 +339,7 @@ function activateParadoxCompanion() {
 function paradoxOnBossStart() {
   if (!paradoxCompanionActive) return;
   const line = _PDX_BOSS_START_LINES[Math.floor(Math.random() * _PDX_BOSS_START_LINES.length)];
-  // Delay 4 seconds — let opening cinematics breathe
+  // 4 s delay, let opening cinematics play
   setTimeout(() => paradoxSpeak(line), 4000);
 }
 
@@ -379,19 +362,18 @@ function updateParadoxCompanion() {
 
   if (_pdxCompCooldown > 0) _pdxCompCooldown--;
 
-  // Arena-change detection
   if (typeof currentArenaKey !== 'undefined' && currentArenaKey !== _pdxCompLastArena) {
     if (_pdxCompLastArena !== '') _paradoxOnAreaChange(currentArenaKey);
     _pdxCompLastArena = currentArenaKey;
   }
 
-  // Rare idle line — only during active gameplay, not during cinematics
+  // Idle line, gameplay only (not during cinematics)
   if (!isCinematic) {
     _pdxCompIdleTimer++;
     const threshold = _PDX_IDLE_MIN + Math.floor(Math.random() * _PDX_IDLE_VARIANCE);
     if (_pdxCompIdleTimer >= threshold) {
       _pdxCompIdleTimer = 0;
-      // ~40% chance to actually speak when threshold reached (keeps it rare)
+      // ~40% chance once the threshold is hit, to keep lines rare
       if (Math.random() < 0.4) {
         const line = _PDX_IDLE_LINES[Math.floor(Math.random() * _PDX_IDLE_LINES.length)];
         paradoxSpeak(line);

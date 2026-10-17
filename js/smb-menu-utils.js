@@ -1,7 +1,6 @@
 'use strict';
-// smb-menu-utils.js — toggleChaosMode, resizeGame, refreshMenuFromAccount, drawEdgeIndicators
-// Depends on: smb-globals.js, smb-menu-startcore.js
-// Must load AFTER smb-menu-startcore.js
+// Menu helpers: chaos toggle, resize, refreshMenuFromAccount, edge indicators, home hub.
+// Loads after smb-menu-startcore.js.
 
 function toggleChaosMode() {
   if (typeof chaosMode === 'undefined') return;
@@ -13,24 +12,11 @@ function toggleChaosMode() {
   }
 }
 
-// ============================================================
-// FULLSCREEN / RESIZE
-// ============================================================
 function resizeGame() {
-  // The canvas CSS box must match the backing store (canvas.width/height =
-  // window.innerWidth/innerHeight, see resizeCanvas in smb-globals.js) 1:1 —
-  // drawStorySubtitle() and the HUD camera clamp in smb-camera.js both map
-  // getBoundingClientRect() CSS pixels straight to canvas coordinates.
-  //
-  // Do NOT letterbox here and do NOT subtract the HUD height: #hud is
-  // position:fixed with a translucent scrim, so it floats over the canvas and
-  // takes no layout space. Shrinking the box below the viewport exposed the
-  // page background as black bars — 32% of the frame at a 1216x684 iframe and
-  // 41% at 907x510, both sizes CrazyGames lists as primary.
-  //
-  // Aspect ratio is already preserved inside the frame: gameLoop fit-scales the
-  // GAME_W x GAME_H world by min(canvas.width/GAME_W, canvas.height/GAME_H) and
-  // centres it, painting the surround with the arena sky gradient.
+  // Canvas CSS box matches the backing store 1:1, so getBoundingClientRect() pixels map straight to canvas coords.
+  // No letterboxing and no HUD height subtraction: #hud is fixed and floats over the canvas. Shrinking the
+  // box exposed black bars (32-41% of the frame at CrazyGames sizes).
+  // gameLoop fit-scales and centres the world, so the aspect ratio is kept inside the frame.
   const w = window.innerWidth;
   const h = window.innerHeight;
 
@@ -42,9 +28,7 @@ function resizeGame() {
 
 window.addEventListener('resize', resizeGame);
 
-// ============================================================
-// PAGE LOAD — start menu background animation immediately
-// ============================================================
+// Start the menu background animation on load.
 currentArenaKey = ARENA_KEYS_ORDERED[menuBgArenaIdx];
 currentArena    = ARENAS[currentArenaKey];
 generateBgElements();
@@ -53,7 +37,8 @@ resizeGame();
 menuLoopRunning = true;
 requestAnimationFrame(menuBgLoop);
 
-// Version labels stay out of player-facing UI; the build number lives in the Updates modal header.
+// Home screen shows the build number (opens the changelog). Other version labels stay blank.
+(function () { const el = document.getElementById('gameVersionLabel'); if (el && typeof GAME_VERSION !== 'undefined') el.textContent = 'v' + GAME_VERSION; })();
 _initVersionLabels();
 
 // Build weapon/class selection card grids
@@ -69,9 +54,7 @@ syncCodeInput();
   const slider = document.querySelector('input[oninput*="setSfxVolume"]');
   if (slider) slider.value = vol;
 })();
-// ── refreshMenuFromAccount ─────────────────────────────────────────────────────
-// Re-evaluates which mode cards are visible based on the current account's state.
-// Called at startup and after every account switch / delete.
+// Re-evaluates mode card visibility from the current account. Runs at startup and on account switch/delete.
 function refreshMenuFromAccount() {
   const bossCard = document.getElementById('modeBoss');
   if (bossCard) bossCard.style.display = (typeof bossBeaten !== 'undefined' && bossBeaten) ? '' : 'none';
@@ -88,9 +71,7 @@ function refreshMenuFromAccount() {
   const aaCard = document.getElementById('modeAbsoluteAxiom');
   if (aaCard) aaCard.style.display = (typeof absoluteAxiomUnlocked !== 'undefined' && absoluteAxiomUnlocked) ? '' : 'none';
 
-  // Cutscene Theater lists every scene in the game with no per-entry gating, so
-  // it stays hidden until the player has reached the ending it would spoil —
-  // the same flag the boss replay tab uses.
+  // Cutscene Theater lists every scene, so it stays hidden until the player reaches the ending it would spoil.
   const csBtn = document.getElementById('cutsceneTheaterBtn');
   if (csBtn) {
     const tfSeen = !!(window.GameState && GameState.getActiveAccount &&
@@ -105,8 +86,7 @@ function refreshMenuFromAccount() {
   if (typeof syncCodeInput === 'function') syncCodeInput();
   if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption();
   if (typeof refreshFragmentOptions === 'function') refreshFragmentOptions();
-  // Home hub identity + Resume card. Defined below this function, so it is
-  // referenced through the same typeof guard every other optional hook uses.
+  // Home hub identity and Resume card. Defined below, so called through the typeof guard like other optional hooks.
   if (typeof refreshHomeHub === 'function') refreshHomeHub();
 }
 
@@ -118,24 +98,14 @@ refreshMenuFromAccount();
   if (coinEl) coinEl.textContent = coinBalance;   // corner badge — number only, see SMB.css
 })();
 
-// Init arena & lives dropdowns — default to random on first load
+// Init arena & lives dropdowns, default to random on first load
 selectArena('random');
 selectLives(chosenLives);
-// The room list is always available — "Private" governs whether YOUR room is
-// advertised, not whether you can see anyone else's. It used to start hidden,
-// so the Online panel opened with no way to discover a room at all.
+// The room list is always visible. Private only hides YOUR room, not other rooms.
 
-// Tuesday cold open — plays once ever, on the player's first Story open.
-//
-// It used to auto-play ~800ms after load, over the home screen. That made a dark,
-// slow walking scene the first thing every visitor saw, including portal players
-// who arrived for a fight and never opted into the narrative. It is a story
-// opening, so it now gates the story: openStoryPath() calls this, and the panel
-// opens when the scene finishes. Anyone who plays a chapter still sees it, since
-// Story is the only route to the chapters.
-//
-// Returns true if the prologue took over (caller should defer its own UI to the
-// callback), false if it was already seen or is unavailable (open UI normally).
+// Tuesday cold open: plays once, on the first Story open.
+// openStoryPath() calls this and the panel opens when the scene ends.
+// Returns true if the prologue took over (caller defers UI to the callback), false if already seen or unavailable.
 function maybePlayTuesdayPrologue(onDone) {
   var seen = false;
   try { seen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen); } catch (e) {}
@@ -143,8 +113,7 @@ function maybePlayTuesdayPrologue(onDone) {
   if (seen || typeof TuesdayPrologue === 'undefined' || !TuesdayPrologue.play) return false;
   if (TuesdayPrologue.isRunning && TuesdayPrologue.isRunning()) return false;
 
-  // Mark seen up front: if anything below throws, the scene must not re-arm and
-  // trap the player behind it on every subsequent Story open.
+  // Mark seen first, so a throw below can't re-arm the scene and trap the player on every Story open.
   try { if (typeof _story2 !== 'undefined' && _story2) _story2.tuesdaySeen = true; } catch (e) {}
   try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
   try { if (typeof _saveStory2 === 'function') _saveStory2(); } catch (e) {}
@@ -159,26 +128,15 @@ function maybePlayTuesdayPrologue(onDone) {
   }
 }
 
-// ============================================================
-// EDGE PLAYER INDICATORS
-// ============================================================
-// Marks the strip past each end of the floor where there is no ground left —
-// the stage's actual kill boundary. On arenas whose floor is wider than the
-// viewport (The Circuit's floor runs x -60..960 against a 900-wide screen) that
-// boundary sits off-screen, so players lose stocks at full HP to geometry they
-// were never shown. This draws the lip, and flares when someone is over it.
+// Red warning past each end of the floor, where the kill boundary is.
+// Marks the strip past each end of the floor with no ground: the real kill boundary. On wide arenas that
+// boundary can be off-screen, so this draws the lip and flares when someone is over it.
 function drawStageBoundary(scX, scY, camCX, camCY) {
   if (!gameRunning || typeof currentArena === 'undefined' || !currentArena) return;
-  // Arenas where "the edge of the floor" is not the kill boundary opt out. The
-  // Sewer is the case that forced this: its only isFloor platform is a drifting
-  // trash barge 210px wide, so the union below was the barge itself, every
-  // fighter was permanently inside the 210px warning distance, and the screen
-  // sat under a full-strength red ring-out flare for the entire match. There the
-  // hazard is the sewage, not the ledge.
+  // Arenas where the floor edge is not the kill boundary opt out. The Sewer's only isFloor platform is a
+  // 210px barge, so its edge would flare permanently. There the hazard is the sewage.
   if (currentArena.noStageBoundary) return;
-  // Union of every live floor segment, not just the first. The Circuit's plate is
-  // several isFloor segments with voids between them, so `.find()` would have
-  // reported only the leftmost segment's edge and flared the wrong boundary.
+  // Union of every live floor segment. The Circuit has voids between plates, so .find() would flare the wrong edge.
   let minX = Infinity, maxX = -Infinity;
   for (const pl of (currentArena.platforms || [])) {
     if (!pl || !pl.isFloor || pl.isFloorDisabled) continue;
@@ -188,21 +146,16 @@ function drawStageBoundary(scX, scY, camCX, camCY) {
   if (!isFinite(minX) || !isFinite(maxX)) return;
   const toScreenX = gx => (gx - camCX) * scX + canvas.width / 2;
 
-  // How close is the nearest LOCAL fighter to each end of the ground? The
-  // warning has to key off proximity rather than the boundary's screen position:
-  // the camera routinely zooms past 1.9x, which pushes the real edge hundreds of
-  // pixels off-canvas precisely when a player is about to be launched over it.
+  // Key off the nearest local fighter, not the boundary's screen position. The camera can zoom past 1.9x and
+  // push the edge off-canvas just as someone is launched over it.
   const WARN_DIST = 210;
   let nearL = Infinity, nearR = Infinity;
   for (const p of players) {
     if (!p || p.health <= 0 || p.isAI) continue;   // warn the human, not the bot
-    // Standing on any platform (side rooftop, collapsed-slab arena, etc.) is not a
-    // ring-out threat even if cx is past the union of isFloor segments; without
-    // this the red band + lip line stayed lit permanently (AA Broken Branch).
+    // Standing on any platform is not a ring-out threat, even past the isFloor union. Without this the band
+    // stayed lit (AA Broken Branch).
     if (p.onGround) continue;
-    // Only when the edge is a live threat: already past the lip, or knocked
-    // toward it. Proximity alone lit the band whenever someone stood on a
-    // side platform above a short floor, which read as a stray red line.
+    // Only light the band when the edge is a live threat: already past the lip, or knocked toward it.
     const launched = (p.hurtTimer > 0 || p.stunTimer > 0 || p.ragdollTimer > 0) && !p.onGround;
     const dL = p.cx() - minX, dR = maxX - p.cx();
     if (dL < 0 || (launched && p.vx < -1)) nearL = Math.min(nearL, dL);
@@ -210,7 +163,7 @@ function drawStageBoundary(scX, scY, camCX, camCY) {
   }
 
   ctx.save();
-  // Screen-space overlay — the caller's game transform is still live here.
+  // Screen-space overlay, the caller's game transform is still live here.
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   for (const side of [-1, 1]) {
     const dist = side < 0 ? nearL : nearR;
@@ -249,17 +202,14 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
   const _ref = (gameMode === 'online' && typeof localPlayerSlot !== 'undefined' && players[localPlayerSlot])
     ? players[localPlayerSlot] : players[0];
   for (const p of allP) {
-    // Convert game coords to screen coords
     const sx = (p.cx() - camCX) * scX + canvas.width  / 2;
     const sy = (p.cy() - camCY) * scY + canvas.height / 2;
     const onScreen = sx > -p.w * scX && sx < canvas.width + p.w * scX &&
                      sy > -p.h * scY && sy < canvas.height + p.h * scY;
     if (onScreen) continue;
-    // Clamp indicator to screen edge with margin
     const ix = Math.max(MARGIN, Math.min(canvas.width  - MARGIN, sx));
     let iy = Math.max(MARGIN, Math.min(canvas.height - MARGIN, sy));
-    // Keep clear of the explore minimap / sidequest tracker (smb-drawing-hud.js,
-    // smb-story-sidequests.js): an arrow that would land on one slides below it.
+    // Keep clear of the explore minimap and sidequest tracker, or the arrow slides below them.
     if (gameMode === 'exploration' && Array.isArray(window._hudAvoid)) {
       for (const r of window._hudAvoid) {
         if (ix > r.x - ARROW && ix < r.x + r.w + ARROW && iy > r.y - ARROW && iy < r.y + r.h + ARROW) {
@@ -282,7 +232,6 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     ctx.closePath();
     ctx.stroke();
     ctx.fill();
-    // Name label
     ctx.rotate(-angle);
     ctx.fillStyle   = '#fff';
     ctx.font        = 'bold 9px Arial';
@@ -299,15 +248,8 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
   }
 }
 
-// ============================================================
-// HOME HUB — populate the identity bar and the Resume card
-// ------------------------------------------------------------
-// The old home screen showed a returning player exactly what it showed a
-// stranger. This reads the active account's save so the first thing on screen
-// is the player's own progress. Every lookup is guarded: the hub must render
-// something sensible when there is no account, no save, or no story data at
-// all (first launch, private window, cleared storage).
-// ============================================================
+// Home hub: fills the identity bar and Resume card from the active account's save.
+// Every lookup is guarded, so it renders sensibly with no account, save or story data.
 function refreshHomeHub() {
   const nameEl  = document.getElementById('hubPlayerName');
   if (!nameEl) return;   // not on the hub (sub-panel open, or older markup)
@@ -333,21 +275,15 @@ function refreshHomeHub() {
     coinEl.textContent = Number(c || 0).toLocaleString();
   }
 
-  // ── Progress ──────────────────────────────────────────────────────────────
-  // Read the SAME source the journey screen uses (smb-story-config.js): the
-  // count of DEFEATED chapters over the active saga's chapter count. Deriving
-  // a percentage from the current chapter index instead is wrong — the index
-  // is where you are, not how much you have finished, and on a saga build it
-  // is not even scoped to the chapters this build ships.
+  // Same source as the journey screen: DEFEATED chapters over the saga's chapter count. The current index
+  // is not progress, and on a saga build it is not scoped to this build's chapters.
   const sagaScoped = typeof activeSagaChapterCount === 'function'
                   && typeof isChapterInActiveSaga  === 'function';
   const total = sagaScoped
     ? activeSagaChapterCount()
     : (typeof STORY_CHAPTERS2 !== 'undefined' ? STORY_CHAPTERS2.length : 0);
-  // Distinct, in-range entries only. `defeated` can carry duplicates and mixes
-  // chapter ids with array indices, so its raw length overcounts — a finished
-  // save read 373/186 = 201%. Matches the guard in smb-story-config.js so the
-  // hub and the journey screen can never disagree.
+  // Count distinct in-range entries only. defeated can hold duplicates and mixes ids with indices, so its raw
+  // length overcounts (a finished save read 373/186).
   const raw = (typeof _story2 !== 'undefined' && _story2 && Array.isArray(_story2.defeated))
     ? _story2.defeated : [];
   const seen = new Set(raw.filter(i => Number.isInteger(i) && i >= 0 && i < total));
@@ -356,9 +292,8 @@ function refreshHomeHub() {
     : seen.size);
   const pct  = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
 
-  // Current chapter, clamped into the active saga exactly as the journey list
-  // clamps it. _story2 is the live normalised progress object; the account copy
-  // is only its persistence target.
+  // Current chapter, clamped into the active saga like the journey list. _story2 is the live state;
+  // the account copy is only for saving.
   let idx = (typeof _story2 !== 'undefined' && _story2 && typeof _story2.chapter === 'number')
     ? _story2.chapter : 0;
   if (typeof sagaClampChapter === 'function') idx = sagaClampChapter(idx);
@@ -403,17 +338,13 @@ function refreshHomeHub() {
   if (typeof refreshLadderCard === 'function') refreshLadderCard();
 }
 
-// The story engine loads AFTER this file, so STORY_CHAPTERS2 and _story2 do not
-// exist during the module-level refreshMenuFromAccount() call at the bottom of
-// this file. Without this second pass the hub renders a permanent "0% / Start
-// the Story" even on a finished save.
+// The story engine loads after this file, so STORY_CHAPTERS2 and _story2 don't exist during the module-level
+// call below. Without a second pass the hub shows 0% even on a finished save.
 window.addEventListener('load', function () {
   if (typeof refreshHomeHub === 'function') refreshHomeHub();
 });
 
-// Resume launches the saved chapter directly. If the story engine has not
-// loaded its chapter list yet, fall back to opening the chapter menu rather
-// than doing nothing.
+// Resume launches the saved chapter. If the chapter list isn't loaded yet, open the chapter menu instead.
 function hubResume() {
   const idx = (typeof window._hubResumeIdx === 'number') ? window._hubResumeIdx : 0;
   if (typeof _beginChapter2 === 'function' &&

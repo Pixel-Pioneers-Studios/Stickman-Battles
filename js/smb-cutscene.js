@@ -1,34 +1,11 @@
 'use strict';
-// smb-cutscene.js — Deterministic step-based cutscene system
-// ============================================================
-// Cutscenes are data-driven sequences of discrete steps.
-// Each step runs once and advances only when its timer condition is met.
-//
-// CONTROL LOCK: while a cutscene is active
-//   - processInput() is suppressed (activeCutscene check in smb-loop.js)
-//   - Fighter.updateAI() is suppressed (activeCutscene check in smb-fighter.js)
-//   - Physics update is suppressed (gameFrozen = true while running)
-//
-// PUBLIC API
-//   startCutscene(data)   — begin a cutscene; data is an arbitrary object
-//   endCutscene()         — finish and restore control
-//   updateCutscene()      — called every frame from gameLoop; advances steps
-//   isCutsceneActive()    — returns true when a cutscene is running
-//
-// STEP PATTERN  (implement in data.onStep or supply data.steps array)
-//
-//   steps: [
-//     { duration: 60, onEnter(cs){}, onTick(cs){}, onExit(cs){} },
-//     { duration: 90, ... },
-//   ]
-//
-// Alternatively, supply data.update(cs) for a fully custom imperative loop.
-// ============================================================
+// Step-based cutscenes. Each step runs once and advances when its timer runs out.
+// While active, input and Fighter.updateAI() are skipped and physics is frozen.
+// data.steps holds { duration, onEnter, onTick, onExit } objects. data.update(cs) replaces
+// the step logic entirely.
 
-// ── Global state ─────────────────────────────────────────────────────────────
 let activeCutscene = null;  // null when inactive; object while running
 
-// ── Internal helpers ─────────────────────────────────────────────────────────
 
 /** Apply the control-lock: freeze physics and suppress input/AI. */
 function _cutsceneLock() {
@@ -40,7 +17,6 @@ function _cutsceneUnlock() {
   gameFrozen = false;
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
 
 /**
  * Start a cutscene.
@@ -52,7 +28,6 @@ function _cutsceneUnlock() {
  */
 function startCutscene(data) {
   if (activeCutscene && activeCutscene.running) {
-    // Forcibly end the previous cutscene before starting the next one.
     endCutscene();
   }
 
@@ -60,7 +35,7 @@ function startCutscene(data) {
     step:     0,
     timer:    0,
     running:  true,
-    _entered: false,  // whether onEnter for current step has been called
+    _entered: false,  // onEnter has run for this step
     data:     data || {},
   };
 
@@ -81,7 +56,6 @@ function endCutscene() {
     try { def.onExit(cs); } catch(e) { console.warn('[cutscene] onExit error', e); }
   }
 
-  // User-supplied teardown hook
   if (cs.data.onEnd) {
     try { cs.data.onEnd(cs); } catch(e) { console.warn('[cutscene] onEnd error', e); }
   }
@@ -92,14 +66,10 @@ function endCutscene() {
   _cutsceneUnlock();
 }
 
-/**
- * Returns true while a cutscene is running.
- */
 function isCutsceneActive() {
   return activeCutscene !== null && activeCutscene.running;
 }
 
-// ── Frame update (called each frame from gameLoop) ────────────────────────────
 
 /**
  * Advance the active cutscene by one frame.
@@ -109,7 +79,6 @@ function updateCutscene() {
   const cs = activeCutscene;
   if (!cs || !cs.running) return;
 
-  // Custom imperative update overrides the step-array logic entirely.
   if (typeof cs.data.update === 'function') {
     try { cs.data.update(cs); } catch(e) { console.warn('[cutscene] update error', e); }
     return;
@@ -117,12 +86,10 @@ function updateCutscene() {
 
   const steps = cs.data.steps;
   if (!steps || steps.length === 0) {
-    // Nothing to do — end immediately.
     endCutscene();
     return;
   }
 
-  // All steps complete → end the cutscene.
   if (cs.step >= steps.length) {
     endCutscene();
     return;
@@ -130,7 +97,7 @@ function updateCutscene() {
 
   const def = steps[cs.step];
 
-  // ── ENTER: run onEnter exactly once when we arrive at this step ───────────
+  // onEnter runs once, on arrival at the step
   if (!cs._entered) {
     cs._entered = true;
     cs.timer    = (def.duration != null) ? def.duration : 60;
@@ -139,12 +106,10 @@ function updateCutscene() {
     }
   }
 
-  // ── TICK: run every frame while on this step ──────────────────────────────
   if (typeof def.onTick === 'function') {
     try { def.onTick(cs); } catch(e) { console.warn('[cutscene] onTick error', e); }
   }
 
-  // ── ADVANCE: decrement timer; move to next step when it reaches zero ──────
   cs.timer--;
   if (cs.timer <= 0) {
     if (typeof def.onExit === 'function') {
@@ -155,7 +120,6 @@ function updateCutscene() {
   }
 }
 
-// ── Draw hook (screen-space, optional) ───────────────────────────────────────
 
 /**
  * Draw cutscene overlays in screen-space.
@@ -174,7 +138,6 @@ function drawCutscene(ctx, cw, ch) {
     ctx.restore();
   }
 
-  // Top-level draw function on the data object (always drawn if defined)
   if (typeof cs.data.onDraw === 'function') {
     ctx.save();
     try { cs.data.onDraw(cs, ctx, cw, ch); } catch(e) { console.warn('[cutscene] data.onDraw error', e); }

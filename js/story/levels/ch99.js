@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch99.js — Chapter 99 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch99.js: chapter 99 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 99 — The Outer Throne (walk → duel vs the Titan Enforcers)
-// The Throne Approach: the processional road from the Outer Plain up to the
-// Throne Plateau, lined with statues of past kings so big that only their
-// feet and shins fit in the world — each pair of stone feet as tall as a
-// house. The road climbs in giant's steps (the climbs). The Enforcers hold
-// the midpoint, the one landing on the road, standing between the feet of
-// the largest statue; the Plateau and its throne are a silhouette on the
-// skyline at the far end, watching ("You could feel its attention shift").
-// The cache shafts are the footprints of something that walked here once,
-// sunk deep into the road.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch99 (The Outer Throne): walk, then duel the Titan Enforcers. Cache shafts are footprints sunk into the road.
 (function () {
   const G = 440, LANDING = 3000;
   const STEPS = [[520, 360, 120], [640, 280, 120], [1150, 350, 120], [1270, 270, 120], [2220, 360, 110], [2330, 280, 110],

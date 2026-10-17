@@ -1,14 +1,8 @@
 'use strict';
-// js/story/levels/ch19.js — Chapter 19 map. See smb-story-levels.js for the contract.
+// Chapter 19 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 19 — Mirror Fracture (walk → duel vs your fracture echo)
-// "A dimension that was your world — but not. Everything inverted. Left was
-// right." The mirror pocket is chapter 0's street, flipped end to end (the
-// signs read backwards), with its colours inverted: Kael's house is at the far
-// right, the crosswalk tear still hangs at the midpoint where the echo waits.
-// Built from STORY_LEVELS[0] at draw time, so it always matches the original.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 19, Mirror Fracture (walk, then duel your fracture echo). Built from STORY_LEVELS[0]
+// at draw time, so it always matches the original street.
 (function () {
   const WL = 6000, G = 440;
   const L0 = () => STORY_LEVELS[0];

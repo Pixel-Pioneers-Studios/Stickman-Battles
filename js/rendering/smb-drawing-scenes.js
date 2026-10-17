@@ -1,20 +1,17 @@
 'use strict';
-// smb-drawing-scenes.js — Boss death scene, fake death scene (startBossDeathScene, updateBossDeathScene, drawBossDeathScene, triggerFakeDeath)
-// Depends on: smb-globals.js, smb-data-arenas.js, smb-particles-core.js
+// smb-drawing-scenes.js: boss death scene and fake death scene (start, update, draw).
+// Depends on smb-globals.js, smb-data-arenas.js and smb-particles-core.js.
 
-// ============================================================
-// BOSS DEFEAT SCENE
-// ============================================================
 function startBossDeathScene(boss) {
   bossDeathScene = {
     phase: 'shatter', timer: 0,
     orbX: boss.cx(), orbY: boss.cy(),
     orbR: 0, orbVx: 0, orbVy: 0,
-    camZoom: 1.0, camZoomTarget: 1.0,  // cinematic zoom state
+    camZoom: 1.0, camZoomTarget: 1.0,
   };
   boss.invincible = 9999;
   screenShake     = 65;
-  // Remove all other entities — boss takes center stage
+  // Remove other entities; the boss takes center stage
   players    = players.filter(p => p.isBoss);
   minions    = [];
   trainingDummies = [];
@@ -42,12 +39,10 @@ function updateBossDeathScene() {
   const sc   = bossDeathScene;
   if (!sc) return;
   sc.timer++;
-  // Smooth camera zoom lerp for cinematic effect
   sc.camZoom = lerp(sc.camZoom || 1, sc.camZoomTarget || 1, 0.06);
   const boss = players.find(p => p.isBoss);
 
   if (sc.phase === 'shatter') {
-    // Camera slowly zooms in on boss
     sc.camZoomTarget = 1.5;
     if (boss && sc.timer % 4 === 0) {
       spawnParticles(boss.cx() + (Math.random()-0.5)*50, boss.cy() + (Math.random()-0.5)*50,
@@ -64,10 +59,9 @@ function updateBossDeathScene() {
       spawnParticles(sc.orbX, sc.orbY, '#000000', 40);
     }
   } else if (sc.phase === 'orb_form') {
-    sc.orbR = Math.min(38, sc.orbR + 0.65); // bigger orb
+    sc.orbR = Math.min(38, sc.orbR + 0.65);
     if (sc.timer >= 180) {
       sc.phase = 'orb_burst';
-      // Flash + extra particles as orb fully forms
       screenShake = 40;
       for (let _i = 0; _i < 60 && particles.length < MAX_PARTICLES; _i++) {
         const _a = Math.random() * Math.PI * 2;
@@ -81,7 +75,7 @@ function updateBossDeathScene() {
       }
     }
   } else if (sc.phase === 'orb_burst') {
-    // Brief pause — orb glows at full size
+    // Brief pause, orb at full size
     if (sc.timer >= 220) {
       sc.phase = 'portal_open';
       const _px = clamp(sc.orbX + 240, 80, GAME_W - 80);
@@ -99,7 +93,6 @@ function updateBossDeathScene() {
     sc.orbY += sc.orbVy;
     sc.orbVx  = Math.min(sc.orbVx * 1.12, 28);
     sc.orbR   = Math.max(0, sc.orbR - 0.22);
-    // Bright light trail
     if (settings.particles && Math.random() < 0.6 && particles.length < MAX_PARTICLES) {
       const _p = _getParticle();
       _p.x = sc.orbX; _p.y = sc.orbY;
@@ -124,7 +117,7 @@ function updateBossDeathScene() {
         } else {
           bossBeaten = true;
         }
-        // Unlock boss card for future free-play now that it's been beaten via story
+        // Unlock the boss card for free play now that story has beaten it
         const _bossCard = document.getElementById('modeBoss');
         if (_bossCard) _bossCard.style.display = '';
         showBossBeatenScreen();
@@ -133,7 +126,6 @@ function updateBossDeathScene() {
       }
     }
   }
-  // Lerp cinematic zoom
   if (sc.camZoom === undefined) sc.camZoom = 1.0;
   sc.camZoom = sc.camZoom + (sc.camZoomTarget - sc.camZoom) * 0.04;
 }
@@ -142,7 +134,6 @@ function drawBossDeathScene() {
   const sc = bossDeathScene;
   if (!sc || sc.orbR <= 0) return;
   ctx.save();
-  // Outer glow (pulsing)
   const pulse = 1 + Math.sin(frameCount * 0.18) * 0.12;
   const glowR = sc.orbR * 3.5 * pulse;
   const glow  = ctx.createRadialGradient(sc.orbX, sc.orbY, 0, sc.orbX, sc.orbY, glowR);
@@ -153,7 +144,6 @@ function drawBossDeathScene() {
   ctx.beginPath();
   ctx.arc(sc.orbX, sc.orbY, glowR, 0, Math.PI * 2);
   ctx.fill();
-  // Core orb — dark with bright rim
   const _g = ctx.createRadialGradient(sc.orbX, sc.orbY, 0, sc.orbX, sc.orbY, sc.orbR);
   _g.addColorStop(0,   'rgba(0,0,12,1)');
   _g.addColorStop(0.55,'rgba(40,0,70,0.95)');
@@ -165,7 +155,6 @@ function drawBossDeathScene() {
   ctx.beginPath();
   ctx.arc(sc.orbX, sc.orbY, sc.orbR, 0, Math.PI * 2);
   ctx.fill();
-  // Inner bright center
   const inner = ctx.createRadialGradient(sc.orbX, sc.orbY, 0, sc.orbX, sc.orbY, sc.orbR * 0.35);
   inner.addColorStop(0, 'rgba(255,255,255,0.9)');
   inner.addColorStop(1, 'rgba(200,100,255,0)');
@@ -176,9 +165,7 @@ function drawBossDeathScene() {
   ctx.restore();
 }
 
-// ============================================================
-// FAKE DEATH SCENE  (boss < 1000 HP + player loses last life)
-// ============================================================
+// Fake death: boss under 1000 HP and the player loses their last life.
 function triggerFakeDeath(player) {
   fakeDeath.active    = true;
   fakeDeath.triggered = true;
@@ -238,7 +225,7 @@ function updateFakeDeathScene() {
 
 function drawFakeDeathScene() {
   if (!fakeDeath.active && fakeDeath.timer === 0) return;
-  if (!fakeDeath.active) return; // scene ended
+  if (!fakeDeath.active) return;
   const t = fakeDeath.timer;
   const p = fakeDeath.player;
 
@@ -276,7 +263,6 @@ function drawFakeDeathScene() {
     colGrad.addColorStop(1, 'rgba(160,0,255,0)');
     ctx.fillStyle = colGrad;
     ctx.fillRect(p.spawnX - 18, 0, 36, GAME_H);
-    // Bright core
     ctx.fillStyle = `rgba(255,200,255,${colAlpha * 0.55})`;
     ctx.fillRect(p.spawnX - 6, 0, 12, GAME_H);
     ctx.restore();
@@ -299,7 +285,5 @@ function drawFakeDeathScene() {
 
 
 
-// ============================================================
-// STORY SUBTITLE — in-fight narrative captions
-// ============================================================
+// Story subtitles: in-fight narrative captions.
 // Returns the bottom edge of the DOM HUD bar in canvas pixels.

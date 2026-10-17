@@ -1,24 +1,17 @@
 'use strict';
-// smb-weapons-ext.js — runtime for Bomb, Fragment, Throwing Knives, Glass Blade,
-// Anchor and Crossbow, plus the Demolitionist / Warden / Adept class passives.
-// Depends on: smb-globals.js, smb-combat.js (dealDamage, isHostileTarget,
-//             applyLaunch), smb-particles-core.js, smb-data-weapons.js
+// Runtime for Bomb, Fragment, Throwing Knives, Glass Blade, Anchor and Crossbow,
+// plus the Demolitionist / Warden / Adept class passives.
+// Depends on smb-globals.js, smb-combat.js, smb-particles-core.js, smb-data-weapons.js.
 // Must load AFTER smb-fighter.js.
 //
-// Fighter calls in through six hooks, all typeof-guarded so this file is optional:
-//   wxUpdateFighter(f)            per-frame, from Fighter.update()
-//   wxDrawFighter(f)              world-space entity pass, from Fighter.draw()
-//   wxDrawWeaponArt(f, k, atk)    in-hand art, from Fighter.drawWeapon()
-//   wxResetFighter(f)             from Fighter.respawn()
-//   wxDamageMods / wxKnockbackMods  from dealDamage()
-// Weapon entries in WEAPONS reach the rest through customShot / customAttack /
-// ability / superMove.
+// Fighter calls in through hooks, all typeof-guarded so this file is optional:
+//   wxUpdateFighter(f), wxDrawFighter(f), wxDrawWeaponArt(f, k, atk),
+//   wxResetFighter(f), wxDamageMods / wxKnockbackMods (from dealDamage()).
+// WEAPONS entries reach this via customShot / customAttack / ability / superMove.
 //
-// Every hit goes through dealDamage(). Entities live on their owner, like the
-// existing per-weapon hazards, and are listed in SMK2_OWNED_HAZARDS so Sovereign
-// can see them.
+// Every hit goes through dealDamage(). Entities are listed in SMK2_OWNED_HAZARDS
+// so Sovereign can see them.
 
-// ── Shared helpers ───────────────────────────────────────────────────────────
 function _wxAll() {
   const out = [];
   if (typeof players !== 'undefined' && Array.isArray(players)) for (const f of players) out.push(f);
@@ -66,8 +59,7 @@ function _wxTouches(f, x, y, r) {
   return x > f.x - r && x < f.x + f.w + r && y > f.y - r && y < f.y + f.h + r;
 }
 
-// Hits dealt by these entities are tagged so the Glass Blade crack penalty,
-// which scales the blade's own swings, leaves its shards alone.
+// Hits from these entities are tagged so the Glass Blade crack penalty leaves shards alone.
 let _wxInHit = false;
 function _wxHit(owner, t, dmg, kb, iframes) {
   if (!t || t.health <= 0 || !owner) return false;
@@ -78,17 +70,16 @@ function _wxHit(owner, t, dmg, kb, iframes) {
   return t.health < hp;
 }
 
-// dealDamage pushes away from the ATTACKER; a blast or a returning knife should
-// push away from where it actually is.
+// dealDamage pushes away from the attacker. Blasts and returning knives push away from
+// their own position.
 function _wxPushFrom(t, x) {
   if (!t._lastHitCtx || t._lastHitCtx.frame !== _wxFrame()) return;
   const dir = (t.cx() - x) >= 0 ? 1 : -1;
   if (t.vx * dir < 0) t.vx = -t.vx;
 }
 
-// ability() plays a swing animation, and a melee swing arc deals weapon damage.
-// For abilities where the weapon has left the hand, mark every hostile as already
-// struck this swing so the animation cannot land (or hand out i-frames).
+// ability() plays a swing arc that deals weapon damage. If the weapon has left the hand,
+// mark hostiles as already struck so the arc can't land or grant i-frames.
 function _wxNoSwingHit(user) {
   if (!user.swingHitTargets) return;
   for (const t of _wxHostiles(user)) user.swingHitTargets.add(t);
@@ -107,11 +98,8 @@ function _wxCapped(capMap, t, dmg, cap) {
 const _wxFx = [];
 function _wxAddFx(fx) { fx.t = 0; _wxFx.push(fx); if (_wxFx.length > 80) _wxFx.shift(); }
 
-// ── Blast queue ──────────────────────────────────────────────────────────────
-// Bomb explosions resolve together, once per frame. A target caught in several
-// blasts at once takes the biggest in full plus half of the rest, capped — so
-// six stickies on one body is a heavy hit, not six separate ones (the i-frames
-// dealDamage grants after the first would swallow those anyway).
+// Bomb blasts resolve together, once per frame. A target in several takes the biggest
+// in full plus half the rest, capped. Six stickies is one heavy hit, not six.
 const _wxBlasts = [];
 let _wxStepFrame = -1;
 
@@ -133,8 +121,7 @@ function _wxResolveBlasts() {
   if (!_wxBlasts.length) return;
   const blasts = _wxBlasts.splice(0, _wxBlasts.length);
   const all = _wxAll();
-  // Chain Reaction: a blast sets off every bomb it reaches in the same frame, so
-  // the whole chain lands as one grouped hit instead of being eaten by i-frames.
+  // A blast sets off every bomb it reaches in the same frame, so the chain lands as one hit.
   for (let i = 0; i < blasts.length; i++) {
     const b = blasts[i];
     for (const f of all) {
@@ -161,10 +148,11 @@ function _wxResolveBlasts() {
     for (let i = 1; i < hits.length; i++) { dmg += hits[i].dmg * 0.5; kb += hits[i].kb * 0.25; }
     dmg = Math.min(dmg, Math.max(top.dmg, 36));
     kb  = Math.min(kb, Math.max(top.kb, 20));
-    _wxHit(top.owner, t, dmg, kb);
+    _hitFromSuper = !!top.giga;
+    try { _wxHit(top.owner, t, dmg, kb); } finally { _hitFromSuper = false; }
     _wxPushFrom(t, top.x);
   }
-  // Own blasts never hurt the thrower, but they do move them — the bomb-jump.
+  // Own blasts don't hurt the thrower but do move them (the bomb-jump).
   const pushed = new Set();
   for (const b of blasts) {
     const o = b.owner;
@@ -183,7 +171,7 @@ function _wxResolveBlasts() {
   }
 }
 
-// Once per frame: resolve blasts, age FX, recompute every fighter's move multiplier.
+// Once per frame: resolve blasts, age FX, recompute move multipliers.
 function _wxStep() {
   const fc = _wxFrame();
   if (fc === _wxStepFrame) return;
@@ -210,9 +198,7 @@ function _wxStep() {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// BOMB
-// ═════════════════════════════════════════════════════════════════════════════
+// Bomb
 const WX_STICKY_MAX = 6;
 
 function _wxNewBomb(user, opt) {
@@ -244,9 +230,8 @@ function _wxThrowSticky(user) {
   spawnParticles(user.cx() + user.facing * 16, user.y + 18, '#ff5040', 5);
 }
 
-// Q. A human's press is deferred: a quick tap throws a sticky on release, a
-// hold sets them all off instead (see _wxBombInput). Bots throw at once and
-// decide detonation from range in _wxBombAI.
+// Q. A tap throws a sticky on release. A hold detonates them all (see _wxBombInput).
+// Bots throw at once and detonate by range in _wxBombAI.
 function wxBombAbility(user) {
   if (user.isAI || !user.controls) { _wxThrowSticky(user); return; }
   user._wxQPending = true;
@@ -264,7 +249,7 @@ function _wxDetonateStickies(user) {
 
 function wxGigaBomb(user) {
   _wxNewBomb(user, {
-    giga: true, r: 16, fuse: 180, armed: 30,
+    giga: true, r: 16, fuse: 120, armed: 30,
     vx: user.facing * 6 + (user.vx || 0) * 0.3, vy: -7,
     dmg: 45, kb: 24, blastR: 200,
   });
@@ -344,7 +329,8 @@ function _wxUpdateBombs(user) {
     if (bm.armed > 0) bm.armed--;
     else if (!bm.sticky) {
       for (const t of hostiles) {
-        if (_wxTouches(t, bm.x, bm.y, bm.r)) { bm.fuse = 0; break; }
+        if (_wxTouches(t, bm.x, bm.y, bm.r) ||
+            (bm.giga && Math.hypot(t.cx() - bm.x, t.cy() - bm.y) < bm.blastR * 0.4)) { bm.fuse = 0; break; }
       }
     }
     bm.fuse--;
@@ -356,9 +342,7 @@ function _wxUpdateBombs(user) {
   user._wxBombs = list.filter(b => !b.dead);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// FRAGMENT
-// ═════════════════════════════════════════════════════════════════════════════
+// Fragment
 const WX_FRAG_MAX_CHARGE = 90;
 const WX_FRAG_PULL_MIN   = 30;   // stop pulling at arm's length, never through the user
 const WX_FRAG_YANK_TO    = 42;   // where the blast leaves its target: inside Barrage's first punch (62)
@@ -376,11 +360,9 @@ function _wxReleaseBlast(user) {
   const dmg = 7 + 13 * frac;
   const r   = 48 + 72 * frac;
   const cx = user.cx(), cy = user.cy();
-  // The blast is a set-up, not a launcher: no knockback, and it yanks what it
-  // hits to arm's length and holds it there, inside Barrage's first punch.
+  // A set-up, not a launcher: no knockback. It yanks targets to arm's length and holds them.
   let held = false;
-  // Register as a basic attack BEFORE the hits land, so dealDamage treats the
-  // blast as a combo-string hit (string stun / launch rules) like any swing.
+  // Register as a basic attack before the hits land, so dealDamage treats it as a combo hit.
   user._attackStartFrame = _wxFrame();
   if (typeof CLASH_TIER_ATTACK !== 'undefined') user._attackKindTier = CLASH_TIER_ATTACK;
   user.attackDuration = 7;
@@ -407,13 +389,11 @@ function _wxReleaseBlast(user) {
   user.attackDuration = 7;
   user.attackTimer = 7;
   user._jabAlt = !user._jabAlt;
-  user.weaponHit = true;   // a blast is not a swing — no whiff punish
-  // Bots take the opening the blast makes: Barrage a few frames later, once the
-  // yank has brought the target in (see wxUpdateFighter).
+  user.weaponHit = true;   // not a swing: no whiff punish
+  // Bots Barrage a few frames later, once the yank has brought the target in.
   if (held && (user.isAI || !user.controls)) user._wxChainQ = 3;
-  // A landed blast has no recovery: the target is held, so there is nothing to
-  // punish, and the swing endlag after the blast's pose refused Q — Barrage
-  // pressed right after a hit was dropped.
+  // A landed blast holds the target, so there's nothing to punish. Swing endlag used to
+  // refuse Q here and drop a Barrage pressed right after a hit.
   user._skipSwingEndlag = held;
 }
 
@@ -424,9 +404,8 @@ function _wxUpdateCharge(user) {
     user._wxCharge = null; return;
   }
   ch.t += user.charClass === 'adept' ? 1.25 : 1;
-  // Charging pulls: hostiles within reach of the blast being built (plus a
-  // margin) are drawn in, faster the longer it is held. Moved by position, not
-  // velocity, so their own movement input can slow it but not erase it.
+  // Charging pulls hostiles within reach of the blast (plus a margin), faster the longer
+  // it's held. Moved by position, not velocity, so their input can slow it but not erase it.
   const pf = Math.min(1, ch.t / WX_FRAG_MAX_CHARGE);
   const reach = 48 + 72 * pf + 90;
   for (const t of _wxHostiles(user)) {
@@ -447,8 +426,7 @@ function _wxUpdateCharge(user) {
   }
 }
 
-// Q: four punches, each with a small shockwave, then the laser. At most
-// 4×4 + 4×2 + 14 = 38 before multipliers.
+// Q: four punches, each with a small shockwave, then the laser. Up to 38 before multipliers.
 const WX_BARRAGE_PUNCH = [0, 9, 18, 27];
 const WX_BARRAGE_LASER = 40;
 const WX_BARRAGE_END   = 56;
@@ -460,12 +438,9 @@ function wxFragmentBarrage(user) {
   user._wxBarrage = { t: 0, dir: user.facing || 1, waves: [], combo };
 }
 
-// The barrage is one move, so all of its hits count as ONE combo hit. Counted
-// separately, its 7th (the last punch) tripped dealDamage's 7-hit auto-launch
-// and threw the target out of the laser's line, and the 5th opened the air
-// escape window halfway through.
-// Punches and waves also hold the victim until the next punch, like a combo
-// string does, unless an escape window (dealDamage's no-restun) is open.
+// The barrage is one combo hit. Counted separately, its 7th punch tripped the 7-hit
+// auto-launch and the 5th opened the air escape window. Punches and waves hold the victim
+// until the next punch, unless an escape window is open.
 function _wxBarrageHit(user, b, t, dmg, kb, iframes, hold) {
   user._comboHitCount = b.combo;
   user._comboLastFrame = _wxFrame();
@@ -482,10 +457,8 @@ function _wxUpdateBarrage(user) {
   if (!b) return;
   if (user.health <= 0 || user.stunTimer > 0 || user.ragdollTimer > 0) { user._wxBarrage = null; return; }
   user.facing = b.dir;
-  user.weaponHit = true;   // punches are not swings — the melee whiff punish must not cancel the combo
-  // Follow the victim in. Every punch and wave pushes them back and the user
-  // stood still, so from ~42px the gap reached 90px by the third punch (reach
-  // 62) and punches three and four always missed.
+  user.weaponHit = true;   // punches are not swings
+  // Follow the victim in. Without this, punches three and four missed as the gap grew.
   const v = b.victim;
   if (v && v.health > 0 && b.t < WX_BARRAGE_LASER) {
     const gap = (v.cx() - user.cx()) * b.dir;
@@ -508,9 +481,8 @@ function _wxUpdateBarrage(user) {
     w.x += w.vx; w.life--;
     for (const t of _wxHostiles(user)) {
       if (w.hit.has(t)) continue;
-      // Spent only when it connects. Punches and waves grant no i-frames: each
-      // can hit once by construction, and a wave reaching the target on the
-      // same frame as its punch used to meet that punch's i-frames and be lost.
+      // Spent only when it connects. Punches and waves grant no i-frames, since each hits once
+      // by construction. Otherwise a wave on the same frame as its punch would be lost.
       if (Math.abs(t.cx() - w.x) < 18 && Math.abs(t.cy() - w.y) < 42 && _wxBarrageHit(user, b, t, 2, 5, 0, 14)) {
         w.hit.add(t);
         _wxPushFrom(t, w.x - w.vx * 4);
@@ -532,11 +504,8 @@ function _wxUpdateBarrage(user) {
   if (b.t >= WX_BARRAGE_END) user._wxBarrage = null;
 }
 
-// E: 8 seconds of everything turned up. Casting again while it runs stacks
-// another 8s on top (banked time capped at 16s), but one unbroken Overdrive
-// ends after 24s no matter how often it is refed. It used to reset to 8s on
-// every cast, and the +30% damage refilled the bar inside that window, so a
-// steady player kept it up indefinitely.
+// E: 8 seconds of everything turned up. Re-casts stack banked time up to 16s, but one
+// unbroken Overdrive ends after 24s however often it is refed.
 const WX_OVERDRIVE_FRAMES = 480;
 const WX_OVERDRIVE_BANK_MAX = 960;
 const WX_OVERDRIVE_CHAIN_MAX = 1440;
@@ -583,9 +552,8 @@ function _wxUpdateOverdrive(user) {
   // Cooldowns recover 60% faster.
   if (user.cooldown > 0) user.cooldown = Math.max(0, user.cooldown - 0.6);
   if (user.abilityCooldown > 0) user.abilityCooldown = Math.max(0, user.abilityCooldown - 0.6);
-  // Stronger shield: each raise starts with double HP. Under 'pool' rules the HP
-  // is a meter that outlives the raise, so the bonus is capped and taken back on
-  // lowering — otherwise every raise would double it again.
+  // Stronger shield: each raise starts with double HP. Under 'pool' rules the HP outlives the
+  // raise, so the bonus is capped and taken back on lowering.
   const _pool = typeof SHIELD_RULES !== 'undefined' && SHIELD_RULES === 'pool';
   if (user.shielding && !user._wxShieldBoosted) {
     user.shieldHP = _pool ? Math.min(SHIELD_POOL_MAX * 2, (user.shieldHP || 0) * 2) : (user.shieldHP || 0) * 2;
@@ -610,11 +578,8 @@ function _wxUpdateOverdrive(user) {
   }
 }
 
-// ── Fragment unlock ──────────────────────────────────────────────────────────
-// Locked until the story chapter carrying `unlocksFragment` is cleared (the
-// Compass Points, where Axiom shows Kael what the fragment is for). Read from the
-// account flag first and the story record second, so saves that cleared the
-// chapter before this weapon existed unlock it on load.
+// Locked until the story chapter with `unlocksFragment` is cleared (Compass Points).
+// The account flag is read first, then the story record, so older saves unlock on load.
 function wxIsFragmentUnlocked() {
   try {
     const a = typeof _getActiveAcctDirect === 'function' ? _getActiveAcctDirect() : null;
@@ -627,6 +592,9 @@ function wxIsFragmentUnlocked() {
       if (ch && ch.unlocksFragment) return true;
     }
   }
+  // Finishing the story sets the flag. It survives New Game, so older saves keep the style.
+  try { if (typeof earnedAchievements !== 'undefined' && earnedAchievements.has('story_complete')) return true; } catch (e) {}
+  try { if (localStorage.getItem('smb_fragmentUnlocked') === '1') return true; } catch (e) {}
   return false;
 }
 
@@ -635,6 +603,7 @@ function wxUnlockFragmentStyle(announce) {
   if (typeof setAccountFlag === 'function') {
     try { setAccountFlag(['unlocks', 'fragment'], true); } catch (e) { /* offline */ }
   }
+  try { localStorage.setItem('smb_fragmentUnlocked', '1'); } catch (e) {}
   refreshFragmentOptions();
   if (announce && !was && typeof showToast === 'function') {
     showToast('Fragment style unlocked — new weapon and class: Fragment / Adept');
@@ -669,9 +638,7 @@ function refreshFragmentOptions() {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// THROWING KNIVES
-// ═════════════════════════════════════════════════════════════════════════════
+// Throwing knives
 const WX_KNIVES = 6;
 const WX_KNIFE_SPEED  = 18;
 const WX_KNIFE_RECALL = 22;
@@ -786,12 +753,10 @@ function _wxUpdateKnives(user) {
   user._wxKnivesHeld = Math.min(WX_KNIVES, user._wxKnivesHeld);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GLASS BLADE
-// ═════════════════════════════════════════════════════════════════════════════
-// Fragile: a hit that gets through cracks the blade (max 3, -10% damage each); two landed
-// basic hits mend one crack. Third crack (or Shatterstep) leaves a jagged stub: 60% damage,
-// same swing speed, 70% reach, for WX_GLASS_STUB frames, then it reforms whole.
+// Glass Blade
+// Fragile: a hit that gets through cracks the blade (max 3, -10% damage each). Two landed
+// basic hits mend one crack. A third crack, or Shatterstep, leaves a stub: 60% damage,
+// 70% reach, same swing speed, for WX_GLASS_STUB frames, then it reforms whole.
 const WX_GLASS_STUB = 90, WX_GLASS_STUB_REACH = 0.7, WX_GLASS_MEND_HITS = 2;
 function _wxGlass(user) {
   if (!user._wxGlass) user._wxGlass = { cracks: 0, broken: 0, hp: user.health, landed: 0 };
@@ -919,14 +884,11 @@ function _wxUpdateGlass(user) {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ANCHOR
-// ═════════════════════════════════════════════════════════════════════════════
-// While the anchor is out the basic attack is a fist punch. The fighter temporarily wields a
-// 'combat' (fists) weapon object, so duration, reach, damage, knockback, endlag, swing pose and
-// drawing all come from the ordinary fist path (and Moored, which keys on weaponKey 'anchor',
-// does not apply). The hybrid keeps the anchor's Q/E, so Haul/Keelhaul still work mid-punch.
-// Restored by _wxUpdatePunch once the swing and its endlag trigger have run.
+// Anchor
+// While the anchor is out, the basic attack is a fist punch: a temporary 'combat' weapon,
+// so timing, reach, damage and drawing come from the fist path. Moored (weaponKey 'anchor')
+// doesn't apply. Q/E stay the anchor's, so Haul/Keelhaul still work mid-punch. _wxUpdatePunch
+// restores the anchor after the swing.
 function wxAnchorAttackGate(user, _target) {
   if (!user._wxAnchor) return true;
   const fists = (typeof WEAPONS !== 'undefined') ? WEAPONS.combat : null;
@@ -950,8 +912,7 @@ function _wxUpdatePunch(user) {
   if (!pu) return;
   if (user.weapon !== pu.hybrid || user.weaponKey !== 'combat') { user._wxPunch = null; return; } // class/weapon changed under us
   if (user.attackTimer > 0) { pu.zero = false; return; }
-  // The swing-end endlag is computed later in Fighter.update on the frame attackTimer reaches 0,
-  // so hold the fist weapon one more frame before handing the anchor back.
+  // Endlag is computed in Fighter.update on the frame attackTimer hits 0, so hold the fist one more frame.
   if (!pu.zero) { pu.zero = true; return; }
   user.weapon = pu.weapon; user.weaponKey = 'anchor'; user._wxPunch = null;
 }
@@ -1060,9 +1021,7 @@ function _wxUpdateAnchor(user) {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// CROSSBOW
-// ═════════════════════════════════════════════════════════════════════════════
+// Crossbow
 function wxFireBolt(user, dmg, siege) {
   if (!user._wxBolts) user._wxBolts = [];
   user._wxBolts.push({
@@ -1158,9 +1117,7 @@ function _wxUpdateCrossbow(user) {
   }
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// HOOKS
-// ═════════════════════════════════════════════════════════════════════════════
+// Hooks
 function wxSuperOngoing(f) {
   return !!(f && (f._wxKeel || f._wxMirror || f._wxFanRecallAt ||
     (f._wxBombs && f._wxBombs.some(b => b.giga && !b.dead)) ||
@@ -1211,7 +1168,7 @@ function wxDamageMods(attacker, target, dmg) {
     if (attacker.weaponKey === 'glassblade' && !_wxInHit && attacker._wxGlass) {
       const g = attacker._wxGlass;
       d *= g.broken > 0 ? 0.6 : (1 - 0.10 * g.cracks);
-      // A basic swing that connected mends the blade: every WX_GLASS_MEND_HITS hits, one crack.
+      // A basic swing that connects mends the blade: one crack per WX_GLASS_MEND_HITS hits.
       const basic = typeof CLASH_TIER_ATTACK === 'undefined' || attacker._attackKindTier === CLASH_TIER_ATTACK;
       if (basic && !attacker.superActive && g.broken <= 0 && g.cracks > 0 && ++g.landed >= WX_GLASS_MEND_HITS) {
         g.landed = 0; g.cracks--;
@@ -1239,7 +1196,6 @@ function wxKnockbackMods(_attacker, target, kb) {
   return kb;
 }
 
-// ── Drawing ──────────────────────────────────────────────────────────────────
 let _wxFxDrawFrame = -1;
 
 function _wxDrawFx() {

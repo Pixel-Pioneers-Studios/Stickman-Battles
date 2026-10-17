@@ -1,20 +1,13 @@
 'use strict';
-// smb-attacktest-registry.js — ATK_REGISTRY — per-class attack definitions (fn, label, desc) for all classes + TrueForm
+// smb-attacktest-registry.js. ATK_REGISTRY, per-class attack definitions (fn, label, desc) for all classes + TrueForm
 // Depends on: smb-globals.js, smb-fighter.js, smb-combat.js
 
-// ─── ATTACK REGISTRY ──────────────────────────────────────────
-// fn(ctx, target, opts)
-//   ctx    — proxy object (position + methods, never rendered)
-//   target — first live human player, may be null
-//   opts   — { damageScale, safeMode }
-//
-// HOW TO ADD:  push a new { label, desc, fn } into the right bucket.
-// ──────────────────────────────────────────────────────────────
+// ATK_REGISTRY: attack definitions per class and TrueForm. fn(ctx, target, opts). ctx is a render-free proxy,
+// target is the first live human (may be null), opts is { damageScale, safeMode }.
+// To add one, push { label, desc, fn } into the right bucket.
 const ATK_REGISTRY = {
 
-  // ═══════════════════════════════════════════════════════════
-  // CREATOR BOSS
-  // ═══════════════════════════════════════════════════════════
+  // Creator boss
   creator: [
     {
       label: 'beam_single',
@@ -157,9 +150,7 @@ const ATK_REGISTRY = {
     },
   ],
 
-  // ═══════════════════════════════════════════════════════════
-  // TRUE FORM
-  // ═══════════════════════════════════════════════════════════
+  // TrueForm
   trueform: [
     {
       label: 'gravity_invert',
@@ -327,9 +318,7 @@ const ATK_REGISTRY = {
     },
   ],
 
-  // ═══════════════════════════════════════════════════════════
-  // WEAPON ABILITIES (fires from first human player)
-  // ═══════════════════════════════════════════════════════════
+  // Weapon abilities (fired from the first human player)
   weapons: [
     {
       label: 'sword_parry',
@@ -373,9 +362,7 @@ const ATK_REGISTRY = {
     },
   ],
 
-  // ═══════════════════════════════════════════════════════════
-  // YETI ATTACKS
-  // ═══════════════════════════════════════════════════════════
+  // Yeti
   yeti: [
     {
       label: 'ice_roar',
@@ -440,9 +427,7 @@ const ATK_REGISTRY = {
     },
   ],
 
-  // ═══════════════════════════════════════════════════════════
-  // FOREST BEAST ATTACKS
-  // ═══════════════════════════════════════════════════════════
+  // Forest beast
   beast: [
     {
       label: 'pounce',

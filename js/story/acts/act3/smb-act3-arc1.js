@@ -10,7 +10,7 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Assembly Hall',
     preText: 'Creator scouts are sweeping the neutral dimension perimeter. Reach the assembly hall without triggering an alert.',
     stealthGuardDefs: [
-      { wx: 750,  radius: 85,  name: 'Creator Scout' },   // clear of the x=450 spawn edge (js/story/levels/ch49.js)
+      { wx: 750,  radius: 85,  name: 'Creator Scout' },   // clear of x=450 spawn edge, see ch49.js
       { wx: 1200, radius: 90,  name: 'Creator Scout' },
       { wx: 1900, radius: 100, name: 'Probe' },
       { wx: 2600, radius: 90,  name: 'Probe' },
@@ -214,9 +214,9 @@ STORY_CHAPTER_REGISTRY.push(
     playerLives: 2,
     arena: 'neonGrid',
     walkFight: true, worldLength: 3000,
-    // Escort: Veran walks with you to the uplink console under the relay mast
-    // (levels/ch54.js MAST - 60), then the duel's second probe hunts her.
-    escortNPC: { name: 'Veran', color: '#4488dd', hp: 220 },
+    // Veran escorts you to the uplink console (levels/ch54.js MAST - 60).
+    // The duel's second probe hunts her after that.
+    escortNPC: { name: 'Veran', color: '#3ddc84', hp: 220 },
     escortGoalX: 2940,
     escortSpeed: 1.8,
     escortHunters: 1,
@@ -225,8 +225,7 @@ STORY_CHAPTER_REGISTRY.push(
       { triggerX: 1000, count: 2, weaponKey: 'sword', aiDiff: 'medium', color: '#9999cc', name: 'Probe', text: 'Probes inbound. They are tracking Veran.' },
       { triggerX: 2100, count: 2, weaponKey: 'spear', aiDiff: 'medium', color: '#8888bb', name: 'Probe', fromRight: true, text: 'Second wave. Faster constructs. Hold the line.' },
     ],
-    // The fight-script clock runs from level start, so the upload beats key off
-    // Veran reaching the console instead.
+    // The fight-script clock runs from level start, so upload beats wait on Veran.
     escortLines: [
       { after: 2700, text: '"Eighty percent," Veran says through gritted teeth. "Keep going."', color: '#aaccff' },
     ],
@@ -244,8 +243,7 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Archive Core',
     preText: 'The archive vault\'s memory is partitioned behind three sequence locks. Activate them in order to recover the original closure protocol page.',
     puzzleSwitchDefs: [
-      // Out of order through the archive (js/story/levels/ch55.js):
-      // top of the tall shelf, down in the reading pit, the far gallery.
+      // Out of order through the archive (levels/ch55.js): tall shelf, reading pit, far gallery.
       { wx: 1960, y: 170, label: '1' },
       { wx: 850,  y: 480, label: '2' },
       { wx: 2550, y: 240, label: '3' },
@@ -264,6 +262,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The original protocol always required two bearers. The rift entity was always going to give itself up. It knew. It chose you knowing.',
   },
 
-  // ─────── Arc 3-1: The Fracture Within (ids 52–60) ────────────────
+  // Arc 3-1: The Fracture Within (ids 52-60)
 
 );

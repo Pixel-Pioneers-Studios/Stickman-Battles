@@ -1,20 +1,10 @@
 'use strict';
-// js/story/levels/ch108.js — Chapter 108 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch108.js: Chapter 108 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 108 — Into the Silence (stealth)
-// The Quiet Expanse: a dimension drained of energy. Everything is the colour
-// of ash under a teal sky with no sun; the dunes are still, nothing moves but
-// you. Seraph's constructs stand over the path, hollow shells with the
-// middle missing, and the ground around each one is visibly drained — a
-// pool where even the dust has gone dark (its detection zone; detection sits
-// at guard y = 395). "Stay in the drain gaps": each post has a high route, a
-// dead stone to step on and then a leaning slab of the old world carried
-// over the pool. At the far end, the centre of the expanse: light bending
-// inward toward a shape that is less a presence than an absence. (First post
-// moved to x=750, clear of the x=450 spawn edge — mirrored in
-// stealthGuardDefs and spawnEnemies.)
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 108: Into the Silence (stealth).
+// A drained dimension. Seraph's constructs stand over the path; the dark ground around each is its detection zone.
+// Each post has a high route: a dead stone, then a leaning slab over the pool.
+// First post at x=750, clear of the x=450 spawn edge (mirrored in stealthGuardDefs and spawnEnemies).
 (function () {
   const G = 440, CENTER = 3500;
   const POSTS = [[750, 95], [1200, 100], [1900, 95], [2700, 100], [3400, 105]];
@@ -47,7 +37,7 @@
     for (let i = 0; i < POSTS.length; i++) {
       const [x, r] = POSTS[i], R = ROUTES[i];
       if (!_slVisible(v, R.step[0] - 20, R.slab[0] + R.slab[2] + 20)) continue;
-      // The drained pool: the dust gone dark
+      // Drained pool (detection zone)
       const g = ctx.createRadialGradient(x, 395, 10, x, 395, r);
       g.addColorStop(0, 'rgba(0,6,8,0.55)'); g.addColorStop(1, 'rgba(0,6,8,0.12)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, 395, r, Math.PI, 0); ctx.lineTo(x + r, G); ctx.lineTo(x - r, G); ctx.fill();
@@ -62,7 +52,7 @@
       ctx.restore();
       ctx.fillStyle = '#3a4a4e'; ctx.fillRect(bx + 10, by + 18, 12, G - by - 18); ctx.fillRect(bx + bw - 22, by + 18, 12, G - by - 18);
     }
-    // The centre of the expanse: light bending in toward an absence
+    // Far end of the expanse
     if (_slVisible(v, CENTER - 300, CENTER + 400)) {
       for (let k = 0; k < 18; k++) {
         const a = k * Math.PI / 9 + frameCount * 0.003, R = 160 + Math.sin(frameCount * 0.02 + k) * 10;

@@ -1,7 +1,7 @@
 'use strict';
-// smb-menu-config.js — Custom weapons panel, stats log, weapon/class resolution
-// Depends on: smb-globals.js, smb-data-weapons.js, smb-menu-select.js
-// Must load AFTER smb-menu-select.js, BEFORE smb-menu-spawn.js
+// smb-menu-config.js: custom weapons panel, stats log, weapon/class resolution.
+// Depends on smb-globals.js, smb-data-weapons.js and smb-menu-select.js.
+// Loads after smb-menu-select.js and before smb-menu-spawn.js.
 
 function openCustomWeaponsPanel() {
   const existing = document.getElementById('customWeaponsPanel');
@@ -42,7 +42,6 @@ function openCustomWeaponsPanel() {
     return;
   }
 
-  // "None" option
   const noneCard = _cwCard('(none)', '', currentKey === '', () => {
     if (typeof saveCustomWeaponSelection === 'function') saveCustomWeaponSelection('');
     panel.remove(); openCustomWeaponsPanel();
@@ -87,10 +86,8 @@ function toggleStatsLog() {
   if (!modal) return;
   if (modal.style.display === 'flex') { modal.style.display = 'none'; return; }
 
-  // Build HTML tables from game constants
   let html = '<h2 style="color:#cc00ee;margin-bottom:16px;letter-spacing:2px">STATS LOG — Stickman Evolution</h2>';
 
-  // Classes
   html += '<h3 style="color:#00d4ff;margin:12px 0 6px">Classes</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(0,180,255,0.15)"><th>Name</th><th>HP</th><th>Speed</th><th>Weapon</th><th>Perk</th></tr>';
   for (const [key, cls] of Object.entries(CLASSES)) {
@@ -98,7 +95,6 @@ function toggleStatsLog() {
   }
   html += '</table>';
 
-  // Weapons (all, including new)
   html += '<h3 style="color:#ffd700;margin:16px 0 6px">Weapons</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(255,215,0,0.12)"><th>Name</th><th>Type</th><th>Damage</th><th>Range</th><th>CD</th><th>Endlag</th><th>KB</th><th>Ability</th></tr>';
   for (const [key, w] of Object.entries(WEAPONS)) {
@@ -109,7 +105,6 @@ function toggleStatsLog() {
   }
   html += '</table>';
 
-  // Arenas
   html += '<h3 style="color:#aaffaa;margin:16px 0 6px">Arenas &amp; Map Gimmicks</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(100,255,100,0.10)"><th>Arena</th><th>Gravity</th><th>Gimmick</th><th>Platforms</th></tr>';
   const arenaGimmicks = {
@@ -137,7 +132,6 @@ function toggleStatsLog() {
   }
   html += '</table>';
 
-  // Entities
   html += '<h3 style="color:#ff9944;margin:16px 0 6px">Special Entities</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(255,150,50,0.12)"><th>Entity</th><th>HP</th><th>Location</th><th>Special Moves</th></tr>';
   const entities = [
@@ -155,7 +149,6 @@ function toggleStatsLog() {
   }
   html += '</table>';
 
-  // Boss
   html += '<h3 style="color:#cc00ee;margin:16px 0 6px">Boss Stats</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(200,0,238,0.12)"><th>Stat</th><th>Value</th></tr>';
   const bossStats = [
@@ -173,7 +166,6 @@ function toggleStatsLog() {
   }
   html += '</table>';
 
-  // Training commands
   html += '<h3 style="color:#bb88ff;margin:16px 0 6px">Training Commands</h3><table style="width:100%;border-collapse:collapse;font-size:12px">';
   html += '<tr style="background:rgba(180,120,255,0.12)"><th>Command</th><th>Effect</th></tr>';
   const cmds = [
@@ -199,10 +191,8 @@ function toggleStatsLog() {
   modal.style.display = 'flex';
 }
 
-// Classes a 'random' class roll may land on. 'none' is never a valid result —
-// rolling Random should always hand you an actual class. Knight is left out
-// because it swaps the rolled weapon for its gauntlets. Falls back to every
-// rollable class if the player's pool held nothing rollable.
+// Classes a 'random' class roll can land on. 'none' is never valid, so Random always gives a real class.
+// Knight is left out: it swaps the rolled weapon for gauntlets. Falls back to every rollable class if the pool has none.
 function _isRollableClass(c) {
   return c !== 'none' && c !== 'random' && c !== 'megaknight' && !!CLASSES[c] && !CLASSES[c].styleLocked;
 }
@@ -214,20 +204,19 @@ function _randomClassPickPool() {
 
 function _pickFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-// Classes of one kind ('melee' | 'ranged') from the pool; when the player's
-// pool holds none of that kind, any rollable class of that kind.
+// Classes of one kind ('melee' | 'ranged') from the pool, or any rollable class of that kind if the pool has none.
 function _classPoolOfKind(cPool, kind) {
   const own = cPool.filter(c => classRollKind(c) === kind);
   if (own.length) return own;
   return Object.keys(CLASSES).filter(c => _isRollableClass(c) && classRollKind(c) === kind);
 }
 
-// Shared roll for both resolvers. The weapon always rolls first and the class
-// follows its kind, so a sword never comes with Archer and a gun never with Thor.
-//   both random  → random weapon, then a random class of the same kind
-//   weapon only  → random weapon of the chosen class's kind (free-weapon classes take any)
-//   class only   → random class of the chosen weapon's kind
-// `weaponFilter` narrows the weapon pool (story mode uses it for its own rules).
+// Shared roll for both resolvers. The weapon rolls first and the class follows its kind,
+// so a sword never comes with Archer.
+//   both random: random weapon, then a random class of the same kind
+//   weapon only: random weapon of the class's kind (free-weapon classes take any)
+//   class only: random class of the weapon's kind
+// weaponFilter narrows the weapon pool (story mode uses it).
 function _rollLoadout(wVal, cVal, weaponFilter) {
   let wPool = randomWeaponPool ? [...randomWeaponPool] : WEAPON_KEYS.slice();
   if (weaponFilter) wPool = wPool.filter(weaponFilter);
@@ -253,8 +242,7 @@ function _rollLoadout(wVal, cVal, weaponFilter) {
   return { weaponKey, classKey };
 }
 
-// Coordinated resolver — called once per player with BOTH select IDs.
-// Returns { weaponKey, classKey }
+// Resolves weapon and class together from both select IDs. Returns { weaponKey, classKey }
 function resolveWeaponAndClass(weaponSelectId, classSelectId, weaponFilter) {
   const wVal = document.getElementById(weaponSelectId)?.value || 'sword';
   const cVal = document.getElementById(classSelectId)?.value  || 'none';
@@ -263,7 +251,6 @@ function resolveWeaponAndClass(weaponSelectId, classSelectId, weaponFilter) {
   const { weaponKey: _w, classKey } = _rollLoadout(wVal, cVal, weaponFilter);
   let weaponKey = _w;
 
-  // Custom weapon guard
   if (weaponKey && weaponKey.startsWith('_custom_') && !_allowedCustomModes.has(gameMode)) {
     weaponKey = 'sword';
   }
@@ -271,7 +258,7 @@ function resolveWeaponAndClass(weaponSelectId, classSelectId, weaponFilter) {
   return { weaponKey, classKey };
 }
 
-// Resolve weapon+class from raw values (not element IDs) — used by completeRandomizer
+// Resolve weapon and class from raw values (not element IDs), used by completeRandomizer
 function resolveWeaponAndClassValues(wVal, cVal, weaponFilter) {
   return _rollLoadout(wVal, cVal, weaponFilter);
 }
@@ -311,7 +298,6 @@ function toggleRandomPool(type, key) {
     else randomClassPool.add(key);
     if (randomClassPool.size === 0) randomClassPool.add(key);
   }
-  // Update button label
   const btn = document.getElementById(`randBtn_${type}_${key}`);
   if (btn) {
     const inPool = type === 'weapon'
@@ -322,15 +308,8 @@ function toggleRandomPool(type, key) {
   }
 }
 
-// ============================================================
-// START GAME
-// ============================================================
-// Returns mode-specific loading screen info: { title, subtitle, image }
-// Loading-screen copy + which LoadScene to run behind it.
-// `scene` keys are defined in js/smb-loadscreen.js. The old `image` field is
-// gone: three AI stills used to cover six modes, and battleroyale/online fell
-// through to the generic one. Subtitles say what the player is walking into
-// rather than shouting the game's name back at them.
+// Loading-screen copy for each mode, and the LoadScene to run behind it.
+// `scene` keys are defined in smb-loadscreen.js.
 function _getLoadingInfo() {
   const mgNames = {
     survival: 'SURVIVAL', koth: 'KING OF THE HILL', chaos: 'CHAOS MATCH', sports: 'SPORTS ARENA'

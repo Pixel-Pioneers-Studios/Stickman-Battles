@@ -1,3 +1,8 @@
 [waiter Sat Oct 10 11:14:31 EDT 2026] waiting for a free machine
 [queued by story sweep Sat Oct 10 19:11:26 EDT 2026] starting league --hours=8 --torch --gru
 [waiter Sun Oct 11 03:31:59 EDT 2026] machine free (load 2); launching
+[Mon Oct 12 20:44:48 EDT 2026] waiting for AC power
+[Mon Oct 12 22:21:38 EDT 2026] on AC, launching league
+[Thu Oct 15 19:42:57 EDT 2026] waiting for balance sweep + AC power
+[Thu Oct 15 19:44:58 EDT 2026] launching league --main-only 8h from shipped 12756
+[Fri Oct 16 03:53:46 EDT 2026] league exited 0

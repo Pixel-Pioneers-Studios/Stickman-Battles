@@ -1,24 +1,21 @@
 'use strict';
-// smb-heatmap.js — heatmap grid system (HMAP), heatAt(), updateHeatmap()
-// Depends on: smb-globals.js
-// DANGER HEATMAP — grid-based environmental hazard awareness
-// Rebuilt once per frame; bots sample it to steer away from danger.
-// ============================================================
-const HMAP_COLS = 45;   // GAME_W / 20 ≈ 45 columns
-const HMAP_ROWS = 26;   // GAME_H / 20 ≈ 26 rows
-const HMAP_CELL = 20;   // world-units per cell
+// Danger heatmap: grid of environmental hazards. Rebuilt each frame; bots steer away from it.
+// Depends on smb-globals.js.
+const HMAP_COLS = 45;   // GAME_W / 20
+const HMAP_ROWS = 26;   // GAME_H / 20
+const HMAP_CELL = 20;   // world units per cell
 
 let _heatmap   = new Float32Array(HMAP_COLS * HMAP_ROWS);
-let _heatFrame = -1;    // last frameCount when heatmap was rebuilt
+let _heatFrame = -1;    // frameCount of the last rebuild
 
-/** Write danger value into one cell (takes the max of existing value). */
+// Write danger into one cell, keeping the max.
 function _heatSet(col, row, val) {
   if (col < 0 || col >= HMAP_COLS || row < 0 || row >= HMAP_ROWS) return;
   const idx = row * HMAP_COLS + col;
   if (val > _heatmap[idx]) _heatmap[idx] = val;
 }
 
-/** Radial splat — write danger fading outward from world-point (wx, wy). */
+// Radial splat: danger fades outward from world point (wx, wy).
 function _heatSplat(wx, wy, radiusPx, peakVal) {
   const cr = Math.ceil(radiusPx / HMAP_CELL);
   const cc = Math.floor(wx / HMAP_CELL);
@@ -35,10 +32,7 @@ function _heatSplat(wx, wy, radiusPx, peakVal) {
   }
 }
 
-/**
- * Sample danger value [0–1] at a world-space position.
- * Returns 0.95 for positions outside the game world.
- */
+// Danger in [0, 1] at a world position. Outside the world returns 0.95.
 function heatAt(wx, wy) {
   const col = Math.floor(wx / HMAP_CELL);
   const row = Math.floor(wy / HMAP_CELL);
@@ -58,7 +52,7 @@ function updateHeatmap() {
   const a = currentArena;
   if (!a) return;
 
-  // --- Screen / map edges: high danger near left & right walls ---
+  // Map edges: high danger near the left and right walls.
   for (let row = 0; row < HMAP_ROWS; row++) {
     _heatSet(0, row, 0.80); _heatSet(1, row, 0.55); _heatSet(2, row, 0.30);
     _heatSet(HMAP_COLS - 1, row, 0.80);
@@ -66,7 +60,7 @@ function updateHeatmap() {
     _heatSet(HMAP_COLS - 3, row, 0.30);
   }
 
-  // --- Bottom of screen: approaching death boundary ---
+  // Bottom edge: approaching the death boundary.
   const deathRow = Math.min(HMAP_ROWS - 1, Math.floor(((a.deathY || 640)) / HMAP_CELL));
   for (let col = 0; col < HMAP_COLS; col++) {
     for (let dr = 0; dr <= 5; dr++) {
@@ -75,7 +69,7 @@ function updateHeatmap() {
     }
   }
 
-  // --- Lava floor (lava arena) ---
+  // Lava floor.
   if (a.hasLava && a.lavaY) {
     const lavaRow = Math.floor(a.lavaY / HMAP_CELL);
     for (let col = 0; col < HMAP_COLS; col++) {
@@ -88,7 +82,7 @@ function updateHeatmap() {
     }
   }
 
-  // --- Boss arena floor hazard (lava or void floor removal) ---
+  // Boss arena floor hazard (lava or void).
   if (a.isBossArena) {
     if (bossFloorState === 'hazard') {
       const floorPl = a.platforms.find(p => p.isFloor);
@@ -103,7 +97,7 @@ function updateHeatmap() {
         }
       }
     } else if (bossFloorState === 'warning') {
-      // Warning: lower danger but bots should start repositioning
+      // Warning: lower danger, so bots start repositioning.
       const floorPl = a.platforms.find(p => p.isFloor);
       if (floorPl) {
         const floorRow = Math.floor(floorPl.y / HMAP_CELL);
@@ -115,7 +109,7 @@ function updateHeatmap() {
     }
   }
 
-  // --- Boss beams (warning = moderate, active = very high) ---
+  // Boss beams: warning is moderate, active is very high.
   for (const beam of bossBeams) {
     const bCol = Math.floor(beam.x / HMAP_CELL);
     const val  = beam.phase === 'active' ? 1.00 : 0.50;
@@ -128,17 +122,16 @@ function updateHeatmap() {
     }
   }
 
-  // --- TrueForm black holes ---
+  // TrueForm black holes.
   for (const bh of tfBlackHoles) {
     _heatSplat(bh.x, bh.y, bh.r * 2.8, 0.92);
   }
 
-  // --- Active projectiles (radial danger bubble) ---
+  // Active projectiles: a radial danger bubble.
   for (const pr of projectiles) {
     _heatSplat(pr.x, pr.y, 44, 0.45);
   }
 
-  // --- TrueForm gravity: entire arena is lower danger if inverted (bots ignore ceiling-fall risk) ---
-  // (no change needed — the bottom death row captures it)
+  // TrueForm gravity: no change needed when inverted. The bottom death row covers it.
 }
 

@@ -1,8 +1,8 @@
 'use strict';
-// smb-story-engine-flow.js — Chapter launch flow: _startStoryGauntlet → _launchChapter2Fight (immediate)
+// smb-story-engine-flow.js: chapter launch flow, from _startStoryGauntlet through _launchChapter2Fight.
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
-// ── Story character ID lookup — maps opponent names to visual appearance IDs ──
+// Opponent name to appearance ID.
 const _STORY_CHAR_NAME_MAP = {
   'Veran — The Architect': 'veran',
   'Veran':                 'veran',
@@ -21,7 +21,6 @@ function _resolveStoryCharId(name) {
   return _STORY_CHAR_NAME_MAP[name] || null;
 }
 
-// ── Chapter flow ──────────────────────────────────────────────────────────────
 let _narrativeActive = false; // guard against re-entrant narrative calls
 const _seenNarrativeIds = new Set(); // chapters whose narrative was already shown this session
 
@@ -147,7 +146,7 @@ function _advanceStoryGauntletPhase(ch) {
     const pauseOv = document.getElementById('pauseOverlay');
     if (pauseOv) pauseOv.style.display = 'none';
     storyModeActive = true;
-    window._storySeamlessNext = true; // mid-chapter phase change — never a loading screen
+    window._storySeamlessNext = true; // mid-chapter phase change, never a loading screen
     _launchStoryGauntletPhase(ch);
   }, 420);
   return true;
@@ -155,13 +154,9 @@ function _advanceStoryGauntletPhase(ch) {
 
 // Boss/special chapters bypass the gauntlet and launch directly.
 // All other fight/exploration chapters go through _startStoryGauntlet so pacing archetypes fire.
-// ── Seamless story transitions ────────────────────────────────────────────────
-// Story worlds are pure draw functions — nothing heavy loads between chapters,
-// so story-internal launches skip the loading screen (startGame consumes
-// window._storySeamlessNext). The full loading screen is reserved for:
-//   • the first story launch of a session (loading into the game proper),
-//   • crossing into a new ACT (a deliberate "something big is coming" beat),
-//   • major set-piece boss chapters.
+// Story worlds are pure draw functions, so story-internal launches skip the loading screen
+// (startGame consumes window._storySeamlessNext). The full loading screen is for the first
+// launch of a session, crossing into a new act, and major boss chapters.
 var _storyLastLoadedActId = null; // act id of the last chapter launched this session
 
 function _storyIsSetPieceChapter(ch) {
@@ -184,7 +179,7 @@ function _storyMarkTransition(ch) {
   if (!_first && !_sameAct && !_setPiece) {
     window._storySeamlessNext   = true;
     window._storyTransitionKind = 'act';
-    // Act labels read "Act III — The Fracture"; the card splits them.
+    // The act label's dash splits it into the card's two lines.
     const _parts = String((_act && _act.label) || 'New Act').split('—');
     window._storyTransitionTitle  = _parts[0].trim().toUpperCase();
     window._storyTransitionSub    = (_parts[1] || '').trim();
@@ -199,16 +194,10 @@ function _storyMarkTransition(ch) {
 
 function _launchChapterWithGauntlet(ch) {
   _storyMarkTransition(ch);
-  // Walk→fight→walk chapters run through the exploration engine (one continuous
-  // space with a single arena-lock duel at the midpoint) rather than the instant duel.
+  // Walk-fight-walk chapters run through the exploration engine, with one arena-lock duel at the midpoint.
   if (ch.walkFight) { _launchExplorationChapter(ch); return; }
-  // Exploration chapters launch through their real (stealth/escape/defense/
-  // scavenge/puzzle/survival/traversal) mode via _directLaunchChapter, NOT the
-  // combat gauntlet — this revives the built-but-dormant exploration engine.
-  // Their authored data is preserved through expansion (see _expandStoryChaptersInPlace).
-  // Special-mode chapters (assassination/gauntlet/ship_flight/escort) also
-  // bypass the gauntlet — otherwise _storyBuildPhases rewrites ch.type to
-  // 'fight' and collapses their authored mode into a plain duel.
+  // Exploration and special-mode chapters (assassination, gauntlet, ship_flight, escort) launch via
+  // _directLaunchChapter, not the gauntlet. _storyBuildPhases would otherwise rewrite ch.type to 'fight'.
   if (ch.type === 'exploration' || ch.isBossFight || ch.isTrueFormFight || ch.isSovereignFight || ch.isAbsoluteAxiomFight || ch.isGodFight || ch.type === 'interlude'
       || ch.type === 'assassination' || ch.type === 'gauntlet' || ch.type === 'ship_flight' || ch.type === 'escort'
       || ch.type === 'battleroyale') {
@@ -218,19 +207,9 @@ function _launchChapterWithGauntlet(ch) {
   }
 }
 
-// ── Saga cold opens ───────────────────────────────────────────────────────────
-// Mirror of `sagaFinaleText` (see _showStory2Victory): a chapter that opens the
-// ACTIVE saga can carry a `sagaColdOpen` line array that is prepended to its
-// narrative, re-establishing the protagonist, what he carries and who he is
-// walking towards for a player who has never played the earlier sagas.
-//
-// It must never fire on the combined build — there the story already opened at
-// ch. 0 and a mid-story recap would be a regression. On 'full', _sagaFirstId()
-// resolves to the story's own first chapter, so the `<=` test below is false for
-// every chapter that carries the field; the explicit sagaIsFullBuild() guard
-// states that intent rather than relying on it.
-//
-// smb-saga-structure.js loads AFTER this file, so both helpers guard on presence.
+// Saga cold open: a chapter that opens the ACTIVE saga can prepend sagaColdOpen lines, so a new
+// player gets the recap. Never on the combined build, where the story already opened at ch. 0.
+// smb-saga-structure.js loads after this file, so both helpers guard on presence.
 function _sagaFirstId() {
   if (typeof activeSagaFirstChapterId === 'function') return activeSagaFirstChapterId();
   return STORY_CHAPTERS2.reduce((m, c) => Math.min(m, c.id), Infinity);
@@ -238,11 +217,7 @@ function _sagaFirstId() {
 function _isSagaOpener(ch) {
   if (!ch || !Array.isArray(ch.sagaColdOpen) || !ch.sagaColdOpen.length) return false;
   if (typeof sagaIsFullBuild === 'function' && sagaIsFullBuild()) return false;
-  // Membership is load-bearing, not belt-and-braces: `id <= firstId` alone is true
-  // for EVERY earlier saga's opener (ch. 70 qualifies on a saga3 build). Those
-  // chapters are out of range and unreachable today, so the bug would only surface
-  // the day one became reachable. Both tests together mean "the chapter this build
-  // starts on".
+  // The membership check is required: id <= firstId alone also matches earlier sagas' openers.
   if (typeof isChapterInActiveSaga === 'function' && !isChapterInActiveSaga(ch.id)) return false;
   return ch.id <= _sagaFirstId();
 }
@@ -267,10 +242,8 @@ function _beginChapter2(idx) {
   if (!ch) return;
   _activeStory2Chapter = ch;
 
-  // A declared cinematic run starts here: play the whole stretch as one film
-  // rather than as N click-through chapters. Guarded on the helper's presence
-  // (smb-story-cinematic-sequence.js loads after this file) and self-disabling
-  // if the run's chapters have drifted — see _resolveRun.
+  // A declared cinematic run plays as one film, not N click-through chapters. Self-disables if the
+  // run's chapters drifted (see _resolveRun).
   if (typeof isStoryCinematicRunStart === 'function' && isStoryCinematicRunStart(ch.id) &&
       typeof playStoryCinematicRun === 'function') {
     if (playStoryCinematicRun(ch.id)) return;
@@ -295,7 +268,7 @@ function _beginChapter2(idx) {
   if (ch.noFight) {
     _showStory2Narrative(_sagaChapterNarrative(ch), () => {
       if (ch._menuHidden) {
-        // Silent completion — no victory screen. Mark done and chain to the next chapter.
+        // Silent completion: no victory screen. Mark done and chain to the next chapter.
         if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
         _story2.tokens += _storyTokenReward(ch.tokenReward);
         _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
@@ -324,16 +297,9 @@ function _beginChapter2(idx) {
   });
 }
 
-// ── Playable beats on branch chapters ─────────────────────────────────────────
-// A branch chapter (narration + a choice) can carry `beat: { ... }`, an overlay of
-// ordinary chapter fields (walkFight / type:'exploration' + exploreMode / plain duel,
-// opponent*, spawnEnemies, fightScript, arena, levelId, ...) that is played between
-// the narration and the choice. It runs through the normal launchers as a derived
-// chapter that keeps the real chapter's id (so world, arc and retry all line up);
-// story2OnMatchEnd hands a WIN back to `done` instead of showing the victory
-// screen, and the real chapter still completes through _completeChapter2 after the
-// choice. `afterNarrative` (optional) plays between the beat and the choice, so a
-// long narration can be split around the beat without losing a word.
+// A branch chapter's beat is an overlay of chapter fields, played between the narration and the
+// choice. It keeps the real chapter's id, and a win returns to done instead of the victory screen.
+// afterNarrative plays between the beat and the choice.
 function _playChapterBeat(ch, done) {
   if (!ch || !ch.beat) { if (done) done(); return; }
   const bc = Object.assign({}, ch, ch.beat);
@@ -368,7 +334,7 @@ function _playBranchAfterNarrative(ch, next) {
   _showStory2Narrative(after, function () { _activeStory2Chapter = ch; next(); });
 }
 
-// Direct launch — no gauntlet phases, just the chapter itself
+// Direct launch: no gauntlet phases, just the chapter itself
 function _directLaunchChapter(ch) {
   if (!ch) return;
   storyGauntletState = null;
@@ -381,7 +347,6 @@ function _directLaunchChapter(ch) {
   }
 }
 
-// ── Interlude chapter launch ───────────────────────────────────────────────────
 function _launchInterludeChapter(ch) {
   if (!ch) return;
   if (typeof resetInterlude === 'function') resetInterlude();
@@ -414,9 +379,7 @@ function _launchInterludeChapter(ch) {
   if (typeof startGame === 'function') startGame();
 
   setTimeout(function () {
-    // Init interlude state after fighters are spawned
     if (typeof initInterlude === 'function') initInterlude(ch);
-    // Widen the level so the player can walk
     if (ch.worldWidth) {
       if (currentArena) currentArena.worldWidth = ch.worldWidth;
     }
@@ -430,14 +393,9 @@ function _showStory2Narrative(lines, callback) {
   _narrativeActive = true;
 
   if (typeof showNarrativeScene === 'function') {
-    // Every between-chapter segment plays as a cutscene, not a click-through
-    // reader: beats auto-advance on a reading-rate budget, the camera keeps
-    // drifting, and holding click/Space scrubs. holdLastBeat stops the film on
-    // its final beat and shows the ordinary Fight!/Continue button, so the
-    // player still chooses the moment the match starts.
-    //
-    // A multi-chapter run (smb-story-cinematic-sequence.js) does NOT come
-    // through here — it calls showNarrativeScene itself so it can span chapters.
+    // Between-chapter segments play as a cutscene: beats auto-advance, and holding click or Space scrubs.
+    // holdLastBeat stops on the last beat so the player still chooses when the match starts.
+    // Multi-chapter runs call showNarrativeScene directly (smb-story-cinematic-sequence.js).
     showNarrativeScene(lines, _activeStory2Chapter, function () {
       _narrativeActive = false;
       if (callback) callback();
@@ -474,7 +432,7 @@ function _showStory2Narrative(lines, callback) {
 }
 
 function _showStory2PreFight(ch) {
-  // Legacy stub — now handled inline by _showStory2Narrative
+  // Legacy stub: now handled inline by _showStory2Narrative
   _launchChapter2Fight(ch);
 }
 
@@ -484,7 +442,6 @@ function _showBranchChoice(ch, onComplete) {
     { label: 'Step Back', flag: `branch_${ch.id}_b`, consequence: null },
   ];
 
-  // Build overlay
   const overlay = document.createElement('div');
   overlay.id = '_storyBranchOverlay';
   overlay.style.cssText = [
@@ -513,7 +470,6 @@ function _showBranchChoice(ch, onComplete) {
     btn.onmouseleave = () => { btn.style.background = '#1a2a44'; btn.style.borderColor = '#4466aa'; };
 
     btn.onclick = () => {
-      // Persist flag
       if (!_story2.branchFlags) _story2.branchFlags = {};
       _story2.branchFlags[choice.flag] = true;
       storyState.flags[choice.flag]    = true;
@@ -543,39 +499,34 @@ function _showBranchChoice(ch, onComplete) {
 
   overlay.appendChild(btnRow);
   document.body.appendChild(overlay);
-  // A branch prompt is a between-level overlay too — hold the match under it.
+  // A branch prompt is a between-level overlay too: hold the match under it.
   if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
 }
 
-// ── Escort chapter launch ─────────────────────────────────────────────────────
 function _launchEscortChapter(ch) {
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
 
-  // World / arc state (same as fight chapters)
   worldId        = getWorldForChapter(ch.id);
   currentWorld   = STORY_WORLDS[worldId] || null;
   worldModifiers = currentWorld ? currentWorld.modifier : null;
   const _arc = getStoryArc(ch.id);
   if (_arc) storyCurrentArc = _arc.id;
 
-  // Set arena
   if (ch.arena) {
     selectedArena = (typeof storyLevelArenaKey === 'function') ? storyLevelArenaKey(ch, ch.arena) : ch.arena;
     const arSelect = document.getElementById('arenaSelect');
     if (arSelect) arSelect.value = selectedArena;
   }
 
-  // Fight script (story subtitles)
   storyFightScript    = Array.isArray(ch.fightScript) ? ch.fightScript.slice() : [];
   storyFightScriptIdx = 0;
   storyFightSubtitle  = null;
 
-  // Player lives
   if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
   infiniteMode = false;
 
-  // Ability gate (same defaults as fight chapters) — skill tree only
+  // Ability gate (same defaults as fight chapters): skill tree only
   const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
     noDoubleJump: !_sk.doubleJump,
@@ -612,26 +563,16 @@ function _launchEscortChapter(ch) {
   }, 120);
 }
 
-// ── Story mini-boss peaks ─────────────────────────────────────────────────────
-// A chapter may declare `miniBoss: 'forestBeast' | 'yeti'` to add a creature-tier
-// encounter on top of its normal fight. These reuse the Director's existing
-// spawners (smb-data-mapperks.js), which push into minions[] and pick their own
-// target, so nothing else needs wiring. Optional `miniBossHealth` scales it.
-//
-// Called AFTER startGame() and after players[] is populated — the spawners read
-// players[] to choose a target and currentArena to choose a platform.
-// ── The Trials ────────────────────────────────────────────────────────────────
-// Arms a trial chapter once the world and fighters actually exist. Same retry
-// budget as _storySpawnMiniBoss and for the same reason: the explore world is
-// not finished until several frames after startGame(), so a fixed delay
-// silently no-ops. Spec: docs/TRIALS_DESIGN.md.
+// Creature mini-boss on top of a chapter's fight: miniBoss = 'forestBeast' | 'yeti', with optional
+// miniBossHealth. Reuses the Director spawners (smb-data-mapperks.js). Called after startGame(),
+// once players[] exists, since the spawners read players[] and currentArena.
+// Arms a trial chapter once the world and fighters exist. Retries like _storySpawnMiniBoss, because
+// the explore world finishes several frames after startGame(). Spec: docs/TRIALS_DESIGN.md.
 function _storyArmTrial(ch) {
   if (!ch || !ch.trial || typeof trialPending === 'undefined') return;
   if (typeof resetTrialState === 'function') resetTrialState();
-  // A request, not an application. updateTrials() applies it on the first frame
-  // the real fighters exist — a delayed hook would set its flags on the previous
-  // match's fighter objects, because startGame() rebuilds players[] a few frames
-  // after this returns.
+  // A request, not an application: updateTrials() applies it on the first frame the real fighters
+  // exist, since startGame() rebuilds players[] a few frames later.
   trialPending = { kind: ch.trial };
 }
 
@@ -639,11 +580,8 @@ function _storySpawnMiniBoss(ch, _tries) {
   if (!ch || !ch.miniBoss) return;
   const tries = _tries || 0;
 
-  // The explore world finishes building several frames AFTER startGame(), so the
-  // launch-site hook fires too early on exploration/walkFight chapters. Retry on
-  // a short budget rather than guessing a single magic delay. Bail if the player
-  // left the chapter in the meantime so a stale timer can't spawn into the menu
-  // or into the next chapter.
+  // Explore worlds finish a few frames after startGame(), so retry on a short budget instead of a
+  // magic delay. Bail if the player left the chapter, so stale timers don't spawn into the menu.
   if (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter !== ch) return;
   const ready = (typeof gameRunning !== 'undefined' && gameRunning)
              && (typeof currentArena !== 'undefined' && currentArena)
@@ -667,8 +605,7 @@ function _storySpawnMiniBoss(ch, _tries) {
   }
   if (!spawned) return;
 
-  // Story mini-bosses are a pacing peak, not a random roadside encounter, so
-  // they take an authored HP bump. Everything else stays at creature defaults.
+  // Story mini-bosses get an authored HP bump so they read as a pacing peak.
   if (ch.miniBossHealth) {
     spawned.health    = ch.miniBossHealth;
     spawned.maxHealth = ch.miniBossHealth;
@@ -679,28 +616,23 @@ function _storySpawnMiniBoss(ch, _tries) {
 function _launchChapter2Fight(ch) {
   if (!ch) return;
 
-  // Reset per-fight story event state (abilities, distortion, event dedup)
   if (typeof resetStoryEventState === 'function') resetStoryEventState();
 
-  // Exploration chapter: different launch path
   if (ch.type === 'exploration') {
     _launchExplorationChapter(ch);
     return;
   }
 
-  // Escort chapter: protect an NPC to a goal position
   if (ch.type === 'escort') {
     _launchEscortChapter(ch);
     return;
   }
 
-  // Ship flight chapter: horizontal shmup with the assembled ship
   if (ch.type === 'ship_flight') {
     if (typeof _launchShipFlightChapter === 'function') _launchShipFlightChapter(ch);
     return;
   }
 
-  // Assassination chapter: defeat target before timer expires
   if (ch.type === 'assassination') {
     _launchAssassinationChapter(ch);
     return;
@@ -718,7 +650,7 @@ function _launchChapter2Fight(ch) {
     return;
   }
 
-  // Boss fight: show cinematic intro before launching (async — delays startGame)
+  // Boss fight: show a cinematic intro first (async, delays startGame)
   if (ch.isBossFight) {
     if (typeof triggerEvent === 'function') triggerEvent('BOSS_INTRO', { ch }, true);
     const _bossCinDuration = 7800;
@@ -733,28 +665,24 @@ function _launchChapter2Fight(ch) {
 }
 
 let _bossCinLaunchTimer = null;
-// Cancel a pending boss-intro launch. The 7.8s timer above outlives navigation,
-// so leaving to the menu during the intro (pause→menu, error recovery) would
-// otherwise fire _launchChapter2FightImmediate and spawn the boss over the menu.
+// Cancels a pending boss-intro launch. The 7.8s timer outlives navigation (pause to menu, error
+// recovery) and would spawn the boss over the menu.
 function _cancelPendingBossLaunch() {
   if (_bossCinLaunchTimer) { clearTimeout(_bossCinLaunchTimer); _bossCinLaunchTimer = null; }
 }
 function _launchChapter2FightImmediate(ch) {
   const _phase = storyPendingPhaseConfig;
-  // Close the story modal directly — bypass the ch0-lock guard (fight launch is always valid)
+  // Close the story modal directly, past the ch0-lock guard.
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
 
-  // Apply world modifiers for this chapter
   worldId        = getWorldForChapter(ch.id);
   currentWorld   = STORY_WORLDS[worldId] || null;
   worldModifiers = currentWorld ? currentWorld.modifier : null;
 
-  // Apply multiverse arc
   const _arc = getStoryArc(ch.id);
   if (_arc) storyCurrentArc = _arc.id;
 
-  // Configure game for chapter
   if (ch.isTrueFormFight) {
     gameMode = 'trueform';
     if (typeof selectMode === 'function') selectMode('trueform');
@@ -782,7 +710,6 @@ function _launchChapter2FightImmediate(ch) {
     if (typeof selectMode === 'function') selectMode('2p');
   }
 
-  // Set arena
   if ((_phase && _phase.arena) || ch.arena) {
     // A phase that only echoes the chapter's own arena still gets the chapter's
     // authored story arena; a phase naming a different arena keeps it.
@@ -793,9 +720,7 @@ function _launchChapter2FightImmediate(ch) {
     if (arSelect) arSelect.value = selectedArena;
   }
 
-  // ── Ranged-weapon restriction ─────────────────────────────────────────────
-  // Early story forbids ranged weapons so progression stays grounded and difficulty is consistent.
-  // Later chapters/replays can use ranged loadouts normally.
+  // Early story forbids ranged weapons so progression stays grounded. Later chapters and replays can use them.
   const _chBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
   const _RANGED_FALLBACK = 'sword'; // melee substitute when ranged is stripped
   const _isRanged = key => typeof WEAPONS !== 'undefined' && WEAPONS[key] && WEAPONS[key].type === 'ranged';
@@ -804,7 +729,6 @@ function _launchChapter2FightImmediate(ch) {
   const _rangedUnlocked = _chBeaten || ch.id >= 10;
   const _safeWeapon = key => _isToneExcluded(key) ? _RANGED_FALLBACK : ((_rangedUnlocked || !_isRanged(key)) ? key : _RANGED_FALLBACK);
 
-  // Set P2 weapon/class to chapter opponent
   const _notBossOrTF = !ch.isBossFight && !ch.isTrueFormFight && !ch.isSovereignFight && !ch.isAbsoluteAxiomFight && !ch.isGodFight;
   if (_notBossOrTF && ch.weaponKey) {
     const p2w = document.getElementById('p2Weapon');
@@ -819,9 +743,7 @@ function _launchChapter2FightImmediate(ch) {
     if (p2d) p2d.value = ch.aiDiff;
   }
 
-  // Apply per-chapter fight script (tutorial hints, narrative subtitles)
-  // Filter out entries that require abilities not yet unlocked.
-  // Each entry can carry a `requires` array: ['ability','super','doubleJump']
+  // Filter fight-script entries whose requires list (e.g. ability, super, doubleJump) is still locked.
   if (ch.fightScript && ch.fightScript.length) {
     const _ov = storyPlayerOverride || {};
     storyFightScript = ch.fightScript.filter(entry => {
@@ -857,12 +779,10 @@ function _launchChapter2FightImmediate(ch) {
     }
   }
 
-  // Apply per-chapter player lives
   if (typeof selectLives === 'function') selectLives((_phase && _phase.playerLives) || ch.playerLives || 3);
   infiniteMode = false;
 
-  // ── Ability progression: gated purely by the skill tree ─────────────────
-  // Abilities are no longer granted passively; the player must buy each node.
+  // Abilities are gated only by the skill tree.
   const _caps = ch.playerCaps || {};
   const id = ch._origId !== undefined ? ch._origId : ch.id; // use original id for difficulty scaling
   const _sk = _story2.skillTree || {};
@@ -884,7 +804,7 @@ function _launchChapter2FightImmediate(ch) {
     storyPlayerOverride.dmgMult *= (1 + _weaponMasteryDmgBonus(_eqWeapon));
   }
 
-  // Stripped-powers trial: override all ability gates — only human physicality
+  // Stripped-powers trial: override all ability gates: only human physicality
   if (ch.strippedPowers) {
     storyPlayerOverride.noAbility    = true;
     storyPlayerOverride.noSuper      = true;
@@ -899,7 +819,6 @@ function _launchChapter2FightImmediate(ch) {
     if (typeof window !== 'undefined') window._storyStrippedPowers = false;
   }
 
-  // Set in-fight objective based on chapter type
   if (typeof setObjective === 'function') {
     const _chOrigId = ch._origId !== undefined ? ch._origId : ch.id;
     let _obj;
@@ -918,18 +837,15 @@ function _launchChapter2FightImmediate(ch) {
     setObjective(_obj);
   }
 
-  // Ability toasts are now shown only when purchased in the skill tree
 
   // Boss type override (e.g. 'fallen_god' → spawns FallenGod instead of Boss)
   storyBossType = ch.bossType || null;
 
-  // Opponent name and appearance
   storyOpponentName  = ch.opponentName  || null;
   storyOpponentColor = ch.opponentColor || null;
   storyCharId        = _resolveStoryCharId(ch.opponentName || '');
   storyChapterCtx    = { origId: (ch._origId !== undefined ? ch._origId : ch.id), noAdaptive: !!ch.noAdaptive };
 
-  // Armor and multi-enemy setup
   storyEnemyArmor = ch.armor || [];
   storyTwoEnemies = !!ch.twoEnemies;
   // Strip ranged weapon from second enemy on unbeaten chapters
@@ -958,7 +874,6 @@ function _launchChapter2FightImmediate(ch) {
     storyAllyDef = null;
   }
 
-  // Mark story2 fight active
   storyModeActive = true;
 
   // Scale STORY_ENEMY_CONFIGS to chapter progression (defaults to 1 for v1 story)
@@ -966,7 +881,6 @@ function _launchChapter2FightImmediate(ch) {
 
   // Boss chapter: register director sequences that fire during the fight
   if (ch.isBossFight && typeof directorOnce === 'function') {
-    // Use setTimeout so players[] is populated after startGame initializes
     setTimeout(() => {
       const _boss = players && players.find(p => p.isBoss);
       if (!_boss) return;
@@ -1023,16 +937,14 @@ function _launchChapter2FightImmediate(ch) {
     setTimeout(() => spawnWorldBoss(worldId), 100);
   }
 
-  // Creature mini-boss peak (see _storySpawnMiniBoss).
   if (ch.miniBoss) {
     setTimeout(() => _storySpawnMiniBoss(ch), 120);
   }
 
-  // The Trials (see _storyArmTrial).
   if (ch.trial) _storyArmTrial(ch);
   else if (typeof resetTrialState === 'function') resetTrialState();
 
-  // Axiom teaser (ch63): patch the Boss entity color + suppress all threshold cinematics + reset player to 1 life
+  // Axiom teaser (ch63): recolor the boss, skip threshold cinematics, 1 life.
   if (ch._axiomTeaser) {
     setTimeout(() => {
       if (!gameRunning) return;
@@ -1051,7 +963,6 @@ function _launchChapter2FightImmediate(ch) {
   }
 }
 
-// ── Assassination chapter launch ──────────────────────────────────────────────
 function _launchAssassinationChapter(ch) {
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
@@ -1086,9 +997,8 @@ function _launchAssassinationChapter(ch) {
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
-  // Assassination chapters author their target as target* fields; this
-  // launcher only read the duel fields, so every target spawned as a generic
-  // "Target" holding whatever weapon the menu last had selected.
+  // Assassination chapters author target* fields. Without reading them, every target spawned as a
+  // generic 'Target' with whatever weapon the menu had.
   const _tW = ch.weaponKey || ch.targetWeaponKey, _tC = ch.classKey || ch.targetClassKey, _tD = ch.aiDiff || ch.targetAiDiff;
   const _tName = ch.opponentName || ch.targetName;
   if (_tW) { const w = document.getElementById('p2Weapon'); if (w) w.value = _tW; }
@@ -1120,7 +1030,6 @@ function _launchAssassinationChapter(ch) {
   }, 80);
 }
 
-// ── Gauntlet chapter launch ────────────────────────────────────────────────────
 function _launchGauntletChapter(ch) {
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
@@ -1179,13 +1088,8 @@ function _launchGauntletChapter(ch) {
   }, 80);
 }
 
-// ── Battle Royale chapter — the 94 bearers ────────────────────────────────────
-// The reframe docs/TRIALS_DESIGN.md asked for: the field is not anonymous bots,
-// it is every fragment bearer who came before Kael, all at once. The bearer
-// field itself is built in initBattleRoyale() / _brSpawnBots(), which DERIVE it
-// from this chapter's type rather than reading a flag set here — see
-// smb-battleroyale.js. Nothing here needs a post-startGame() timer: BR's own
-// init runs inside _startGameCore with players[] already rebuilt.
+// Battle royale: the field is every bearer who came before Kael, built by initBattleRoyale() from the
+// chapter type. BR's own init runs inside _startGameCore, so no post-startGame timer is needed.
 function _launchBattleRoyaleChapter(ch) {
   if (!ch) return;
   const _storyModal = document.getElementById('storyModal');
@@ -1206,8 +1110,7 @@ function _launchBattleRoyaleChapter(ch) {
   storyAllyDef        = null;
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
-  // BR builds its own 9000x2800 arena in _makeBRArena(), so the chapter's
-  // `arena:` is deliberately not applied.
+  // BR builds its own arena, so the chapter's arena field is not applied.
   gameMode            = 'battleroyale';
   p2IsBot             = true;
 
@@ -1217,4 +1120,3 @@ function _launchBattleRoyaleChapter(ch) {
   if (typeof startGame === 'function') startGame();
 }
 
-// ── World Boss variants ────────────────────────────────────────────────────────

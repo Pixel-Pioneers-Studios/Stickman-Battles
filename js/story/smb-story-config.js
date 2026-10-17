@@ -1,26 +1,21 @@
-// smb-story-config.js
-// Pure story data: enemy configs, unlocks, fight scripts, skill tree, worlds, arcs, abilities.
-// Depends on: smb-globals.js
-// Must load: BEFORE smb-story-engine.js
+// Story mode data: enemy configs, unlocks, fight scripts, skill tree, worlds, arcs, abilities.
+// Loads before smb-story-engine.js. Depends on smb-globals.js.
 'use strict';
 
-// ── Enemy scaling per level ────────────────────────────────────────────────────
-// enemyDmgMult:   multiplier on all damage the enemy deals (1.0 = normal)
-// enemyAtkCdMult: multiplier on attack cooldown (>1 = slower attacks, 1 = normal)
+// Enemy scaling per level. dmgMult scales enemy damage (1 = normal), atkCdMult scales attack cooldown (>1 = slower).
 const STORY_ENEMY_CONFIGS = {
-  1: { enemyDmgMult: 0.45, enemyAtkCdMult: 2.2 }, // Prologue — barely a threat
-  2: { enemyDmgMult: 0.55, enemyAtkCdMult: 2.0 }, // Ch1 — slow, light hits
-  3: { enemyDmgMult: 0.65, enemyAtkCdMult: 1.8 }, // Ch2 — slightly more dangerous
-  4: { enemyDmgMult: 0.72, enemyAtkCdMult: 1.6 }, // Ch3 — warming up
-  5: { enemyDmgMult: 0.80, enemyAtkCdMult: 1.4 }, // Ch4 — real threat now
-  6: { enemyDmgMult: 0.88, enemyAtkCdMult: 1.25 }, // Ch5 — tough
-  7: { enemyDmgMult: 0.94, enemyAtkCdMult: 1.12 }, // Ch6 — nearly full power
-  8: { enemyDmgMult: 1.00, enemyAtkCdMult: 1.00 }, // SOVEREIGN — unscaled (AdaptiveAI self-regulates)
-  9: { enemyDmgMult: 1.00, enemyAtkCdMult: 1.00 }, // Ch8 — boss fight, unscaled
-  10: { enemyDmgMult: 1.00, enemyAtkCdMult: 1.00 }, // Final — unscaled
+  1: { enemyDmgMult: 0.45, enemyAtkCdMult: 2.2 }, // Prologue, barely a threat
+  2: { enemyDmgMult: 0.55, enemyAtkCdMult: 2.0 }, // Ch1, slow, light hits
+  3: { enemyDmgMult: 0.65, enemyAtkCdMult: 1.8 }, // Ch2, slightly more dangerous
+  4: { enemyDmgMult: 0.72, enemyAtkCdMult: 1.6 }, // Ch3, warming up
+  5: { enemyDmgMult: 0.80, enemyAtkCdMult: 1.4 }, // Ch4, real threat now
+  6: { enemyDmgMult: 0.88, enemyAtkCdMult: 1.25 }, // Ch5, tough
+  7: { enemyDmgMult: 0.94, enemyAtkCdMult: 1.12 }, // Ch6, nearly full power
+  8: { enemyDmgMult: 1.00, enemyAtkCdMult: 1.00 }, // SOVEREIGN, unscaled (AdaptiveAI self-regulates)
+  9: { enemyDmgMult: 1.00, enemyAtkCdMult: 1.00 }, // Ch8, boss fight, unscaled
+  10: { enemyDmgMult: 1.00, enemyAtkCdMult: 1.00 }, // Final, unscaled
 };
 
-// ── Unlock ceremonies — shown before the level-complete screen ────────────────
 const STORY_UNLOCKS = {
   1: { icon: '⬆', name: 'Double Jump',   desc: 'Something inside you remembered how to fly.\nYour body moves before your mind decides.' },
   2: { icon: '⚡', name: 'Weapon Ability', desc: 'You found the rhythm of the blade.\nThe move comes naturally now.' },
@@ -28,7 +23,6 @@ const STORY_UNLOCKS = {
   4: { icon: '🔥', name: 'Full Power',     desc: 'You are no longer the person who fell through the portal.\nYou are a fighter.' },
 };
 
-// ── In-fight narrative scripts — timed subtitles during combat ────────────────
 const STORY_FIGHT_SCRIPTS = {
   1: [
     { frame: 80,  text: '"You don\'t even know how to hold that thing."', color: '#ff8866' },
@@ -64,12 +58,10 @@ const STORY_FIGHT_SCRIPTS = {
   ],
 };
 
-// ── Story menu ────────────────────────────────────────────────────────────────
 function openStoryMenu() {
   _renderChapterList();
   const m = document.getElementById('storyModal');
   if (m) m.style.display = 'flex';
-  // Make sure Chapters tab is active and refreshed
   const chapTab = document.getElementById('storyTabChapters');
   const chapPanel = document.getElementById('storyTabPanelChapters');
   if (chapTab && chapPanel) {
@@ -90,13 +82,9 @@ function openStoryMenu() {
   if (typeof _updateContinueStoryBtn === 'function') _updateContinueStoryBtn();
   if (typeof _refreshStoryLoadoutLabels === 'function') _refreshStoryLoadoutLabels();
 
-  // The seam text — the bridge from the cold open into the player's own story.
-  // It used to run on first launch, chained straight off Tuesday; the cold open
-  // now ends on the home screen instead, so it plays here, the first time the
-  // player chooses Story of their own accord. Its own "Just let me fight" exit
-  // still leads out to a quick match.
-  // Saves with progress from before difficulties existed keep the setup they
-  // were playing on; only a fresh story gets asked.
+  // Seam text: the bridge from the cold open into the player's own story. Plays the first time
+  // Story is chosen from home. Its 'Just let me fight' exit leads to a quick match.
+  // Saves with progress before difficulties existed keep their setup; only a fresh story is asked.
   if (m && !_story2.difficulty && Array.isArray(_story2.defeated) && _story2.defeated.length > 0) {
     _story2.difficulty = 'normal';
     _saveStory2();
@@ -166,8 +154,7 @@ function _showStoryPrologue(modalEl) {
   modalEl.appendChild(ov);
 }
 
-// Single entry point for launching a specific chapter from the menu.
-// Every chapter button should call this — behavior is always chapter-driven.
+// Single entry point for launching a chapter from the menu. Every chapter button calls this.
 function startStoryFromMenu(chapterId) {
   storyModeActive    = true;
   storyCurrentLevel  = Math.min(8, Math.floor(chapterId / 5) + 1);
@@ -179,8 +166,7 @@ function closeStoryMenu() {
   if (m) m.style.display = 'none';
 }
 
-// Story mode is never a trap: the player can leave at any point, including
-// before chapter 0 is beaten.
+// Story mode is never a trap: the player can leave at any point, even before chapter 0.
 function _updateStoryCloseBtn() {
   const btn = document.querySelector('#storyModal button[onclick="closeStoryMenu()"]');
   if (!btn) return;
@@ -191,10 +177,13 @@ function _updateStoryCloseBtn() {
 }
 
 function storyNewGame() {
-  const msg = 'Start a new story?\nProgress will be reset and you will pick a difficulty again. (Boss/Cosmic Axiom unlocks are kept.)';
+  const msg = 'Start a new story?\nProgress will be reset and you will pick a difficulty again. (Boss/Cosmic Axiom unlocks and the Fragment style are kept.)';
   if (!confirm(msg)) return;
+  // Pin the Fragment style to the account before the story record that may be its only proof is wiped.
+  const keepFragment = typeof wxIsFragmentUnlocked === 'function' && wxIsFragmentUnlocked();
   _story2 = _defaultStory2Progress();
-  // A real new game replays the cold open, so drop the out-of-save guard too.
+  if (keepFragment && typeof wxUnlockFragmentStyle === 'function') wxUnlockFragmentStyle(false);
+  // A new game replays the cold open, so drop the out-of-save guard too.
   try { localStorage.removeItem('smb_tuesday_seen'); } catch (e) {}
   _saveStory2();
   if (typeof saveGame === 'function') saveGame();
@@ -205,22 +194,18 @@ function storyNewGame() {
   _maybePickStoryDifficulty();
 }
 
-// ── Story difficulty ──────────────────────────────────────────────────────────
-// Picked once, the first time the story menu opens on a fresh story. Read by
-// _storyScaleEnemyUnit (enemy stats), _launchExplorationChapter (enemy count),
+// Story difficulty. Picked once, the first time the story menu opens on a fresh story.
+// Read by _storyScaleEnemyUnit (enemy stats), _launchExplorationChapter (enemy count),
 // the move-speed pass in smb-weapons-ext.js, and dealDamage (Evolution adaptation).
-//   shift:   chapters added to the HP/prediction scaling index, so later-chapter enemies arrive
-//            early. Damage ignores it: a shifted damage curve put late-game hits (~60 on
-//            a 150hp player) on chapter 0, so one combo string was a death.
-//   hpCap / dmgCap: multipliers on the per-unit HP and per-hit damage ceilings
-//   hp / dmg / cd: final multipliers on enemy HP, damage, and attack cooldown
-//   ai:      bot intelligence tier for every non-boss enemy (elites one tier up), so a
-//            harder difficulty is never out-thought by an easier one at any chapter
-//   mercyTo: chapters below this keep the onboarding mercy band
-//   duelExtra: escorts that join every walk-level duel alongside its authored opponent
-//   reward:  multiplier on chapter and side-portal token payouts
-// Evolution is permanent for a save: the only way out is New Game, and no other
-// difficulty can switch into it mid-story.
+//   shift:     chapters added to the HP/prediction scaling index. Damage ignores it,
+//              since a shifted damage curve made late hits lethal on chapter 0.
+//   hpCap / dmgCap: multipliers on the per-unit HP and per-hit damage ceilings.
+//   hp / dmg / cd: final multipliers on enemy HP, damage and attack cooldown.
+//   ai:        bot tier for every non-boss enemy (elites one up).
+//   mercyTo:   chapters below this keep the onboarding mercy band.
+//   duelExtra: escorts that join every walk-level duel.
+//   reward:    multiplier on chapter and side-portal token payouts.
+// Evolution is permanent for a save: only New Game exits it.
 const STORY_DIFFICULTIES = {
   story: {
     name: 'Story', color: '#88ccff',
@@ -261,11 +246,10 @@ function _storyDifficulty() {
 function _storyDiffCfg() { return STORY_DIFFICULTIES[_storyDifficulty()]; }
 function _storyTokenReward(n) { return Math.round((n || 0) * (_storyDiffCfg().reward || 1)); }
 
-// Evolution: an enemy builds resistance to whichever move keeps hitting it. A
-// move is weapon + action tier (swing/ability/super) + ground/air. The first
-// three hits of a move are free (a full combo string); each hit past that costs
-// 9%, down to 55%. Landing a different move sheds a stack from every other move,
-// and a move unused for 4s is forgotten.
+// Evolution: enemies build resistance to whichever move keeps hitting them. A move is
+// weapon + action tier (swing/ability/super) + ground/air. The first three hits are free.
+// Each hit past that costs 9%, down to 55%. Landing a different move sheds a stack from
+// every other move. A move unused for 4s is forgotten.
 function _storyEvoAdapt(attacker, target, dmg) {
   const now = typeof frameCount !== 'undefined' ? frameCount : 0;
   const key = (attacker.weaponKey || '?') + ':' + (attacker._attackKindTier | 0) + (attacker.onGround ? 'g' : 'a');
@@ -303,9 +287,8 @@ function _maybePickStoryDifficulty() {
   if (_story2 && !_story2.difficulty) _showStoryDifficultyPicker(true);
 }
 
-// firstPick: a fresh story choosing for the first time (Evolution allowed).
-// Otherwise the player is changing an existing choice (Evolution is out of reach,
-// and if it is the current choice nothing else is).
+// firstPick: a fresh story choosing for the first time (Evolution allowed). Otherwise the
+// player is changing a choice, so Evolution is out of reach (and nothing else is, if it is current).
 function _showStoryDifficultyPicker(firstPick) {
   const old = document.getElementById('storyDifficultyOverlay');
   if (old) old.remove();
@@ -387,7 +370,7 @@ function _showStoryDifficultyPicker(firstPick) {
   close.style.cssText = 'margin-top:18px;padding:7px 22px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:7px;color:#889;cursor:pointer;font-size:0.8rem;font-family:inherit;';
   close.onclick = () => {
     ov.remove();
-    // An unpicked story is not playable yet — leave the menu with the overlay.
+    // An unpicked story is not playable yet, so the menu keeps its overlay.
     if (firstPick) closeStoryMenu();
   };
   box.appendChild(close);
@@ -416,25 +399,19 @@ function _renderChapterList() {
   if (!list) return;
   list.innerHTML = '';
 
-  // Clamp into the active saga: a fresh save's chapter 0 would otherwise lock
-  // every tile on a Saga II/III build (`locked = ... || i > cur`). The saved
-  // value itself is never mutated. No-op on a 'full' build.
+  // Clamp into the active saga: a fresh save's chapter 0 would lock every tile on Saga II/III.
+  // The saved value is never mutated. No-op on 'full'.
   const cur        = (typeof sagaClampChapter === 'function')
     ? sagaClampChapter(_story2.chapter) : _story2.chapter;
   const curArcId   = _getCurrentArcId();
 
-  // ── Overall progress bar ──────────────────────────────────────────────────
-  // Saga builds report progress through THIS game, not through all 186 chapters.
-  // Both helpers return the whole story on a 'full' build (docs/SAGA_SPLIT_PLAN.md).
+  // Saga builds count progress through this game only. Both helpers return the whole story on 'full'.
   const _sagaScoped = typeof activeSagaChapterCount === 'function'
                    && typeof isChapterInActiveSaga === 'function';
   const totalCh  = _sagaScoped ? activeSagaChapterCount() : STORY_CHAPTERS2.length;
-  // `defeated` can hold DUPLICATES, and it mixes two key spaces: chapters are
-  // recorded by ch.id (smb-story-engine-flow.js) but tested by array index
-  // here. A finished save was reading 373 defeated against 186 chapters, i.e.
-  // 201% progress. Counting distinct entries that are actually in range keeps
-  // the bar honest. This is a DISPLAY guard only — it deliberately does not
-  // touch the unlock tests below, which still use .includes() as before.
+  // `defeated` can hold duplicates and mixes key spaces: ch.id on write, array index on read.
+  // Counting distinct in-range entries keeps the bar honest (a finished save read 201%).
+  // Display guard only: unlock tests still use .includes().
   const _seen = new Set(
     (Array.isArray(_story2.defeated) ? _story2.defeated : [])
       .filter(i => Number.isInteger(i) && i >= 0 && i < STORY_CHAPTERS2.length)
@@ -447,8 +424,7 @@ function _renderChapterList() {
   // Retroactive: an existing save may already qualify for the completion awards.
   if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
 
-  // Map view (smb-story-map.js) is the default; the list below is its fallback,
-  // one click away on the Map/List toggle.
+  // Map view is the default. The list is its fallback, one click away on the toggle.
   const _viewBtn = document.getElementById('storyViewToggle');
   if (typeof StoryMap !== 'undefined') {
     if (_viewBtn) { _viewBtn.style.display = ''; _viewBtn.textContent = StoryMap.enabled() ? 'List view' : 'Map view'; }
@@ -467,7 +443,7 @@ function _renderChapterList() {
     `</div>`;
   list.appendChild(progWrap);
 
-  // Carry-forward acknowledgment — recognition only, gates nothing.
+  // Carry-forward notice: recognition only, gates nothing.
   if (typeof sagaCarryForward === 'function') {
     const _carried = sagaCarryForward(_story2.defeated);
     if (_carried.length) {
@@ -480,19 +456,14 @@ function _renderChapterList() {
     }
   }
 
-  // ── Act paging ────────────────────────────────────────────────────────────
-  // The act list this build presents. On a 'full' build this IS
-  // STORY_ACT_STRUCTURE; on a saga build it is that list trimmed to the saga's
-  // arcs, with act numbering restarted (Saga III opens on "Act I", not "Act IX").
+  // The act list this build presents. 'full' uses STORY_ACT_STRUCTURE. A saga build trims it
+  // to its arcs and restarts numbering (Saga III opens on Act I).
   const _acts = (typeof activeSagaActView === 'function')
     ? activeSagaActView()
     : STORY_ACT_STRUCTURE;
 
-  // The modal subtitle is authored in index.html as "ten acts to the truth" —
-  // true for the combined build and wrong for every saga build, which presents
-  // three acts (saga1/saga2) or two (saga3). A newcomer opening a standalone saga
-  // must not be told the story is twice the size it is. Full build keeps its
-  // authored copy verbatim.
+  // The modal subtitle says 'ten acts', which is true only for the full build.
+  // Saga builds swap in their own count. Full build keeps its copy.
   if (typeof sagaIsFullBuild === 'function' && !sagaIsFullBuild()) {
     const _sub = document.querySelector('.story-modal-subtitle');
     if (_sub) {
@@ -510,11 +481,8 @@ function _renderChapterList() {
     return 0;
   };
   const curActIdx = _actIdxForChapter(cur);
-  // Furthest act reached = the current pointer's act, OR the highest act that
-  // has ANY cleared chapter. A completed save may reset `cur` to Act I, so the
-  // defeated set is what unlocks paging through the whole story (spoiler-safe).
-  // Scan top-down with the same .includes() predicate the UI uses everywhere —
-  // robust to duplicate / non-numeric junk in the defeated array.
+  // Furthest act reached: the current pointer's act, or the highest act with any cleared chapter.
+  // Uses the same .includes() predicate as the UI, so junk entries in defeated don't matter.
   let maxAct = curActIdx;
   for (let ai = _acts.length - 1; ai > maxAct; ai--) {
     const anyDone = _acts[ai].arcs.some(arc => {
@@ -545,7 +513,6 @@ function _renderChapterList() {
     }
   }
 
-  // ── Act pager header (◀  ACT N — Name  ▶) ─────────────────────────────────
   const pager = document.createElement('div');
   pager.className = 'story-act-pager';
   pager.style.setProperty('--act-color', act.color);
@@ -568,7 +535,6 @@ function _renderChapterList() {
   });
   list.appendChild(pager);
 
-  // ── Arcs of this act → grids of numbered level tiles ──────────────────────
   act.arcs.forEach(arc => {
     const arcUnlocked = _isArcUnlocked(arc);
     const { done: arcDone, total: arcTotal } = _getArcProgress(arc);
@@ -636,7 +602,6 @@ function _renderChapterList() {
   });
 }
 
-// ── In-fight script ticker — call every game frame ───────────────────────────
 function storyTickFightScript() {
   if (!gameRunning || !storyModeActive) return;
   if (storyFightScriptIdx >= storyFightScript.length) return;
@@ -648,7 +613,7 @@ function storyTickFightScript() {
   }
 }
 
-// ── Level complete (called from endGame) ─────────────────────────────────────
+// Level complete (called from endGame)
 function storyOnMatchEnd(playerWon) {
   if (!storyModeActive) return;
   storyFightSubtitle = null;
@@ -657,7 +622,7 @@ function storyOnMatchEnd(playerWon) {
   }
 }
 
-// ── Back to menu ──────────────────────────────────────────────────────────────
+// Back to menu
 function storyOnBackToMenu() {
   if (!storyModeActive) return;
   storyModeActive     = false;
@@ -678,9 +643,8 @@ function getDifficultyMultiplier(chapterId) {
   return 1 + (chapterId * 0.08);
 }
 
-// ── Unified balance scaling ────────────────────────────────────────────────────
-// Returns raw (unclamped) stat targets for a given original chapter index.
-// Clamps are applied by _storyScaleEnemyUnit before writing to a fighter.
+// Unified balance scaling. Returns raw stat targets for an original chapter index.
+// _storyScaleEnemyUnit applies the clamps before writing to a fighter.
 function getScaling(chapter) {
   const base = 1 + chapter * 0.08;
   return {
@@ -728,19 +692,15 @@ function _storyPhaseName(type) {
   return 'Phase';
 }
 
-// ── Level archetype pacing schedule ──────────────────────────────────────────
-// Controls which archetype is injected as a chapter's opening phase.
-// Rules checked in order; first match wins.
-// every:  fire every N chapters
-// offset: shift the start of the cycle
-// minId:  gate by chapter index (don't fire in early chapters)
+// Pacing archetype schedule: which archetype opens a chapter. Rules are checked in order and the
+// first match wins. every: fire every N chapters. offset: shift the cycle. minId: no firing before this index.
 const STORY_PACING_RULES = [
   { every: 4,  offset: 2, inject: 'traversal',     minId: 5  },
   { every: 5,  offset: 0, inject: 'survival_wave', minId: 15 },
   { every: 7,  offset: 3, inject: 'chase',         minId: 20 },
   { every: 10, offset: 1, inject: 'puzzle_lock',   minId: 10 },
   { every: 30, offset: 5, inject: 'branch',        minId: 25 },
-  { every: 16, offset: 0, inject: 'parkour',       minId: 14 }, // ch 16, 32, 48, 64 — guaranteed free slots
+  { every: 16, offset: 0, inject: 'parkour',       minId: 14 }, // ch 16, 32, 48, 64, guaranteed free slots
 ];
 
 // Returns the pacing archetype override for a given chapter id, or null.
@@ -770,8 +730,7 @@ function _storyCloneEnemyDef(base, extra = {}) {
 function _storyBuildPhases(ch) {
   if (Array.isArray(ch.phases) && ch.phases.length >= 3) return ch.phases;
 
-  // Stamp the pacing archetype for this chapter. No-op until Phase 2+ dispatchers
-  // read ch._pacingOverride and inject the appropriate opening phase.
+  // Stamp the pacing archetype. Dispatchers read ch._pacingOverride and inject the opening phase.
   if (ch._pacingOverride === undefined) {
     ch._pacingOverride = _storyGetPacingOverride(ch.id);
   }
@@ -879,8 +838,8 @@ function _storyBuildPhases(ch) {
     }
   }
 
-  // Apply pacing override: puzzle_lock — replace the opening phase with a mechanism challenge.
-  // Three mechanics rotate by chapter id; each is pure flavor on top of normal combat.
+  // Pacing override puzzle_lock: a mechanism challenge replaces the opening phase.
+  // Three mechanics rotate by chapter id, all on top of normal combat.
   if (ch._pacingOverride === 'puzzle_lock' && ch.phases.length > 0 && !ch.isBossFight && !ch.isTrueFormFight) {
     const mechanic = ch.id % 3 === 0 ? 'timed_duel'
                    : ch.id % 3 === 1 ? 'marked_target'
@@ -905,8 +864,8 @@ function _storyBuildPhases(ch) {
     };
   }
 
-  // Apply pacing override: parkour — replace the first traversal phase with a pure platforming run.
-  // No enemies in early chapters; sparse spawns after ch 28.
+  // Pacing override parkour: a platforming run replaces the first traversal phase.
+  // No enemies in early chapters, sparse spawns after ch 28.
   if (ch._pacingOverride === 'parkour' && !ch.isBossFight && !ch.isTrueFormFight) {
     const parkourIdx = ch.phases.findIndex(p => p.type === 'traversal');
     const insertAt   = parkourIdx >= 0 ? parkourIdx : 0;
@@ -922,7 +881,7 @@ function _storyBuildPhases(ch) {
     };
   }
 
-  // Collapse auto-generated phases to the finale only — each chapter is one focused fight
+  // Auto-generated phases collapse to the finale: each chapter is one focused fight.
   const finale = ch.phases.find(p => p.finalChapter) || ch.phases[ch.phases.length - 1];
   ch.phases = [finale];
   return ch.phases;
@@ -994,7 +953,7 @@ function _storyBuildShopItems() {
   ];
 }
 
-// ── Save integration ─────────────────────────────────────────────────────────
+// Save integration
 function getStoryDataForSave() {
   if (typeof _story2 === 'undefined') return null;
   if (!_story2.meta || typeof _story2.meta !== 'object') _story2.meta = {};
@@ -1011,24 +970,15 @@ function restoreStoryDataFromSave(data) {
   if (!data || !data.defeated) return;
   _story2 = _normalizeStory2Progress(data);
   _migrateStory2ThreshArc(_story2);
-  // Must follow the Thresh migration — see the note on that function.
+  // Runs after the Thresh migration.
   _migrateStory2TrialChapters(_story2);
   _saveStory2();
 }
 
-// ============================================================
-// STORY MODE v2 — Chapter Progression, Tokens, Blueprints,
-//                 Ability Store
-// ============================================================
+// STORY MODE v2: chapter progression, tokens, blueprints, ability store.
 
-// ============================================================
-// STORY SKILL TREE
-// ============================================================
-// ── Skill Tree ────────────────────────────────────────────────────────────────
-// Layout: each branch has a root node(s), with child chains.
-// `requires` is a single parent nodeId (or null for root).
-// `requiresAny` is an array of alternative parents (unlocked if ANY is met).
-// The renderer builds the visual tree from these dependency relationships.
+// Skill tree. `requires` is one parent nodeId (null for roots). `requiresAny` is an array of
+// alternative parents. The renderer builds the visual tree from these.
 const STORY_SKILL_TREE = {
   mobility: {
     label: 'Mobility',
@@ -1093,7 +1043,7 @@ const STORY_SKILL_TREE = {
     label: 'Mastery',
     color: '#cc88ff',
     icon: '🌀',
-    // Root requires any tier-2 node from another branch (gate behind progression)
+    // Root requires any tier-2 node from another branch, so progression gates it.
     nodes: [
       { id: 'masterRoot',     name: 'Fragment Sync',        desc: 'Reduces all ability cooldowns by 15%',      expCost: 100, requires: null, requiresAny: ['heavyHit2','tankier2','fastMove2'] },
       { id: 'fragmentHunger', name: 'Fragment Hunger',      desc: 'Each kill: +8% damage stacked (max 5 kills, resets on death)', expCost: 130, requires: 'masterRoot' },
@@ -1103,10 +1053,9 @@ const STORY_SKILL_TREE = {
   },
 };
 
-// ── Per-weapon mastery (God of War style) ──────────────────────────────────────
-// One uniform ladder applied per weapon; purchases live in _story2.weaponSkills[weaponKey].
-// EXP is the shared pool (_story2.exp). Effects route through existing hooks:
-// damage → storyPlayerOverride.dmgMult, HP → _applySkillTreeToPlayer, Q cooldown → Fighter.ability().
+// One ladder for every weapon, bought per weapon in _story2.weaponSkills[weaponKey]. EXP is the
+// shared pool. Effects route through existing hooks: damage via storyPlayerOverride.dmgMult, HP via
+// _applySkillTreeToPlayer, Q cooldown via Fighter.ability().
 const STORY_WEAPON_MASTERY = [
   { id: 'honed1',     name: 'Honed Edge I',   desc: '+12% damage with this weapon',                expCost: 30,  requires: null },
   { id: 'honed2',     name: 'Honed Edge II',  desc: '+22% damage total with this weapon',          expCost: 55,  requires: 'honed1' },
@@ -1142,7 +1091,6 @@ function _weaponMasteryCdMult(weaponKey) {
 function _applySkillTreeToPlayer(p) {
   if (!p || !_story2.skillTree) return;
   const sk = _story2.skillTree;
-  // Jump
   p._storyJumpMult = 1.0 + (sk.highJump2 ? 0.25 : sk.highJump1 ? 0.15 : 0);
   if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
   // HP bonus (stacking tiers)
@@ -1154,10 +1102,8 @@ function _applySkillTreeToPlayer(p) {
   }
   // Per-weapon Q-ability cooldown scaling (consumed in Fighter.ability())
   p._weaponAbilityCdMult = _weaponMasteryCdMult(wKey);
-  // Speed
   const speedBonus = sk.fastMove3 ? 0.30 : sk.fastMove2 ? 0.20 : sk.fastMove1 ? 0.10 : 0;
   if (speedBonus > 0) p._storySpeedMult = 1.0 + speedBonus;
-  // Damage
   const dmgBonus = sk.heavyHit2 ? 0.25 : sk.heavyHit1 ? 0.15 : 0;
   if (dmgBonus > 0) p._storyDmgMult = 1.0 + dmgBonus;
   // Skill flags (consumed by game systems already checking _story2.skillTree)
@@ -1193,12 +1139,8 @@ function _storyUpdateExpDisplay() {
   if (el) el.textContent = `${_story2.exp || 0} EXP`;
 }
 
-// ── Core moves are never locked ───────────────────────────────────────────────
-// These used to be gated behind skill-tree purchases, so early chapters played
-// without Q, E, double jump, dodge or a class. That only made returning players
-// re-clearing a chapter for loot fight with half a moveset — the nodes are all
-// buyable anyway, so locking them added hassle and nothing else. They are now
-// granted on every save (old and new); the tree still renders them, marked owned.
+// Core moves are never locked. Every save gets them, since locking them made early chapters
+// unplayable without Q, E, double jump, dodge or a class. The tree still renders them, marked owned.
 const STORY_CORE_UNLOCKS = ['weaponAbility', 'superMeter', 'doubleJump', 'classUnlock'];
 function _applyStoryCoreUnlocks(sk) {
   if (!sk || typeof sk !== 'object') return sk;
@@ -1210,35 +1152,34 @@ function _defaultStory2Progress() {
   return {
     chapter:           0,       // index into STORY_CHAPTERS2 (next to play)
     tokens:            0,
-    exp:               0,       // EXP earned from kills — used for skill tree
+    exp:               0,       // EXP earned from kills, used for skill tree
     health:            null,    // persistent HP carried between walk→fight chapters (null = full)
-    lootTaken:         {},      // { 'chapterId:index': 1 } — one-time loot pickups already collected
-    cpResume:          null,    // { chId, x } — last rest checkpoint reached; a game-over Retry resumes there
+    lootTaken:         {},      // { 'chapterId:index': 1 }, one-time loot pickups already collected
+    cpResume:          null,    // { chId, x }, last rest checkpoint reached; a game-over Retry resumes there
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
-    skillTree:         _applyStoryCoreUnlocks({}), // { nodeId: true } — purchased skill nodes (core moves pre-granted)
-    weaponSkills:      {},      // { weaponKey: { nodeId: true } } — per-weapon mastery
+    skillTree:         _applyStoryCoreUnlocks({}), // { nodeId: true }, purchased skill nodes (core moves pre-granted)
+    weaponSkills:      {},      // { weaponKey: { nodeId: true } }, per-weapon mastery
     defeated:          [],      // chapter indices completed
     storyComplete:     false,
     runState:          { healthPct: 1, noDeathChain: 0 },
     metaUpgrades:      { damage: 0, survivability: 0, healUses: 0 },
-    // v3 hierarchy fields — added by migration for old saves
-    arcCollapsed:      {},      // { arcId: bool } — user-toggled arc collapse state
-    actExpanded:       {},      // { actIndex: bool } — user forced an out-of-range act open
-    branchFlags:       {},      // { [flagKey]: true } — choices made at branch chapters
+    // v3 hierarchy fields, added by migration for old saves
+    arcCollapsed:      {},      // { arcId: bool }, user-toggled arc collapse state
+    actExpanded:       {},      // { actIndex: bool }, user forced an out-of-range act open
+    branchFlags:       {},      // { [flagKey]: true }, choices made at branch chapters
     prologueSeen:      false,   // true after the Axiom/multiverse intro plays once
     tuesdaySeen:       false,   // true after the playable Tuesday cold open has run once
-    difficulty:        null,    // 'story' | 'normal' | 'challenge' | 'evolution' — null until picked (see STORY_DIFFICULTIES)
+    rejectLineSeen:    false,   // true after the "world rejects you" fight line has shown once
+    difficulty:        null,    // 'story' | 'normal' | 'challenge' | 'evolution', null until picked (see STORY_DIFFICULTIES)
     loadout:           { weapon: 'sword', cls: 'warrior' }, // story's own P1 pick, separate from Versus; either may be 'random'
     migrations:        { threshArc: true, trialChapters: true }, // one-time save migrations already applied (new saves need none)
   };
 }
 
-// One-time migration for the Thresh arc insertion (pre-expansion ids 117–120, v3.9.3).
-// Saved chapter/defeated values index into the EXPANDED chapter list, so the shift
-// amount is the expanded length of the arc4mv-thresh range. Only valid after
-// _expandStoryChaptersInPlace() has rebuilt STORY_ACT_STRUCTURE chapterRanges
-// (window.__SMB_STORY_EXPANDED). Returns true if it mutated the save.
+// One-time migration for the Thresh arc insertion (pre-expansion ids 117-120).
+// Saved indices point into the expanded list, so the shift is the expanded length of the
+// arc4mv-thresh range. Needs _expandStoryChaptersInPlace() to have run. Returns true if it changed the save.
 function _migrateStory2ThreshArc(p) {
   if (!p || typeof p !== 'object') return false;
   if (p.migrations && p.migrations.threshArc) return false;
@@ -1259,31 +1200,21 @@ function _migrateStory2ThreshArc(p) {
   return true;
 }
 
-// One-time migration for the two Trial chapters inserted into the multiverse arcs:
-// the Trial of Sense at id 106 (Null Space, before the Null duel) and the Trial of
-// Self-knowledge at id 117 (Fracture Coast, before the VAEL duel). Two separate
-// insertion points, so this is a two-step shift and NOT expressible as the single
-// contiguous-range shift _migrateStory2ThreshArc uses.
-//
-// Order matters: this must run AFTER _migrateStory2ThreshArc, because the
-// thresholds below (106 / 116) are post-Thresh-arc ids. A save old enough to need
-// both is brought into post-Thresh numbering first, then shifted again here.
-//
-// Trial chapters stay intact through expansion (origCh.trial takes the stay-intact
-// branch), so each adds exactly one entry and the shift is +1 / +2 flat.
+// One-time migration for the two Trial chapters: Sense at id 106 (before the Null duel) and
+// Self-knowledge at id 117 (before the VAEL duel). Two insertion points, so this is a two-step
+// shift, not the single contiguous shift used by _migrateStory2ThreshArc. Runs after it.
+// Trials stay intact through expansion, so each adds exactly one entry (+1 / +2 flat).
 function _migrateStory2TrialChapters(p) {
   if (!p || typeof p !== 'object') return false;
   if (p.migrations && p.migrations.trialChapters) return false;
-  // Unlike the Thresh migration this needs no expanded-structure lookup — the
-  // insertion points are fixed and each contributes exactly one chapter.
+  // No expanded-structure lookup needed: insertion points are fixed, one chapter each.
   const shift = id => (id >= 116 ? id + 2 : (id >= 106 ? id + 1 : id));
 
   if (typeof p.chapter === 'number') p.chapter = shift(p.chapter);
   if (Array.isArray(p.defeated)) {
     p.defeated = p.defeated.map(d => (typeof d === 'number' ? shift(d) : d));
   }
-  // lootTaken is keyed 'chapterId:index', so its chapter half shifts too or
-  // one-time pickups silently re-arm (or stay taken) on the wrong chapters.
+  // lootTaken is keyed 'chapterId:index', so its chapter half shifts too or pickups re-arm.
   if (p.lootTaken && typeof p.lootTaken === 'object') {
     const next = {};
     for (const k of Object.keys(p.lootTaken)) {
@@ -1297,10 +1228,8 @@ function _migrateStory2TrialChapters(p) {
   return true;
 }
 
-// `defeated` is keyed by chapter id (ch.id). Older saves/writers used the array
-// index; resolve any entry that is not a known id through STORY_CHAPTERS2[idx].id
-// so no progress is lost. Returns true if the list changed. Safe before the
-// registry exists (STORY_CHAPTERS2 is defined in smb-story-finalize.js).
+// `defeated` is keyed by ch.id. Older saves used array index, so unknown entries resolve through
+// STORY_CHAPTERS2[idx].id. Returns true if the list changed. Safe before the registry exists.
 function _migrateStory2DefeatedKeys(p) {
   if (!p || !Array.isArray(p.defeated) || typeof STORY_CHAPTERS2 === 'undefined' || !STORY_CHAPTERS2.length) return false;
   const ids = new Set(STORY_CHAPTERS2.map(c => c && c.id));
@@ -1333,15 +1262,12 @@ function _normalizeStory2Progress(data) {
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);
-  // Air Dash was removed from the tree. Drop the stale node from old saves and
-  // refund what it cost so the EXP isn't silently lost.
+  // Air Dash was removed from the tree. Drop the stale node and refund its cost.
   if (out.skillTree && out.skillTree.airDash) {
     delete out.skillTree.airDash;
     out.exp = (out.exp || 0) + 120;
   }
-  // Dodge Roll was removed from the tree along with the double-tap dash. It had
-  // been a free core unlock on every save, so there is nothing to refund —
-  // just drop the stale node.
+  // Dodge Roll was removed. It was a free core unlock, so there is nothing to refund.
   if (out.skillTree && out.skillTree.dodge) delete out.skillTree.dodge;
   _applyStoryCoreUnlocks(out.skillTree); // never locked, on old saves too
   if (data.weaponSkills && typeof data.weaponSkills === 'object') {
@@ -1351,9 +1277,7 @@ function _normalizeStory2Progress(data) {
     }
   }
   if (Array.isArray(data.defeated)) {
-    // Dedupe + drop stale/out-of-range ids. Past chapter renumberings left
-    // duplicate and beyond-range entries that inflated defeated.length (progress
-    // read 373/184 · 203%; playerPowerLevel also keys off this length).
+    // Dedupe and drop stale or out-of-range ids. Old renumberings left duplicates that inflated defeated.length.
     const _maxCh = (typeof STORY_CHAPTERS2 !== 'undefined' && STORY_CHAPTERS2.length) ? STORY_CHAPTERS2.length : Infinity;
     const _seen = {};
     out.defeated = data.defeated.filter(function(i) {
@@ -1373,12 +1297,13 @@ function _normalizeStory2Progress(data) {
   if (data.branchFlags && typeof data.branchFlags === 'object') out.branchFlags = Object.assign({}, data.branchFlags);
   if (typeof data.prologueSeen === 'boolean') out.prologueSeen = data.prologueSeen;
   if (typeof data.tuesdaySeen  === 'boolean') out.tuesdaySeen  = data.tuesdaySeen;
+  if (typeof data.rejectLineSeen === 'boolean') out.rejectLineSeen = data.rejectLineSeen;
   if (typeof data.difficulty === 'string' && STORY_DIFFICULTIES[data.difficulty]) out.difficulty = data.difficulty;
   if (data.loadout && typeof data.loadout === 'object') {
     if (typeof data.loadout.weapon === 'string') out.loadout.weapon = data.loadout.weapon;
     if (typeof data.loadout.cls    === 'string') out.loadout.cls    = data.loadout.cls;
   }
-  // Saves predating the migrations field have had no migrations applied — don't inherit the base defaults
+    // Saves without a migrations field have no migrations applied yet.
   out.migrations = (data.migrations && typeof data.migrations === 'object') ? Object.assign({}, data.migrations) : {};
   return out;
 }
@@ -1469,7 +1394,7 @@ function _saveStory2() {
   } catch(e) {}
 }
 
-// ── Act/Arc hierarchy helpers ─────────────────────────────────────────────────
+// Act/Arc hierarchy helpers
 function _getActForChapter(idx) {
   for (const act of STORY_ACT_STRUCTURE) {
     for (const arc of act.arcs) {
@@ -1497,40 +1422,31 @@ function _isArcUnlocked(arc) {
   const firstArc = STORY_ACT_STRUCTURE[0].arcs[0];
   if (arc.id === firstArc.id) return true;
 
-  // ── Saga builds ───────────────────────────────────────────────────────────
-  // The active saga's opening arc is always unlocked too. Its predecessor lives
-  // in the PREVIOUS saga and can never be cleared in this build, so without this
-  // a saga build has no reachable first chapter at all. No-ops on 'full'.
+  // The active saga's opening arc is always unlocked. Its predecessor lives in the previous saga and
+  // can't be cleared here, so without this a saga build has no reachable first chapter. No-op on 'full'.
   if (typeof sagaFirstArc === 'function' && !sagaIsFullBuild()) {
     const sFirst = sagaFirstArc();
     if (sFirst && arc.id === sFirst.id) return true;
   }
 
-  // Fallen God arc unlocks directly from Act V completion (not multiverse).
-  // This ensures the revelation lore fires before the Creator domain,
-  // removing the postgame/multiverse-completion dependency.
+  // Fallen God unlocks straight from Act V, so the revelation fires before the Creator domain.
   if (arc.id === 'arc5-godfall') {
     const actV = STORY_ACT_STRUCTURE.find(a => a.id === 'act5');
     if (actV) return _isArcComplete(actV.arcs[actV.arcs.length - 1]);
     return false;
   }
 
-  // Multiverse arcs (arc4mv-*) additionally require the Axiom Ship to be built.
-  // The trials were designed for a traveler with a stable vessel — not before.
+  // Multiverse arcs need the Axiom Ship. The trials assume a traveler with a stable vessel.
   if (arc.id && arc.id.startsWith('arc4mv')) {
-    // Every ship part is awarded by saga1 chapters (first hull at ch. 5). On a
-    // build that does not contain them the ship can never be built, which would
-    // lock the multiverse arcs forever — so the gate only applies when those
-    // chapters are actually reachable in this build.
+    // Ship parts come from saga1. If this build lacks them the ship can never be built, so only
+    // gate when those chapters are reachable.
     const _shipReachable = (typeof isChapterInActiveSaga !== 'function')
                         || isChapterInActiveSaga(5);
     if (_shipReachable && (!window.SHIP || !SHIP.built)) return false;
   }
 
-  // An arc is unlocked if all chapters in the previous arc are complete
-  // An arc is unlocked if all chapters in the previous arc are complete. A
-  // predecessor outside the active saga is unreachable in this build, so it
-  // gates nothing — treat it as satisfied.
+  // An arc unlocks when the previous arc is complete. A predecessor outside the active saga is
+  // unreachable in this build, so it counts as satisfied.
   const _prevOk = (prevArc) => {
     if (typeof sagaArcInActive === 'function' && !sagaArcInActive(prevArc)) return true;
     return _isArcComplete(prevArc);
@@ -1539,7 +1455,6 @@ function _isArcUnlocked(arc) {
     const act = STORY_ACT_STRUCTURE[ai];
     for (let ri = 0; ri < act.arcs.length; ri++) {
       if (act.arcs[ri].id === arc.id) {
-        // get previous arc
         if (ri > 0) return _prevOk(act.arcs[ri - 1]);
         if (ai > 0) {
           const prevAct = STORY_ACT_STRUCTURE[ai - 1];
@@ -1568,8 +1483,7 @@ function _toggleArcCollapse(arcId) {
   _renderChapterList();
 }
 
-// ── Armor application ─────────────────────────────────────────────────────────
-// Called for exploration chapter enemies that have armor defs in their spawn entry.
+// Armor for exploration enemies with armor defs in their spawn entry.
 function storyApplyArmor(fighter, armorArray) {
   if (!fighter || !armorArray || !armorArray.length) return;
   fighter.armorPieces = Array.isArray(fighter.armorPieces)
@@ -1579,8 +1493,7 @@ function storyApplyArmor(fighter, armorArray) {
   fighter._armorFlash = 12;
 }
 
-// ── Ability application at fight start ───────────────────────────────────────
-// Called from _onStoryFightStart() when storyModeActive and _activeStory2Chapter is set.
+// Ability application at fight start. Called from _onStoryFightStart() in story mode.
 function _applyStory2Abilities(p1) {
   if (!p1 || !_story2.unlockedAbilities.length) return;
   const ua = _story2.unlockedAbilities;
@@ -1588,7 +1501,6 @@ function _applyStory2Abilities(p1) {
   // Attach ability set for fast lookup in dealDamage / tick
   p1.story2Abilities = new Set(ua);
 
-  // Reset per-fight ability state
   storyAbilityState = {
     medkitUsed:      false,
     lastStandFired:  false,
@@ -1601,14 +1513,13 @@ function _applyStory2Abilities(p1) {
     shieldBashCd:    0,         // shield_bash2 cooldown (frames)
   };
 
-  // fracture_surge2: super charges 40% faster — set multiplier on fighter
+  // fracture_surge2: super charges 40% faster, set multiplier on fighter
   if (ua.includes('fracture_surge2')) {
     p1._superChargeMult = (p1._superChargeMult || 1) * 1.4;
   }
 }
 
-// ── Per-frame ability tick ─────────────────────────────────────────────────────
-// Called every frame from storyCheckEvents() when storyModeActive.
+// Per-frame ability tick. Called from storyCheckEvents() in story mode.
 function storyTickAbilities() {
   const p1 = players && players[0];
   if (!p1 || !p1.story2Abilities || p1.health <= 0) return;
@@ -1616,7 +1527,6 @@ function storyTickAbilities() {
   const ua  = p1.story2Abilities;
   const abs = storyAbilityState;
 
-  // Cool down timers
   if (abs.ghostStepCd  > 0) abs.ghostStepCd--;
   if (abs.shieldBashCd > 0) abs.shieldBashCd--;
 
@@ -1644,8 +1554,8 @@ function storyTickAbilities() {
     setTimeout(() => { if (p1.health > 0) p1.speed = baseSpeed; }, 5000);
   }
 
-  // medkit2: ability key (Q) heals 30% max HP once per match
-  // We intercept ability use via p1._story2AbilityPending flag set in Fighter.ability()
+    // medkit2: Q heals 30% max HP once per match. Intercepted via p1._story2AbilityPending,
+    // which Fighter.ability() sets.
   if (ua.has('medkit2') && !abs.medkitUsed && p1._story2AbilityPending) {
     p1._story2AbilityPending = false;
     abs.medkitUsed = true;
@@ -1668,12 +1578,9 @@ function storyTickAbilities() {
   }
 }
 
-// berserker_blood2 kill stacks: handled inside storyOnEnemyDeath in
-// smb-story-engine-frame.js. The wrapper that used to live here was dead code —
-// engine-frame.js loads later and its function declaration overwrote this one.
+// berserker_blood2 kill stacks live in storyOnEnemyDeath (smb-story-engine-frame.js).
 
-// ── Pre-fight store nag modal ─────────────────────────────────────────────────
-// Shows a modal with chapter warning + "Go to Store" / "Continue" when ch.storeNag set.
+// Pre-fight store nudge: a warning modal with 'Go to Store' / 'Continue' when ch.storeNag is set.
 const _seenStoreNagIds = new Set();
 function _showPreFightStoreNag(ch, onContinue) {
   // Only show once per chapter per session
@@ -1735,11 +1642,8 @@ function _showPreFightStoreNag(ch, onContinue) {
   };
 }
 
-// ── Death spirit ─────────────────────────────────────────────────────────────
-// On a story game over a spirit tells the player what happened: who landed the
-// last blow, with what, and how to answer it next time — plus where to go if
-// the fight was simply ahead of them (the skill tree, or coming back later).
-// Built from the attribution stamp dealDamage() leaves on every hit
+// Death spirit: on a story game over, say who landed the last blow, with what, and how to answer it,
+// plus where to go if the fight was simply ahead of them. Built from dealDamage()'s attribution stamp
 // (_lastAttacker / _lastAttackerFrame / _lastAttackerDmg).
 const _SPIRIT_WEAPON_TIPS = [
   [['sword', 'katana', 'glassblade', 'nullblade', 'voidblade'],
@@ -1842,7 +1746,7 @@ function _spiritPanelHTML(rep) {
     </div>`;
 }
 
-// ── Story retry screen ────────────────────────────────────────────────────────
+// Story retry screen
 function _showStory2RetryScreen(ch) {
   // Read the death NOW: the fighters still exist; by the next frame they may not.
   const _death = _storyBuildDeathReport(ch);
@@ -1978,7 +1882,7 @@ function _showStory2RetryScreen(ch) {
   });
 }
 
-// ── World System ─────────────────────────────────────────────────────────────
+// World System
 const STORY_WORLDS = {
   fracture: {
     id:       'fracture',
@@ -2015,7 +1919,7 @@ function getWorldForChapter(id) {
   return 'code';
 }
 
-// ── Multiverse Arc Definitions ────────────────────────────────────────────────
+// Multiverse Arc Definitions
 const STORY_ARCS = [
   { id: 'fracture', name: 'Fracture World',        range: [0,   59]  },
   { id: 'war',      name: 'War Echo',               range: [60,  119] },
@@ -2031,7 +1935,7 @@ function getStoryArc(id) {
   return null;
 }
 
-// ── Chapter definitions ───────────────────────────────────────────────────────
+// Chapter definitions
 
 function _storyExploreStyleForWorld(world) {
   const tag = String(world || '').toLowerCase();
@@ -2143,11 +2047,8 @@ function _promotePassiveStoryChapters() {
 }
 
 
-// ── Ability definitions for the store ────────────────────────────────────────
-// Blueprints are dropped as loot from specific chapter victories.
-// Non-blueprint abilities can be purchased directly with tokens.
+// Ability store definitions. Blueprints drop as loot from chapter victories. Other abilities cost tokens.
 const STORY_ABILITIES2 = {
-  // ── Blueprint-gated abilities (must find blueprint first) ──────────────────
   last_stand2: {
     name: 'Last Stand',
     desc: 'When HP < 15%, gain +60% speed and double damage for 8 seconds. One activation per match.',
@@ -2191,7 +2092,6 @@ const STORY_ABILITIES2 = {
     lore: 'The fragment was always absorbing. You learned to direct it.',
   },
   // (Impact Shield, Dimensional Patch, Fracture Surge, Void Step migrated to Skill Tree)
-  // ── New Act IV / Act V blueprint abilities ────────────────────────
   architects_resolve2: {
     name: 'Architects\' Resolve',
     desc: 'Once per match, when you would be defeated, automatically revive with 25% HP instead.',

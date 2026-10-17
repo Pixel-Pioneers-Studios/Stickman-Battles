@@ -1,55 +1,28 @@
 'use strict';
-// smb-attacktest-core.js — ATK sandbox state vars, proxy factory, live-player context, helpers, _atkDeal, _atkResetEffects
-// Depends on: smb-globals.js, smb-fighter.js, smb-combat.js
+// ATK sandbox state, proxy factory, live-player context, helpers, _atkDeal, _atkResetEffects.
+// Depends on: smb-globals.js, smb-fighter.js, smb-combat.js.
 
 'use strict';
 
-// ============================================================
-// ATTACK TEST SANDBOX  (smb-attacktest.js)
-// ============================================================
-// Two complementary systems:
-//
-// ── SYSTEM 1: ATTACK VIEWER GUI / CONSOLE ────────────────────
-// Preview every attack as a pure visual effect without spawning
-// boss characters.  Works in any running game mode.
-//
-//   Open the in-game console (type GAMECONSOLE), then:
-//   atk help
-//
-// ── SYSTEM 2: ADMIN CLASSES ──────────────────────────────────
-// Equip a player with a "kit" class that lets them personally
-// use boss/NPC attacks mapped to Q (ability) and E (super).
-//
-//   atk class creator  [p1|p2]   — equip Creator kit on a player
-//   atk class trueform [p1|p2]   — equip True Form kit
-//   atk class yeti     [p1|p2]   — equip Yeti kit
-//   atk class beast    [p1|p2]   — equip Forest Beast kit
-//   atk class off      [p1|p2]   — remove admin kit
-//
-// HOW TO ADD A NEW ATTACK:
-//   Add an entry to ATK_REGISTRY under the right class key:
-//   { label, desc, fn(ctx, target, opts) }
-//   ctx is a lightweight proxy object positioned at the firing
-//   player's location — NOT a real game entity, never rendered.
-// ============================================================
+// Attack test sandbox (smb-attacktest.js).
+// Attack viewer: preview any attack as a visual effect without spawning bosses.
+//   In the console (GAMECONSOLE), run: atk help
+// Admin kits: give a player boss or NPC attacks on Q (ability) and E (super).
+//   atk class creator|trueform|yeti|beast [p1|p2], or atk class off.
+// To add an attack, add an ATK_REGISTRY entry { label, desc, fn(ctx, target, opts) }.
+// ctx is a proxy at the firer's position. It is never rendered.
 
-// ─── Global sandbox state ─────────────────────────────────────
+// Global sandbox state
 let _atkSafeMode     = false;
 let _atkPauseBetween = true;
 let _atkSpeed        = 1.0;
 let _atkDamageScale  = 1.0;
 let _atkDemoRunning  = false;
 
-// ─── Proxy factory ────────────────────────────────────────────
-/**
- * Creates a lightweight context object that mimics just enough of Boss/TrueForm
- * for attack logic to run.  It is NEVER pushed into players[] so it is never
- * drawn, updated, or treated as a real entity.
- *
- * @param {boolean} isTF  – true → TrueForm-spec proxy, false → Creator Boss spec
- * @param {number}  [x]   – world-space x (defaults to arena centre)
- * @param {number}  [y]   – world-space y
- */
+// Proxy factory. Mimics just enough of Boss or TrueForm for attack logic.
+// Never pushed into players[], so it is never drawn or updated.
+// isTF: true for the TrueForm spec, false for the Creator Boss spec.
+// x, y: world position (defaults to arena centre).
 function _atkMakeProxy(isTF, x, y) {
   const px = x !== undefined ? x : GAME_W / 2;
   const py = y !== undefined ? y : 300;
@@ -65,7 +38,7 @@ function _atkMakeProxy(isTF, x, y) {
     // Identity flags
     isBoss: true,
     isTrueForm: !!isTF,
-    isProxy: true,       // used by cleanup logic
+    isProxy: true,       // cleanup checks this
     health: 9999,
     maxHealth: isTF ? 5000 : 3000,
     invincible: 99999,
@@ -91,7 +64,7 @@ function _atkMakeProxy(isTF, x, y) {
     // Methods
     cx()  { return this.x + this.w / 2; },
     cy()  { return this.y + this.h / 2; },
-    getPhase() { return 3; },  // always phase-3 so all attacks are available
+    getPhase() { return 3; },  // phase 3 so every attack is available
     platformAbove() { return null; },
     isEdgeDanger()  { return false; },
     _startAttackState(name, startFrames = 0, locked = false) {
@@ -109,16 +82,15 @@ function _atkMakeProxy(isTF, x, y) {
     },
   };
 
-  // Attach TrueForm._doSpecial if available, binding to proxy
+  // Borrow TrueForm's special methods, bound to the proxy
   if (isTF && typeof TrueForm !== 'undefined') {
     try {
-      // Borrow methods from TrueForm prototype
       const tfProto = TrueForm.prototype;
       if (tfProto._doSpecial)  proxy._doSpecial  = tfProto._doSpecial.bind(proxy);
       if (tfProto._pickSpecial) proxy._pickSpecial = tfProto._pickSpecial.bind(proxy);
-    } catch(_e) { /* graceful degradation */ }
+    } catch(_e) { /* missing methods are fine */ }
   }
-  // Attach Boss._bossFireSpecial if available
+  // Boss._bossFireSpecial, if present
   if (!isTF && typeof Boss !== 'undefined') {
     try {
       const bProto = Boss.prototype;
@@ -129,9 +101,9 @@ function _atkMakeProxy(isTF, x, y) {
   return proxy;
 }
 
-// ─── Live-player context (for admin kit) ──────────────────────
+// Live-player context for the admin kit.
 /**
- * Like _atkMakeProxy but position reads/writes delegate LIVE to `player`.
+ * Like _atkMakeProxy, but position reads and writes go to `player` live.
  * This means:
  *  - AOE effects always originate from the player's current location.
  *  - Teleport attacks (reality slash, portal teleport, etc.) actually move
@@ -216,43 +188,38 @@ function _atkMakePlayerCtx(player, isTF) {
   return ctx;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────
+// Helpers
 function _atkGetTarget() {
   if (typeof players === 'undefined') return null;
   return players.find(p => !p.isBoss && p.health > 0) || null;
 }
 
-// Get best target for a kit-equipped player: any live entity that isn't them
+// Best target for a kit-equipped player: any live entity other than the firer
 function _atkGetKitTarget(firingPlayer) {
   if (typeof players === 'undefined') return null;
   return players.find(p => p !== firingPlayer && p.health > 0) || null;
 }
 
-// Check if target is a teammate (should not be hit) for the current firer
+// Teammate check. Survival team mode with friendly fire off means teammates are not hit.
 function _atkIsTeammate(firingPlayer, target) {
   if (!firingPlayer || !target) return false;
   if (typeof survivalTeamMode === 'undefined' || !survivalTeamMode) return false;
   if (typeof survivalFriendlyFire !== 'undefined' && survivalFriendlyFire) return false;
-  // In survival team mode with friendly fire off, players on same team don't hit each other
-  // Players in players[] at same team index — P1+minions vs P2+minions
-  // Simple heuristic: same color/team as firingPlayer
   if (firingPlayer._teamId !== undefined && target._teamId !== undefined)
     return firingPlayer._teamId === target._teamId;
-  // Fallback: minions spawned by the same player share aggro target
   return false;
 }
 
-// Get all valid AOE targets for a kit-equipped player (excludes firer, dead, teammates)
+// Valid AOE targets for a kit-equipped player (no firer, dead, or teammates)
 function _atkGetAOETargets(firingPlayer) {
   if (typeof players === 'undefined') return [];
   return players.filter(p => p !== firingPlayer && p.health > 0 && !_atkIsTeammate(firingPlayer, p));
 }
 
-// Current kit firer — set in _atkKitFire so _atkDeal can use it as attacker
+// Current kit firer, set in _atkKitFire so _atkDeal can use it as the attacker
 let _atkCurrentFirer = null;
 
-// Mark a player as immune to GUI-triggered attacks for the duration of the attack (~20s max).
-// This prevents AOE attacks from damaging the player who triggered them.
+// Immune to GUI-triggered attacks for up to ~20s, so AOE cannot hit the player who fired it.
 function _atkSetGuiFirer(player) {
   if (!player) return;
   player._guiAttackImmune = true;

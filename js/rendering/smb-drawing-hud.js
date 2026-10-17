@@ -1,13 +1,9 @@
 'use strict';
-// smb-drawing-hud.js — Story subtitle, objective HUD, cinematic letterbox, story opponent name HUD
+// Story subtitle, objective HUD, cinematic letterbox and story name HUD.
 // Depends on: smb-globals.js, smb-data-arenas.js, smb-particles-core.js
 
-// Canvas fills 100vw × 100vh and canvas.width = window.innerWidth, so
-// getBoundingClientRect() CSS-pixel values map 1:1 to canvas coordinates.
-//
-// Called several times per frame (camera, story HUD, banners). Reading the rect
-// forces a synchronous layout, so it is cached and refreshed only when #hud
-// changes size, the window resizes, or at most once a second as a backstop.
+// Canvas is 100vw x 100vh with canvas.width = innerWidth, so CSS rect values map 1:1 to canvas coords.
+// Called several times a frame. Rect reads force layout, so the rect is cached and refreshed on resize (or once a second).
 let _hudGeomCache = null, _hudGeomFrame = -9999, _hudGeomWatched = false;
 function _hudGeom() {
   const f = typeof frameCount !== 'undefined' ? frameCount : 0;
@@ -44,10 +40,10 @@ function drawStorySubtitle() {
   const fontSize  = Math.round(cw * 0.022);
   const labelSize = Math.round(cw * 0.014);
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0); // guarantee screen-space regardless of caller transform state
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // screen space, whatever the caller's transform
   ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px "Segoe UI", Arial, sans-serif`;
   ctx.textAlign = 'center';
-  // Cache measureText width on the subtitle object — recompute only when text or font size changes
+  // Cache measureText width on the subtitle; recompute when text or font size changes
   const _measKey = text + '|' + fontSize;
   if (storyFightSubtitle._measuredFor !== _measKey) {
     storyFightSubtitle._measuredW   = ctx.measureText(text).width;
@@ -62,7 +58,6 @@ function drawStorySubtitle() {
   const bh = fontSize + padY * 2;
   const r  = bh / 2;
 
-  // guide label tab above the box
   if (isGuide) {
     ctx.font = `bold ${labelSize}px "Segoe UI", Arial, sans-serif`;
     const labelW = ctx.measureText('🧭 ' + speaker).width + 20;
@@ -88,7 +83,6 @@ function drawStorySubtitle() {
     ctx.shadowBlur = 0;
   }
 
-  // pill background
   ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px "Segoe UI", Arial, sans-serif`;
   ctx.globalAlpha = alpha * 0.82;
   ctx.fillStyle = isGuide ? 'rgba(40,15,70,0.92)' : 'rgba(0,0,0,0.78)';
@@ -114,7 +108,6 @@ function drawStorySubtitle() {
     ctx.arcTo(bx, by + bh, bx, by + bh - r, r); ctx.lineTo(bx, by + r);
     ctx.arcTo(bx, by, bx + r, by, r); ctx.closePath(); ctx.stroke();
   }
-  // text
   ctx.globalAlpha = alpha;
   ctx.fillStyle   = isGuide ? '#ffffcc' : (color || '#ddeeff');
   ctx.shadowColor = isGuide ? '#ffee88' : (color || '#aaccff');
@@ -125,7 +118,6 @@ function drawStorySubtitle() {
   if (storyFightSubtitle.timer <= 0) storyFightSubtitle = null;
 }
 
-// ── Objective system ─────────────────────────────────────────────────────────
 function setObjective(text) {
   window.currentObjective = { text: text, completed: false };
   window.objectiveCompleteTimer = 0;
@@ -134,13 +126,13 @@ function setObjective(text) {
 function completeObjective() {
   if (!window.currentObjective || window.currentObjective.completed) return;
   window.currentObjective.completed = true;
-  window.objectiveCompleteTimer = 200; // show "COMPLETE" for ~3.3s
+  window.objectiveCompleteTimer = 200; // frames, ~3.3s
 }
 
 function drawObjectiveHUD() {
   if (!storyModeActive) return;
   if (!window.currentObjective && window.objectiveCompleteTimer <= 0) return;
-  if (typeof isCinematic !== 'undefined' && isCinematic) return; // hide during cinematics
+  if (typeof isCinematic !== 'undefined' && isCinematic) return;
 
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -151,11 +143,10 @@ function drawObjectiveHUD() {
   const label  = isComplete ? '✓ OBJECTIVE COMPLETE' : (window.currentObjective ? window.currentObjective.text : '');
   if (!label) { ctx.restore(); return; }
 
-  // Fade in/out
   let alpha = 1.0;
   if (isComplete) {
     window.objectiveCompleteTimer--;
-    alpha = Math.min(1.0, window.objectiveCompleteTimer / 30); // fade out in last 30 frames
+    alpha = Math.min(1.0, window.objectiveCompleteTimer / 30);
     if (window.objectiveCompleteTimer <= 0) { window.currentObjective = null; }
   }
 
@@ -173,17 +164,14 @@ function drawObjectiveHUD() {
   const py = hudH + fontSize + 10;
   const padX = 9, padH = fontSize + 10;
 
-  // Background pill
   ctx.fillStyle = isComplete ? 'rgba(30,120,50,0.82)' : 'rgba(5,8,22,0.78)';
   ctx.beginPath();
   ctx.roundRect(px - padX, py - padH / 2, tw + padX * 2, padH, 5);
   ctx.fill();
 
-  // Accent left bar
   ctx.fillStyle = isComplete ? '#44ee88' : '#4488ff';
   ctx.fillRect(px - padX, py - padH / 2, 3, padH);
 
-  // Text
   ctx.fillStyle = isComplete ? '#aaffcc' : '#c8d8ff';
   ctx.shadowColor = isComplete ? '#44ff88' : '#4466ff';
   ctx.shadowBlur  = isComplete ? 8 : 4;
@@ -191,10 +179,8 @@ function drawObjectiveHUD() {
   ctx.restore();
 }
 
-// ── Cinematic letterbox (top/bottom black bars) ───────────────────────────────
 function drawCinematicLetterbox() {
   if (typeof cinematicLetterboxAmt === 'undefined') return;
-  // Lerp toward target
   const lerpRate = 0.08;
   cinematicLetterboxAmt += (cinematicLetterboxTarget - cinematicLetterboxAmt) * lerpRate;
   if (Math.abs(cinematicLetterboxTarget - cinematicLetterboxAmt) < 0.001) cinematicLetterboxAmt = cinematicLetterboxTarget;
@@ -209,12 +195,10 @@ function drawCinematicLetterbox() {
   ctx.restore();
 }
 
-// ── Cinematic mode helpers ────────────────────────────────────────────────────
 function startCinematicMode() {
   if (typeof isCinematic !== 'undefined') isCinematic = true;
   if (typeof setCombatLock === 'function') setCombatLock('cinematic');
   if (typeof cinematicLetterboxTarget !== 'undefined') cinematicLetterboxTarget = 1;
-  // Hide debug overlays during cinematics
   if (typeof debugMode !== 'undefined') window._debugModePreCinematic = debugMode;
 }
 function endCinematicMode() {
@@ -227,9 +211,8 @@ function endCinematicMode() {
   }
 }
 
-// Picks the hostile the story banner should describe: the living enemy nearest
-// the player, across both the players[] slots and the minion pool (one-map story
-// levels spawn most of their enemies as minions, so players[1] alone is wrong).
+// Picks the hostile the story banner describes: nearest living enemy across players[] and the minion pool.
+// Minions matter because most one-map story enemies are minions.
 function _storyBannerTarget() {
   const hero = players && players[0];
   if (!hero) return null;
@@ -243,9 +226,7 @@ function _storyBannerTarget() {
     const d = Math.abs(e.cx() - hero.cx());
     if (d < bestD) { bestD = d; best = e; }
   }
-  // Hysteresis: with two enemies at similar range the raw nearest-check would
-  // strobe between them every few frames. Hold the current target until a rival
-  // is clearly closer (or the current one dies / leaves the fight).
+  // Hysteresis: keep the current target until a rival is clearly closer, or the current one dies or leaves.
   const held = _storyBannerTarget._held;
   if (held && held !== best && held.health > 0 && pool.indexOf(held) !== -1) {
     const heldD = Math.abs(held.cx() - hero.cx());
@@ -255,7 +236,7 @@ function _storyBannerTarget() {
   return best;
 }
 
-// ── Story opponent name HUD — small banner at top-right during story fights ───
+// Story opponent name banner, top right.
 function drawStoryOpponentHUD() {
   if (!storyModeActive) return;
   const p2 = _storyBannerTarget();
@@ -266,7 +247,7 @@ function drawStoryOpponentHUD() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
   const fontSize = Math.round(cw * 0.018);
-  // Named chapter opponent wins; otherwise fall back to whatever the enemy calls itself.
+  // Named chapter opponent wins, else the enemy's own name.
   const label    = (p2 === (players && players[1]) && storyOpponentName)
     ? storyOpponentName
     : (p2.name || storyOpponentName || 'Enemy');
@@ -274,12 +255,10 @@ function drawStoryOpponentHUD() {
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'middle';
   const tw  = ctx.measureText(label).width;
-  // py sits below the DOM HUD bar; _hudBottom() reads the actual rendered height
-  // so this stays correct if the HUD ever resizes.
+  // py sits below the DOM HUD bar. _hudBottom() reads the real height.
   const px  = cw - 16, py = _hudBottom() + fontSize + 6;
   const padX = 10, padH = fontSize + 10;
 
-  // Background pill
   ctx.globalAlpha = 0.78;
   ctx.fillStyle = 'rgba(10,5,25,0.85)';
   ctx.beginPath();
@@ -287,7 +266,6 @@ function drawStoryOpponentHUD() {
   ctx.roundRect(bx, py - bh / 2, bw, bh, bh / 2);
   ctx.fill();
 
-  // HP fraction bar under name
   const hpFrac = Math.max(0, p2.health / p2.maxHealth);
   const barH   = 3;
   ctx.globalAlpha = 0.55;
@@ -298,13 +276,11 @@ function drawStoryOpponentHUD() {
   ctx.fillStyle = hpColor;
   ctx.fillRect(bx, py + bh / 2 - barH, bw * hpFrac, barH);
 
-  // Name text
   ctx.globalAlpha = 0.95;
   ctx.fillStyle = '#dde4ff';
   ctx.shadowColor = '#6688ff'; ctx.shadowBlur = 6;
   ctx.fillText(label, px - padX, py + 1);
 
-  // Class label (small, below name pill)
   if (p2.charClass && p2.charClass !== 'none') {
     const clsName = (typeof CLASSES !== 'undefined' && CLASSES[p2.charClass])
       ? (CLASSES[p2.charClass].name || p2.charClass)
@@ -320,9 +296,7 @@ function drawStoryOpponentHUD() {
   ctx.restore();
 }
 
-// ── Hit Effectiveness HUD ─────────────────────────────────────────────────────
-// Phase threshold proximity + player combo streak feedback.
-// Reads boss/Sovereign HP each frame; no external hook required.
+// Hit effectiveness HUD: phase threshold proximity and combo streak. Reads boss or Sovereign HP each frame.
 
 const _hitfb = {
   bossHPprev  : null,
@@ -331,13 +305,12 @@ const _hitfb = {
   comboFlash  : 0,   // bright-flash frames on new hit
   phaseTimer  : 0,   // internal pulse clock
 };
-const _HFB_COMBO_WINDOW = 210; // ~3.5 s
+const _HFB_COMBO_WINDOW = 210; // frames, ~3.5s
 
 function drawHitEffectivenessHUD() {
   if (!gameRunning || (typeof isCinematic !== 'undefined' && isCinematic)) return;
 
-  // The combo read runs against a boss, or against the one opponent of a
-  // single human in a plain duel (Fight Ladder, Versus vs bot, Quick Fight).
+  // Runs against a boss, or the one opponent of a 1v1 duel (ladder, versus bot, quick fight).
   const boss = (typeof players !== 'undefined') && players && (
     players.find(p => (p.isBoss || p.isSovereignMK2) && p.health > 0) ||
     (players.length === 2 && players[0] && !players[0].isAI && players[1] && players[1].isAI && players[1].health > 0 ? players[1] : null));
@@ -347,7 +320,7 @@ function drawHitEffectivenessHUD() {
     return;
   }
 
-  // ── Combo detection: HP drop this frame = hit landed ─────────
+  // HP drop this frame means a hit landed.
   const curHP = boss.health;
   if (_hitfb.bossHPprev !== null && curHP < _hitfb.bossHPprev - 0.5) {
     _hitfb.comboCount++;
@@ -360,7 +333,7 @@ function drawHitEffectivenessHUD() {
   if (_hitfb.comboFlash > 0) _hitfb.comboFlash--;
   _hitfb.phaseTimer++;
 
-  // ── Phase threshold proximity (boss only, not Sovereign) ─────
+  // Phase thresholds (boss only, not Sovereign)
   const nearThresh = boss.isBoss && (() => {
     const th1 = boss.maxHealth * (2 / 3); // ~2000 (phase 1→2)
     const th2 = boss.maxHealth * (1 / 3); // ~1000 (phase 2→3)
@@ -377,7 +350,6 @@ function drawHitEffectivenessHUD() {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // ── Phase Threshold Indicator ─────────────────────────────────
   if (nearThresh) {
     const pulse = 0.55 + 0.45 * Math.sin(now / 260);
     const alpha = 0.78 * pulse;
@@ -406,7 +378,6 @@ function drawHitEffectivenessHUD() {
     ctx.fillText(label, cw / 2, ty);
   }
 
-  // ── Combo Feedback ────────────────────────────────────────────
   if (_hitfb.comboCount >= 2 && _hitfb.comboTimer > 0) {
     const flashBoost = _hitfb.comboFlash > 0 ? (_hitfb.comboFlash / 16) * 0.35 : 0;
     const fadeRatio  = Math.min(1, _hitfb.comboTimer / 55);
@@ -446,7 +417,6 @@ function drawHitEffectivenessHUD() {
   ctx.restore();
 }
 
-// ── Match Announcer ──────────────────────────────────────────────────────────
 let _announcerMsg = null; // {text, color, timer, maxTimer}
 
 function queueAnnouncement(text, color) {
@@ -482,18 +452,10 @@ function drawMatchAnnouncer() {
 }
 
 
-// ── Explore minimap ───────────────────────────────────────────────────────────
-// A thin strip showing the whole level outline: platforms, the player, hostile
-// foes, the exit, rest/fight checkpoints and caches the player has already seen.
-// Explore worlds run 3000-9000px; the camera shows ~900 of it, so without this
-// the only sense of where you are is the progress bar. Drawn on canvas in the
-// HUD layer (screen space), top-left under the DOM HUD. M toggles it; it is on
-// by default only in levels wider than 1.5 screens. An explicit M choice is
-// remembered (localStorage 'smb_minimap': '1' on everywhere, '0' off everywhere).
-//
-// drawEdgeIndicators (smb-menu-utils.js) reads window._hudAvoid — the canvas-space
-// rects this strip and the sidequest tracker occupy — so off-screen arrows never
-// land on top of them.
+// Explore minimap: a thin strip of the whole level (platforms, player, foes, exit, checkpoints, caches).
+// Explore worlds are 3000-9000px wide and the camera shows ~900, so this is the only overview.
+// Screen space, top-left under the DOM HUD. M toggles it. Default on for levels wider than 1.5 screens; the choice is saved in localStorage 'smb_minimap'.
+// drawEdgeIndicators (smb-menu-utils.js) reads window._hudAvoid so arrows don't land on this strip.
 const _MM = { sig: '', path: null, yMin: 0, yMax: 560, pref: undefined };
 function _mmLoadPref() {
   if (_MM.pref !== undefined) return _MM.pref;
@@ -558,7 +520,6 @@ function drawExploreMinimap() {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textBaseline = 'alphabetic';
-  // Plate
   ctx.globalAlpha = 1;
   ctx.fillStyle = 'rgba(8,10,16,0.62)';
   ctx.beginPath(); ctx.roundRect(bx, by, W, H + PADY + 6, 3); ctx.fill();
@@ -572,17 +533,15 @@ function drawExploreMinimap() {
   ctx.fillText('M', bx + W - PADX, by + 10);
 
   ctx.translate(bx + PADX, by + PADY);
-  // Platforms
   ctx.strokeStyle = 'rgba(150,165,190,0.62)'; ctx.lineWidth = 1;
   ctx.stroke(_MM.path);
 
-  // Checkpoints: fight gates and rest beacons; passed ones go muted green.
+  // Fight gates and rest beacons. Passed ones go muted green.
   for (const cp of (exploreCheckpoints || [])) {
     const x = Math.round(tx(cp.x)) + 0.5, h = cp.rest ? 4 : 7;
     ctx.strokeStyle = cp.hit ? 'rgba(150,196,160,0.85)' : 'rgba(205,210,222,0.42)';
     ctx.beginPath(); ctx.moveTo(x, ih - h); ctx.lineTo(x, ih); ctx.stroke();
   }
-  // Exit
   if (exploreGoalX > 0 && exploreGoalX < L + 400) {
     const x = Math.round(tx(exploreGoalX)) + 0.5;
     const col = exploreGoalFound ? 'rgba(235,225,160,0.95)' : 'rgba(214,176,98,0.9)';
@@ -590,7 +549,7 @@ function drawExploreMinimap() {
     ctx.beginPath(); ctx.moveTo(x, 2); ctx.lineTo(x, ih); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - 3, 2); ctx.lineTo(x + 3, 2); ctx.lineTo(x, 6); ctx.closePath(); ctx.fill();
   }
-  // Caches the player has actually come near (or opened). Hidden ones stay hidden.
+  // Only caches the player has come near or opened.
   for (const it of (explorePickups || [])) {
     if (it.type !== 'chest') continue;
     if (!it._seen && !it.collected && Math.abs(p1.cx() - it.x) < 420) it._seen = true;
@@ -611,7 +570,6 @@ function drawExploreMinimap() {
       if (m.done) { ctx.fillStyle = 'rgba(120,160,156,0.55)'; ctx.fill(); }
     }
   }
-  // Hostiles
   ctx.fillStyle = 'rgba(204,104,92,0.95)';
   const dot = f => {
     if (!f || f === p1 || !(f.health > 0)) return;
@@ -620,7 +578,6 @@ function drawExploreMinimap() {
   };
   if (typeof minions !== 'undefined') minions.forEach(dot);
   for (const p of players) if (p !== p1 && p.storyFaction === 'enemy') dot(p);
-  // Player
   const px = Math.round(tx(p1.cx())), py = Math.min(ih - 3, Math.round(ty(p1.y + p1.h)));
   ctx.fillStyle = '#eaf0fa';
   ctx.fillRect(px - 1, py - 5, 2, 5);

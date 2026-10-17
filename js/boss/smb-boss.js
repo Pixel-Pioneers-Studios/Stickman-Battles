@@ -1,8 +1,6 @@
 'use strict';
 
-// ============================================================
-// BOSS  (special Fighter — 3× HP, gauntlet weapon, ½ cooldowns)
-// ============================================================
+// Boss: a Fighter with 3x HP, a gauntlet, and half cooldowns. Three phases.
 class Boss extends Fighter {
   constructor() {
     const noCtrl = { left:null, right:null, jump:null, attack:null, ability:null, super:null };
@@ -10,39 +8,33 @@ class Boss extends Fighter {
     this.name           = 'CREATOR';
     this.health         = 3000;
     this.maxHealth      = 3000;
-    this.w              = 33;   // double Fighter hitbox width
-    this.h              = 90;  // double Fighter hitbox height
-    this.drawScale      = 1.5;    // visual 2× scale in draw()
+    this.w              = 33;   // double Fighter width
+    this.h              = 90;  // double Fighter height
+    this.drawScale      = 1.5;    // visual scale in draw()
     this.isBoss         = true;
     this.lives          = 1;
     this.spawnX         = 450;
     this.spawnY         = 200;
     this.playerNum      = 2;
-    // Boss combat modifiers
     this.kbResist       = 0.5;  // takes half knockback
     this.kbBonus        = 1.5;  // deals 1.5x knockback
     this.attackCooldownMult = 0.5;
-    this.superChargeRate = 1.7;   // charges super 1.7× faster
-    // Gauntlet weapon (single weapon only)
+    this.superChargeRate = 1.7;   // charges super 1.7x faster
     this.weaponKey      = 'gauntlet';
     this.weapon         = WEAPONS['gauntlet'];
-    // NOTE: all cooldowns below are in AI TICKS (updateAI runs every 15 frames).
-    // 1 AI tick = 15 frames. To get seconds: ticks × 15 / 60.
-    // Minion spawning
-    this.minionCooldown = 20;   // 20 ticks = 300 frames = ~5 s initial
-    // Beam attacks
-    this.beamCooldown   = 28;   // 28 ticks = 420 frames = ~7 s initial
+    // Cooldowns below are in AI ticks (updateAI runs every 15 frames).
+    this.minionCooldown = 20;   // 20 ticks, ~5 s initial
+    this.beamCooldown   = 28;   // 28 ticks, ~7 s initial
     // Teleport
     this.teleportCooldown = 0;
-    this.teleportMaxCd    = 60; // 60 ticks = 900 frames = ~15 s
+    this.teleportMaxCd    = 60; // 60 ticks, ~15 s
     this.postTeleportCrit = 0;
     this.forcedTeleportFlash = 0;
     // Spike attacks
-    this.spikeCooldown  = 24;   // 24 ticks = 360 frames = ~6 s initial
-    // Post-special pause (in AI ticks; 1 tick ≈ 0.25 s)
+    this.spikeCooldown  = 24;   // 24 ticks, ~6 s initial
+    // Post-special pause, in AI ticks (1 tick ~ 0.25 s)
     this.postSpecialPause = 0;
-    // Melee pressure window opened when a recovery ends — no further special may
-    // be queued until it runs out, so recoveries can never chain back to back.
+    // Melee pressure window after a recovery. No special can queue until it ends, so recoveries never chain.
     this._pressureTicks   = 0;
     // Monologue tracking
     this.phaseDialogueFired = new Set();
@@ -50,29 +42,23 @@ class Boss extends Fighter {
     this._lastPhase         = 1; // track phase transitions for animation triggers
     // Aggression system + player intelligence
     this._idleTicks       = 0;   // forces a special after 12 ticks (3s)
-    this._runAwayTicks    = 0;   // tracks player fleeing behaviour
-    this._stillTimer      = 0;   // tracks player standing still
+    this._runAwayTicks    = 0;   // player fleeing
+    this._stillTimer      = 0;   // player standing still
     this._lastTargetX     = -999;
-    // New special cooldowns
     this._gravPulseCd     = 0;   // Gravity Pulse
     this._stormCd         = 0;   // Meteor Storm
     this._groundSlamCd    = 0;   // Ground Slam
-    // Pending (deferred) attacks — set warning, delay damage by N frames
+    // Deferred attacks: warning first, damage after N frames.
     this._pendingGroundSlam = null; // { timer, x, y }
     this._pendingGravPulse  = null; // { timer }
-    this._prevHealth        = 3000; // for stagger accumulation tracking
-    this._cinematicFired    = new Set(); // HP-threshold mid-fight cinematics already triggered
+    this._prevHealth        = 3000; // for stagger tracking
+    this._cinematicFired    = new Set(); // HP-threshold cinematics already played
   }
 
   getPhase() {
-    // Thresholds are PROPORTIONAL, which is what the original comments describe
-    // ("> 66% HP", "33-66% HP"). They used to be the absolute numbers 2000/1000,
-    // which only match those percentages at exactly 3000 max HP — and the boss is
-    // routinely not 3000. True Creator is 4500, and the 2-player boss multiplies
-    // health by another 1.5. At 4500 the old numbers made phase 1 last from 100%
-    // down to 44% — over half the fight spent in the phase with no beams, no
-    // minions and no spikes, which is why the opening drags and beams often never
-    // appeared at all. At the 2P value (6750) phase 1 covered 70% of the bar.
+    // Thresholds are proportional, so they hold at any max HP (True Creator is 4500,
+    // and 2P multiplies by 1.5). Absolute 2000/1000 would stretch phase 1 too far.
+    // The old absolute numbers left phase 1 covering over half the fight with no beams, minions or spikes.
     const max = this.maxHealth > 0 ? this.maxHealth : 3000;
     const pct = this.health / max;
     if (pct > 2 / 3) return 1;
@@ -80,11 +66,8 @@ class Boss extends Fighter {
     return 3;
   }
 
-  // Recovery after a special, in AI ticks. Phase 3 buys roughly twice as many
-  // specials as phase 1 (cdScale 0.55, plus spikes and double-rate beams), so a
-  // flat cost meant the later the phase the less the boss could do: measured off
-  // smb_replay_creator_2026-09-06 its melee fell from 25 to 11 swings/min and its
-  // damage output peaked in phase 2. The cost now shrinks as the cadence rises.
+  // Recovery after a special, in AI ticks. The cost shrinks in later phases, which
+  // fire more specials. A flat cost made the boss weaker as the fight went on.
   _chargeRecovery(ticks) {
     const phase = this.getPhase();
     const scale = phase === 3 ? 0.55 : phase === 2 ? 0.8 : 1;
@@ -96,30 +79,28 @@ class Boss extends Fighter {
     if (this.backstageHiding) return;
     if (this.postPortalAttackBlock > 0) return; // can't attack for 1s after portal exit
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
-    // Gauntlet is melee-only — start swing, damage delivered via weapon-tip hitbox
+    // Gauntlet is melee only. Damage comes from the weapon-tip hitbox.
     if (dist(this, target) < this.weapon.range * 1.4) { this.weaponHit = false; this.swingHitTargets.clear(); }
     this.cooldown    = Math.max(1, Math.ceil(this.weapon.cooldown * (this.attackCooldownMult || 0.5)));
     this.attackTimer = this.attackDuration;
   }
 
-  // Override ability: half cooldown + 1.5s post-special pause
+  // Ability: half cooldown, then a short post-special pause.
   ability(target) {
-    if (this.postPortalAttackBlock > 0) return; // can't use ability for 1s after portal exit
+    if (this.postPortalAttackBlock > 0) return; // no abilities for 1s after portal exit
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     this.weapon.ability(this, target);
     this.abilityCooldown  = Math.max(1, Math.ceil(this.weapon.abilityCooldown * (this.attackCooldownMult || 0.5)));
     this.attackTimer      = this.attackDuration * 2;
-    this._chargeRecovery(3); // 3 ticks = 45 frames = 0.75s pause after void slam ability
+    this._chargeRecovery(3); // 3 ticks, ~0.75 s after the void slam
   }
 
-  // Override AI: phase-based, more aggressive, respects shield cooldown
+  // Phase-based, more aggressive, respects the shield cooldown.
   updateAI() {
-    if (activeCinematic || gameFrozen) return; // freeze during cinematics / freeze frames
+    if (activeCinematic || gameFrozen) return; // freeze during cinematics and freeze frames
 
-    // Backstage watchdog: bossTeleport restores via setTimeouts that bail when
-    // gameRunning flickers false (fake crash, round end). If the boss has been
-    // hidden too long (normal window is 2.5s), force-restore — never strand an
-    // invisible invincible boss.
+    // Watchdog: bossTeleport's setTimeouts can bail if gameRunning flickers, which
+    // would strand an invisible boss. Force-restore after the 2.5 s hide window.
     if (this.backstageHiding) {
       this._backstageWatchdog = (this._backstageWatchdog || 0) + 1;
       if (this._backstageWatchdog > 300) {
@@ -136,13 +117,12 @@ class Boss extends Fighter {
 
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
-    if (bossStaggerTimer > 0) return; // stunned — vulnerability window
-    // Post-special pause: boss moves but doesn't attack for 1.5s after specials.
-    // When one ends, a melee pressure window opens that blocks the next special,
-    // so recovery can never occupy more than pause/(pause+pressure) of the fight.
+    if (bossStaggerTimer > 0) return; // stunned, so vulnerable
+    // Post-special pause: the boss moves but doesn't attack. A melee pressure window
+    // follows, so recovery never takes more than pause/(pause+pressure) of the fight.
     if (this.postSpecialPause > 0) {
       this.postSpecialPause--;
-      if (this.postSpecialPause <= 0) this._pressureTicks = 6; // 6 ticks = 90 frames = 1.5s
+      if (this.postSpecialPause <= 0) this._pressureTicks = 6; // 6 ticks, ~1.5 s
     } else if (this._pressureTicks > 0) {
       this._pressureTicks--;
     }
@@ -153,7 +133,7 @@ class Boss extends Fighter {
       this._dominanceMoment(this.target);
     }
 
-    // In 2P boss mode, always target the nearest alive human player
+    // 2P boss mode: target the nearest living human.
     if (gameMode === 'boss' && bossPlayerCount === 2) {
       let nearDist = Infinity, nearP = null;
       for (const p of players) {
@@ -165,16 +145,16 @@ class Boss extends Fighter {
     }
 
     const phase   = this.getPhase();
-    // Phase transition animations
+    // Phase transition.
     if (phase > this._lastPhase) {
       this._lastPhase = phase;
       if (settings.screenShake) screenShake = Math.max(screenShake, 20);
       if (settings.phaseFlash)  bossPhaseFlash = 50;
-      this.postSpecialPause = Math.max(this.postSpecialPause, 8); // 8 ticks = 120 frames = 2s cinematic pause
+      this.postSpecialPause = Math.max(this.postSpecialPause, 8); // 8 ticks, ~2 s cinematic pause
       triggerPhaseTransition(this, phase);
     }
 
-    // ── Mid-fight HP cinematics ───────────────────────────────
+    // Mid-fight HP cinematics.
     const _hpPct = this.health / this.maxHealth;
     if (!this._cinematicFired.has('75') && _hpPct <= 0.75) {
       this._cinematicFired.add('75');
@@ -182,7 +162,7 @@ class Boss extends Fighter {
       startCinematic(_makeBossWarning75Cinematic(this));
       return;
     }
-    // Foreshadowing: at 50% HP Boss punches Paradox out of the arena (one-time scripted moment)
+    // At 50% HP the boss punches Paradox out of the arena. Plays once.
     if (!this._cinematicFired.has('paradox50') && _hpPct <= 0.50) {
       this._cinematicFired.add('paradox50');
       if (typeof triggerBossParadoxPunch === 'function') triggerBossParadoxPunch();
@@ -200,13 +180,13 @@ class Boss extends Fighter {
       return;
     }
 
-    // Phase-based stats — hyper aggressive, always pressing attack
+    // Phase stats. Always pressing.
     const _worldAggro = Math.max(0.25, this._aggroBoost || 1);
     const spd     = (phase === 3 ? 6.8 : phase === 2 ? 5.8 : 5.0) * _worldAggro;
     const atkFreq = Math.min(1, (phase === 3 ? 0.95 : phase === 2 ? 0.80 : 0.60) * _worldAggro);
     const abiFreq = Math.min(1, (phase === 3 ? 0.18 : phase === 2 ? 0.10 : 0.05) * _worldAggro);
 
-    // Count down post-teleport crit window and attack block
+    // Count down the post-teleport crit window and attack block.
     if (this.postTeleportCrit > 0) this.postTeleportCrit--;
     if (this.postPortalAttackBlock > 0) this.postPortalAttackBlock--;
     if (this.forcedTeleportFlash > 0) this.forcedTeleportFlash--;
@@ -220,7 +200,7 @@ class Boss extends Fighter {
     const d   = Math.abs(dx);
     const dir = dx > 0 ? 1 : -1;
 
-    // Lava / void floor — flee toward elevated platforms
+    // Lava or void floor: flee to elevated platforms.
     if (currentArena.hasLava) {
       const distToLava = currentArena.lavaY - (this.y + this.h);
       if (distToLava < 110) {
@@ -240,7 +220,7 @@ class Boss extends Fighter {
       }
     }
 
-    // Flee floor during void warning/hazard
+    // Flee the floor during a void warning or hazard.
     const floorDanger = currentArena.isBossArena &&
       (bossFloorState === 'hazard' || (bossFloorState === 'warning' && bossFloorTimer < 90)) &&
       this.y + this.h > 440;
@@ -250,7 +230,7 @@ class Boss extends Fighter {
       return;
     }
 
-    // ── Player intelligence ──────────────────────────────────
+    // Player intelligence.
     const playerMoved = Math.abs(t.cx() - this._lastTargetX) > 8;
     this._stillTimer  = playerMoved ? 0 : this._stillTimer + 1;
     this._lastTargetX = t.cx();
@@ -260,12 +240,12 @@ class Boss extends Fighter {
     this._runAwayTicks  = (playerFleeing && playerFar) ? this._runAwayTicks + 1
                                                         : Math.max(0, this._runAwayTicks - 2);
 
-    // ── Tick new special cooldowns ────────────────────────────
+    // Tick the new special cooldowns.
     if (this._gravPulseCd  > 0) this._gravPulseCd--;
     if (this._stormCd      > 0) this._stormCd--;
     if (this._groundSlamCd > 0) this._groundSlamCd--;
 
-    // ── Aggression timer — force a special every 3 s of idle ─
+    // Aggression timer: force a special every 3 s of idle.
     this._idleTicks++;
     const cdScale      = phase === 3 ? 0.55 : phase === 2 ? 0.75 : 1.0;
     const specialFreq  = phase === 3 ? 0.10 : phase === 2 ? 0.055 : 0.025;
@@ -273,16 +253,16 @@ class Boss extends Fighter {
     if (canSpecial && (this._idleTicks >= 8 || Math.random() < specialFreq)) {
       const fired = this._bossFireSpecial(phase, t, d, fullD_pre, cdScale);
       if (fired) { this._idleTicks = 0; this._chargeRecovery(3); return; }
-      if (this._idleTicks >= 12) this._idleTicks = 8; // nothing available yet — back off slightly
+      if (this._idleTicks >= 12) this._idleTicks = 8; // nothing available yet, so back off a bit
     }
 
-    // State machine — use horizontal distance for attack range (boss should attack even when player jumps above)
+    // Attack range uses horizontal distance, so the boss still attacks when the player jumps above.
     const fullD = fullD_pre;
-    if (d < this.weapon.range * 3.5) this.aiState = 'attack'; // wide horizontal trigger
+    if (d < this.weapon.range * 3.5) this.aiState = 'attack'; // wide trigger
     else if (this.health < 120 && fullD > 160 && Math.random() < 0.008) this.aiState = 'evade';
     else this.aiState = 'chase';
 
-    // Reactive shield (respects cooldown) — responds to both attacks AND incoming bullets
+    // Reactive shield, respects its cooldown. Answers attacks and incoming bullets.
     if (this.shieldCooldown === 0) {
       const incomingBullet = projectiles.some(pr =>
         pr.owner !== this && Math.hypot(pr.x - this.cx(), pr.y - this.cy()) < 160 &&
@@ -309,10 +289,10 @@ class Boss extends Fighter {
 
     const edgeDanger = this.isEdgeDanger(dir);
 
-    // If player is significantly below boss, walk off platform edge to chase them down
+    // Player well below: walk off the edge to chase.
     const playerBelow = t.y > this.y + this.h + 30;
     if (playerBelow && this.onGround && Math.abs(dx) < 120 && Math.random() < 0.08) {
-      this.vx = dir * spd; // walk toward edge so we fall off
+      this.vx = dir * spd; // walk toward the edge so we fall off
     }
 
     switch (this.aiState) {
@@ -327,7 +307,7 @@ class Boss extends Fighter {
         }
         break;
       case 'attack':
-        // Keep pressure on — always creep toward target even while attacking
+        // Keep pressure on, creeping toward the target even while attacking.
         if (d < 45) this.vx *= 0.78;
         else        this.vx = dir * spd * 0.7;
         if (canAct && Math.random() < atkFreq)       this.attack(t);
@@ -375,7 +355,7 @@ class Boss extends Fighter {
       }
     }
 
-    // Spike attacks — Phase 3 ONLY (ground spells)
+    // Spike attacks, phase 3 only.
     if (phase >= 3) {
       if (this.spikeCooldown > 0) {
         this.spikeCooldown--;
@@ -393,7 +373,7 @@ class Boss extends Fighter {
       }
     }
 
-    // Minion spawning — Phase 2+ ONLY
+    // Minion spawning, phase 2 and up.
     if (phase >= 2) {
       if (this.minionCooldown > 0) {
         this.minionCooldown--;
@@ -401,43 +381,37 @@ class Boss extends Fighter {
         const spawnX = Math.random() < 0.5 ? 60 : 840;
         const spawnY = 200;
         const mn     = new Minion(spawnX, spawnY);
-        // Stamp the boss's faction on the minion it just summoned. Without this the
-        // minion has no allegiance at all, so the moment the player dies
-        // _acquireAITarget() picks the nearest living entity — the boss — and the
-        // two spend the respawn window fighting each other. Same `_teamId`
-        // convention God's angels and Axiom's sentinels already use.
+        // Give the minion the boss's team. Without it, the minion targets the boss once the player dies.
         if (this._teamId === undefined) this._teamId = 51;
         mn._teamId   = this._teamId;
         mn.target    = players.find(p => !p.isBoss && p.health > 0 && !p.godmode) || players.find(p => !p.isBoss) || players[0];
         minions.push(mn);
         spawnParticles(spawnX, spawnY, '#bb00ee', 24);
         if (settings.screenShake) screenShake = Math.max(screenShake, 12);
-        this.minionCooldown = phase === 3 ? 20 : 36; // in AI ticks
+        this.minionCooldown = phase === 3 ? 20 : 36; // AI ticks
         showBossDialogue(randChoice(['I have associates.', 'Let them practice on you.', 'You wanted a crowd? Here.', 'Handle these first.']));
       }
     }
 
-    // Beam attacks — Phase 2+ ONLY
+    // Beam attacks, phase 2 and up.
     if (phase >= 2) {
       if (this.beamCooldown > 0) {
         this.beamCooldown--;
       } else if (canSpecial && t) {
         const numBeams = phase === 3 ? 4 : 2;
-        // 300 frames of warning is five seconds — long enough that the player has
-        // walked out and come back before the beam lands, which is why the volley
-        // never connected. 110 still clears the ~0.7s a full-stage reposition needs.
+        // Warning is 110 frames. A longer warning let players walk out and back before the beam landed.
         for (let i = 0; i < numBeams; i++) {
           const spread = (i - Math.floor(numBeams / 2)) * 95;
           const bx = clamp(t.cx() + spread + (Math.random() - 0.5) * 70, 40, 860);
           bossBeams.push({ x: bx, warningTimer: 110, activeTimer: 0, phase: 'warning', done: false });
         }
-        this.beamCooldown = phase === 3 ? 16 : 28; // in AI ticks
+        this.beamCooldown = phase === 3 ? 16 : 28; // AI ticks
         this._chargeRecovery(4);
         showBossDialogue(randChoice(['The arena remembers where you stood.', 'Light doesn\'t miss.', 'I\'m everywhere you aren\'t.', 'This is what \'nowhere\' looks like.']));
       }
     }
 
-    // HP-threshold monologue (fires once per threshold crossing) — scaled for 3000 HP
+    // HP-threshold monologue, one line per crossing. Scaled for 3000 HP.
     const hpLines = [
       { hp: 2999, text: 'Good. You showed up.' },
       { hp: 2600, text: 'That was yours. Enjoy it.' },
@@ -458,21 +432,20 @@ class Boss extends Fighter {
       }
     }
 
-    if (Math.random() < 0.025) this.aiReact = 2; // tighter reaction window than base AI
+    if (Math.random() < 0.025) this.aiReact = 2; // tighter reaction than base AI
   }
 
-  // ── Distance-routed special selector ──────────────────────────────────────
-  // Returns true if a special was fired.
+  // Distance-routed special selector. Returns true if a special fired.
   _bossFireSpecial(phase, t, d, fullD, cdScale) {
     const playerEdge  = t.x < 130 || t.x + t.w > GAME_W - 130;
     const playerAir   = !t.onGround;
     const playerStill = this._stillTimer > 8;
     const fleeing     = this._runAwayTicks > 5;
 
-    // ── Close range (< 130 px): Ground Slam — DEFERRED with telegraph ────────
+    // Close range (< 130 px): deferred Ground Slam with telegraph.
     if (d < 130 && this._groundSlamCd <= 0 && !this._pendingGroundSlam) {
       this._groundSlamCd = Math.ceil(18 * cdScale);
-      // Telegraph: pulsing red AOE circle + spike floor markers (45 frames ≈ 0.75s)
+      // Telegraph: pulsing red AOE circle and spike markers (45 frames).
       const slamX = this.cx(), slamY = this.y + this.h;
       bossWarnings.push({ type: 'circle', x: slamX, y: slamY, r: 160,
         color: '#ff2200', timer: 45, maxTimer: 45, label: 'SLAM!' });
@@ -488,10 +461,10 @@ class Boss extends Fighter {
       return true;
     }
 
-    // ── Medium range (130–300 px): Gravity Pulse — DEFERRED with telegraph ───
+    // Medium range (130-300 px): deferred Gravity Pulse with telegraph.
     if (d >= 80 && d < 320 && this._gravPulseCd <= 0 && !this._pendingGravPulse) {
       this._gravPulseCd = Math.ceil(28 * cdScale);
-      // Telegraph: expanding purple pull-radius ring (40 frames ≈ 0.67s)
+      // Telegraph: expanding purple pull ring (40 frames).
       bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(), r: 350,
         color: '#9900cc', timer: 40, maxTimer: 40, label: 'GRAVITY PULL!' });
       // Inner ring at boss to show pull origin
@@ -503,7 +476,7 @@ class Boss extends Fighter {
       return true;
     }
 
-    // ── Far range / player fleeing: Meteor Storm ─────────────
+    // Far range or player fleeing: Meteor Storm.
     if ((d >= 250 || fleeing) && phase >= 2 && this._stormCd <= 0) {
       this._stormCd = Math.ceil(32 * cdScale);
       const count = phase === 3 ? 8 : 5;
@@ -530,7 +503,7 @@ class Boss extends Fighter {
       return true;
     }
 
-    // ── Situational: player standing still → teleport behind ─
+    // Player standing still: teleport behind.
     if (playerStill && phase >= 2 && this.teleportCooldown <= 0 && !this.backstageHiding && d > 110) {
       bossTeleport(this);
       this.teleportCooldown = phase === 3 ? 26 : 46;
@@ -538,7 +511,7 @@ class Boss extends Fighter {
       return true;
     }
 
-    // ── Situational: player at edge → Gravity Pulse (deferred) ──────────────
+    // Player at the edge: deferred Gravity Pulse.
     if (playerEdge && this._gravPulseCd <= 0 && !this._pendingGravPulse) {
       this._gravPulseCd = Math.ceil(28 * cdScale);
       bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(), r: 350,
@@ -613,7 +586,7 @@ class Boss extends Fighter {
         }
       ]);
     } else {
-      // Fallback if director not available
+      // No director: fall back to a timer.
       setTimeout(() => { this._inDominance = false; }, 2000);
     }
   }
@@ -629,11 +602,9 @@ class Boss extends Fighter {
   }
 }
 
-// ============================================================
-// BACKSTAGE PORTAL HELPERS
-// ============================================================
+// Backstage portal helpers.
 function openBackstagePortal(cx, cy, type) {
-  // Reality-fracture shards drifting inside the rift (replaces the old code-rain).
+  // Reality-fracture shards drifting inside the rift.
   const shards = [];
   for (let _i = 0; _i < 26; _i++) {
     const ang = Math.random() * Math.PI * 2;
@@ -663,7 +634,7 @@ function drawBackstagePortals() {
     } else if (bp.phase === 'open') {
       bp.radius = bp.maxRadius;
       bp.openTimer = (bp.openTimer || 0) + 1;
-      if (bp.openTimer >= 300) bp.phase = 'closing'; // auto-close after 5s
+      if (bp.openTimer >= 300) bp.phase = 'closing'; // auto-close after 5 s
     } else if (bp.phase === 'closing') {
       bp.radius = Math.max(0, bp.radius - 2.8);
       if (bp.radius <= 0) { bp.done = true; continue; }
@@ -716,9 +687,7 @@ function drawBackstagePortals() {
   backstagePortals = backstagePortals.filter(bp => !bp.done);
 }
 
-// ============================================================
-// BOSS TELEPORT
-// ============================================================
+// Boss teleport.
 function bossTeleport(boss, isForced = false) {
   if (!currentArena || !boss) return;
   if (!isForced && boss.teleportCooldown > 0) return;
@@ -737,16 +706,16 @@ function bossTeleport(boss, isForced = false) {
   const oldY = boss.cy();
 
   if (!isForced) {
-    // === BACKSTAGE PORTAL TELEPORT (3-second animation) ===
+    // Backstage portal teleport (3 s animation).
     bossWarnings.push({ type: 'circle', x: oldX, y: oldY, r: 48, color: '#aa55ff', timer: 24, maxTimer: 24, label: 'GLITCH' });
     bossWarnings.push({ type: 'circle', x: destX + boss.w / 2, y: destY + boss.h / 2, r: 56, color: '#ff66aa', timer: 34, maxTimer: 34, label: 'ARRIVAL' });
     openBackstagePortal(oldX, oldY, 'entry');
     boss.backstageHiding = true;
     boss.invincible      = 9999;
-    boss.teleportCooldown = 60; // 60 ticks = 900 frames = 15s (in AI ticks)
+    boss.teleportCooldown = 60; // AI ticks, ~15 s
     boss.vx = 0;
     boss.vy = 0;
-    // Move boss off-screen so it cannot hit players during the portal animation
+    // Off screen, so the boss can't hit anyone during the animation.
     boss.x = -2000;
     boss.y = -2000;
 
@@ -766,7 +735,7 @@ function bossTeleport(boss, isForced = false) {
       boss.backstageHiding = false;
       boss.invincible      = 60;
       boss.postTeleportCrit = 120;        // 2s crit window
-      boss.postPortalAttackBlock = 60;    // boss can't attack for 1s after portal exit
+      boss.postPortalAttackBlock = 60;    // no attacks for 1 s after portal exit
       showBossDialogue(randChoice(['Behind you.', 'You were looking in the wrong place.', 'I was never there.', 'Try to keep up.']));
       // Close entry portal
       setTimeout(() => {
@@ -779,7 +748,7 @@ function bossTeleport(boss, isForced = false) {
     }, 2500);
 
   } else {
-    // Forced teleport: use portal animation (same as voluntary but faster — 1s total)
+    // Forced teleport: same portal animation as voluntary, but faster (1 s total).
     bossWarnings.push({ type: 'circle', x: oldX, y: oldY, r: 42, color: '#aa55ff', timer: 16, maxTimer: 16, label: 'SHIFT' });
     openBackstagePortal(oldX, oldY, 'entry');
     boss.backstageHiding = true;
@@ -937,7 +906,7 @@ const TF_ATTACK_REGISTRY = {
   multiverseFracture: { requiresTarget: true,  cooldownKey: '_multiverseCd' },
   supernova:          { requiresTarget: false, cooldownKey: '_supernovaCd' },
   dimension:          { requiresTarget: false, cooldownKey: '_dimensionCd' },
-  // ── Depth Phase Z-axis attacks (active only when tfDepthPhaseActive) ─────────
+  // Depth phase Z-axis attacks. Active only when tfDepthPhaseActive.
   depthPhaseShift:    { requiresTarget: true,  cooldownKey: '_depthPhaseShiftCd' },
   depthLayerFake:     { requiresTarget: true,  cooldownKey: '_depthLayerFakeCd'  },
   depthPunish:        { requiresTarget: true,  cooldownKey: '_depthPunishCd'     },
@@ -974,6 +943,4 @@ function getTrueFormAntiRangedBoss() {
   return players && players.find(p => p.isTrueForm && p.health > 0 && p._antiRangedTimer > 0) || null;
 }
 
-// ============================================================
-// TRUE FORM  (secret final boss — player-sized, void arena only)
-// ============================================================
+// TrueForm: secret final boss, player-sized, void arena only.

@@ -1,17 +1,10 @@
 'use strict';
-// smb-ui-controls.js — game-styled replacements for native form controls.
+// Styled stand-in for the native <select> in the menus: a stepper plate (◀ label ▶)
+// that opens a panel of option tiles.
 //
-// A native <select> is the single most obviously-a-web-page control left in the
-// menus. This replaces it visually with a stepper plate (◀ label ▶) that also
-// opens a panel of chunky option tiles.
-//
-// The original <select> is NOT removed — it stays in the DOM, visually hidden,
-// and remains the source of truth. The widget writes to `select.value` and
-// dispatches a real 'change' event, so the existing inline `onchange`
-// handlers and every bit of code that reads or writes `arenaSelect.value`
-// (story flow, designer, network sync) keeps working untouched.
-//
-// Depends on: nothing. Loaded last, after the menu DOM exists.
+// The <select> stays in the DOM as the source of truth. This writes select.value and
+// dispatches 'change', so existing onchange handlers and .value readers keep working.
+// Loaded last, after the menu DOM exists.
 
 const GAME_SELECT_IDS = [
   'arenaSelect', 'livesSelect',
@@ -39,9 +32,7 @@ function _gsOptions(sel) {
   return out;
 }
 
-// Arena rows get a two-tone chip built from that arena's own sky and platform
-// colours. It identifies the map the way the emoji used to, but it is the
-// map's actual palette rather than a stand-in glyph.
+// Arena rows get a chip in that arena's own sky and platform colours.
 function _gsSwatch(w, value) {
   if (w.sel.id !== 'arenaSelect') return '';
   if (typeof ARENAS === 'undefined') return '';
@@ -59,9 +50,8 @@ function _gsCommit(w, value) {
   _gsSync(w);
 }
 
-// Pull the current state back out of the <select>. Called after our own edits
-// and on a timer, because code elsewhere assigns `.value` directly and that
-// fires no event we could listen for.
+// Re-read state from the <select>. Needed because code elsewhere sets .value directly,
+// which fires no event.
 function _gsSync(w) {
   const opts = _gsOptions(w.sel);
   w.opts = opts;
@@ -152,10 +142,8 @@ function _gsBuild(sel) {
   root.appendChild(next);
   root.appendChild(panel);
 
-  // Carry the select's flex sizing across, but deliberately NOT its width:
-  // the widget adds two arrow buttons, so an authored width sized for a bare
-  // dropdown (livesSelect is 100px) would clip it. The surrounding grid's
-  // auto column sizes it correctly on its own.
+  // Carry over flex sizing but not width: the arrow buttons take room, and a fixed
+  // width (livesSelect is 100px) would clip them.
   const cs = getComputedStyle(sel);
   if (cs.flex && cs.flex !== '0 1 auto') root.style.flex = cs.flex;
 
@@ -191,9 +179,8 @@ function initGameSelects() {
     if (e.key === 'Escape') for (const w of _gameSelects) _gsClose(w);
   });
 
-  // Story flow, the designer and network sync all assign `.value` directly,
-  // which fires nothing. Poll while the menu is on screen — cheap, and it
-  // avoids patching every call site.
+  // Story flow, the designer and network sync set .value directly and fire no event,
+  // so poll while the menu is on screen.
   setInterval(() => {
     const menu = document.getElementById('menu');
     if (!menu || menu.style.display === 'none') return;

@@ -1,25 +1,13 @@
-// Void Mind arc — The Trial: "What Is Yours"
-// id 165 — inserted between reckoning 8 (ch.164) and the epilogue (ch.166).
+// Void Mind arc: The Trial, "What Is Yours". Chapter id 165, between reckoning 8 and the epilogue.
 //
-// The reckonings are over. The Void Mind has a complete map of everything Kael carries.
-// Its verdict: none of it is his. Fragment = the Void Mind's own radiation, redirected.
-// Classes = the echo of 94 dead bearers. Paradox's phantom blades = a ghost's weapon.
-// The kernel = Axiom's. God's essence = inherited. AbsAxiom's = absorbed, not earned.
+// The Void Mind's verdict: none of Kael's power is his. The fragment is its own radiation,
+// the classes echo 94 dead bearers, and the kernel and essences are inherited or absorbed.
+// It offers a vessel limited to raw capacity: no fragment, class powers, supers, or borrowed
+// essence. Only agility, strength, and battle IQ. The trial is a question, not a punishment.
 //
-// The Void Mind does not want Kael destroyed. It wants to know if there is anything
-// underneath all of that — anything that belongs only to him.
-// It offers a vessel: an imitation of itself, limited to the same raw capacity
-// that Kael is allowed to use. No fragment amplification. No class powers. No supers.
-// No borrowed essence. Only agility, strength, and battle IQ.
-//
-// If Kael wins, the Void Mind gets its answer. So does Kael.
-// The trial is not punishment. It is a question.
-//
-// Implementation note:
-//   strippedPowers: true  → smb-story-engine-flow.js reads this flag before spawning
-//                           the player's fighter and sets _storyStrippedPowers = true.
-//                           smb-story-engine-frame.js then zeroes super meter gain and
-//                           blocks class ability use for this chapter only.
+// strippedPowers: true is read by smb-story-engine-flow.js before the player fighter spawns,
+// which sets _storyStrippedPowers. smb-story-engine-frame.js then zeroes super gain and blocks
+// class abilities for this chapter only.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -101,8 +89,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentSuffix: '— an imitation, limited to raw capacity',
     weaponKey:   'combat',
     classKey:    null,
-    aiDiff:      'expert',   // was 8.5 — numeric never matches the string checks
-                             // in Fighter, which dropped tacticW to the easy-tier 0.18
+    aiDiff:      'expert',   // must be a string: Fighter's checks compare strings
     playerLives: 1,
     arena:       'void',
     strippedPowers: true,

@@ -1,19 +1,15 @@
 'use strict';
-// smb-paradox-class.js — Paradox entity class definition + global state variables
-// Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
+// Paradox entity class and global state.
+// Depends on: smb-globals.js.
 
-// ============================================================
-// PARADOX  — multiversal being (cinematic entity + revive system)
-// Visual only: no AI, no hitbox, not in players[]
-// ============================================================
+// Paradox: multiversal being. Visual only, no AI, no hitbox, not in players[].
 
-// ---- Global state ----------------------------------------
 let paradoxEntity        = null;  // active Paradox visual instance
 let paradoxReviveActive  = false; // paradox revive sequence running
 let paradoxReviveTimer   = 0;
 let paradoxRevivePlayer  = null;  // player being revived
 
-// ---- Opening fight state (player + Paradox vs TF for 1000 total damage) ----
+// Opening fight: player and Paradox vs TF, 1000 total damage.
 let tfOpeningFightActive   = false;
 let tfOpeningDamageDealt   = 0;     // total damage dealt to TF so far (free + scripted)
 let _tfOpeningParadoxAtkCd = 0;     // frames until next Paradox attack
@@ -24,21 +20,16 @@ let _tfOpeningDialogueFired = new Set(); // which scripted lines have been shown
 let _paradoxVx             = 0;    // smoothed horizontal velocity for Paradox movement
 let _tfOpeningHeroReactDelay = 0;  // frames hero has been in back-off zone (reaction delay)
 let _tfOpeningFreeFrames   = 0;    // countdown: player controls active during this many frames
-let _tfOpeningTFStartHealth = 0;   // TF HP at fight start — used to pin exact 1000 damage
+let _tfOpeningTFStartHealth = 0;   // TF HP at fight start: used to pin exact 1000 damage
 const TF_OPENING_DAMAGE_THRESHOLD = 1000;
 
-// ---- Absorption state (after Paradox dies and enters player) ----------------
+// Absorption state: after Paradox dies and enters the player.
 let _tfAbsorptionState = null; // { timer, boss, hero }
 
-// ---- New declarative absorption cinematic (replaces _startAbsorptionThenPunch in main flow) ----
+// Declarative absorption cinematic state.
 let tfAbsorptionScene = null; // { timer, maxTimer, playerRef, paradoxRef, bossRef, phase, memoryIndex, flashAlpha, absorbed }
 
-// Brief fragmented flashes of Paradox's origin — shown during the absorption scene.
-// Intentionally incomplete so the player must piece them together.
-// CANON: Paradox was built during the multiversal war to fight beside Axiom.
-//        A construction error caused it to turn against everyone.
-//        It has been fighting ever since — not out of malice, but because
-//        the error is all it knows.
+// Fragmented flashes of Paradox's origin, shown during the absorption scene.
 const _TF_ABSORPTION_MEMORIES = [
   'Built to fight beside him.',
   'Something went wrong.',
@@ -49,7 +40,7 @@ const _TF_ABSORPTION_MEMORIES = [
   '"Remember what I was before the mistake."',
 ];
 
-// ---- TF-kills-Paradox cinematic overlay state --------------------------------
+// TF-kills-Paradox overlay state.
 let playerParadoxAbsorbed = false; // permanent: player carries Paradox energy
 let _tfKCOverlay = null;           // visual overlay for the kills-Paradox cinematic
 
@@ -57,7 +48,7 @@ let _tfKCOverlay = null;           // visual overlay for the kills-Paradox cinem
 let tfDamageLocked     = false; // true = player deals 0 dmg to TrueForm
 let tfDamageLockTimer  = 0;     // frames until auto-unlock (counts down)
 
-// Paradox Empowerment — activated after damage lock ends
+// Empowerment, activated after the damage lock ends.
 let tfParadoxEmpowered = false;
 let tfEmpowerTimer     = 0;
 const TF_EMPOWER_DURATION = 900; // 15 seconds at 60 fps
@@ -79,9 +70,7 @@ const _PARADOX_REVIVE_LINES = [
   "Try again."
 ];
 
-// ============================================================
-// PARADOX CLASS  (visual entity — no physics fighting)
-// ============================================================
+// Visual entity: no physics, no combat.
 class Paradox {
   constructor(x, y) {
     this.x        = x;
@@ -102,11 +91,9 @@ class Paradox {
   cy() { return this.y + this.h / 2; }
 
   update() {
-    // Fade in / fade out
     if (!this.done) this.alpha = Math.min(1, this.alpha + 0.05);
     else            this.alpha = Math.max(0, this.alpha - 0.06);
 
-    // Glitch offset
     this._flicker++;
     this._glitchTick--;
     if (this._glitchTick <= 0) {
@@ -114,13 +101,11 @@ class Paradox {
       this._glitchX    = (Math.random() < 0.28) ? (Math.random() - 0.5) * 14 : 0;
     }
 
-    // Simple gravity
     this.vy += 0.55;
     this.y  += this.vy;
     const floor = GAME_H - 72;
     if (this.y + this.h > floor) { this.y = floor - this.h; this.vy = 0; }
 
-    // Cyan / white particle trail
     if (settings.particles && Math.random() < 0.22 && this.alpha > 0.25 && particles.length < MAX_PARTICLES) {
       const _p = _getParticle();
       _p.x     = this.cx() + (Math.random() - 0.5) * 14;
@@ -134,11 +119,9 @@ class Paradox {
       particles.push(_p);
     }
 
-    // Decay punch anim
     if (this.attackAnim > 0) this.attackAnim = Math.max(0, this.attackAnim - 0.07);
   }
 
-  // Trigger visible punch animation
   punch(dir) {
     this.attackAnim = 1;
     if (dir !== undefined) this.facing = dir;
@@ -155,7 +138,6 @@ class Paradox {
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur  = 22 * this.alpha;
 
-    // Head
     ctx.fillStyle   = '#000000';
     ctx.strokeStyle = '#00ffff';
     ctx.lineWidth   = 1.8;
@@ -164,7 +146,6 @@ class Paradox {
     ctx.fill();
     ctx.stroke();
 
-    // Eye gleam
     ctx.fillStyle   = '#ffffff';
     ctx.shadowColor = '#ffffff';
     ctx.shadowBlur  = 6;
@@ -172,7 +153,6 @@ class Paradox {
     ctx.arc(hx + this.facing * 2.5, this.y + 7.5, 1.8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Torso
     ctx.shadowColor = '#00ffff';
     ctx.shadowBlur  = 14 * this.alpha;
     ctx.fillStyle   = '#000000';
@@ -183,7 +163,6 @@ class Paradox {
     ctx.fill();
     ctx.stroke();
 
-    // Arms — front arm extends with punch anim
     const armExt = this.attackAnim * 10 * this.facing;
     ctx.strokeStyle = '#00ffff';
     ctx.lineWidth   = 2;
@@ -194,7 +173,6 @@ class Paradox {
     ctx.lineTo(hx + this.facing * 13 + armExt, this.y + 24 - this.attackAnim * 4);
     ctx.stroke();
 
-    // Legs
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth   = 1.8;
     ctx.beginPath();
@@ -204,7 +182,6 @@ class Paradox {
     ctx.lineTo(hx + 7, this.y + this.h);
     ctx.stroke();
 
-    // Glitch scan-line effect
     if (this._flicker % 8 < 3) {
       ctx.globalAlpha *= 0.38;
       ctx.fillStyle = '#00ffff';

@@ -1,52 +1,28 @@
 'use strict';
-// ============================================================
-// SOV HABITS — cross-fight posture ledger (habit engine, Phase 1)
-// ============================================================
-// Why this exists: docs/sovereign-adaptive-project.md, 2026-09-23. Across 794
-// human openers in 16 replays, 54% landed while Sovereign was AIRBORNE. He is
-// airborne ~60% of every match and it never changes — his own jump habit is
-// the player's single biggest damage source, and nothing before this measured
-// or acted on it.
-//
-// This module is the PLAYER MODEL half of the fix: a per-opponent ledger of
-// "when the WATCHER (whoever is fighting them) holds posture P, how often does
-// the opponent punish it, and how often does the watcher land a hit from it".
-// It is filled by every fight — story enemies, versus bots, training, and
-// Sovereign's own matches — not only Sovereign's, because the user's own idea
-// was "the other bots scout for him". Consumers (currently just C1, the launch
-// veto in smb-smk2-class.js's _habitGate) read it back per opponent.
-//
-// Globals-based, no modules. Loaded right after smb-sov-dossier.js, before
-// smb-smk2-class.js. Depends on nothing beyond a Fighter-shaped object
-// (health, onGround, cx/cy, timers) and, optionally, AccountManager/frameCount.
+// Cross-fight posture ledger (habit engine, phase 1). Filled by every fight, not only Sovereign's.
+// Per opponent: when the watcher holds posture P, how often the opponent punishes it and how often the watcher hits from it.
+// Read by the launch veto in smb-smk2-class.js (_habitGate). Loads after smb-sov-dossier.js, before smb-smk2-class.js.
+// Needs only a Fighter-shaped object (health, onGround, cx/cy, timers).
 
 const SOV_HABIT_KEY   = 'sov_habits_v1';
 const SOV_HABIT_MAX   = 32;     // records before the coldest are evicted (human keys only)
 const SOV_HABIT_DECAY = 0.94;
-// Innate prior for C2 descent arms, {win, loss, none} pseudo-counts worth ~30
-// descents. Measured 2026-09-23 vs the calibrated human proxy (240 rematch pairs):
-// strike +0.18 win-loss, dive +0.02, default -0.05, drift -0.10. A new opponent is
-// met with that population knowledge; their own ~30 descents outvote it.
+// Prior for C2 descent arms: {win, loss, none} pseudo-counts worth ~30 descents.
+// Measured against the human proxy. A new opponent starts from this population guess.
 const SOV_DESCENT_PRIOR = {
   strike:  [14.5,  9.2, 6.3],
   dive:    [10.9, 10.3, 8.8],
   default: [10.5, 12.0, 7.5],
   drift:   [ 7.2, 10.2, 12.6],
 };
-const SOV_DESCENT_WINDOW = 150;   // per-arm decisions kept at full weight   // applied to counts on load — old reads fade, mirrors SovDossier
+const SOV_DESCENT_WINDOW = 150;   // per-arm decisions kept at full weight
 const SOV_HABIT_POSTURES = ['air', 'landing', 'committed', 'ground'];
-// Weak Gamma-Poisson prior: alpha=1 opener, beta=10 seconds of exposure. Two or
-// three real observations should be enough to move it off the prior.
+// Gamma-Poisson prior for openers: alpha=1, beta=10s of exposure. A few real observations move it off the prior.
 const SOV_HABIT_PRIOR_A = 1;
 const SOV_HABIT_PRIOR_B = 10;
 
-// C2 (see docs/sovereign-adaptive-project.md, "C2 design: descent control", and
-// _descentControl in smb-smk2-class.js): a per-opponent Thompson-sampling
-// gambler over what to do the instant he starts falling near a target with no
-// attack out — his single worst moment, measured as 30% of every opener the
-// player lands. Counts are Dirichlet(1+win,1+loss,1+none) per arm; outcome is
-// "who opens first within 45 frames of the decision" (+1 him, -1 opponent, 0
-// neither).
+// C2 descent control: per-opponent Thompson sampling over what to do when he falls near a target with no attack out.
+// Outcome: who opens first within 45 frames of the decision (+1 him, -1 opponent, 0 neither).
 const SOV_HABIT_DESCENT_ARMS = ['default', 'strike', 'dive', 'drift'];
 
 const SovHabits = (() => {
@@ -117,7 +93,7 @@ const SovHabits = (() => {
       for (const k of Object.keys(s)) if (_isPersisted(k)) out[k] = s[k];
       localStorage.setItem(SOV_HABIT_KEY, JSON.stringify(out));
       _dirty = false;
-    } catch (e) { /* quota / private mode — memory-only is a valid degrade */ }
+    } catch (e) { /* quota or private mode: memory only is fine */ }
   }
 
   function get(key) {
@@ -126,11 +102,8 @@ const SovHabits = (() => {
     return s[key];
   }
 
-  // ── Fingerprinting ────────────────────────────────────────────────────────
-  // A human (!isAI) gets a stable, persisted key from the active account, if
-  // one exists, else a shared 'local' bucket. Any other fighter gets its own
-  // `_habitKey` when one is set (a bespoke enemy with a stable identity), else
-  // an in-memory-only per-object key that dies with the page.
+  // Humans: a persisted key from the active account, else a shared 'local' bucket.
+  // Others: their _habitKey if set, else an in-memory key that dies with the page.
   function keyFor(f) {
     if (!f) return 'unknown';
     if (f.isAI === false) {
@@ -140,7 +113,7 @@ const SovHabits = (() => {
           const acc = AccountManager.getActiveAccount();
           if (acc && acc.username) id = String(acc.username);
         }
-      } catch (e) { /* AccountManager not ready — fall back to shared bucket */ }
+      } catch (e) { /* AccountManager not ready: use the shared bucket */ }
       return 'human:' + id;
     }
     if (f._habitKey) return String(f._habitKey);
@@ -148,8 +121,7 @@ const SovHabits = (() => {
     return f._habitEphemeralKey;
   }
 
-  // Idempotent per object per frame: several pairs can call observe() on the
-  // same frame and each object's health delta must only be computed once.
+  // Idempotent per frame: several pairs may call observe() on the same frame, but each health delta is computed once.
   function _hpDelta(obj, frame) {
     if (obj._habitHPFrame !== frame) {
       const prev = (obj._habitHPPrev === undefined) ? obj.health : obj._habitHPPrev;
@@ -160,9 +132,7 @@ const SovHabits = (() => {
     return obj._habitHPDelta || 0;
   }
 
-  // Exact-frame lookup in a small, frame-ordered ring buffer. Returns the
-  // posture recorded at `targetFrame`, or null if it fell outside the buffer's
-  // (short) coverage or was itself null (juggled, not choosing).
+  // Exact-frame lookup in the ring buffer. Null if the frame is outside coverage or was not a choice (juggled).
   function _ringLookup(ring, targetFrame) {
     for (let i = ring.length - 1; i >= 0; i--) {
       const e = ring[i];
@@ -172,10 +142,7 @@ const SovHabits = (() => {
     return null;
   }
 
-  // Called once per frame per (watcher, subject) pair. Records the WATCHER's
-  // posture relative to the SUBJECT being modelled, and attributes any opener
-  // since the pair's last exchange to the watcher's posture 6 frames before the
-  // hit (the frame he committed to it).
+  // Once per frame per (watcher, subject) pair. Credits the watcher's posture 6 frames before a hit with that hit's opener.
   function observe(watcher, subject) {
     if (!watcher || !subject || watcher === subject) return;
     if (!(watcher.health > 0) || !(subject.health > 0)) return;
@@ -185,14 +152,13 @@ const SovHabits = (() => {
     const dx = Math.abs(watcher.cx() - subject.cx());
     if (dx >= 220) return;
 
-    // Landing window: frames since this watcher last touched down.
+    // Frames since the watcher last touched down.
     if (watcher.onGround) watcher._habitGroundFrames = (watcher._habitGroundFrames || 0) + 1;
     else watcher._habitGroundFrames = 0;
 
     let posture = null;
     if (!watcher.onGround) {
-      // Airborne but being juggled is not a choice — exclude it rather than
-      // crediting/blaming a posture he did not pick.
+      // Juggled is not a choice. Don't credit or blame a posture he did not pick.
       if (!((watcher.stunTimer || 0) > 0 || (watcher.ragdollTimer || 0) > 0)) posture = 'air';
     } else if (watcher._habitGroundFrames <= 20) {
       posture = 'landing';
@@ -216,8 +182,8 @@ const SovHabits = (() => {
 
     const wDelta = _hpDelta(watcher, frame);
     const sDelta = _hpDelta(subject, frame);
-    const dealtHit = sDelta > 0.01;   // watcher hit subject
-    const takenHit = wDelta > 0.01;   // subject hit watcher
+    const dealtHit = sDelta > 0.01;
+    const takenHit = wDelta > 0.01;
     if (dealtHit || takenHit) {
       const pairMap = watcher._habitPairMap || (watcher._habitPairMap = new Map());
       const last = pairMap.has(subject) ? pairMap.get(subject) : -9999;
@@ -236,13 +202,7 @@ const SovHabits = (() => {
     }
   }
 
-  // Sum of k iid Exponential(1) is Gamma(k, 1) for integer k, which alpha
-  // always is here (1 + an integer opener count). Capped for cost; counts this
-  // large never occur given decay, so the cap is a safety rail, not a real path.
-  // Gamma(k, 1) for ANY shape k > 0 (Marsaglia-Tsang). The first version summed
-  // exponentials, which needs an integer shape: it rounded (decayed counts are
-  // fractional) and capped k at 400, so a player with a long history saturated —
-  // 1000 wins / 800 losses read the same as 400 / 400 and arms stopped separating.
+  // Gamma(k, 1) for any shape k > 0 (Marsaglia-Tsang). Summing exponentials needs an integer shape and saturates long histories.
   function _gammaSample(k) {
     if (!(k > 0)) return 0;
     if (k < 1) return _gammaSample(k + 1) * Math.pow(Math.random() || 1e-12, 1 / k);
@@ -261,10 +221,8 @@ const SovHabits = (() => {
     }
   }
 
-  // dealt-minus-taken opener rate for `posture` against `key`: a posterior draw
-  // when `sample` (for Thompson-style decisions), else the posterior mean (for
-  // readouts). Positive = this posture has been good for whoever holds it
-  // against this opponent; negative = this opponent punishes it.
+  // Posterior mean of the dealt-minus-taken opener rate for `posture` vs `key`, or a posterior draw when sampling.
+  // Positive: the posture works for whoever holds it. Negative: this opponent punishes it.
   function postureValue(key, posture, sample) {
     const r = get(key);
     const c = r.postures[posture];
@@ -278,13 +236,7 @@ const SovHabits = (() => {
     return rateD - rateT;
   }
 
-  // ── C2: descent control ─────────────────────────────────────────────────
-  // Thompson choice among the AVAILABLE arms for this decision (the caller
-  // filters out arms that aren't usable right now, e.g. `strike` off cooldown
-  // or `drift` walking off an edge). Draws a Dirichlet(1+win,1+loss,1+none)
-  // per arm via three Gamma draws (reuses _gammaSample; all shapes here are
-  // 1 + a non-negative integer count, exactly what it already supports), value
-  // = p(win) - p(loss) + a damage term, argmax wins.
+  // Thompson choice among the available arms. Each arm draws Dirichlet(1+win,1+loss,1+none); value = p(win) - p(loss) + damage term; argmax wins.
   function descentArm(key, available) {
     const r = get(key);
     if (!r.descent) r.descent = {};
@@ -295,10 +247,7 @@ const SovHabits = (() => {
       const p = SOV_DESCENT_PRIOR[a] || [1, 1, 1];
       const gw = _gammaSample(p[0] + c.win), gl = _gammaSample(p[1] + c.loss), gn = _gammaSample(p[2] + c.none);
       const sum = gw + gl + gn || 1e-9;
-      // Who opens first is not the whole price: vs the player, dive won slightly
-      // more openers than it lost yet cost 105 damage net over 58 descents. The
-      // damage term (per decision, shrunk toward 0 over the first ~10, in units
-      // of a ~15-damage exchange) lets that count.
+      // Openers alone are not the price: dive won more openers than it lost but cost damage. The damage term shrinks toward 0 over the first ~10 decisions.
       const n = c.win + c.loss + c.none;
       const dmgOn = !(typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.descentDamage === false);
       const v = (gw / sum) - (gl / sum) + (dmgOn ? (c.dmgNet || 0) / (n + 10) / 15 : 0);
@@ -315,9 +264,7 @@ const SovHabits = (() => {
     if (outcome === 'win') c.win++;
     else if (outcome === 'loss') c.loss++;
     else c.none++;
-    // Rolling window: past SOV_DESCENT_WINDOW decisions on one arm, older evidence
-    // is scaled down proportionally. Keeps him a gambler against a player who
-    // CHANGES — an unbounded count would take hundreds of losses to turn around.
+    // Past SOV_DESCENT_WINDOW decisions, old evidence is scaled down so he adapts when a player changes.
     const tot = c.win + c.loss + c.none;
     if (tot > SOV_DESCENT_WINDOW) {
       const f = SOV_DESCENT_WINDOW / tot;
@@ -328,8 +275,7 @@ const SovHabits = (() => {
     _dirty = true;
   }
 
-  // No key: the active human. An unknown key used to go through get(), which
-  // created a blank record and printed all zeros, reading like "learned nothing".
+  // No key means the active human. Unknown keys must not create a blank record, which would read as zero learning.
   function dump(key) {
     if (key === undefined) key = keyFor({ isAI: false });
     if (!load()[key]) {
@@ -355,7 +301,7 @@ const SovHabits = (() => {
   }
 
   function tick() {
-    if (++_saveTimer >= 600) { _saveTimer = 0; save(); }   // ~10s
+    if (++_saveTimer >= 600) { _saveTimer = 0; save(); }   // ~10s at 60fps
   }
 
   function reset() {

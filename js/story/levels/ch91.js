@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch91.js — Chapter 91 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch91.js. Chapter 91 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 91 — Drifters in the Flux (walk → duel vs the Flux Veterans)
-// The Mid-Zone, deeper into the flux, where the Veterans have trained for
-// decades. The ground here is anchored by flux pylons — standing stones with
-// rings of light turning around them, reversing with every inversion — and
-// the Veterans' training ground at the midpoint is built in three tiers
-// "spaced so that when gravity flipped, at least two were already in a
-// dominant position": a low step, a mid ledge and a high perch either side.
-// Overhead the hanging ground is closer now, and chunks of it have fallen
-// halfway and stopped. The axis corridor ("ahead") glows at the far end. The
-// cache shafts are flux wells, the air above them shimmering upward.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 91, walk to duel vs the Flux Veterans. Training ground at the midpoint; cache shafts are flux wells.
 (function () {
   const G = 440, DUEL = 3000, AXIS = 5650;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1180, 340, 110], [1310, 260, 110], [2200, 350, 100], [2330, 270, 110],

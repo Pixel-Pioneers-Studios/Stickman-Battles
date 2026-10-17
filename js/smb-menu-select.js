@@ -1,7 +1,7 @@
 'use strict';
-// smb-menu-select.js — Card grid, arena/lives/settings selection, changelog, custom weapons init
+// Card grids, arena/lives/settings selection, changelog, custom weapons init.
 // Depends on: smb-globals.js, smb-data-arenas.js, smb-data-weapons.js, smb-menu-ui.js
-// Must load AFTER smb-menu-ui.js, BEFORE smb-menu-config.js
+// Must load after smb-menu-ui.js and before smb-menu-config.js
 
 function _syncSelCards(gridId, val) {
   const grid = document.getElementById(gridId);
@@ -10,13 +10,10 @@ function _syncSelCards(gridId, val) {
     c.classList.toggle('active', c.dataset.val === val));
 }
 
-// ── Weapon stat bars ─────────────────────────────────────────────────────────
-// Read straight from WEAPONS so the picker can never drift from the balance
-// numbers. Bars are normalised WITHIN a category (melee vs ranged): a bow's 700
-// reach against a hammer's 58 would flatten every melee bar to nothing, and the
-// comparison a player actually makes is between weapons of the same kind. The
-// raw figure is printed next to every bar, so the bar is the comparison and the
-// number is the truth.
+// Weapon stat bars
+// Read from WEAPONS so the picker can't drift from the balance numbers.
+// Bars are normalised within a category, or a bow's reach flattens every melee bar.
+// The raw number is printed beside each bar.
 var _WSTAT_MAX = null;
 function _weaponStatMax() {
   if (_WSTAT_MAX) return _WSTAT_MAX;
@@ -33,8 +30,7 @@ function _weaponStatMax() {
 }
 
 // Several ranged weapons carry damage:0 and roll per shot through damageFunc.
-// Those functions are pure randoms with no side effects, so sampling them is
-// safe; showing the literal 0 would be a lie.
+// Their damage functions are pure, so sampling them is safe.
 function _weaponDisplayDamage(def) {
   if (!def) return 0;
   if (typeof def.damageFunc === 'function') {
@@ -45,8 +41,7 @@ function _weaponDisplayDamage(def) {
   return def.damage || 0;
 }
 
-// Rendered into the weapon DESCRIPTION panel, not onto the cards: a card in the
-// 5-column picker is ~55px wide, which clips a labelled bar and its value.
+// Rendered in the description panel. Cards are too narrow for a labelled bar.
 function _weaponStatBarsHtml(key) {
   var def = (key && String(key).startsWith('_custom_') && window.CUSTOM_WEAPONS)
     ? window.CUSTOM_WEAPONS[key]
@@ -79,8 +74,7 @@ function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
   [...sel.options].forEach(opt => {
     const val  = opt.value;
     const info = cardData[val] || { tag: '' };
-    // Icons come from SMB_WEAPON_ICONS / SMB_CLASS_ICONS (smb-icons.js) rather
-    // than a per-entry emoji, so custom weapons fall back to a drawn glyph.
+    // Icons come from SMB_WEAPON_ICONS / SMB_CLASS_ICONS, so custom weapons get a drawn glyph.
     const iconSvg = type === 'weapon' ? smbWeaponIcon(val) : smbClassIcon(val);
     // Strip class-lock annotations from display name
     const name = opt.text.replace(/\s*⚔\s*.*/,'');
@@ -91,8 +85,7 @@ function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
       `<span class="sel-card-icon">${iconSvg}</span>` +
       `<span class="sel-card-name">${name}</span>` +
       `<span class="sel-card-tag">${info.tag}</span>`;
-    // Move preview (smb-move-preview.js): a small play button on every stock
-    // weapon / class card. stopPropagation keeps the click from selecting the card.
+    // Move preview button (smb-move-preview.js). stopPropagation stops the card from selecting.
     if (typeof mpCanPreview === 'function' && mpCanPreview(type, val)) {
       const pv = document.createElement('button');
       pv.type = 'button';
@@ -121,11 +114,10 @@ function _buildSelCardGrid(gridId, selectId, cardData, pid, type) {
   });
 }
 
-// ── Boss-fight ranged bar (menu side) ────────────────────────────────────────
-// _startGameCore enforces the melee-only rule at spawn, but the picker should not
-// offer a loadout it is going to silently overwrite. In any boss mode, grey out
-// every ranged weapon card and the two classes that lock a ranged weapon
-// (Gunner → gun, Archer → bow), and pull the current selection off any of them.
+// Boss-fight ranged bar, menu side.
+// _startGameCore enforces melee-only at spawn, so don't offer what gets overwritten.
+// In boss modes, grey out ranged cards and the classes that lock one
+// (Gunner, Archer), and drop any selection on them.
 const _BOSS_RANGED_MODES = ['boss', 'trueform', 'god', 'absoluteaxiom', 'damnation', 'sovereign'];
 const _BOSS_RANGED_CLASSES = ['gunner', 'archer'];
 
@@ -191,9 +183,7 @@ function refreshMegaknightClassOption() {
   _buildSelCardGrid('p2ClassCards', 'p2Class', _CLASS_CARD_DATA, 'p2', 'class');
 }
 
-// ============================================================
-// WEAPON / CLASS DESCRIPTION PANEL
-// ============================================================
+// Weapon and class description panel
 function showDesc(pid, type, value) {
   const panel = document.getElementById(pid + 'Desc');
   const titleEl = document.getElementById(pid + 'DescTitle');
@@ -204,11 +194,9 @@ function showDesc(pid, type, value) {
   panel.style.display = 'block';
   titleEl.textContent = desc.title;
   bodyEl.innerHTML = [
-    // Stat bars read live from WEAPONS. The old descriptions carried hardcoded
-    // "Damage: N." strings that the balance pass silently invalidated — the
-    // hammer still claimed 22 after it became 14. Numbers live in one place now.
+    // Stat bars read live from WEAPONS. Hardcoded 'Damage: N' text went stale after balance passes.
     type === 'weapon' ? _weaponStatBarsHtml(value) : '',
-    // Same rule for classes: HP and speed read live, never typed into a string.
+    // Classes read HP and speed live too.
     (type !== 'weapon' && typeof CLASSES !== 'undefined' && CLASSES[value])
       ? `<span style="color:#ffd27a">HP ${CLASSES[value].hp} · Speed ×${(CLASSES[value].speedMult || 1).toFixed(2)}</span><br>` : '',
     `<span style="color:#ccc">${desc.what}</span>`,
@@ -219,9 +207,8 @@ function showDesc(pid, type, value) {
   ].join('');
 }
 
-// Bidirectional class/weapon locking removed.
-// Rules: weapon selection never forces a class; class selection suggests a weapon only on first pick.
-const WEAPON_CLASS_LOCK = {}; // kept as empty stub — logic below no longer uses it
+// Weapon selection never forces a class. Class selection suggests a weapon only on first pick.
+const WEAPON_CLASS_LOCK = {}; // empty stub, nothing reads it
 
 // Called when the CLASS selector changes.
 function updateClassWeapon(pid) {
@@ -229,12 +216,11 @@ function updateClassWeapon(pid) {
   const weaponEl = document.getElementById(pid + 'Weapon');
   if (!classEl || !weaponEl) return;
 
-  // Always unlock both selectors
   classEl.disabled  = false;
   classEl.title     = '';
   weaponEl.disabled = false;
 
-  // Class suggests a default weapon ONLY if user has not manually picked one yet
+  // Class picks a default weapon only if the user hasn't picked one.
   const cls = CLASSES[classEl.value];
   if (cls && cls.weapon && !weaponEl.dataset.userPicked) {
     weaponEl.value = cls.weapon;
@@ -244,14 +230,14 @@ function updateClassWeapon(pid) {
   showDesc(pid, 'class', classEl.value);
 }
 
-// Called when the WEAPON selector changes — marks user intent so class can no longer override it.
+// Called on weapon change. Marks user intent so class stops overriding it.
 function onWeaponChange(pid) {
   const weaponEl = document.getElementById(pid + 'Weapon');
   if (weaponEl) weaponEl.dataset.userPicked = 'true';
   updateClassWeapon(pid);
 }
 
-function classSel_wasLocked(el, val) { /* no-op — bidirectional locking removed */ }
+function classSel_wasLocked(el, val) { /* no-op */ }
 
 const _ARENA_GIMMICKS = {
   grass:      '',
@@ -276,9 +262,8 @@ const _ARENA_GIMMICKS = {
   random:     'A random arena is chosen each match',
 };
 
-// ── Arena Vote Screen (2P local only) ────────────────────────────────────────
-// Arenas identify themselves with a chip of their own sky/platform palette
-// rather than an emoji, matching the chips in the arena picker.
+// Arena vote screen (2P local only)
+// Arena chips use the arena's sky and platform palette, like the picker.
 function _arenaChip(key) {
   const a = (typeof ARENAS !== 'undefined') ? ARENAS[key] : null;
   if (!a) {
@@ -308,7 +293,7 @@ function _showArenaVoteScreen(onResolve) {
     '<div style="font-size:0.72rem;color:#667788;letter-spacing:1px;margin-bottom:20px">' +
       'P1 · A/D/W/S to move &nbsp;·&nbsp; SPACE to lock in' +
       '&emsp;|&emsp;' +
-      'P2 · J/L/I/K to move &nbsp;·&nbsp; U to lock in' +
+      'P2 · J/L/I/K to move &nbsp;·&nbsp; ; to lock in' +
     '</div>' +
     '<div id="_voteGrid" style="display:grid;grid-template-columns:repeat(' + _VOTE_COLS + ',1fr);' +
       'gap:9px;max-width:720px;width:90%;"></div>' +
@@ -375,7 +360,7 @@ function _showArenaVoteScreen(onResolve) {
   }
 
   function onKey(e) {
-    const k = e.key === ' ' ? ' ' : e.key.toLowerCase();
+    const k = e.key === ' ' ? ' ' : (typeof _eventKey === 'function' ? _eventKey(e) : e.key.toLowerCase());
     if (k === 'a')  { move(1, -1); }
     else if (k === 'd')  { move(1,  1); }
     else if (k === 'w')  { move(1, -_VOTE_COLS); }
@@ -385,7 +370,7 @@ function _showArenaVoteScreen(onResolve) {
     else if (k === 'l')  { move(2,  1); }
     else if (k === 'i')  { move(2, -_VOTE_COLS); }
     else if (k === 'k' && !p2ok)  { move(2,  _VOTE_COLS); }
-    else if (k === 'u')  { if (!p2ok) { p2ok = true; render(); if (p1ok) finish(); } }
+    else if (k === ';')  { if (!p2ok) { p2ok = true; render(); if (p1ok) finish(); } }
   }
 
   document.addEventListener('keydown', onKey);
@@ -400,17 +385,13 @@ function selectArena(name) {
   if (hint) hint.textContent = _ARENA_GIMMICKS[name] || '';
 }
 
-// Called between lives in Complete Randomizer: fades to black, switches arena, fades back.
-// It used to reroll weapons + classes here too, but that ran on every DEATH while
-// the mode is documented (and named) as randomizing the loadout every MATCH — and
-// it also overwrote the loadout Sovereign had picked for himself that life,
-// leaving his _loadout bookkeeping pointing at a weapon he was no longer holding.
-// Loadouts are now resolved once, in _startGameCore.
+// Between lives in Complete Randomizer: fade out, switch arena, fade back in.
+// Loadouts are only rolled in _startGameCore, not on each death.
 function switchArenaWithTransition(newArenaKey, callback) {
   const fade = document.getElementById('fadeOverlay');
   if (fade) { fade.style.transition = 'opacity 0.28s'; fade.style.opacity = '1'; }
   setTimeout(() => {
-    if (!gameRunning) { // guard: game may have ended between outer and inner timeouts
+    if (!gameRunning) { // game may have ended between timeouts
       if (fade) { fade.style.transition = 'opacity 0.38s'; fade.style.opacity = '0'; }
       return;
     }
@@ -431,24 +412,20 @@ function switchArena(newKey) {
   currentArena = ARENAS[currentArenaKey];
   initMapPerks(currentArenaKey);
   generateBgElements();
-  // Clear arena-specific NPCs and items — they belong to their home arena
+  // Arena NPCs and items belong to their home arena, so clear them.
   if (typeof forestBeast !== 'undefined') { forestBeast = null; forestBeastCooldown = 600; }
   if (typeof yeti        !== 'undefined') { yeti        = null; yetiCooldown        = 600; }
-  // mapItems is cleared and re-seeded by initMapPerks() above; do not wipe it here.
-  // Assign safe spawn positions for ALL players on the new map.
-  // Alive players are repositioned immediately.
-  // Dead players only get spawnX/spawnY updated so their pending respawn()
-  // call lands on the correct map instead of stale coordinates from the old arena.
+  // mapItems is reseeded by initMapPerks() above. Don't wipe it.
+  // Safe spawn for every player on the new map.
+  // Dead players only get spawnX/Y updated, so respawn() lands on the new map.
   const _sides = ['left', 'right', 'any'];
   let lastX;
   players.forEach((p, i) => {
     if (p.isBoss) return;
     const sp = pickSafeSpawn(_sides[i] || 'any', lastX) || { x: [160, 720, 450][i] || 300, y: 200 };
-    // Always update the cached spawn coordinates for the new arena
     p.spawnX = sp.x;
     p.spawnY = sp.y;
     if (p.health > 0) {
-      // Only physically move alive players
       p.x = sp.x; p.y = sp.y - p.h;
       p.vx = 0; p.vy = 0;
       p.invincible = Math.max(p.invincible, 90);
@@ -550,7 +527,6 @@ function switchReplayTab(tab) {
     if (bossTab)  bossTab.style.display  = 'none';
     if (matchBtn) matchBtn.style.cssText += activeStyle;
     if (bossBtn)  bossBtn.style.cssText  += inactiveStyle;
-    // Populate match replay list
     const listEl = document.getElementById('replayBrowserList');
     if (listEl && typeof ReplaySystem !== 'undefined') {
       ReplaySystem._refreshBrowserList(listEl);
@@ -560,7 +536,6 @@ function switchReplayTab(tab) {
     if (bossTab)  { bossTab.style.display = 'flex'; }
     if (matchBtn) matchBtn.style.cssText += inactiveStyle;
     if (bossBtn)  bossBtn.style.cssText  += activeStyle;
-    // Populate boss fights tab
     _refreshBossReplayTab();
   }
 }
@@ -575,8 +550,7 @@ function _refreshBossReplayTab() {
     GameState.getActiveAccount()?.data?.unlocks?.tfEndingSeen);
 
   if (tfRow)   tfRow.style.display   = tfSeen ? 'flex' : 'none';
-  // This tab only ever contained the one row. The theater covers every other
-  // cinematic, so point at it from here rather than leaving the tab looking bare.
+  // This tab just points to the theater, which holds the other cinematics.
   if (thRow)   thRow.style.display   = tfSeen ? 'flex' : 'none';
   if (emptyEl) emptyEl.style.display = tfSeen ? 'none' : 'block';
 }
@@ -647,11 +621,10 @@ let _perfModePrevSettings = null;
 
 function togglePerformanceMode(auto) {
   const btn = document.getElementById('perfModeBtn');
-  if (auto !== true) _autoPerfUserSet = true; // the player's choice always wins
+  if (auto !== true) _autoPerfUserSet = true; // player's choice wins
   _performanceModeActive = !_performanceModeActive;
 
   if (_performanceModeActive) {
-    // Save current checkbox states
     _perfModePrevSettings = {
       particles:   document.getElementById('settingParticles').checked,
       shake:       document.getElementById('settingShake').checked,
@@ -662,7 +635,9 @@ function togglePerformanceMode(auto) {
       botPortal:   document.getElementById('settingBotPortal') ? document.getElementById('settingBotPortal').checked : true,
       phaseFlash:  document.getElementById('settingPhaseFlash')? document.getElementById('settingPhaseFlash').checked: true,
     };
-    // Disable all visual effects
+    // Disable visual effects. HD arena backdrops are the biggest draw cost on low-end machines.
+    _perfModePrevSettings.arenaHdOff = !!window.ARENA_HD_OFF;
+    window.ARENA_HD_OFF = true;
     document.getElementById('settingParticles').checked = false;
     document.getElementById('settingShake').checked     = false;
     document.getElementById('settingDmgNums').checked   = false;
@@ -673,8 +648,8 @@ function togglePerformanceMode(auto) {
     if (document.getElementById('settingPhaseFlash')) document.getElementById('settingPhaseFlash').checked = false;
     if (btn) { btn.textContent = '⚡ Performance Mode: On'; btn.style.color = '#ffff66'; btn.style.borderColor = 'rgba(255,255,80,0.5)'; }
   } else {
-    // Restore previous settings
     if (_perfModePrevSettings) {
+      window.ARENA_HD_OFF = !!_perfModePrevSettings.arenaHdOff;
       document.getElementById('settingParticles').checked = _perfModePrevSettings.particles;
       document.getElementById('settingShake').checked     = _perfModePrevSettings.shake;
       document.getElementById('settingDmgNums').checked   = _perfModePrevSettings.dmgNums;
@@ -690,13 +665,9 @@ function togglePerformanceMode(auto) {
   updateSettings();
 }
 
-// ── Auto performance mode ────────────────────────────────────────────────────
-// Most players never open settings, so on a machine that can't hold frame rate
-// the effects stay on and the game just feels sluggish. If a live match spends
-// a ~240-frame window averaging below 50fps (the sim is per-frame, so that is
-// also the game itself running 17%+ slow), switch Performance Mode on once and
-// say so. Never overrides a player who toggled it themselves, and the
-// "Auto Performance Mode" setting (settings.autoPerf) turns it off entirely.
+// Auto performance mode
+// Turn Performance Mode on once if a match averages under 50fps over ~240 frames (the sim is per-frame, so it runs slow too).
+// Never overrides a manual choice. settings.autoPerf turns it off.
 let _autoPerfUserSet = false, _autoPerfDone = false;
 let _autoPerfPrev = 0, _autoPerfN = 0, _autoPerfSum = 0;
 function autoPerfSample(ts) {
@@ -704,8 +675,7 @@ function autoPerfSample(ts) {
   const dt = ts - _autoPerfPrev;
   _autoPerfPrev = ts;
   if (!(dt > 0) || dt > 250) return; // first frame, tab switch, load hitch
-  // Average, not a count of slow frames: a struggling machine often alternates
-  // fast and dropped frames, which a majority vote never flags.
+  // Average, not a count of slow frames, since alternating fast and dropped frames would fool a majority vote.
   _autoPerfN++;
   _autoPerfSum += dt;
   if (_autoPerfN < 240) return;
@@ -718,7 +688,7 @@ function autoPerfSample(ts) {
     showToast('Low frame rate detected: Performance Mode turned on (Settings to change)', 4000);
 }
 
-// ── Changelog ─────────────────────────────────────────────────────────────────
+// Changelog
 const _CLG_CAT_COLORS = {
   Story:       '#88ccff',
   Cinematic:   '#cc88ff',
@@ -756,7 +726,7 @@ function _clgSpoilerHidden(ch) {
   return false;
 }
 
-// Deterministic character scramble — stable across renders (same text → same scramble).
+// Deterministic character scramble: stable across renders (same text → same scramble).
 function _clgScramble(text) {
   const CHARS = '▓░█▒▀▄╬╫╠╣▌▐■□▲▼⚡╪╥╨▬╗╚╔╝╩╦';
   let seed = 0;
@@ -804,7 +774,6 @@ function showChangelogModal() {
           <div style="font-size:0.68rem;color:#334466;letter-spacing:2px;margin-bottom:10px;font-style:italic;">"${entry.flavor}"</div>
           <div style="display:flex;flex-direction:column;gap:5px;">
       `;
-      // Group by category (keep full change objects)
       const grouped = {};
       for (const ch of entry.changes) {
         if (!grouped[ch.cat]) grouped[ch.cat] = [];
@@ -845,7 +814,6 @@ function closeChangelogModal() {
   if (modal) modal.style.display = 'none';
 }
 
-// ── Populate version labels in menu on page load ─────────────────────────────
 function _initVersionLabels() {
   const badge    = document.getElementById('homeVersionBadge');
   const settings = document.getElementById('settingsVersionLabel');
@@ -853,4 +821,4 @@ function _initVersionLabels() {
   if (settings) settings.textContent = '';
 }
 
-// ── Custom Weapons Panel ──────────────────────────────────────────────────────
+// Custom weapons panel

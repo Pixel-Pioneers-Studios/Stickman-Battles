@@ -1,27 +1,22 @@
 'use strict';
-// smb-story-engine-explore2.js — updateExploration, _exploreSpawnEnemy, triggerScene, drawFallenWarriorMemory
+// smb-story-engine-explore2.js: updateExploration, _exploreSpawnEnemy, triggerScene, drawFallenWarriorMemory
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
-// ── Clear-the-area gate ───────────────────────────────────────────────────────
-// A level is only finished when every enemy in it is down: the exit stays sealed
-// while a hostile still stands. Optional foes that live off the golden path are
-// exempt — vault wardens guarding hidden caches and side-portal elites were never
-// part of the required fight, so they can be walked past forever.
+// Clear-the-area gate
+// A level is done when every mandatory enemy is down. The exit stays sealed until then.
+// Optional foes (vault wardens, side-portal elites) are exempt and never required.
 function _exploreOptionalFoe(o) {
   return !!(o && (o.isChestGuardian || o.isSidePortalEnemy || o.isOptionalEnemy || o.isHiddenEnemy));
 }
 function _exploreHostile(m) {
   return !!(m && m.health > 0 && !m.isStoryAlly && m.storyFaction !== 'player' && m._teamId !== 1);
 }
-// Living + still-queued mandatory enemies, plus the nearest one so the HUD can
-// point at it. Queued defs count: an authored enemy the player outran is still
-// part of the level, and _exploreForceSpawnAll drains the queue at the exit so
-// the count can actually reach zero.
+// Living and still-queued mandatory enemies, plus the nearest for the HUD. Queued defs
+// count, so _exploreForceSpawnAll at the exit lets the count reach zero.
 function _exploreRemainingFoes() {
   const p1 = players && players[0];
   let count = 0, nearest = null, nd = Infinity;
-  // Escape levels are won by outrunning the fracture wall and stealth levels by
-  // slipping through; enemies there are obstacles, not a clear requirement.
+  // Escape and stealth levels: enemies are obstacles, not a clear requirement.
   if ((typeof escapeModeActive  !== 'undefined' && escapeModeActive) ||
       (typeof stealthModeActive !== 'undefined' && stealthModeActive)) {
     return { count: 0, alive: 0, queued: 0, nearest: null, nearestDist: nd };
@@ -43,10 +38,8 @@ function _exploreRemainingFoes() {
   }
   return { count: count + queued, alive: count, queued, nearest, nearestDist: nd };
 }
-// The level's own stated objective, when it has one and it is not finished yet.
-// Returns a player-facing reason string, or null when nothing is outstanding.
-// This is what makes "retrieve the caches" a real requirement instead of set
-// dressing the player can run past on the way to the exit.
+// The level's own objective as a reason string, or null when nothing is outstanding.
+// This makes 'retrieve the caches' a real requirement, not set dressing.
 function _exploreObjectivePending() {
   if (typeof scavengeModeActive !== 'undefined' && scavengeModeActive &&
       typeof scavengeItems !== 'undefined' && scavengeItems && scavengeItems.length) {
@@ -61,9 +54,7 @@ function _exploreObjectivePending() {
   if (typeof gauntletActive !== 'undefined' && gauntletActive) {
     return `gauntlet round ${gauntletRound}/${gauntletTotalRounds} unfinished`;
   }
-  // The live escort is smb-escort.js's `escortNPC` (it loads after, and shadows
-  // the modes.js implementation that drives `escortNPCTarget`). Both are checked
-  // so this keeps working whichever one a chapter ends up running.
+  // Checks both escortNPC (smb-escort.js) and the modes.js escortNPCTarget, so either works.
   const _esc = (typeof escortNPC !== 'undefined' && escortNPC) ? escortNPC
              : (typeof escortNPCTarget !== 'undefined' ? escortNPCTarget : null);
   if (_esc && _esc.health > 0 && typeof escortGoalX !== 'undefined' &&
@@ -73,9 +64,7 @@ function _exploreObjectivePending() {
   return null;
 }
 
-// The single "can this level be completed right now?" test. Objective first (it
-// is the point of the level), then the clear-the-area rule. Returns null when
-// the level is genuinely finished.
+// Can the level be completed now? Objective first, then the clear-the-area rule. Null means done.
 function storyLevelClearBlocker() {
   const obj = _exploreObjectivePending();
   if (obj) return { kind: 'objective', reason: obj, count: 0 };
@@ -96,10 +85,8 @@ function storyLevelClearBlocker() {
   return null;
 }
 
-// Deferred completion. A mode's own win condition (last cache picked up, last
-// mechanism thrown, escort delivered) arms the win here instead of ending the
-// match outright, so it still has to pass storyLevelClearBlocker(). It fires the
-// frame the final requirement falls.
+// Deferred completion: a mode's win condition arms here and fires the frame the last
+// requirement falls, still passing storyLevelClearBlocker().
 let _pendingLevelWin = null;
 let _exploreGoalNag  = 0;
 function storyArmLevelWin(label, onWin) {
@@ -131,13 +118,8 @@ function _updatePendingLevelWin() {
   if (win.onWin) win.onWin();
 }
 
-// Straggler recall. Once the exit is sealed, a required enemy that is far away
-// and not fighting anyone becomes a search problem across a 6000px world — and
-// worlds with shaft gaps can drop one into a tunnel chamber the player has no
-// reason to revisit. After RECALL_DELAY of that, the straggler is pulled to the
-// player instead, which turns a hunt back into a fight. Same leash pattern the
-// Vault Warden already uses; optional foes are never recalled because nothing
-// forces the player to fight them.
+// Straggler recall: once the exit is sealed, a required enemy far off and idle is pulled to
+// the player after RECALL_DELAY, turning a hunt into a fight. Optional foes are never recalled.
 const _RECALL_DELAY = 300;  // 5s of a sealed exit with nobody in reach
 const _RECALL_NEAR  = 900;  // a foe closer than this is findable on your own
 let _recallTimer = 0;
@@ -145,7 +127,7 @@ function _updateStragglerRecall(p1) {
   if (!p1 || exploreGoalFound || exploreArenaLock) { _recallTimer = 0; return; }
   if (!exploreGoalBlocked) { _recallTimer = 0; return; }
   const rem = _exploreRemainingFoes();
-  // Nothing spawned yet (all still queued) — the drain handles that case.
+  // All still queued: the drain handles it.
   if (!rem.alive || !rem.nearest) { _recallTimer = 0; return; }
   if (rem.nearestDist < _RECALL_NEAR) { _recallTimer = 0; return; }
   if (++_recallTimer < _RECALL_DELAY) return;
@@ -167,9 +149,8 @@ function _updateStragglerRecall(p1) {
   if (typeof setCameraDrama === 'function') setCameraDrama('impact', 26);
 }
 
-// True once the player is close enough to the exit that the gate is in play.
-// The ambient pressure spawners stand down inside this zone — an endless drip of
-// new stalkers at the exit would make "clear them all" unfinishable.
+// True once the player is near the exit. Ambient pressure spawners stand down here so
+// 'clear them all' stays finishable.
 function _exploreNearGoal(p1) {
   return !!(p1 && typeof exploreGoalX !== 'undefined' && p1.x > exploreGoalX - 900);
 }
@@ -188,11 +169,8 @@ function _spawnSurvivalWave(ss, p1) {
   }
 }
 
-// True while a SCRIPTED pressure beat already owns the fight — a tripped stealth
-// alarm, an arena lock, or an escape/defense objective. The ambient pressure
-// spawners (Pressure Stalker / Ambush Elite) must stay out of the way there:
-// stacking an unannounced elite on top of an alarm wave is what made a failed
-// stealth run unwinnable.
+// True while a scripted pressure beat owns the fight (stealth alarm, arena lock, escape or
+// defense objective). Ambient spawners stay out, or an unannounced elite stacks onto the alarm.
 function _storyPressureScripted() {
   if (exploreArenaLock) return true;
   // Branch-chapter beats (see _playChapterBeat) carry their own authored encounters.
@@ -243,6 +221,14 @@ function _updateSurvivalWave(p1) {
   }
 }
 
+// Arena lock window: about 1.8x the old 560-600px. Near a world edge it slides inward.
+function _lockSpan(left, width) {
+  const worldLen = typeof exploreWorldLen === 'number' ? exploreWorldLen : left + width;
+  const w = Math.min(width, worldLen);
+  const l = Math.max(0, Math.min(left, worldLen - w));
+  return { left: l, right: l + w };
+}
+
 function updateExploration() {
   if (!exploreActive || !players[0] || !gameRunning) return;
   const p1 = players[0];
@@ -259,13 +245,9 @@ function updateExploration() {
     exploreStartX = null;
   }
 
-  // Reverse loading zone: the LEFT edge of a walk→fight world backtracks to
-  // the previous chapter's world, entering at its exit end — the mirror of the
-  // forward walk-through goal: purely positional once armed.
-  // Works out of every walkable world (walk→fight duels AND exploration modes);
-  // the target is resolved at launch by _storyBackChapterFor (null = hard wall).
-  // Arming guard: a fresh spawn near the left edge must not instantly bounce
-  // back — the zone arms only after the player has walked into the world.
+// Reverse loading zone: the left edge of a walk-fight world backtracks to the previous chapter,
+// entering at its exit end. Works from every walkable world; the target resolves at launch
+// (null = hard wall). Arms only after the player walks in, so an edge spawn does not bounce.
   const _hasBack = (typeof exploreBackChapter !== 'undefined' && exploreBackChapter != null);
   const _edgeL = (currentArena && currentArena.mapLeft) || 0;
   if (_hasBack && p1.x > _edgeL + 420) window._exploreBackArmed = true;
@@ -280,9 +262,7 @@ function updateExploration() {
       _story2.health = Math.round(Math.max(1, p1.health)); // carry HP backward too
       if (typeof _saveStory2 === 'function') _saveStory2();
       storyFightSubtitle = { text: '← ' + (_prev.title || 'the previous area'), timer: 90, maxTimer: 90, color: '#88ccff' };
-      // Near-seamless jump: the launch funnel marks the transition seamless
-      // (no loading screen — see _storyMarkTransition), so only a short beat
-      // is needed before the world swap.
+      // Near-seamless: the launch funnel skips the loading screen, so only a short beat is needed.
       setTimeout(() => {
         window._exploreBackPending = false;
         if (!gameRunning) return;
@@ -311,7 +291,6 @@ function updateExploration() {
     _updateSurvivalWave(p1);
   }
 
-  // New explore modes
   if (typeof updateStealthMode  === 'function' && stealthModeActive)  updateStealthMode();
   if (typeof updateEscapeMode   === 'function' && escapeModeActive)   updateEscapeMode();
   if (typeof updateDefenseMode  === 'function' && defenseModeActive)  updateDefenseMode();
@@ -321,15 +300,13 @@ function updateExploration() {
   updateExplorePickups(p1);
   if (typeof updateSidequests === 'function') updateSidequests(p1);
   _updatePendingLevelWin();
-  // Keep the sealed-exit banner honest — it appears as the player nears the exit
-  // and clears the frame the last requirement is met, wherever they are standing.
+  // Sealed-exit banner: shows near the exit, clears the frame the last requirement is met.
   if (!exploreGoalFound && (exploreGoalBlockReason || _exploreNearGoal(p1))) {
     const _b = storyLevelClearBlocker();
     exploreGoalBlocked     = _b ? _b.count  : 0;
     exploreGoalBlockReason = _b ? _b.reason : '';
   }
-  // HUD count, refreshed every 10 frames — the player needs to see the rule from
-  // the start of the level, not discover it at a sealed door.
+  // HUD count, refreshed every 10 frames.
   if (!exploreGoalFound && frameCount % 10 === 0) {
     exploreFoesRemaining = _exploreRemainingFoes().count;
   } else if (exploreGoalFound) {
@@ -340,11 +317,7 @@ function updateExploration() {
   const activeEnemyCount = minions.filter(m => m.health > 0).length;
   const inCombat = activeEnemyCount > 0 || !!players.find(p => p !== p1 && p.health > 0 && p.isAI);
   exploreCombatQuiet = inCombat ? 0 : (exploreCombatQuiet + 1);
-  // The passivity clock must measure genuine idling, nothing else. It used to
-  // free-run through fights, so a long brawl left it fully primed and an Ambush
-  // Elite dropped the frame the last enemy died — punishing the player for
-  // fighting, which is the opposite of the intent. Combat, taking a hit, and
-  // swinging all reset it.
+  // Passivity clock measures real idling only. Combat, taking a hit and swinging reset it.
   if (inCombat || p1.hurtTimer > 0 || p1.attackTimer > 0 || p1.attackEndlag > 0) exploreAmbushTimer = 0;
   else exploreAmbushTimer++;
   if (exploreArenaLock) {
@@ -353,8 +326,7 @@ function updateExploration() {
       currentArena.mapLeft = exploreArenaLock.left;
       currentArena.mapRight = exploreArenaLock.right;
     }
-    // Camera beat: the gate slams (pull back, set at lock creation), then the
-    // camera pushes in on whoever is blocking the way, then releases on the clear.
+    // Camera: the gate slams, then pushes in on whoever blocks the way, then releases on clear.
     const _lockAge = frameCount - (exploreArenaLock.bornFrame || 0);
     if (_lockAge === 46 && typeof setCameraDrama === 'function') {
       const _lockFoe = minions.find(m => m.health > 0 && m.isArenaLockEnemy);
@@ -372,7 +344,7 @@ function updateExploration() {
     }
   }
 
-  // Far boundary: player wandered far beyond the world — reset the chapter
+  // Far boundary: player wandered far beyond the world, reset the chapter
   const _farLimit = exploreWorldLen + 2500;
   if (p1.x > _farLimit || p1.x < -1200) {
     p1.x = 60; p1.y = 300; p1.vx = 0; p1.vy = 0;
@@ -381,12 +353,8 @@ function updateExploration() {
     return;
   }
 
-  // One-map region: crossing a segment boundary completes that segment's chapter
-  // in place (rewards + save) without ending the match. A region segment IS a
-  // level — it awards tokens, blueprints and a `defeated` entry — so the boundary
-  // is sealed by exactly the same rule as the world exit. Without this the gate
-  // only covered the final exit and a region map could still be banked chapter by
-  // chapter at a dead run.
+  // Region boundary: crossing a segment completes that chapter in place (rewards, save) without
+  // ending the match. Sealed by the same rule as the exit, or a region could be banked at a dead run.
   if (exploreRegion && !exploreArenaLock && !exploreGoalFound) {
     for (const b of exploreRegion.boundaries) {
       if (b.done || p1.cx() < b.x) continue;
@@ -395,8 +363,7 @@ function updateExploration() {
         window._exploreForceSpawnAll = true;
         exploreGoalBlocked     = _bBlock.count;
         exploreGoalBlockReason = _bBlock.reason;
-        // Hold the line rather than bounce the player backwards — the boundary is
-        // mid-world, so a shove would fight whatever they were doing.
+        // Hold the line rather than bounce back: the boundary is mid-world.
         p1.x = Math.min(p1.x, b.x - p1.w / 2 - 2);
         if (p1.vx > 0) p1.vx = 0;
         if (!_exploreGoalNag || frameCount - _exploreGoalNag > 200) {
@@ -416,10 +383,7 @@ function updateExploration() {
 
   // Goal reached?
   if (!exploreArenaLock && !exploreGoalFound && p1.x + p1.w >= exploreGoalX && p1.health > 0) {
-    // Sealed exit: reaching the mark used to BE the win condition, so any level
-    // could be skipped at a dead run. The exit now only opens once the level's
-    // objective is done and every required enemy is down. Hidden/optional foes
-    // (vault wardens, side-portal elites) are exempt — see _exploreOptionalFoe.
+    // Sealed exit: the mark only wins once the objective is done and required enemies are down.
     const _blocker = storyLevelClearBlocker();
     if (_blocker) {
       window._exploreForceSpawnAll = true;
@@ -441,8 +405,7 @@ function updateExploration() {
     exploreGoalBlockReason = '';
     window._exploreForceSpawnAll = false;
     exploreGoalFound = true;
-    // Region: the exit belongs to the LAST chapter — the normal victory flow
-    // (rewards, overlay, defeated) must run against it, not the launched one.
+    // Region: the exit belongs to the last chapter, so the victory flow runs against that one.
     if (exploreRegion && typeof STORY_CHAPTERS2 !== 'undefined') {
       const _lastId = exploreRegion.chapters[exploreRegion.chapters.length - 1];
       if (_activeStory2Chapter && _activeStory2Chapter.id !== _lastId && STORY_CHAPTERS2[_lastId]) {
@@ -454,11 +417,8 @@ function updateExploration() {
     SoundManager.superActivate();
     spawnParticles(exploreGoalX + 20, 380, '#ffffaa', 40);
 
-    // Walk-through transition: when the NEXT chapter is also a walkable world
-    // (walk→fight or any exploration mode), there is NO end screen — the exit IS
-    // the loading zone. Award this chapter in place (same as region boundaries)
-    // and launch the next world directly; its narrative scene (if unseen) plays
-    // as the between-areas cutscene.
+    // Walk-through: if the next chapter is also a walkable world there is no end screen. Award this
+    // chapter in place and launch the next world directly. Its scene plays as the between-areas cutscene.
     const _doneCh = _activeStory2Chapter;
     const _nextCh = (_doneCh && typeof STORY_CHAPTERS2 !== 'undefined')
       ? STORY_CHAPTERS2[_doneCh.id + 1] : null;
@@ -467,8 +427,7 @@ function updateExploration() {
     if (_nextWalkable && typeof _regionCompleteChapter === 'function' && typeof _beginChapter2 === 'function') {
       _regionCompleteChapter(_doneCh.id);
       storyFightSubtitle = { text: `✨ ${exploreGoalName} found — entering ${_nextCh.title || 'the next area'}…`, timer: 110, maxTimer: 110, color: '#ffffaa' };
-      // Near-seamless walk-through: no loading screen (seamless launch funnel),
-      // just a short beat so the subtitle registers before the world swap.
+      // Near-seamless: no loading screen, just a beat so the subtitle registers.
       setTimeout(() => {
         if (!gameRunning) return;
         _beginChapter2(_nextCh.id);
@@ -476,8 +435,7 @@ function updateExploration() {
       return;
     }
 
-    // Otherwise (next chapter is a set-piece fight/scene, or story end):
-    // classic completion with the victory flow.
+    // Otherwise (set-piece fight, scene, or story end): classic completion.
     storyFightSubtitle = { text: `✨ ${exploreGoalName} found! Moving on...`, timer: 200, maxTimer: 200, color: '#ffffaa' };
     setTimeout(() => {
       if (!gameRunning) return;
@@ -489,8 +447,7 @@ function updateExploration() {
   for (let i = 0; i < exploreCheckpoints.length; i++) {
     const cp = exploreCheckpoints[i];
     if (cp.hit || p1.cx() < cp.x || exploreArenaLock) continue;
-    // Rest beacons sit on the surface; walking under one in a tunnel does not
-    // light it (it stays armed until the player passes it up top).
+    // Rest beacons sit on the surface. Walking under one in a tunnel does not light it.
     if (cp.rest && p1.y + p1.h > _EXP_SURF_Y + 4) continue;
     cp.hit = true;
     exploreCheckpointIdx = i;
@@ -500,8 +457,7 @@ function updateExploration() {
         _story2.cpResume = { chId: _activeStory2Chapter.id, x: cp.x };
         if (typeof _saveStory2 === 'function') _saveStory2();
       }
-      // ...and the mid-life respawn point, as the subtitle promises. Without it
-      // a fall into an authored gap sent the player back to the level start.
+      // The mid-life respawn point the subtitle promises. Without it a fall sent the player to level start.
       const _restSpawn = typeof pickSafeSpawnNear === 'function' ? pickSafeSpawnNear(cp.x, 'any') : null;
       if (_restSpawn) { p1.spawnX = _restSpawn.x; p1.spawnY = _restSpawn.y; }
       cp.litFrame = frameCount;
@@ -523,17 +479,16 @@ function updateExploration() {
       color: '#7dffcc'
     };
     spawnParticles(cp.x, p1.cy(), '#7dffcc', 14);
-    // Region checkpoints carry their own chapter's opponent; plain walkFight
-    // checkpoints fall back to the launched chapter's duel opponent.
+    // Region checkpoints use their own chapter's opponent. walkFight ones use the launched chapter's.
     const _cpCh = (cp.chId != null && typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[cp.chId] : _activeStory2Chapter;
     const _opp = cp.opp || exploreDuelOpponent;
-    // Replay Mode off + already-beaten chapter → walk through freely, skip the fight entirely
+    // Replay off and already beaten: walk through, skip the fight.
     const _replaySkip = (typeof _cinReplaySkip === 'function') && _cinReplaySkip(_cpCh);
     if (exploreDuelMode && _opp && !_replaySkip) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
-          left: Math.max(0, cp.x - 260),
-          right: Math.min(exploreWorldLen, cp.x + 340),
+          left: _lockSpan(cp.x - 470, 1080).left,
+          right: _lockSpan(cp.x - 470, 1080).right,
           prevLeft: currentArena.mapLeft,
           prevRight: currentArena.mapRight,
           label: _opp.name,
@@ -545,9 +500,7 @@ function updateExploration() {
       if (_sec) {
         _exploreSpawnEnemy({ wx: cp.x + 300, exactX: cp.x + 300, name: _sec.name, weaponKey: _sec.weaponKey, classKey: _sec.classKey, aiDiff: _sec.aiDiff, color: _sec.color, health: _sec.health || 120, armor: _sec.armor, isElite: true, isArenaLockEnemy: true }, p1);
       }
-      // Difficulty escorts (Challenge/Evolution). A duel otherwise has one
-      // authored opponent, so the explore enemy cap never reached it. Low base
-      // HP because the chapter shift already multiplies it ~2-3x.
+      // Difficulty escorts (Challenge/Evolution). Low base HP, since the chapter shift already multiplies it 2-3x.
       const _extra = typeof _storyDiffCfg === 'function' ? (_storyDiffCfg().duelExtra | 0) : 0;
       const _escW = ['spear', 'axe', 'sword', 'hammer'].filter(w => w !== _opp.weaponKey);
       for (let e = 0; e < _extra; e++) {
@@ -559,8 +512,8 @@ function updateExploration() {
     } else if (!_replaySkip && ((_activeStory2Chapter && _activeStory2Chapter.id >= 8) || (storyGauntletState && storyGauntletState.index > 0))) {
       if (!exploreArenaLock && currentArena) {
         exploreArenaLock = {
-          left: Math.max(0, cp.x - 240),
-          right: Math.min(exploreWorldLen, cp.x + 320),
+          left: _lockSpan(cp.x - 430, 1000).left,
+          right: _lockSpan(cp.x - 430, 1000).right,
           prevLeft: currentArena.mapLeft,
           prevRight: currentArena.mapRight,
           label: 'Checkpoint Arena',
@@ -576,11 +529,8 @@ function updateExploration() {
     }
   }
 
-  // Side portals are optional, so entering takes a fresh press of the shield
-  // (down) key while inside one. Touch alone used to pull the player in: the
-  // seeded position can land on an authored switch or climb, and walking past
-  // it started a two-elite fight nobody chose. A guard held while walking in
-  // does not count; it has to be released and pressed again.
+  // Side portals need a fresh shield press inside. Touch alone pulled players into a two-elite fight
+  // they did not choose. A held guard does not count.
   const _portalKey = p1.controls && p1.controls.shield;
   const _portalDown = !!(_portalKey && typeof keysDown !== 'undefined' && keysDown.has(_portalKey));
   for (const portal of exploreSidePortals) {
@@ -630,10 +580,7 @@ function updateExploration() {
     exploreCombatQuiet = 120;
   }
 
-  // Anti-idle prod. 360 frames (6s) fired on any brief pause; with the timer now
-  // reset by combat it measures real standing-around, so the window is a full
-  // 15s. Early chapters get a plain ambusher — a scaled elite is a boss-tier
-  // wall when the player is still on starting gear.
+  // Anti-idle prod after 15 s of real standing around. Early chapters get a plain ambusher, not a scaled elite.
   const _ambushChId  = _activeStory2Chapter ? _activeStory2Chapter.id : 0;
   const _ambushElite = _ambushChId >= 10;
   if (!storeSurvivalState && !exploreDuelMode && !_exploreChapterBeaten && !_storyPressureScripted() &&
@@ -656,17 +603,13 @@ function updateExploration() {
     };
   }
 
-  // Spawn enemies from queue as player advances
-  // Guards (isGuard:true) bypass the cap and spawn immediately at world load
-  // Regular enemies are capped at exploreEnemyCap concurrent
+  // Spawn from the queue as the player advances. Guards bypass the cap; others cap at exploreEnemyCap.
   const activeRegularCount = minions.filter(m => m.health > 0 && !m.isExploreGuard).length;
   if (exploreSpawnQ.length > 0) {
     const next = exploreSpawnQ[0];
     if (next) {
       const isGuard = !!next.isGuard;
-      // At the sealed exit the distance window no longer applies: an enemy the
-      // player outran must still be spawned, or the clear-the-area gate waits on
-      // a foe that never exists.
+      // At the sealed exit the distance window is off, so outrun enemies still spawn for the gate.
       const _drain = !!window._exploreForceSpawnAll;
       const readyToSpawn = isGuard
         ? !minions.some(m => m.isExploreGuard && m._guardX === next.wx) // guard not yet spawned
@@ -689,7 +632,7 @@ function updateExplorePickups(p1) {
     }
     if (Math.abs(p1.cx() - it.x) < 42 && Math.abs(p1.cy() - it.y) < 74) {
       it.collected = true;
-      // One-time: record this pickup as permanently taken so it never regenerates
+      // Record the pickup as taken so it never regenerates
       if (it.key) { _story2.lootTaken = _story2.lootTaken || {}; _story2.lootTaken[it.key] = 1; if (typeof _saveStory2 === 'function') _saveStory2(); }
       const col = it.type === 'heal' ? '#66ff88' : it.type === 'coin' ? '#ffcc33' : '#66ccff';
       spawnParticles(it.x, it.y, col, 16);
@@ -710,9 +653,8 @@ function updateExplorePickups(p1) {
   }
 }
 
-// Hidden-loot chests: open on touch. Some caches are watched by one or two weak
-// scavengers at seeded posts in the tunnel maze (see the loot pass); a guarded
-// cache stays locked until they fall. Entirely optional — off the golden path.
+// Hidden-loot chests open on touch. Some are watched by weak scavengers in the tunnel maze.
+// Optional and off the golden path.
 function _chestGuardAlive(it) {
   return !!(it.guarded && minions.some(m => m._chestKey === it.key && m.health > 0));
 }
@@ -720,8 +662,7 @@ function _chestGuardAlive(it) {
 const _CACHE_GUARD_WEAPONS = ['sword', 'axe', 'spear'];
 function _updateChestPickup(it, p1) {
   const dx = Math.abs(p1.cx() - it.x);
-  // Lazy-spawn the guards as the player closes in. Underground caches wake
-  // once the player is down in that cache's tunnels, not while walking above.
+  // Guards spawn as the player closes in. Underground caches wake only once the player is down there.
   const _inReach = it.underground
     ? (dx < 900 && p1.y + p1.h > _EXP_SURF_Y + 20)
     : dx < 420;
@@ -748,7 +689,7 @@ function _updateChestPickup(it, p1) {
       timer: 170, maxTimer: 170, color: '#ffaa44'
     };
   }
-  // Leash: each guard holds its post — it never chases across the world.
+  // Leash: guards hold their post and never chase across the world.
   if (it.guarded && it._guardSpawned && !it.collected) {
     for (const g of minions) {
       if (g._chestKey !== it.key || g.health <= 0 || g._guardPostX == null) continue;
@@ -767,7 +708,6 @@ function _updateChestPickup(it, p1) {
       }
       return;
     }
-    // Open the chest
     it.collected = true;
     if (it.key) { _story2.lootTaken = _story2.lootTaken || {}; _story2.lootTaken[it.key] = 1; if (typeof _saveStory2 === 'function') _saveStory2(); }
     const c = it.contents || {};
@@ -793,10 +733,8 @@ function _updateChestPickup(it, p1) {
   }
 }
 
-// Complete a region segment's chapter mid-match: grant the same first-clear
-// rewards the victory flow gives (tokens, blueprint, armor blueprint, defeated,
-// chapter advance — mirrors story2OnMatchEnd's award block in match.js) and
-// save, but keep the match running so the player walks straight on.
+// Complete a region segment's chapter mid-match: same first-clear rewards as the victory flow
+// (tokens, blueprints, defeated, chapter advance; mirrors story2OnMatchEnd), then save. The match keeps running.
 function _regionCompleteChapter(chId) {
   const ch = (typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[chId] : null;
   if (!ch || !_story2) return;
@@ -839,22 +777,20 @@ function _exploreSpawnEnemy(def, p1) {
   const isGuard = !!def.isGuard;
   let mx, my;
   if (def.exactX != null) {
-    // Contained duel: spawn at an exact X on the ground floor (inside the arena lock, near the player)
-    // exactY places underground spawns (tunnel chest guardians) below the surface floor
+    // Contained duel: exact X on the ground floor. exactY places tunnel guardians underground.
     const floor = ((currentArena && currentArena.platforms) || []).find(pl => pl.isFloor);
     mx = def.exactX;
-    my = def.exactY != null ? def.exactY : (floor ? floor.y : 440) - 84; // 84 = Minion h — spawn feet exactly on the floor
+    my = def.exactY != null ? def.exactY : (floor ? floor.y : 440) - 84; // 84 = Minion height
   } else {
-    // Guards spawn directly at their post (near the relic), not offset from player
+    // Guards spawn at their post, not offset from the player.
     const spawnX = isGuard ? def.wx : Math.max(p1.x + GAME_W * 0.7, def.wx);
-    // Exploration worlds have one continuous isFloor platform — spawn grounded on it
-    // (pickSafeSpawnNear picks ANY platform incl. high floaters → floating/embedded enemies)
+    // Exploration worlds have one continuous floor. pickSafeSpawnNear could pick a high floater.
     const _exFloor = exploreActive
       ? ((currentArena && currentArena.platforms) || []).find(pl => pl.isFloor)
       : null;
     if (_exFloor) {
       mx = spawnX;
-      my = _exFloor.y - 84; // 84 = Minion h — spawn feet exactly on the floor
+      my = _exFloor.y - 84; // 84 = Minion height
     } else {
       const safeSpawn = typeof pickSafeSpawnNear === 'function'
         ? pickSafeSpawnNear(spawnX, isGuard ? 'any' : 'right', p1 ? p1.x : undefined)
@@ -864,11 +800,8 @@ function _exploreSpawnEnemy(def, p1) {
     }
   }
   const m = new Minion(mx, my, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
-  // Minion's constructor only takes (x, y) — it hardcodes purple, a coin-flip
-  // axe/sword, and 'hard' AI, silently dropping the args above. Every other
-  // `new Minion()` call site relies on that, so the authored values are applied
-  // here instead. Without this, a chapter's `aiDiff: 'easy'` scout fought at
-  // 'hard' and the difficulty floor in _storyScaleEnemyUnit had nothing to do.
+  // Minion() only takes (x, y) and hardcodes class, weapon and AI, so the authored values are
+  // applied here. Otherwise an aiDiff 'easy' scout would fight at 'hard'.
   m.color     = def.color || '#888888';
   m.weaponKey = def.weaponKey || 'sword';
   m.weapon    = (typeof WEAPONS !== 'undefined' && WEAPONS[m.weaponKey]) || m.weapon;
@@ -887,6 +820,7 @@ function _exploreSpawnEnemy(def, p1) {
     m.isArenaLockEnemy = true;
     m._aiHoldUntil = frameCount + 180; // 3s grace to register the lock before they engage
   }
+  if (def._foeKey) m._foeKey = def._foeKey;   // authored mob, its kill is remembered
   if (def.isSidePortalEnemy) m.isSidePortalEnemy = true;
   if (def.isOptionalEnemy) m.isOptionalEnemy = true;   // sidequest foes never gate the exit
   if (def.isChestGuardian) {
@@ -895,15 +829,11 @@ function _exploreSpawnEnemy(def, p1) {
   }
   if (def.classKey && def.classKey !== 'none' && typeof applyClass === 'function') {
     applyClass(m, def.classKey);
-    // applyClass overwrites maxHealth with the class's base HP. An explicitly
-    // authored health is a deliberate per-enemy value and outranks that default,
-    // so it is restored here; when the chapter did not specify one, the class HP
-    // is the better number and stands.
+    // applyClass resets maxHealth to the class base. An authored health outranks that, so restore it.
     if (def.health) { m.maxHealth = def.health; m.health = def.health; }
   }
   _storyScaleEnemyUnit(m, _activeStory2Chapter ? _activeStory2Chapter.id : 1, { elite: !!def.isElite });
-  // Weak encounter (cache scavengers): roughly half a standard enemy at this
-  // point of the story, whatever the chapter scaling made of it.
+  // Weak encounter (cache scavengers): about half a standard enemy at this point in the story.
   if (def.isWeak) {
     m.maxHealth = Math.max(30, Math.round(m.maxHealth * 0.5));
     m.health    = m.maxHealth;
@@ -923,11 +853,22 @@ function _exploreSpawnEnemy(def, p1) {
   minions.push(m);
 }
 
-// ── Fallen Warrior Memory ─────────────────────────────────────────────────────
-// A rare (~10%) ambient scene that fires once per fight in late-game chapters
-// (id >= 60) to build tension before/during the TrueForm arc.
-// Shows a silhouette warrior fighting, then being instantly defeated.
-// ─────────────────────────────────────────────────────────────────────────────
+// Remember authored mobs that died, so a replay drops only the ones the player killed. Called from
+// gameLoop before dead minions are culled. Any death counts, not just P1's. Replay kills save at once.
+function storyRecordFoeKills() {
+  if (!exploreActive || !_story2 || typeof minions === 'undefined' || !minions) return;
+  let fresh = false;
+  for (const m of minions) {
+    if (!m || !m._foeKey || m.health > 0) continue;
+    _story2.lootTaken = _story2.lootTaken || {};
+    if (!_story2.lootTaken[m._foeKey]) { _story2.lootTaken[m._foeKey] = 1; fresh = true; }
+    m._foeKey = null;
+  }
+  if (fresh && _exploreChapterBeaten && typeof _saveStory2 === 'function') _saveStory2();
+}
+
+// Fallen Warrior memory: a rare (~10%) ambient scene, once per fight, in late chapters (id >= 60).
+// A silhouette warrior fights, then is instantly defeated.
 
 let _fallenWarrior = null; // null when inactive
 
@@ -967,17 +908,13 @@ function drawFallenWarriorMemory() {
   const cy  = ch * 0.5;
   const scY = ch / GAME_H; // logical-to-screen Y scale
 
-  // ── Envelope alphas ──────────────────────────────────────────
-  // Fade in  : f  0 → 20
-  // Hold     : f 20 → 140
-  // Fade out : f 140 → 168
+  // Envelope: fade in 0-20, hold 20-140, fade out 140-168.
   const fadeIn  = Math.min(1, f / 20);
   const fadeOut = f > 140 ? 1 - (f - 140) / 28 : 1;
   const baseA   = Math.min(fadeIn, fadeOut);
 
   ctx.save();
 
-  // ── Background vignette ──────────────────────────────────────
   const vg = ctx.createRadialGradient(cx, cy, 0, cx, cy, cw * 0.55);
   vg.addColorStop(0,   `rgba(0,0,0,${(baseA * 0.82).toFixed(3)})`);
   vg.addColorStop(0.6, `rgba(0,0,0,${(baseA * 0.72).toFixed(3)})`);
@@ -985,9 +922,7 @@ function drawFallenWarriorMemory() {
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, cw, ch);
 
-  // ── Silhouette drawing helper ─────────────────────────────────
-  // Draws a simple stickman silhouette at (sx, sy) facing dir (+1/-1),
-  // scaled by s, with action pose based on phase.
+// Silhouette helper: stickman at (sx, sy) facing dir, scaled by s, posed by phase.
   function _drawSilhouette(sx, sy, s, dir, pose) {
     ctx.save();
     ctx.translate(sx, sy);
@@ -998,43 +933,36 @@ function drawFallenWarriorMemory() {
     ctx.shadowColor = 'rgba(150,150,255,0.4)';
     ctx.shadowBlur  = 8 / s;
 
-    // Head
     ctx.beginPath();
     ctx.arc(0, -50 * scY, 7 * scY, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
 
-    // Body
     ctx.beginPath();
     ctx.moveTo(0, -43 * scY);
     ctx.lineTo(0, -18 * scY);
     ctx.stroke();
 
     if (pose === 'stand') {
-      // Arms down
       ctx.beginPath();
       ctx.moveTo(0, -38 * scY); ctx.lineTo(-12 * scY, -26 * scY);
       ctx.moveTo(0, -38 * scY); ctx.lineTo( 12 * scY, -26 * scY);
       ctx.stroke();
-      // Legs
       ctx.beginPath();
       ctx.moveTo(0, -18 * scY); ctx.lineTo(-9 * scY, 0);
       ctx.moveTo(0, -18 * scY); ctx.lineTo( 9 * scY, 0);
       ctx.stroke();
 
     } else if (pose === 'attack') {
-      // Punch arm forward
       ctx.beginPath();
       ctx.moveTo(0, -38 * scY); ctx.lineTo( 22 * scY, -36 * scY);
       ctx.moveTo(0, -38 * scY); ctx.lineTo(-10 * scY, -28 * scY);
       ctx.stroke();
-      // Stride legs
       ctx.beginPath();
       ctx.moveTo(0, -18 * scY); ctx.lineTo(-12 * scY,  2 * scY);
       ctx.moveTo(0, -18 * scY); ctx.lineTo( 10 * scY, -2 * scY);
       ctx.stroke();
 
     } else if (pose === 'fly') {
-      // Ragdoll — arms/legs splayed
       ctx.beginPath();
       ctx.moveTo(0, -38 * scY); ctx.lineTo(-18 * scY, -32 * scY);
       ctx.moveTo(0, -38 * scY); ctx.lineTo( 14 * scY, -44 * scY);
@@ -1049,8 +977,8 @@ function drawFallenWarriorMemory() {
 
   // ── Phase logic ──────────────────────────────────────────────
   // Phase A  (f  1-40): warrior stands, facing the enemy (off-screen right)
-  // Phase B  (f 41-70): warrior lunges — attack pose, slides forward
-  // Phase C  (f 71-90): white flash + instant defeat — warrior flies left
+  // Phase B  (f 41-70): warrior lunges, attack pose, slides forward
+  // Phase C  (f 71-90): white flash + instant defeat, warrior flies left
   // Phase D  (f 91-140): warrior lies on ground; "THEY FAILED." text
   // Phase E  (f 141-168): fade out
 
@@ -1058,46 +986,38 @@ function drawFallenWarriorMemory() {
   const sfY  = cy + ch * 0.14; // feet level (mid-lower screen)
 
   if (f <= 40) {
-    // Stand
     _drawSilhouette(sfX, sfY, 1, 1, 'stand');
 
   } else if (f <= 70) {
-    // Lunge: slide right
     const prog = (f - 40) / 30;
     _drawSilhouette(sfX + prog * cw * 0.15, sfY, 1, 1, 'attack');
 
   } else if (f <= 90) {
-    // Impact flash + fly
     const prog = (f - 70) / 20;
-    // White flash (fades fast)
     if (f <= 76) {
       const flashA = (1 - (f - 70) / 6) * baseA * 0.7;
       ctx.fillStyle = `rgba(255,255,255,${flashA.toFixed(3)})`;
       ctx.fillRect(0, 0, cw, ch);
     }
-    // Warrior flying left and up
     const flyX = sfX + cw * 0.15 - prog * cw * 0.30;
     const flyY = sfY - prog * ch * 0.16 + prog * prog * ch * 0.20; // arc
     _drawSilhouette(flyX, flyY, 1, -1, 'fly');
 
   } else if (f <= 140) {
-    // Crumpled on ground
     const crumpX = sfX + cw * 0.15 - cw * 0.30;
     _drawSilhouette(crumpX, sfY, 1, -1, 'fly');
 
-    // "THEY FAILED." text — fades in between f 95-115
+    // "THEY FAILED." text, fades in between f 95-115
     const textA = Math.min(1, (f - 95) / 20) * baseA;
     if (textA > 0) {
       const fs = Math.round(cw * 0.030);
       ctx.font        = `900 ${fs}px 'Arial Black', Arial, sans-serif`;
       ctx.textAlign   = 'center';
       ctx.letterSpacing = '0.12em';
-      // Shadow
       ctx.shadowColor = 'rgba(100,80,200,0.9)';
       ctx.shadowBlur  = 18;
       ctx.fillStyle   = `rgba(220,210,255,${textA.toFixed(3)})`;
       ctx.fillText('THEY FAILED.', cx, cy - ch * 0.22);
-      // Thin underline rule
       ctx.shadowBlur  = 0;
       ctx.strokeStyle = `rgba(200,180,255,${(textA * 0.35).toFixed(3)})`;
       ctx.lineWidth   = 1;
@@ -1108,7 +1028,6 @@ function drawFallenWarriorMemory() {
       ctx.stroke();
     }
   }
-  // Phase E: just the envelope fades — nothing extra to draw
 
   ctx.restore();
 }

@@ -1,25 +1,17 @@
 'use strict';
-// smb-story-interlude.js — Walking chapter system ported from Axiom Prequel
+// smb-story-interlude.js: Walking chapters (ported from Axiom Prequel).
 //
-// Interlude chapters (type: 'interlude') let the player walk freely through
-// a wide scrollable level while dialogue lines trigger based on X position.
-// The chapter completes when the player reaches ch.endTriggerX.
+// Interlude chapters (type: 'interlude') let the player walk through a wide
+// level while dialogue fires on X position. Done when the player passes endTriggerX.
 //
-// Chapter definition contract:
+// Contract:
 //   type: 'interlude'
-//   worldWidth: <number>     — horizontal extent of the level in game units
-//   endTriggerX: <number>    — player cx() must exceed this to complete
-//   dialogues: [             — sorted by x (ascending); engine re-sorts on init
-//     { x: <number>, speaker: <string|null>, text: <string>, duration?: <frames> },
-//     ...
-//   ]
-//   platforms: [...]         — optional extra platforms (merged with arena defaults)
+//   worldWidth: <number>    : level width in game units
+//   endTriggerX: <number>   : player cx() must exceed this to complete
+//   dialogues: [{ x, speaker: <string|null>, text, duration?: <frames> }, ...]  (sorted by x)
+//   platforms: [...]        : optional, merged with arena defaults
 //
-// Camera: when gameMode === 'story' and _interludeActive is true, smb-camera.js
-// is patched via _storyInterlудeLeadCamera() which overrides the exploration branch.
-// The lead camera is wired into updateCamera() at the exploration mode hook.
-
-// ── State ─────────────────────────────────────────────────────────────────────
+// Camera: updateCamera()'s exploration branch hands off to _storyInterludeLeadCamera.
 let _ilPending    = [];    // dialogue entries not yet triggered, sorted by x
 let _ilQueue      = [];    // triggered, awaiting display
 let _ilActive     = null;  // { speaker, text, timer, maxTimer }
@@ -27,7 +19,7 @@ let _ilDone       = false; // true when completion conditions are met
 let _ilChapter    = null;  // reference to current interlude chapter object
 let _interludeActive = false;
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// Init
 function initInterlude(ch) {
   _ilChapter   = ch;
   _ilPending   = [...(ch.dialogues || [])].sort((a, b) => a.x - b.x);
@@ -36,8 +28,7 @@ function initInterlude(ch) {
   _ilDone      = false;
   _interludeActive = true;
 
-  // Set arena to wide layout (the story engine sets up the right arena separately)
-  // Camera is handled by updateCamera()'s exploration branch — no changes needed there
+  // Wide layout. The story engine sets the arena up separately.
 }
 
 function resetInterlude() {
@@ -49,7 +40,7 @@ function resetInterlude() {
   _interludeActive = false;
 }
 
-// ── Update (call from per-frame story logic) ──────────────────────────────────
+// Update (call from per-frame story logic)
 function updateInterlude() {
   if (!_interludeActive) return;
   const p1 = players && players[0];
@@ -96,7 +87,7 @@ function updateInterlude() {
 
 function isInterludeComplete() { return _ilDone; }
 
-// ── Draw (call during the HUD/overlay draw pass) ──────────────────────────────
+// Draw (call during the HUD/overlay draw pass)
 function drawInterlude() {
   if (!_interludeActive) return;
 
@@ -120,7 +111,7 @@ function drawInterlude() {
   }
 }
 
-// ── Caption (no speaker — environmental / narrator) ───────────────────────────
+// Caption (no speaker: environmental / narrator)
 function _ilDrawCaption(speech) {
   const t    = speech.maxTimer - speech.timer;
   const aIn  = Math.min(1, t / 22);
@@ -139,7 +130,7 @@ function _ilDrawCaption(speech) {
   ctx.restore();
 }
 
-// ── Speech bubble (speaker attributed) ───────────────────────────────────────
+// Speech bubble (speaker attributed)
 function _ilDrawBubble(speech) {
   const t    = speech.maxTimer - speech.timer;
   const aIn  = Math.min(1, t / 16);
@@ -150,15 +141,16 @@ function _ilDrawBubble(speech) {
   const skey = speech.speaker ? speech.speaker.toLowerCase() : null;
   let entity = null;
   if (skey && players && players[0]) {
-    // Check fighters by name
+    // Fighters by name
     const allF = [...(players || []), ...(minions || [])];
     entity = allF.find(f => f && f.name && f.name.toLowerCase() === skey);
     if (!entity && (skey === 'p1' || skey === 'kael' || skey === 'you')) entity = players[0];
     if (!entity && skey === 'p2') entity = players[1];
   }
-  if (!entity) entity = players && players[0]; // fallback to P1
+  if (!entity) entity = players && players[0]; // fall back to P1
 
-  // World→screen X (camera transform)
+  // World to screen X
+
   const scale  = (typeof camZoomCur !== 'undefined') ? camZoomCur : 1;
   const anchorX = entity
     ? (entity.cx() - (typeof camXCur !== 'undefined' ? camXCur : 0)) * scale + GAME_W / 2

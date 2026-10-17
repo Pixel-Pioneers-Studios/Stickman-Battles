@@ -1,21 +1,10 @@
-// Void Mind arc — Reckonings II, III, IV
-// ids 158, 159, 160
-//
-// The Void Mind does not argue. It presents versions.
-// Each reckoning targets a specific load-bearing belief.
-// Wrong answers do not fail — they propagate. Correct answers cost something.
-//
-// II  — "The Work They Left"     (the Third Architect's choice)
-// III — "What Was Left"          (the Herald of Nothing's dissolution)
-// IV  — "Their Names"            (Null, Seraph, VAEL — what they kept)
+// Void Mind arc: Reckonings II, III, IV. ids 158, 159, 160.
+// The Void Mind presents versions, not arguments. Wrong answers propagate. Right answers cost something.
+// II: The Work They Left. III: What Was Left. IV: Their Names.
 STORY_CHAPTER_REGISTRY.push(
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING II — "The Work They Left"
-  // Target memory: The Third Architect opened the prison to free the Preserved.
-  // They named the calculation explicitly. Fifty-two dimensions against the mission.
-  // The Void Mind presents: the liberation was tactical cover. Sabotage dressed as ethics.
-  // ────────────────────────────────────────────────────────────────────────────
+  // RECKONING II: "The Work They Left". Target: the Third Architect freed the Preserved as a cover for sabotage.
+  // The Void Mind presents the liberation as tactical, not ethical.
   {
     id: 174, title: 'The Work They Left',
     world: '⬛ The Substrate — Below All Dimensions',
@@ -81,16 +70,9 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Third Architect named fifty-two dimensions and stepped through a portal. Whether that naming was a record or a justification — the Substrate has noted which version you carry. The Preserved are still there, still real, still alive in dimensions that would otherwise have been absorbed. What motivated their liberation does not change that they were liberated. The Void Mind\'s interest was never in the outcome. It was in the account.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING III — "What Was Left"
-  // Target memory: the Herald of Nothing fought seriously, then chose to dissolve
-  // when the rift closed. They said "I had hoped someone would" — hope requires
-  // something left to hope.
-  // The Void Mind presents: nothing was left to hope. Behavioral residue
-  // performed the syntax of hope because hope was part of the pattern
-  // Axiom extracted and left behind. The dissolution was not a second death.
-  // It was the first finality completing.
-  // ────────────────────────────────────────────────────────────────────────────
+  // RECKONING III: "What Was Left". Target: the Herald fought seriously, then dissolved when the rift closed.
+  // The Void Mind presents: nothing was left to hope. Hope was a pattern Axiom left behind, and the
+  // dissolution was the first finality completing.
   {
     id: 175, title: 'What Was Left',
     world: '⬛ The Substrate — Below All Dimensions',
@@ -157,17 +139,8 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Herald dissolved when the rift closed. Whether that was a person making a second choice or a pattern reaching its end depends on whether enough remained to be a person. The Void Mind\'s interest was in whether your account allows for the possibility that the Herald was already gone. It noted what you gave it.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING IV — "Their Names"
-  // Target memory: Null (Anders), Seraph, VAEL — Axiom's original companions.
-  // They kept their names. The prequel showed they were people with specific
-  // personalities, relationships, commitments. They became monsters after the
-  // void contact but still fought each other — which implies something
-  // real enough to conflict.
-  // The Void Mind presents: a name is not a person. The void erased the people.
-  // What followed were behavioral patterns using their names as labels.
-  // The conflict is not evidence of personhood — patterns can conflict.
-  // ────────────────────────────────────────────────────────────────────────────
+  // RECKONING IV: "Their Names". Target: Null, Seraph and VAEL kept their names and still fought each other.
+  // The Void Mind presents: a name is not a person. Conflict is not evidence of personhood.
   {
     id: 176, title: 'Their Names',
     world: '⬛ The Substrate — Below All Dimensions',

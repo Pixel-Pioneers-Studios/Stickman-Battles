@@ -1,11 +1,6 @@
-// ============================================================
-// smb-visual-polish.js — Reversible render-only presentation pass
-// Depends on: all runtime modules (loaded last)
-//
-// This module deliberately does not touch gameplay state, hitboxes, stats,
-// input, saves, or timing. It wraps the existing Fighter renderer and adds a
-// lightweight visual layer after the original model has been painted.
-// ============================================================
+// smb-visual-polish.js: render-only presentation pass, loaded last.
+// Doesn't touch gameplay state, hitboxes, stats, input, saves or timing.
+// Wraps the Fighter renderer and draws a light layer after the model is painted.
 
 const SMB_VISUAL_CLASS_COLORS = Object.freeze({
   warrior: '#f0a45b',
@@ -67,8 +62,7 @@ function _smbDrawFighterPolish(fighter) {
     ctx.stroke();
   }
 
-  // Motion ribbon: only during active movement/attack, so the model stays clean
-  // at rest and movement reads with a little more authored energy.
+  // Motion ribbon only during movement or attacks, so the model stays clean at rest.
   const speed = Math.abs(fighter.vx || 0);
   const attacking = fighter.state === 'attacking' || fighter.attackTimer > 0;
   if ((speed > 4.5 || attacking) && !fighter.ragdollTimer) {

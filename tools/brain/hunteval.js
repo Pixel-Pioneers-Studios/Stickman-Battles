@@ -12,6 +12,8 @@
  * Usage: node tools/brain/hunteval.js [--eps=100] [--seed=1]
  *        [--ckpt=data/brain-hunter/latest.json] [--target=data/brain-hunter/target.json]
  *        [--json=out.json]   also write the headline numbers for a script (league.js gate)
+ *        [--habit=masher]    the target carries that habit (js/smb-brain.js HABITS) in both arms
+ *        [--wipe=1]          clear the hunter's memory every N decisions (1 = it never remembers)
  *        [--no-mirror]       skip the mirror arm (only the hunter's raw win rate is needed)
  */
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -45,20 +47,20 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
     await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'load', timeout: 180000 });
     await new Promise(r => setTimeout(r, 2500));
     await page.evaluate(() => { try { backToHome(); } catch (e) {} });
-    console.log(`Hunter iteration ${HUNTER.iter} vs target iteration ${TARGET.iter}, ${EPS} matches per arm, seed ${SEED}, both top choice`);
-    const res = await page.evaluate((hunter, target, eps, seed, arms) => {
+    console.log(`Hunter iteration ${HUNTER.iter} vs target iteration ${TARGET.iter}${args.habit ? ' with habit ' + args.habit : ''}, ${EPS} matches per arm, seed ${SEED}, both top choice`);
+    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe) => {
       const rnd = Math.random;
       const seeded = s => () => { s = (s + 0x6D2B79F5) >>> 0; let t = s;
         t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      const spec = { type: 'self', label: 'target', greedy: true, brainKit: 'randomClass', kit: 'randomClass' };
+      const spec = { type: 'self', label: 'target', greedy: true, brainKit: 'randomClass', kit: 'randomClass', habit: habit || undefined };
       // Throwaway matches: the first rollout in a fresh page is not reproducible (lazy init).
       Math.random = seeded(seed);
       Brain.rollout({ weights: target, hunt: target, maxFrames: 7200, opponents: [spec], episodes: 2, greedy: true });
       const out = {};
       for (const [arm, w] of [['mirror', target], ['hunter', hunter]].filter(([a]) => arms.includes(a))) {
         Math.random = seeded(seed * 7919);
-        const r = Brain.rollout({ weights: w, hunt: target, maxFrames: 7200, opponents: [spec], episodes: eps, greedy: true });
+        const r = Brain.rollout({ weights: w, hunt: target, maxFrames: 7200, opponents: [spec], episodes: eps, greedy: true, memWipe: arm === 'hunter' ? wipe : 0 });
         const a = { win: 0, k: 0, d: 0, fr: 0, stats: {} };
         for (const e of r.episodes) {
           a.win += e.win; a.k += e.oLost; a.d += e.bLost; a.fr += e.frames;
@@ -68,13 +70,14 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
       }
       Math.random = rnd;
       return out;
-    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS);
+    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0);
     const M = res.mirror, H = res.hunter;
     const se = Math.sqrt(0.25 / EPS) * 100;
     if (args.json) {
-      const head = a => a && { win: 100 * a.win / EPS, taken: a.k, lost: a.d };
+      const head = a => a && { win: 100 * a.win / EPS, taken: a.k, lost: a.d, habitFires: a.stats.habitFires, habitDealt: a.stats.habitDealt, habitTaken: a.stats.habitTaken,
+        habitFiresLate: a.stats.habitFiresLate, habitDealtLate: a.stats.habitDealtLate, habitTakenLate: a.stats.habitTakenLate };
       fs.writeFileSync(path.resolve(ROOT, args.json), JSON.stringify({ hunterIter: HUNTER.iter, targetIter: TARGET.iter,
-        eps: EPS, seed: SEED, se, mirror: head(M), hunter: head(H) }) + '\n');
+        eps: EPS, seed: SEED, se, habit: args.habit || null, wipe: parseInt(args.wipe, 10) || 0, mirror: head(M), hunter: head(H) }) + '\n');
     }
     if (!M) { console.log(`\n  hunter  win ${(100 * H.win / EPS).toFixed(0)}%  stocks taken/lost ${H.k}/${H.d}   (one standard error ~${se.toFixed(0)} pts)`); return; }
     console.log(`\n  mirror  win ${(100 * M.win / EPS).toFixed(0)}%  stocks taken/lost ${M.k}/${M.d}`);

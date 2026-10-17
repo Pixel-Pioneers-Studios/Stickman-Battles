@@ -1,20 +1,6 @@
 'use strict';
-// js/story/levels/ch76.js — Chapter 76 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 76 — The First Gate (walk → duel vs two Void Guardians)
-// The Void Between's outer threshold: a causeway of pale gold stone laid across
-// nothing, built by the Fallen God. A colonnade runs along it, half fallen —
-// broken drums and toppled lintels are the climbs. The outer gate (a pair of
-// obelisks bridged by a bar of light) marks the first checkpoint. At the
-// midpoint the First Gate itself: two pylons, each with an empty guardian
-// niche, under the one word cut in the lintel — the guardians who test you
-// are "questions", and they step down out of those niches. Behind everything
-// a vast dim halo hangs in the void; it brightens past the gate as the voice
-// "returns — closer now, more present". Beyond, the causeway runs on toward
-// the remnant space, its edges starting to crumble. The chest climbs at
-// 1800 / 4680 are the engine's; the colonnade keeps clear of them.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 76 map (walk, then duel vs two Void Guardians). See smb-story-levels.js.
+// The First Gate at the midpoint: the guardians step down out of empty niches.
 (function () {
   const G = 440, OUTER = 1500, GATE = 3000, END = 5650;
   const CLIMB = [[520, 350, 100], [640, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -30,7 +16,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#05040a');
-    // Gold dust drifting in the void
     _slParallax(v, 0.05, (l, r) => {
       for (let i = Math.floor(l / 40); i * 40 < r; i++) {
         const y = -200 + _slHash(i + 760) * 640, a = 0.2 + 0.4 * _slHash(i + 761);
@@ -38,7 +23,6 @@
         ctx.fillRect(i * 40 + _slHash(i) * 30, y, 1.5, 1.5);
       }
     });
-    // The halo: the Fallen God's presence, brighter past the gate
     _slParallax(v, 0.12, (l, r) => {
       const near = Math.max(0, Math.min(1, (v.x + v.w / 2 - 1500) / 3000));
       const cx = 3000 * 0.12 + 450, cy = 150;
@@ -67,7 +51,6 @@
     ctx.fillStyle = '#a89060'; ctx.fillRect(x, G - h, w, h);
     ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(x, G - h, 6, h);
     ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.fillRect(x + w - 8, G - h, 8, h);
-    // Empty guardian niche
     ctx.fillStyle = '#4a3c24'; ctx.fillRect(x + w / 2 - 26, G - 150, 52, 130);
     ctx.beginPath(); ctx.arc(x + w / 2, G - 150, 26, Math.PI, 0); ctx.fill();
     ctx.fillStyle = '#cbb486'; ctx.fillRect(x + w / 2 - 32, G - 22, 64, 8);
@@ -75,7 +58,7 @@
 
   function back(v) {
     for (let i = 0; i < COLS.length; i++) if (_slVisible(v, COLS[i] - 30, COLS[i] + 30)) column(COLS[i], 170 + _slHash(i + 76) * 60, i % 3 === 1);
-    // Colonnade climbs: broken drums (steps) and toppled lintels (high ledges)
+    // Colonnade climbs: drums are steps, lintels are high ledges
     for (let i = 0; i < CLIMB.length; i++) {
       const [x, y, w] = CLIMB[i];
       if (!_slVisible(v, x - 20, x + w + 20)) continue;
@@ -89,7 +72,6 @@
         ctx.fillStyle = '#a89060'; ctx.fillRect(x + w - 24, y + 14, 16, G - y - 14);
       }
     }
-    // The outer gate: two obelisks bridged by a bar of light
     if (_slVisible(v, OUTER - 160, OUTER + 160)) {
       for (const ox of [OUTER - 120, OUTER + 100]) {
         ctx.fillStyle = '#a89060';
@@ -99,7 +81,6 @@
       ctx.fillStyle = `rgba(255,220,140,${0.5 + 0.2 * Math.sin(frameCount * 0.05)})`; ctx.fillRect(OUTER - 106, G - 222, 212, 4);
       ctx.restore();
     }
-    // The First Gate
     if (_slVisible(v, GATE - 420, GATE + 420)) {
       ctx.fillStyle = '#cbb486'; ctx.fillRect(GATE - 360, 360, 100, 8); ctx.fillRect(GATE + 240, 360, 100, 8);
       ctx.fillStyle = '#a89060'; ctx.fillRect(GATE - 350, 368, 80, G - 368); ctx.fillRect(GATE + 250, 368, 80, G - 368);
@@ -113,7 +94,6 @@
       ctx.fillStyle = g; ctx.fillRect(GATE - 140, G - 290, 280, 290);
       ctx.restore();
     }
-    // The far end: the causeway runs on into remnant space
     if (_slVisible(v, END - 300, END + 400)) {
       for (let k = 0; k < 10; k++) {
         const bx = END - 100 + _slHash(k + 7600) * 400, by = 160 + _slHash(k + 7601) * 200 + Math.sin(frameCount * 0.02 + k) * 6;
@@ -131,7 +111,7 @@
       for (let jx = Math.ceil(x0 / 64) * 64; jx < x1; jx += 64) { ctx.beginPath(); ctx.moveTo(jx, G - 14); ctx.lineTo(jx - 5, G); ctx.stroke(); }
       return;
     }
-    // Causeway cross-section tapering into the void; crumbling past the last checkpoint
+    // Crumbling past the last checkpoint
     ctx.fillStyle = '#8a7650';
     ctx.beginPath(); ctx.moveTo(x0, G);
     for (let x = Math.floor(x0 / 60) * 60; x <= x1 + 60; x += 60) ctx.lineTo(x, G + 60 + _slHash(Math.floor(x / 60) + 7700) * 50);

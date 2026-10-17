@@ -1,22 +1,18 @@
 'use strict';
-// smb-data-mapperks.js — MAP_PERK_DEFS, spawn helpers, updateMapPerks
-// Depends on: smb-globals.js, smb-data-arenas.js (ARENAS, currentArena), smb-particles.js (dealDamage, spawnParticles)
-// Must load BEFORE smb-data-mapperks-draw.js
+// smb-data-mapperks.js: MAP_PERK_DEFS, spawn helpers, updateMapPerks.
+// Needs smb-data-arenas.js and smb-globals.js first. Load before smb-data-mapperks-draw.js.
 
-// ============================================================
-// MAP PERKS — per-arena special item/event state
-// ============================================================
 const MAP_PERK_DEFS = {
   ruins: {
     items: [
-      { baseX: 135, baseY: 400 },  // on left block
-      { baseX: 450, baseY: 400 },  // on center block
-      { baseX: 765, baseY: 400 },  // on right block
+      { baseX: 135, baseY: 400 },
+      { baseX: 450, baseY: 400 },
+      { baseX: 765, baseY: 400 },
     ],
     types: ['speed','power','heal','shield','maxhp','curse_slow','curse_weak','curse_fragile','curse_maxhp_perm']
   },
   forest: {
-    healZones: [{ x: 0, w: 900, healRate: 60 }]  // gentle healing every 60 frames
+    healZones: [{ x: 0, w: 900, healRate: 60 }]  // 60-frame heal tick
   },
   city: {
     carCooldown: 600  // frames between car runs
@@ -45,31 +41,24 @@ const MAP_PERK_DEFS = {
     boostPads: [{ x: 180, y: 478 }, { x: 540, y: 478 }, { x: 750, y: 478 }]
   },
   sovereign: {
-    // The Circuit borrows three existing perk systems so Sovereign's map-tactics
-    // layer (_getMapHazardAt / _selectMapResource / _runMapTactics) has something
-    // to read on his own arena — it was previously inert there.
-    // One pickup per deck; deck tops are y=335 / 320 / 335 (see ARENAS.sovereign).
+    // The Circuit borrows three perk systems so the bot's map-tactics layer has inputs to read.
+    // Deck tops are y=335 / 320 / 335.
     items: [
-      { baseX: 177, baseY: 335 },  // left deck
-      { baseX: 450, baseY: 320 },  // center deck
-      { baseX: 722, baseY: 335 },  // right deck
+      { baseX: 177, baseY: 335 },
+      { baseX: 450, baseY: 320 },
+      { baseX: 722, baseY: 335 },
     ],
-    // Same pool as ruins, curses included: Sovereign's _mapItemValue() scores
-    // curses at 0 and never takes one, so the pool is an asymmetry in his favour.
+    // Same pool as ruins, curses included. The bot scores curses at 0 and never takes one.
     types: ['speed','power','heal','shield','maxhp','curse_slow','curse_weak','curse_fragile','curse_maxhp_perm']
   }
 };
 
-// Perk systems The Circuit opts into. Keyed by system rather than arena so the
-// existing per-arena blocks stay untouched and nothing else inherits them.
-// items is OFF: curses never reach him (he scores them 0), so the pool slowed
-// and weakened only the player while heals undid their damage.
+// Perk systems The Circuit opts into, keyed by system so per-arena blocks stay untouched.
+// Items is off: curses hit only the player, and heals undid their damage.
 const SOVEREIGN_PERK_SYSTEMS = { items: false, blizzard: true, meteors: true };
 
-// True when the current arena runs `system`, either as its own arena or because
-// The Circuit borrows it. `key` is the arena that natively owns the system.
-// Custom maps from the Creator Studio opt into systems by name through
-// `designerPerks` (blizzard, meteors, beast, yeti) instead of owning an arena key.
+// True when `arena` runs `system`, natively or borrowed by The Circuit.
+// Creator Studio maps opt in by name via `designerPerks` (blizzard, meteors, beast, yeti).
 function _designerPerk(name) {
   return !!(currentArena && currentArena.designerPerks && currentArena.designerPerks[name]);
 }
@@ -80,13 +69,12 @@ function arenaRunsPerk(key, system) {
   return currentArenaKey === 'sovereign' && !!SOVEREIGN_PERK_SYSTEMS[system];
 }
 
-let mapPerkState = {};  // runtime state per arena
+let mapPerkState = {};
 
 function initMapPerks(key) {
   mapItems    = [];
   mapPerkState = {};
-  // Public Server lobbies: perks are rolled and simulated per browser, so every
-  // player would see different pickups and a different beast. None in lobbies.
+  // Public Server lobbies have no perks. Pickups and beasts would differ per browser.
   if (window._pubHubActive) return;
   if (key === 'ruins') {
     const def = MAP_PERK_DEFS.ruins;
@@ -111,8 +99,7 @@ function initMapPerks(key) {
     }
     mapPerkState.crates        = [];
     mapPerkState.crateCooldown = 300;
-    // Meteors and the gale both start on a long fuse — the opening exchange stays
-    // clean so the fight reads as a duel before the arena starts asserting itself.
+    // Meteors and gale start on a long fuse so the opening reads as a duel.
     mapPerkState.meteors        = [];
     mapPerkState.meteorCooldown = 1500;
     mapPerkState.blizzardTimer  = 1500;
@@ -151,7 +138,7 @@ function initMapPerks(key) {
   }
 }
 
-// Helper used by both the random forest encounter logic and the Director.
+// Used by the forest encounter logic and the Director.
 function spawnForestBeastNow() {
   if (!currentArena || forestBeast || forestBeastCooldown > 0 || window._pubHubActive) return;
   const pls = currentArena.platforms;
@@ -170,10 +157,8 @@ function spawnForestBeastNow() {
     forestBeast.kbResist    = 0.25;
     forestBeast.color       = '#ff2200';
     forestBeast.name        = 'RAGED BEAST';
-    // Speed handled in updateAI via dash cooldown tweak
     forestBeast.dashCooldown = 60;
   }
-  // Target the player with lowest health
   const livingPlayers = players.filter(p => !p.isBoss && p.health > 0);
   if (livingPlayers.length > 0) {
     forestBeast.target = livingPlayers.reduce((a, b) => a.health < b.health ? a : b);
@@ -185,7 +170,7 @@ function spawnForestBeastNow() {
   if (settings.dmgNumbers) damageTexts.push(new DamageText(spawnX, spawnY - 20, beastLabel, forestBeast.isRaged ? '#ff4400' : '#1aff3a'));
 }
 
-// Helper used by both the random ice encounter logic and the Director.
+// Used by the ice encounter logic and the Director.
 function spawnYetiNow() {
   if (!currentArena || yeti || yetiCooldown > 0) return;
   const spawnX = Math.random() < 0.5 ? 60 : GAME_W - 60;
@@ -202,9 +187,8 @@ function updateMapPerks() {
   if (window._pubHubActive) return;
 
 
-  // ---- RUINS: Artifact pickups (also The Circuit — see arenaRunsPerk) ----
+  // Ruins: artifact pickups
   if (arenaRunsPerk('ruins', 'items')) {
-    // Pull the type pool from whichever arena owns the pickups this match.
     const _itemDef = MAP_PERK_DEFS[currentArenaKey] || MAP_PERK_DEFS.ruins;
     for (const item of mapItems) {
       item.animPhase += 0.06;
@@ -216,7 +200,6 @@ function updateMapPerks() {
         }
         continue;
       }
-      // Check proximity
       for (const p of players) {
         if (p.isBoss || p.health <= 0) continue;
         const dx = p.cx() - item.x, dy = (p.y + p.h/2) - item.y;
@@ -236,18 +219,17 @@ function updateMapPerks() {
       }
     }
 
-    // ---- RUINS: Breakable crates ----
+  // Ruins: crates
     if (!mapPerkState.crates)       mapPerkState.crates       = [];
     if (mapPerkState.crateCooldown === undefined) mapPerkState.crateCooldown = 300;
     if (mapPerkState.crates.length < 3) {
       mapPerkState.crateCooldown--;
       if (mapPerkState.crateCooldown <= 0) {
-        // Pick a random platform surface to place the crate
         const pls = currentArena.platforms.filter(p => !p.isFloor && p.w >= 60);
         if (pls.length > 0) {
           const pl  = pls[Math.floor(Math.random() * pls.length)];
           const cx  = pl.x + 20 + Math.random() * (pl.w - 40);
-          const cy  = pl.y; // crate bottom sits on platform top
+          const cy  = pl.y;
           // Avoid stacking on existing crates
           const occupied = mapPerkState.crates.some(c => Math.abs(c.x - cx) < 50 && Math.abs(c.y - cy) < 40);
           if (!occupied) {
@@ -258,7 +240,7 @@ function updateMapPerks() {
         mapPerkState.crateCooldown = 1200 + Math.floor(Math.random() * 600); // 20–30 s
       }
     }
-    // Crate hit detection
+  // Crate hits
     for (let ci = mapPerkState.crates.length - 1; ci >= 0; ci--) {
       const crate = mapPerkState.crates[ci];
       if (crate.hitShake > 0) crate.hitShake--;
@@ -290,7 +272,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- FOREST: Gradual healing ----
+  // Forest: healing
   if (currentArenaKey === 'forest' && frameCount % 90 === 0) {
     for (const p of players) {
       if (p.isBoss || p.health <= 0 || p.hurtTimer > 0) continue;
@@ -303,29 +285,28 @@ function updateMapPerks() {
     }
   }
 
-  // ---- FOREST: Rare beast encounter ----
+  // Forest: rare beast
   if (currentArenaKey === 'forest' || _designerPerk('beast')) {
-    // Track beast death → set cooldown
+    // Beast death starts the cooldown.
     if (forestBeast && forestBeast.health <= 0) {
       _achCheckBeastDead();
       forestBeast = null;
       forestBeastCooldown = SPAWN_CONFIG.forestBeast.respawnDelay;
     }
     if (forestBeastCooldown > 0) forestBeastCooldown--;
-    // Deterministic interval spawn — no hidden randomness
+    // Fixed interval spawn.
     if (!forestBeast && forestBeastCooldown <= 0 && frameCount % SPAWN_CONFIG.forestBeast.spawnInterval === 0) {
       spawnForestBeastNow();
     }
   }
 
-  // ---- CITY: Occasional car ----
+  // City: occasional car
   if (currentArenaKey === 'city') {
     if (!mapPerkState.cars)        mapPerkState.cars        = [];
     if (!mapPerkState.carCooldown) mapPerkState.carCooldown = MAP_PERK_DEFS.city.carCooldown;
     if (mapPerkState.carCooldown > 0) {
       mapPerkState.carCooldown--;
     } else {
-      // Spawn a car
       const fromLeft = Math.random() < 0.5;
       mapPerkState.cars.push({ x: fromLeft ? -60 : GAME_W + 60, y: 432,
         vx: fromLeft ? 9 : -9, warned: false, warnTimer: 60 });
@@ -338,7 +319,6 @@ function updateMapPerks() {
       if (car.x < -120 || car.x > GAME_W + 120) {
         mapPerkState.cars.splice(ci, 1); continue;
       }
-      // Damage players in path
       let _carExploded = false;
       for (const p of players) {
         if (p.health <= 0 || p.invincible > 0) continue;
@@ -356,7 +336,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- LAVA: Eruptions ----
+  // Lava: eruptions
   if (currentArenaKey === 'lava') {
     if (!mapPerkState.eruptCooldown) mapPerkState.eruptCooldown = 480;
     if (!mapPerkState.eruptions)     mapPerkState.eruptions     = [];
@@ -379,7 +359,7 @@ function updateMapPerks() {
         _p.size = 3+Math.random()*4; _p.life = 30+Math.random()*20; _p.maxLife = 50;
         particles.push(_p);
       }
-      // Damage nearby players — wider (±100px), taller (250px above lava)
+      // Hit zone: 100px to each side, 250px above the lava.
       for (const p of players) {
         if (p.isBoss || p.health <= 0 || p.invincible > 0) continue;
         if (Math.abs(p.cx() - er.x) < 100 && p.y + p.h > (currentArena.lavaY || 442) - 250) {
@@ -389,7 +369,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- SPACE: Falling meteorites (also The Circuit — see arenaRunsPerk) ----
+  // Space: falling meteorites
   if (arenaRunsPerk('space', 'meteors')) {
     const _sovMeteors = currentArenaKey === 'sovereign';
     if (!mapPerkState.meteors)         mapPerkState.meteors        = [];
@@ -403,17 +383,15 @@ function updateMapPerks() {
     for (let mi = mapPerkState.meteors.length - 1; mi >= 0; mi--) {
       const m = mapPerkState.meteors[mi];
       if (m.warnTimer > 0) { m.warnTimer--; continue; }
-      m.vy += 0.55; // gravity accelerates
+      m.vy += 0.55;
       m.y  += m.vy;
       if (m.y > GAME_H + 20) { mapPerkState.meteors.splice(mi, 1); continue; }
-      // Damage players in blast radius
       for (const p of players) {
         if (p.health <= 0 || p.invincible > 0) continue;
         if (Math.hypot(p.cx() - m.x, p.cy() - m.y) < 55) {
           spawnParticles(m.x, m.y, '#ff8844', 14);
-          // The Circuit: meteors pressure position, they never close out a stock.
-          // A hazard kill would hand the loser a life neither fighter earned and
-          // would cut short the punish conversions the duel is built around.
+          // Circuit: meteors pressure position and never close out a stock.
+          // A hazard kill would hand the loser a stock neither fighter earned.
           let _mDmg = 28;
           if (_sovMeteors) _mDmg = Math.max(0, Math.min(_mDmg, p.health - 1));
           if (_mDmg > 0) dealDamage(players[1] || players[0], p, _mDmg, 22);
@@ -422,7 +400,6 @@ function updateMapPerks() {
           break;
         }
       }
-      // Explode on ground (y > 460)
       if (mi < mapPerkState.meteors.length && mapPerkState.meteors[mi].y > 455) {
         spawnParticles(m.x, 460, '#ff8844', 20);
         if (settings.screenShake) screenShake = Math.max(screenShake, 14);
@@ -431,7 +408,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- CITY: Moving cars that deal damage ----
+  // City: moving cars
   if (currentArenaKey === 'city') {
     if (!mapPerkState.cityCars)    mapPerkState.cityCars    = [];
     if (mapPerkState.carSpawnCd === undefined) mapPerkState.carSpawnCd = 180;
@@ -446,21 +423,18 @@ function updateMapPerks() {
         vx:     goRight ? 6.5 : -6.5,
         color:  ['#cc2200','#0033cc','#448800','#cc8800'][Math.floor(Math.random() * 4)],
         warned: false,
-        hit:    new Set(), // dedup: each player can only be hit once per car
+        hit:    new Set(),  // each player is hit once per car
       });
-      // Warn players with a HUD message
       if (settings.dmgNumbers) damageTexts.push(new DamageText(GAME_W / 2, 105, 'CAR!', '#ffcc00'));
     }
     for (let ci = mapPerkState.cityCars.length - 1; ci >= 0; ci--) {
       const car = mapPerkState.cityCars[ci];
       car.x += car.vx;
-      // Remove when off-screen
       if (car.x > GAME_W + 120 || car.x < -120) { mapPerkState.cityCars.splice(ci, 1); continue; }
-      // Damage players
       let _cityCarHit = false;
       for (const p of players) {
         if (p.health <= 0 || p.invincible > 0 || p.isBoss) continue;
-        if (car.hit.has(p)) continue; // already hit this player — skip
+        if (car.hit.has(p)) continue;
         const carCX = car.x + car.w / 2;
         const carCY = car.y - car.h / 2;
         if (Math.abs(p.cx() - carCX) < car.w / 2 + p.w / 2 &&
@@ -475,25 +449,23 @@ function updateMapPerks() {
           dealDamage(null, p, 20, 28, 1.0, false, 16);
           spawnParticles(p.cx(), p.cy(), '#ffcc00', 12);
           if (settings.screenShake) screenShake = Math.max(screenShake, 12);
-          _cityCarHit = true; break; // car destroyed on first player hit
+          _cityCarHit = true; break;
         }
       }
       if (_cityCarHit) { mapPerkState.cityCars.splice(ci, 1); continue; }
     }
   }
 
-  // ---- ICE: Yeti rare encounter ----
+  // Ice: rare yeti
   if (currentArenaKey === 'ice' || _designerPerk('yeti')) {
-    // Clean up dead yeti and start respawn cooldown
     if (yeti && yeti.health <= 0) { _achCheckYetiDead(); yeti = null; yetiCooldown = SPAWN_CONFIG.yeti.respawnDelay; }
     if (yetiCooldown > 0) yetiCooldown--;
-    // Deterministic interval spawn — no hidden randomness
     if (!yeti && yetiCooldown <= 0 && frameCount >= SPAWN_CONFIG.yeti.minDelay && frameCount % SPAWN_CONFIG.yeti.spawnInterval === 0) {
       spawnYetiNow();
     }
   }
 
-  // ---- ICE/SNOW: Blizzard wind gusts (also The Circuit — see arenaRunsPerk) ----
+  // Ice/snow: blizzard gusts
   if (arenaRunsPerk('ice', 'blizzard')) {
     const _sovGale = currentArenaKey === 'sovereign';
     if (mapPerkState.blizzardTimer === undefined) mapPerkState.blizzardTimer = 1200;
@@ -511,11 +483,8 @@ function updateMapPerks() {
       mapPerkState.blizzardTimer  = 1200 + Math.floor(Math.random() * 600);
     }
     if (mapPerkState.blizzardActive) {
-      // The Circuit: ring-outs are already the dominant kill mechanic there
-      // (replay-measured), so a full-strength horizontal gust would be the
-      // strongest thing on the map rather than a flavour hazard. Cut the force,
-      // and refuse to push anyone who is already out past the ground — the gale
-      // pressures position, it never lands the stock.
+      // Circuit: ring-outs are the main kill there, so a full gust would be the strongest thing on the map.
+      // Cut the force, and never push anyone already off the ground.
       const _galeFloor = _sovGale ? (currentArena.platforms || []).find(pl => pl && pl.isFloor) : null;
       const pushForce = (_sovGale ? 0.34 : 1.2) * mapPerkState.blizzardDir;
       for (const p of players) {
@@ -525,10 +494,9 @@ function updateMapPerks() {
           const outward = (mapPerkState.blizzardDir > 0)
             ? c > _galeFloor.x + _galeFloor.w - 150
             : c < _galeFloor.x + 150;
-          if (outward) continue;   // never shove someone toward the drop they're on
+          if (outward) continue;  // no shoving toward the drop
         }
         p.vx += pushForce;
-        // Spawn snow particles
         if (Math.random() < 0.25 && particles.length < MAX_PARTICLES) {
           const _p = _getParticle();
           _p.x = Math.random() * GAME_W; _p.y = -5;
@@ -543,7 +511,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- CAVE: Falling stalactites ----
+  // Cave: falling stalactites
   if (currentArenaKey === 'cave') {
     if (!mapPerkState.stalactites)        mapPerkState.stalactites        = [];
     if (mapPerkState.stalactiteCooldown === undefined) mapPerkState.stalactiteCooldown = 480;
@@ -572,7 +540,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- VOLCANO: Lava geysers ----
+  // Volcano: lava geysers
   if (currentArenaKey === 'volcano') {
     if (!mapPerkState.geysers)        mapPerkState.geysers        = [];
     if (mapPerkState.geyserCooldown === undefined) mapPerkState.geyserCooldown = 420;
@@ -604,7 +572,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- HAUNTED: Drifting ghost NPCs ----
+  // Haunted: drifting ghost NPCs
   if (currentArenaKey === 'haunted') {
     if (!mapPerkState.ghosts)        mapPerkState.ghosts        = [];
     if (mapPerkState.ghostCooldown === undefined) mapPerkState.ghostCooldown = 600;
@@ -638,7 +606,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- NEON GRID: Speed boost pads on floor ----
+  // Neon grid: speed boost pads
   if (currentArenaKey === 'neonGrid') {
     const pads = (mapPerkState.boostPads) || [];
     for (const pad of pads) {
@@ -652,7 +620,7 @@ function updateMapPerks() {
     }
   }
 
-  // ---- CYBERPUNK: Periodic floor zap ----
+  // Cyberpunk: periodic floor zap
   if (currentArenaKey === 'cyberpunk') {
     if (mapPerkState.zapTimer === undefined) mapPerkState.zapTimer = 900;
     if (mapPerkState.zapActive === undefined) mapPerkState.zapActive = false;

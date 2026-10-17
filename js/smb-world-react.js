@@ -1,18 +1,14 @@
 'use strict';
-// smb-world-react.js — the arena answers a blow instead of only the body taking it.
-// Air pressure, ground kick-up, impact light, skid scuffs, weapon scrapes, and
-// loose matter that the next hit blows around.
+// smb-world-react.js: the arena answers a blow (air pressure, ground kick-up, impact light, scuffs, loose matter).
 // Depends on: smb-globals.js, smb-particles-core.js, smb-destruction.js
-//
-// PURELY VISUAL, same contract as smb-destruction.js: nothing here is read by
-// collision, AI, pickSafeSpawn(), or the network layer, and platform geometry
-// is never mutated.
+// Purely visual, like smb-destruction.js. Nothing here is read by collision, AI, pickSafeSpawn()
+// or networking, and platform geometry is never mutated.
 
 const WR_MAX_MOTES  = 180;
 const WR_MAX_WAVES  = 8;
 const WR_MAX_LIGHTS = 6;
 const WR_MAX_SCUFFS = 36;
-const WR_WAVE_SPEED = 18;   // px/frame the pressure front travels before it reaches the ground
+const WR_WAVE_SPEED = 18;   // px/frame the pressure front travels
 
 let _wrMotes   = [];   // loose arena matter: { kind, x, y, vx, vy, size, color, life, maxLife, rot, vr, ph }
 let _wrWaves   = [];   // air pressure fronts: { x, y, ang, r, maxR, life, maxLife }
@@ -21,9 +17,7 @@ let _wrLights  = [];   // impact light thrown onto the world: { x, y, r, color, 
 let _wrScuffs  = [];   // skid / gouge marks, platform-local: { pl, lx0, lx1, ly, w, color, life, maxLife }
 let _wrPending = [];   // ground reactions waiting for the pressure front: { t, x, pl, power, dir }
 
-// What each world is made of when something kicks it loose. `air: false`
-// means there is nothing to carry a pressure wave (space), so only light and
-// the surface itself react.
+// Ground materials. air: false means nothing can carry a pressure wave (space).
 const WR_MATTER = {
   grass:      { kind: 'leaf',   colors: ['#6fa84a', '#8cc35c', '#4f8a35'] },
   forest:     { kind: 'leaf',   colors: ['#5c8a3a', '#a07a3a', '#7aa04a', '#b8862e'] },
@@ -74,7 +68,6 @@ function _wrSurfaceBelow(x, y, reach) {
   return best;
 }
 
-// ── Motes ───────────────────────────────────────────────────
 function _wrMote(kind, x, y, vx, vy, color, sizeMul) {
   if (_wrMotes.length >= WR_MAX_MOTES) _wrMotes.shift();
   const s = sizeMul || 1;
@@ -111,7 +104,7 @@ function _wrKickAlong(x, surfY, power, dirBias) {
   }
 }
 
-// ── Impulse: everything loose near a blow gets shoved by it ──
+// Impulse: loose matter near a blow gets shoved
 function _wrImpulse(x, y, power) {
   const R  = 60 + power * 110;
   const R2 = R * R;
@@ -157,7 +150,6 @@ function _wrScuffColor() {
   return _destShade(base, (typeof _destLum === 'function' && _destLum(base) > 0.45) ? -0.5 : -0.32);
 }
 
-// ── Public: a hit landed ────────────────────────────────────
 // Called from dealDamage() after knockback is applied. `guarded` hits still
 // move the air, just far less.
 function worldReactHit(attacker, target, dmg, kb, guarded, isSplash) {
@@ -209,7 +201,6 @@ function worldReactHit(attacker, target, dmg, kb, guarded, isSplash) {
   if (!guarded && kb >= 7) target._wrSkid = Math.max(target._wrSkid || 0, 34);
 }
 
-// ── Public: a projectile struck a platform ──────────────────
 function worldReactProjectile(proj, pl) {
   if (!_wrOn() || !proj || !pl || proj._isFlame || proj._flameFx) return;
   if (typeof gameMode !== 'undefined' && gameMode === 'battleroyale' &&
@@ -232,7 +223,7 @@ function worldReactProjectile(proj, pl) {
   _wrImpulse(proj.x, proj.y, power * 0.5);
 }
 
-// ── Per-frame update ────────────────────────────────────────
+// Per-frame update
 function updateWorldReact() {
   const ts = (typeof slowMotion === 'number' && slowMotion > 0) ? slowMotion : 1;
 
@@ -375,7 +366,7 @@ function _wrUpdateFighters(ts) {
   }
 }
 
-// ── Draw: on the world, under the fighters (call after drawSurfaceScars) ──
+// Draw: on the world, under the fighters (after drawSurfaceScars)
 function drawWorldReactBack() {
   if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return;
 
@@ -428,7 +419,7 @@ function drawWorldReactBack() {
   ctx.globalAlpha = 1;
 }
 
-// ── Draw: in the air, with the particle pass ────────────────
+// Draw: in the air, with the particle pass
 function drawWorldReactFront() {
   for (const w of _wrWaves) {
     const t = w.life / w.maxLife;

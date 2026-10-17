@@ -1,5 +1,5 @@
 'use strict';
-// smb-finisher-yeti — Depends on: smb-finisher-helpers.js
+// Depends on smb-finisher-helpers.js.
 
 const FIN_YETI_AVALANCHE = {
   name: 'AVALANCHE CRUSH',
@@ -73,10 +73,7 @@ const FIN_YETI_AVALANCHE = {
   }
 };
 
-// ============================================================
-// YETI FINISHER 2: POLAR SLAM
-// Theme: spin target overhead like a club + smash — brutal rotation
-// ============================================================
+// Polar Slam: spin the target overhead like a club, then smash.
 const FIN_YETI_POLAR_SLAM = {
   name: 'POLAR SLAM',
   accentColor: 'rgba(80,170,255,1)',
@@ -152,10 +149,7 @@ const FIN_YETI_POLAR_SLAM = {
   }
 };
 
-// ============================================================
-// YETI FINISHER 3: ICE BURIAL
-// Theme: freeze target solid then shatter — cold, pitiless
-// ============================================================
+// Freeze the target solid, then shatter.
 const FIN_YETI_ICE_BURIAL = {
   name: 'ICE BURIAL',
   accentColor: 'rgba(180,240,255,1)',

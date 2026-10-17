@@ -1,10 +1,7 @@
 'use strict';
-// smb-finisher-boss — Depends on: smb-finisher-helpers.js
+// smb-finisher-boss.js: depends on smb-finisher-helpers.js
 
-// ============================================================
-// BOSS FINISHER 3: SKY EXECUTION
-// Theme: aerial — boss launches player up, kicks down
-// ============================================================
+// Boss finisher 3, Sky Execution (aerial). Boss launches the player up, then kicks down.
 const FIN_SKY_EXECUTION = {
   name: 'SKY EXECUTION',
   accentColor: 'rgba(255,120,0,1)',
@@ -32,32 +29,26 @@ const FIN_SKY_EXECUTION = {
           data.bars = 0;
       }},
       { frame: 12, fn() { data.bars = 1; } },
-      // Boss uppercuts — launches player
       { frame: 25, fn() {
           CinCam.shake(22);
           spawnParticles(att.cx(), att.cy(), '#ff8800', 20);
       }},
-      // Follow player rising
       { frame: 30, fn() {
           CinCam.zoomTo(1.35);
           CinCam.focusOn(tgt);
           CinCam.slowMo(0.12); // deep slow-mo at apex
       }},
-      // Boss appears above player
       { frame: 65, fn() {
           data.bossAppearedAbove = true;
           CinCam.focusMidpoint(att, tgt);
           spawnParticles(data.bossAboveX+att.w/2, data.bossAboveY, '#ff4400', 16);
           CinCam.shake(10);
       }},
-      // Kick — burst of speed
       { frame: 80, fn() {
           CinCam.slowMo(1.0);
           CinCam.zoomTo(1.0);
       }},
-      // Camera follows downward crash
       { frame: 85, fn() { CinCam.focusOn(tgt); } },
-      // CRASH
       { frame: 128, fn() {
           data.shockR = 1; data.shockAlpha = 1;
           CinCam.shake(55);
@@ -110,7 +101,6 @@ const FIN_SKY_EXECUTION = {
       const t2 = (timer-80)/48;
       tgt.y = _finLerp(data.peakY, data.landY, _finEaseIn(t2));
       tgt.x = data.tx0 + data.dir * _finEaseIn(t2) * 15;
-      // boss follows slightly
       att.y = _finLerp(data.bossAboveY, data.bossAboveY + 60, _finEaseIn(t2));
       att.x = data.bossAboveX;
 
@@ -129,7 +119,6 @@ const FIN_SKY_EXECUTION = {
     _finBars(ctx, data.bars);
     _finVignette(ctx, 0.45);
 
-    // Orange fire aura on boss
     if (timer < 135) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       const fa = Math.min(1, timer/20);
@@ -142,7 +131,6 @@ const FIN_SKY_EXECUTION = {
       ctx.restore();
     }
 
-    // Rising trail lines
     if (timer > 25 && timer < 70) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       const ta = Math.min(1,(timer-25)/15);
@@ -158,12 +146,10 @@ const FIN_SKY_EXECUTION = {
       ctx.restore();
     }
 
-    // Sky flash at apex
     if (timer >= 65 && timer <= 72) {
       _finFlash(ctx, (72-timer)/7 * 0.5, 255, 140, 20);
     }
 
-    // Falling speed lines
     if (timer > 80 && timer < 128) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       const fa2 = Math.min(1,(timer-80)/15);
@@ -176,7 +162,6 @@ const FIN_SKY_EXECUTION = {
       ctx.restore();
     }
 
-    // Impact shockwave
     if (data.shockR > 0 && data.shockAlpha > 0) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       ctx.strokeStyle = `rgba(255,120,0,${data.shockAlpha})`;
@@ -185,7 +170,6 @@ const FIN_SKY_EXECUTION = {
       _finImpactLines(ctx, data.tx0+tgt.w/2+data.dir*15, data.landY+tgt.h, 18, data.shockR*0.55, '#ffaa00', 4);
       ctx.restore();
     }
-    // Crash flash
     if (timer >= 128 && timer <= 137) {
       _finFlash(ctx, (137-timer)/9 * 0.88, 255, 140, 0);
     }
@@ -195,9 +179,7 @@ const FIN_SKY_EXECUTION = {
   }
 };
 
-// ============================================================
-// BOSS FINISHER 4: DARKNESS FALLS  (boss kills player — alt)
-// ============================================================
+// Boss finisher 4, Darkness Falls (boss kills the player, alt).
 const FIN_DARKNESS_FALLS = {
   name: 'DARKNESS FALLS',
   accentColor: 'rgba(200,0,50,1)',
@@ -273,7 +255,6 @@ const FIN_DARKNESS_FALLS = {
     ctx.fillStyle=`rgba(0,0,0,${Math.min(0.5,t*1.8)})`;
     ctx.fillRect(0,0,canvas.width,canvas.height);
     ctx.restore();
-    // Red aura
     if (timer < 88) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       const ra=Math.min(1,timer/25);
@@ -299,9 +280,7 @@ const FIN_DARKNESS_FALLS = {
   }
 };
 
-// ============================================================
-// PLAYER KILLS BOSS: HERO'S TRIUMPH
-// ============================================================
+// Hero's Triumph: the player kills the boss.
 const FIN_HEROS_TRIUMPH = {
   name: "HERO'S TRIUMPH",
   accentColor: 'rgba(255,210,40,1)',
@@ -386,7 +365,6 @@ const FIN_HEROS_TRIUMPH = {
       ctx.restore();
     }
     if (timer>=35&&timer<=43) _finFlash(ctx,(43-timer)/8*0.72,255,240,120);
-    // Gold letterbox hold
     if (timer>70) {
       const ga=Math.min(1,(timer-70)/20);
       const bh2=canvas.height*0.09*ga;

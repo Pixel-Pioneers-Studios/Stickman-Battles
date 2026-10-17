@@ -1,22 +1,13 @@
 'use strict';
-// smb-loop-core.js — applyWorldModifiers() + gameLoop() main game tick
-// Depends on: all earlier modules (called from requestAnimationFrame)
-// NOTE: gameLoop is a single monolithic function; do not split further without full refactor
-// ============================================================
-// GAME LOOP
-// ============================================================
+// Frame tick: applyWorldModifiers() and gameLoop(), called from requestAnimationFrame.
+// gameLoop is one monolithic function. Don't split it without a full refactor.
 let _lastFrameTime = 0;
-// The sim is per-frame, so it must tick 60 times a second on any display.
-// A plain "at least N ms since the last tick" cap only works on 60/120Hz: on
-// 144Hz it ticked every 3rd refresh (48/s, 20% slow motion) and on 75Hz every
-// 2nd (37.5/s). Ticks are scheduled on a 60Hz grid instead; the tolerance
-// absorbs vsync jitter so a 60Hz display never drops a frame.
+// Ticks must land 60 times a second on any display. A plain 'N ms since last tick' cap gives 48/s on 144Hz
+// and 37.5/s on 75Hz, so ticks run on a 60Hz grid. The tolerance absorbs vsync jitter.
 const _FRAME_STEP_MS = 1000 / 60;
 const _FRAME_MIN_MS  = _FRAME_STEP_MS - 1.5;
 
-// ── World Modifier Handler ────────────────────────────────────────────────────
-// Called once per frame during story mode to apply per-world gameplay changes.
-// All mutations are transient (re-applied each frame) — nothing is permanently stored.
+// Per-frame world modifiers for story mode. Re-applied every frame, so nothing is stored permanently.
 function applyWorldModifiers() {
   const _fighters = [...(players || []), ...(minions || []), ...(trainingDummies || [])];
   for (const f of _fighters) {
@@ -25,8 +16,7 @@ function applyWorldModifiers() {
     f._damageTakenMult = 1;
   }
 
-  // ── Quicksand arena hazard ────────────────────────────────────────────────
-  // Applies to all game modes when the desert arena is active.
+  // Quicksand: desert arena, all game modes.
   if (currentArena && currentArena.hasQuicksand) {
     const _qsX = currentArena.quicksandX || 280;
     const _qsW = currentArena.quicksandW || 340;
@@ -34,7 +24,7 @@ function applyWorldModifiers() {
       if (!f || f.health <= 0) continue;
       const _inQs = f.onGround && f.cx() > _qsX && f.cx() < _qsX + _qsW;
       if (_inQs) {
-        f.vx *= 0.72;     // strong friction — sluggish movement
+        f.vx *= 0.72;     // strong friction, sluggish movement
         f._inQuicksand = true;
       } else {
         f._inQuicksand = false;
@@ -51,15 +41,14 @@ function applyWorldModifiers() {
   switch (worldId) {
 
     case 'fracture':
-      // Random gravity shift: ~1% chance per frame to invert gravity direction.
-      // Uses the existing tfGravityInverted flag so fighter physics already handle it.
+      // ~1% chance per frame to flip gravity. Uses tfGravityInverted so fighter physics handles it.
       if (Math.random() < 0.01) {
         tfGravityInverted = !tfGravityInverted;
       }
       break;
 
     case 'war':
-      // Boost AI aggression each frame (re-applied so removal on world change is clean).
+      // Re-applied each frame, so leaving the world clears it.
       players.forEach(p => {
         if (p && p.isAI) p._aggroBoost = 1.25;
       });
@@ -70,7 +59,7 @@ function applyWorldModifiers() {
       break;
 
     case 'godfall':
-      // Increase incoming damage multiplier each frame (re-applied so it resets naturally).
+      // Re-applied each frame, so it resets on its own.
       players.forEach(p => {
         if (p) p._damageTakenMult = 1.3;
       });
@@ -85,23 +74,19 @@ function applyWorldModifiers() {
 let _sceneHoldOrphan = 0; // frames parked on a hold with no overlay on screen
 function gameLoop(timestamp) {
   if (!gameRunning) return;
-  // Frame rate cap: skip this frame if called too soon after the last one
+  // Frame cap: skip if called too soon after the last tick.
   if (timestamp - _lastFrameTime < _FRAME_MIN_MS) {
     requestAnimationFrame(gameLoop);
     return;
   }
-  // Stay on the grid when a refresh lands late; resync after a real stall, or
-  // when the display runs a hair faster than 60Hz (never let the grid lead).
+  // Stay on the grid when a refresh lands late. Resync after a real stall; never let the grid lead 60Hz.
   const _nextTick = _lastFrameTime + _FRAME_STEP_MS;
   _lastFrameTime = (timestamp - _nextTick > _FRAME_STEP_MS) ? timestamp : Math.min(_nextTick, timestamp);
   if (paused || gameLoading) { requestAnimationFrame(gameLoop); return; }
   if (typeof autoPerfSample === 'function') autoPerfSample(timestamp);
-  // Between-level narrative scene: the overlay owns the screen, so the match
-  // underneath must stop rather than keep simulating out of sight. Park the same
-  // way `paused` does — the rAF chain stays alive, nothing else restarts it.
+  // The between-level narrative scene owns the screen, so the match parks (rAF keeps running).
   if (window._storySceneHold) {
-    // Watchdog: a hold whose overlay is gone would park the match forever, so it
-    // is released after ~2s with nothing on screen to justify it.
+    // Watchdog: a hold with no overlay would park the match forever, so release it after ~2s.
     const _ovl = document.querySelector('canvas[style*="9100"]')
               || document.getElementById('_storyBranchOverlay')
               || (function(){ const d=document.getElementById('storyDialoguePanel'); return d && d.style.display !== 'none' ? d : null; })();
@@ -116,7 +101,7 @@ function gameLoop(timestamp) {
     return;
   }
   _sceneHoldOrphan = 0;
-  // Absolute Axiom Dimension Punch flight: the cutscene owns the whole frame
+  // Axiom Dimension Punch: the cutscene owns the frame.
   if (typeof AAMultiverse !== 'undefined' && AAMultiverse.flightFrame()) {
     requestAnimationFrame(gameLoop);
     return;
@@ -132,15 +117,14 @@ function gameLoop(timestamp) {
   if (storyFreezeTimer > 0) {
     storyFreezeTimer--;
     // Still render (draw call happens later), but skip physics by falling through
-    // to draw-only path — achieved by setting hitStopFrames for 1 frame
+    // to draw-only path, achieved by setting hitStopFrames for 1 frame
     hitStopFrames = 1;
     requestAnimationFrame(gameLoop);
     return;
   }
-  // Decay hit-slow-motion burst back to normal
   if (hitSlowTimer > 0) {
     hitSlowTimer--;
-    // Don't restore slowMotion during a finisher — finisher manages it
+        // Finishers own slowMotion
     if (hitSlowTimer <= 0 && slowMotion < 0.9 && !activeFinisher) slowMotion = 1.0;
   }
   // Cosmic silence: brief volume dip on heavy boss hits
@@ -151,8 +135,7 @@ function gameLoop(timestamp) {
   } else if (typeof SoundManager !== 'undefined' && SoundManager._silencedGain !== undefined && SoundManager._silencedGain < 1.0) {
     SoundManager._silencedGain = Math.min(1.0, (SoundManager._silencedGain || 0) + 0.06);
   }
-  // Tick active cinematic (before input and physics)
-  // Skip if absorption cinematic is running — prevents overlap with activeCinematic
+  // Skip the cinematic tick during absorption: it would overlap activeCinematic.
   if (!tfAbsorptionScene) {
     updateCinematic();
     if (typeof updateCinematicSystem === 'function') updateCinematicSystem();
@@ -165,18 +148,12 @@ function gameLoop(timestamp) {
   aiTick++;
   tickCombatTimers();
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.recordFrame();
-  // Strategic advisor sampling. Cheap per frame; the network call it may schedule
-  // is fully async and never awaited here, so a slow or absent Ollama cannot
-  // stall the loop.
+  // Advisor sampling is cheap per frame. Its network call is async and never awaited, so Ollama can't stall the loop.
   if (typeof SovereignAdvisor !== 'undefined') SovereignAdvisor.tick();
-  // Once-per-second God encounter roll
-  if (frameCount % 60 === 0 && typeof updateGodEncounterTick === 'function') {
-    updateGodEncounterTick();
-  }
   // Approximate real delta-time at 60fps for Director
   if (typeof updateDirector === 'function') updateDirector(1/60);
 
-  // ---------- Phase: updateInput ----------
+  // Phase: updateInput
   // Public Server: send own state, drive every other player's puppet, mirror bots
   if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.tick();
   // Online: tick network + apply remote player state
@@ -199,14 +176,14 @@ function gameLoop(timestamp) {
         remoteP.lives     = rs.lives     != null ? rs.lives     : remoteP.lives;
         remoteP.curses     = rs.curses    || [];
         remoteP.shielding  = rs.shield    || false;
-        // Sync attack animation so weapon swing is visible on opponent's screen
+        // Sync the attack animation so the swing shows on the opponent's screen.
         remoteP.attackTimer    = rs.attackTimer    != null ? rs.attackTimer    : remoteP.attackTimer;
         remoteP.attackDuration = rs.attackDuration != null ? rs.attackDuration : (remoteP.attackDuration || 12);
         remoteP.hurtTimer      = rs.hurtTimer      != null ? rs.hurtTimer      : 0;
         remoteP.stunTimer      = rs.stunTimer2     != null ? rs.stunTimer2     : 0;
-        // Sync invincible from owning machine — prevents permanent transparency/unhittable
+        // Synced from the owner, or remote fighters go transparent and unhittable.
         remoteP.invincible = rs.invincible != null ? rs.invincible : 0;
-        // Sync weapon — always apply to prevent stale local-UI weapon showing
+        // Always apply, or a stale local weapon shows.
         if (rs.weaponKey && WEAPONS[rs.weaponKey]) {
           remoteP.weaponKey = rs.weaponKey;
           remoteP.weapon    = WEAPONS[rs.weaponKey];
@@ -221,18 +198,14 @@ function gameLoop(timestamp) {
 
   applyWorldModifiers();
   if (typeof Brain !== 'undefined') Brain.tickLive();
+  if (typeof OwnerTools !== 'undefined') OwnerTools.tick();
   processInput(); // updateInput
 
-  // ---------- Phase: updateCircuitPlate (The Circuit — Sovereign's sliding plate) ----------
-  // Must run before fighters update so collision reads this frame's plate position.
-  // No-ops on every arena but The Circuit.
+  // Phase: updateCircuitPlate. Runs before fighters so collision reads this frame's plate. No-op off The Circuit.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.update();
 
-  // ---------- Phase: Creator Studio moving platforms ----------
-  // Only boss arenas animated platforms, so "Moving platform" in custom maps was
-  // inert. Smooth sine sway; anyone standing on the slab rides with it.
-  // Authored story levels (smb-story-levels.js) use the same sway, plus a
-  // vertical variant (oy/oscY) for lifts.
+  // Phase: Creator Studio moving platforms. Riders on the slab move with it.
+  // Story levels (smb-story-levels.js) add a vertical variant (oy/oscY) for lifts.
   if (currentArena && (currentArena.designerBase || currentArena.storyLevel != null || currentArena.storyRegion) && !gameFrozen) {
     for (const pl of currentArena.platforms) {
       if (pl.oscX && pl.ox !== undefined) {
@@ -262,10 +235,9 @@ function gameLoop(timestamp) {
     }
   }
 
-  // ---------- Phase: updateBossArena (platforms, floor hazard) ----------
+  // Phase: updateBossArena (platforms, floor hazard)
   if (currentArena && currentArena.isBossArena) {
-    // Animate moving platforms — random-lerp targets for unpredictable movement
-    // Boss arena: 2x speed (shorter timer range, faster lerp)
+    // Random-lerp targets for unpredictable movement. Boss arena runs at 2x speed.
     const bossPlSpeed = currentArenaKey === 'creator' ? 2 : 1;
     const bossLerpSpd = currentArenaKey === 'creator' ? 0.14 : 0.07;
     for (const pl of currentArena.platforms) {
@@ -289,7 +261,7 @@ function gameLoop(timestamp) {
       }
     }
 
-    // Floor hazard state machine — boss/trueform only; suppressed during TF opening cinematic
+    // Floor hazard state machine. Boss/TrueForm only, off during the TF opening.
     const _bossFloorActive = gameMode === 'boss' || gameMode === 'trueform';
     if (_bossFloorActive && !gameFrozen && !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) bossFloorTimer--;
     if (_bossFloorActive && bossFloorTimer <= 0) {
@@ -300,7 +272,7 @@ function gameLoop(timestamp) {
         showBossDialogue(bossFloorType === 'lava'
           ? randChoice(['The floor has a new purpose.', 'Heat is a matter of perspective.', 'I\'d move if I were you. I\'m not.'])
           : randChoice(['The ground is a luxury.', 'Space beneath your feet — gone.', 'Let\'s see how well you float.']), 220);
-        // Screen-level announcement so the warning is always visible even if dialogue is overwritten
+        // Screen-level announcement, so dialogue can't hide the warning.
         if (typeof queueAnnouncement === 'function')
           queueAnnouncement(bossFloorType === 'lava' ? '⚠ FLOOR IS LAVA!' : '⚠ FLOOR REMOVED!', bossFloorType === 'lava' ? '#ff6600' : '#8855ff');
       } else if (bossFloorState === 'warning') {
@@ -328,7 +300,7 @@ function gameLoop(timestamp) {
       }
     }
 
-    // TrueForm floor-removal per-frame countdown (runs every frame, not on AI ticks)
+    // TrueForm floor removal counts down every frame, not on AI ticks.
     if (typeof tfFloorRemoved !== 'undefined' && tfFloorRemoved && !gameFrozen) {
       tfFloorTimer--;
       if (tfFloorTimer <= 0) {
@@ -350,7 +322,6 @@ function gameLoop(timestamp) {
         mapPerkState.eruptions.push({ x: ex, timer: 180 });
         mapPerkState.eruptCooldown = 150 + Math.floor(Math.random() * 150);
       }
-      // Tick down eruption timers
       for (let ei = mapPerkState.eruptions.length - 1; ei >= 0; ei--) {
         const er = mapPerkState.eruptions[ei];
         er.timer--;
@@ -364,7 +335,6 @@ function gameLoop(timestamp) {
           _p.size = 3+Math.random()*4; _p.life = 30+Math.random()*20; _p.maxLife = 50;
           particles.push(_p);
         }
-        // Damage players in column
         for (const p of players) {
           if (p.isBoss || p.health <= 0 || p.invincible > 0) continue;
           if (Math.abs(p.cx() - er.x) < 100 && p.y + p.h > (currentArena.lavaY || 462) - 250) {
@@ -375,7 +345,7 @@ function gameLoop(timestamp) {
     }
   }
 
-  // ---------- Phase: updateCamera (bounding box, dead zone, lerp) ----------
+  // Phase: updateCamera (bounding box, dead zone, lerp)
   const baseScale = Math.min(canvas.width / GAME_W, canvas.height / GAME_H);
   const baseScaleX = baseScale;
   const baseScaleY = baseScale;
@@ -392,7 +362,7 @@ function gameLoop(timestamp) {
     camCY   = camYCur;
   }
 
-  // Cinematic camera: smooth follow with a subtle spring, plus optional hard cuts.
+  // Cinematic camera: smooth follow with a spring, plus optional hard cuts.
   if (cinematicCamOverride) {
     if (cinematicCamSnapFrames > 0) {
       camZoom = cinematicZoomTarget;
@@ -435,7 +405,7 @@ function gameLoop(timestamp) {
   const finalScX = baseScaleX * camZoom;
   const finalScY = baseScaleY * camZoom;
 
-  // Clear canvas: fill with arena sky color so zoomed-out margins don't show black
+  // Fill with the sky colour so zoomed-out margins aren't black.
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const _skyBg = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -447,10 +417,9 @@ function gameLoop(timestamp) {
 
   const _cinOX = typeof _cinCamOffX !== 'undefined' ? _cinCamOffX : 0;
   const _cinOY = typeof _cinCamOffY !== 'undefined' ? _cinCamOffY : 0;
-  // Only apply screen shake above a threshold to prevent micro-jitter at near-zero values
+  // Skip shake below a threshold to avoid micro-jitter.
   const _shakeAmt = screenShake > 1.0 ? screenShake : 0;
-  // Directional shake: first N frames bias in the specified direction then fall back to random.
-  // Timer is ticked in updateCinematicEnhancements() — read-only here.
+  // First N frames bias the shake one direction, then fall back to random. The timer ticks in updateCinematicEnhancements().
   let _sdx = 0, _sdy = 0;
   if (typeof cinShakeDir !== 'undefined' && cinShakeDir && cinShakeDir.timer > 0) {
     _sdx = cinShakeDir.x * _shakeAmt * 0.72;
@@ -464,22 +433,20 @@ function gameLoop(timestamp) {
     ctx.setTransform(finalScX, 0, 0, finalScY, sx, sy);
   }
 
-  // ---------- Phase: render (world, entities, particles, HUD) ----------
+  // Phase: render (world, entities, particles, HUD)
   drawBackground();
-  // Conviction: background tint overlay (screen-space, before world entities)
+  // Conviction tint: screen space, before world entities.
   if (typeof DomainManager !== 'undefined') DomainManager.draw();
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
   if (typeof drawStoryLevelGround === 'function') drawStoryLevelGround();
-  // The Sewer: the flow is drawn AFTER the platforms so a trash barge sits IN the
-  // sewage rather than on a painted strip behind it. Inert on every other arena.
+  // The Sewer flow draws after the platforms, so the barge sits in the sewage. Inert on other arenas.
   if (typeof drawSewerFlow === 'function') drawSewerFlow();
-  // Cosmetic impact scars ride on top of the slabs they were cut into.
+  // Impact scars sit on the slabs they were cut into.
   if (typeof drawSurfaceScars === 'function') drawSurfaceScars();
   if (typeof drawWorldReactBack === 'function') drawWorldReactBack();
-  // Circuit void lips + slide telegraph — must sit ABOVE the plate so the warning
-  // is drawn on the ground the player is standing on, not hidden under it.
+  // Circuit void lips and slide telegraph draw above the plate, so the warning isn't hidden under it.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
   // Domain hazards (world-space, above platforms, below entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawHazards();
@@ -488,13 +455,14 @@ function gameLoop(timestamp) {
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
   if (gameMode === 'minigames' && minigameType === 'sports' && typeof drawSports === 'function') drawSports();
   if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawMinigameDefenseNexus === 'function') drawMinigameDefenseNexus();
+  if (gameMode === 'minigames' && minigameType === 'koth' && typeof drawKothZone === 'function') drawKothZone();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
   if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortNPC === 'function') drawEscortNPC();
   if (gameMode === 'shipflight' && typeof drawShipFlight === 'function') drawShipFlight();
   drawBackstagePortals();
   drawMapPerks();
 
-  // Boss beams — update logic + draw (also in training mode when boss is present, or when an admin kit is equipped)
+  // Boss beams: update and draw. Also runs in training with a boss or an admin kit.
   const _anyAdminKit = typeof players !== 'undefined' && players.some(p => p._adminKit);
   const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit
     || (damnationActive && players.some(p => p.isBoss));
@@ -505,7 +473,7 @@ function gameLoop(timestamp) {
       } else if (b.phase === 'active') {
         if (--b.activeTimer <= 0) { b.done = true; }
         else {
-          // Deal damage each frame to players caught in beam
+          // Damage each frame while caught in the beam.
           const boss = players.find(p => p.isBoss) || trainingDummies.find(d => d.isBoss);
           const beamTargets = trainingMode ? players : players.filter(p => !p.isBoss);
           for (const p of beamTargets) {
@@ -514,8 +482,7 @@ function gameLoop(timestamp) {
             const inSafe = bossMetSafeZones.some(sz =>
               Math.hypot(p.cx() - sz.x, (p.y + p.h * 0.5) - sz.y) < sz.r);
             if (!inSafe && Math.abs(p.cx() - b.x) < 24) {
-              // Per-beam damage accumulator — cap at 40% of max HP per beam.
-              // Keyed on the beam object so overlapping beams don't share/reset each other's cap.
+              // Cap per beam at 40% of max HP. Keyed on the beam so overlapping beams don't share a cap.
               if (!b._damageAccum) b._damageAccum = {};
               const pid = p.playerNum != null ? p.playerNum : players.indexOf(p);
               if (b._damageAccum[pid] == null) b._damageAccum[pid] = 0;
@@ -533,7 +500,7 @@ function gameLoop(timestamp) {
     bossBeams = bossBeams.filter(b => !b.done);
     drawBossBeams();
 
-    // Boss spikes — update and draw
+    // Boss spikes: update and draw
     const bossRef = players.find(p => p.isBoss) || trainingDummies.find(d => d.isBoss);
     for (const sp of bossSpikes) {
       if (sp.done) continue;
@@ -554,8 +521,7 @@ function gameLoop(timestamp) {
         const spikeTargets = trainingMode ? players : players.filter(p => !p.isBoss);
         for (const p of spikeTargets) {
           if (p.health <= 0 || p.invincible > 0) continue;
-          // 9px was narrower than the spike is drawn and narrower than a fighter,
-          // so a five-spike volley covered ~10% of the stage and almost never hit.
+          // Hit width matches the drawn spike. A narrow box almost never hit.
           if (Math.abs(p.cx() - sp.x) < 20 && p.y + p.h > spikeTopY) {
             dealDamage(bossRef || players.find(q => q.isBoss) || null, p, 14, 14, 1.0, false, 20);
             // Bounce player upward so they can escape
@@ -569,35 +535,36 @@ function gameLoop(timestamp) {
     }
     bossSpikes = bossSpikes.filter(sp => !sp.done);
     drawBossSpikes();
-    // Paradox foreshadow: background silhouettes during boss fight (drawn behind fighters)
+    // Paradox silhouettes, drawn behind fighters.
     if (typeof updateBossParadoxForeshadow === 'function') updateBossParadoxForeshadow();
     if (typeof drawBossParadoxForeshadow   === 'function') drawBossParadoxForeshadow();
     if (bossDeathScene) updateBossDeathScene();
     if (tfEndingScene)  updateTFEnding();
     if (typeof godCinematicScene !== 'undefined' && godCinematicScene) updateGodCinematic();
-    // Telegraph system: pending attacks, stagger, desperation, warnings draw
+    // Telegraph draw: pending attacks, stagger, warnings.
     updateBossPendingAttacks();
     drawBossWarnings();
   }
 
-  // ---------- Phase: updatePhysics/updateCombat (projectiles, minions, players) ----------
+  // Phase: updatePhysics/updateCombat (projectiles, minions, players)
   resolveEntityClashes();
   projectiles.forEach(p => p.update());
   projectiles = projectiles.filter(p => p.active); // prevent leak
   projectiles.forEach(p => p.draw());
 
-  // Minions (boss-spawned) — freeze during absorption cinematic
+  // Minions freeze during the absorption cinematic.
   minions.forEach(m => {
     if (m.health > 0 && !tfAbsorptionScene) {
-      // BR: skip full physics/AI for bots far from camera (still do void-death check in BR update)
+      // BR: bots far from the camera skip physics and AI (void death is still checked).
       if (gameMode === 'battleroyale' && m._brBot && m._brSleep) return;
       m.update();
     }
   });
   minions.forEach(m => { if (m.health > 0) m.draw(); });
   if (typeof AAMultiverse !== 'undefined') AAMultiverse.drawWorld();
+  if (typeof storyRecordFoeKills === 'function') storyRecordFoeKills();
   minions = minions.filter(m => m.health > 0);
-  // God death hook — triggers achievement when God is removed from minions
+  // God death hook, triggers achievement when God is removed from minions
   if (typeof _checkGodDeath === 'function') _checkGodDeath();
 
   // Absolute Axiom: per-frame RGS update (loadout, jumps, portals, checkpoints)
@@ -606,7 +573,6 @@ function gameLoop(timestamp) {
     if (_aaEnt) _updateRGS(_aaEnt, players[0]);
   }
 
-  // Training dummies / bots
   if (trainingMode) {
     trainingDummies.forEach(d => { if (d.isDummy || d.health > 0 || d.invincible > 0) d.update(); });
     trainingDummies.forEach(d => { if (d.isDummy || d.health > 0 || d.invincible > 0) d.draw(); });
@@ -624,16 +590,12 @@ function gameLoop(timestamp) {
 
   // Sports Arena: ball physics, scoring and the sports bots
   if (gameMode === 'minigames' && minigameType === 'sports' && typeof updateSports === 'function') updateSports();
-  // Minigame logic update
   if (gameMode === 'minigames') updateMinigame();
-  // Battle Royale update
   if (gameMode === 'battleroyale' && typeof updateBattleRoyale === 'function') updateBattleRoyale();
-  // The Sewer: drift the barges, carry their riders, burn and sweep anything in
-  // the flow. Returns immediately on every other arena.
+  // The Sewer: barges drift, carry riders, and burn anything in the flow. No-op elsewhere.
   if (typeof updateSewer === 'function') updateSewer();
-  // Eternal Damnation arc update
   if (damnationActive && typeof updateDamnation === 'function') updateDamnation();
-  // True Form special updates (also active when a trueform admin kit is equipped, or FORCE_ATTACK_MODE has active TF effects)
+  // TrueForm updates. Also runs with a trueform admin kit or FORCE_ATTACK_MODE TF effects.
   const _anyTFKit = typeof players !== 'undefined' && players.some(p => p._adminKit && p._adminKit.kitKey === 'trueform');
   const _forceTF  = !!window.FORCE_ATTACK_MODE && (
     (typeof tfBlackHoles  !== 'undefined' && tfBlackHoles.length)  ||
@@ -669,10 +631,10 @@ function gameLoop(timestamp) {
     updateTFGalaxySweep();
     updateTFMultiverse();
     updateTFSupernova();
-    // Gravity failsafe: ensure inversion ALWAYS expires via timer or hard cap
+    // Gravity failsafe: inversion must always expire, by timer or hard cap.
     if (tfGravityInverted) {
       if (tfGravityTimer > 0) {
-        // Normal path: timer-driven restore
+        // Timer-driven restore
         tfGravityTimer--;
         if (tfGravityTimer <= 0) {
           forceResetGravity();
@@ -680,7 +642,7 @@ function gameLoop(timestamp) {
           spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 16);
         }
       } else {
-        // Failsafe path: inverted but no timer set (e.g. chaos event / cinematic without tfGravityTimer)
+        // Inverted with no timer (chaos event, or a cinematic without tfGravityTimer).
         if (!gravityState.active) {
           gravityState.active   = true;
           gravityState.type     = 'reverse';
@@ -694,7 +656,7 @@ function gameLoop(timestamp) {
         }
       }
     } else if (gravityState.active) {
-      // Not inverted — clear failsafe tracker
+      // Not inverted: clear the failsafe tracker.
       gravityState.active = false;
       gravityState.timer  = 0;
     }
@@ -708,44 +670,39 @@ function gameLoop(timestamp) {
     }
   }
 
-  // Verlet death ragdolls — update and remove when lifetime expires (prevent leak)
+  // Verlet death ragdolls: update, remove when expired.
   verletRagdolls.forEach(vr => vr.update());
   verletRagdolls = verletRagdolls.filter(vr => !vr.isDone());
 
   // Draw Verlet death ragdolls (behind living players)
   verletRagdolls.forEach(vr => vr.draw());
-  // Dropped weapons left behind by deaths — behind the living fighters
+  // Dropped weapons draw behind living fighters.
   if (typeof DeathAnim !== 'undefined') DeathAnim.drawProps();
 
-  // Safety: clamp any Infinity/NaN velocities before physics update (avoids teleport bugs)
+  // Clamp Infinity/NaN velocities before physics, or they teleport.
   for (const p of players) {
     if (!isFinite(p.vx)) p.vx = 0;
     if (!isFinite(p.vy)) p.vy = 0;
     if (!isFinite(p.x))  { p.x = GAME_W / 2; p.vx = 0; }
     if (!isFinite(p.y))  { p.y = 200;         p.vy = 0; }
   }
-  // Conviction: update state (must run before player.update() so vx override takes effect)
+  // Conviction state. Runs before player.update() so the vx override applies.
   if (typeof DomainManager !== 'undefined' && !gameFrozen && !tfAbsorptionScene) {
     DomainManager.update();
   }
-  // Players — skip physics update for remote (network-driven) players; also skip during hard freeze or absorption cinematic
+  // Players. Remote (network) players skip physics, as do hard freezes and absorption.
   if (!gameFrozen && !tfAbsorptionScene) {
     // BR: array order decides mirror fights (the later updater reacts to the same
-    // frame's swing). AI decisions land on fixed frames (aiTick % interval), so a
-    // strict frame-parity alternation would never flip those; flip a coin instead.
+    // frame's swing). AI decisions land on fixed frames, so flip a coin instead of alternating.
     const _updOrder = (gameMode === 'battleroyale' && Math.random() < 0.5) ? players.slice().reverse() : players;
     _updOrder.forEach(p => { if ((p.health > 0 || p.invincible > 0) && !p.isRemote) p.update(); });
-    // Authored death beats run AFTER physics so they can override the pose and
-    // read the body's real landing velocity (see docs/animation-quality-plan.md).
+    // Authored death beats run after physics so they can override the pose and read the real landing velocity.
     if (typeof DeathAnim !== 'undefined') DeathAnim.update();
-    // Move scenes own the bodies they script: they run after physics and
-    // overwrite whatever it did to them (smb-move-scenes.js).
+    // Move scenes run after physics and overwrite what it did to their bodies.
     if (typeof MoveScene !== 'undefined') MoveScene.update();
   }
-  // Habit engine scouting (js/smb-sov-habits.js): every human's nearest living
-  // hostile opponent watches them this frame too, so a human's habits get
-  // filed from story fights, versus bots and training, not only from a
-  // Sovereign match. Sovereign observes himself already, from his own update().
+  // Habit engine (js/smb-sov-habits.js): each human's nearest hostile watches them every frame,
+  // so habits are filed from story and BR fights too.
   if (typeof SovHabits !== 'undefined' && !gameFrozen) {
     for (let _hi = 0; _hi < players.length; _hi++) {
       const _h = players[_hi];
@@ -763,7 +720,7 @@ function gameLoop(timestamp) {
     }
     SovHabits.tick();
   }
-  // Passive super charge: every player (non-boss) gains a small amount of super each frame
+  // Passive super charge for every non-boss player.
   if (!isCinematic && !paused) {
     players.forEach(p => {
       if (p.isBoss || p.superActive || p.health <= 0) return;
@@ -782,9 +739,9 @@ function gameLoop(timestamp) {
   // Divine Summon: tick Herald sweep state
   if (typeof updateDivineSummon === 'function') updateDivineSummon();
 
-  // ── Depth Phase: transition, circular arena constraint, still-Z tracking ──────
+  // Phase: depth (transition, circular arena, still-Z tracking)
   if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
-    // Tick the freeze-transition timer; unlock Z-movement when it expires
+    // Freeze-transition timer. Z movement unlocks when it expires.
     if (tfDepthTransitionTimer > 0) {
       tfDepthTransitionTimer--;
       if (tfDepthTransitionTimer === 0) {
@@ -798,7 +755,7 @@ function gameLoop(timestamp) {
           showBossDialogue('Every dimension. Every layer. I am all of them.', 240);
       }
     }
-    // Clamp all living entities inside the circular arena boundary
+    // Clamp living entities inside the circular arena.
     for (const ent of players) {
       if (!ent || (ent.health <= 0 && ent.invincible <= 0)) continue;
       const ecx = ent.cx(), ecy = ent.cy();
@@ -829,7 +786,7 @@ function gameLoop(timestamp) {
     if (p.health <= 0 && p.invincible <= 0) return;
     // Cinematic visibility: skip players flagged as hidden for this scene
     if (activeCinematic && activeCinematic.hidePlayers && activeCinematic.hidePlayers.includes(i)) return;
-    // Depth phase: apply per-entity Z-axis depth illusion transform
+      // Z-depth illusion: scale and offset per entity.
     if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive) {
       const pz     = p.z || 0;
       const dScale = 1 + pz * 0.22;   // z=1 → 22% larger (foreground), z=-1 → 22% smaller (bg)
@@ -837,8 +794,7 @@ function gameLoop(timestamp) {
       const pivX   = p.cx();
       const pivY   = p.cy();
 
-      // ── Floor shadow: ellipse on the ground that shifts with depth ───────
-      // Foreground entities (z>0) cast a shadow closer to us; bg entities further away.
+      // Floor shadow: foreground casts closer, background further away.
       const shadowFloorY = 460;
       const shadowCX     = p.cx();
       const shadowRX     = p.w * 0.55 * dScale;
@@ -854,10 +810,9 @@ function gameLoop(timestamp) {
         ctx.restore();
       }
 
-      // ── Depth fog: background entities dimmer, foreground at full brightness ─
+      // Background dimmer, foreground at full brightness.
       const fogAlpha = pz >= 0 ? 1.0 : 0.62 + pz * 0.38; // z=-1 → 0.24 dimmer
 
-      // ── Draw entity with depth transform ─────────────────────────────────
       ctx.save();
       ctx.globalAlpha = fogAlpha;
       ctx.translate(pivX, pivY + dOffY);
@@ -868,7 +823,7 @@ function gameLoop(timestamp) {
 
       return; // draw already called above
     }
-    // Hit nudge: directional visual recoil — linearly decays over 4 frames
+    // Hit nudge: directional recoil, linear decay over 4 frames.
     if (p._hitNudge && p._hitNudge.t > 0) {
       ctx.save();
       ctx.translate(p._hitNudge.x * (p._hitNudge.t / 4), 0);
@@ -878,7 +833,7 @@ function gameLoop(timestamp) {
     } else {
       p.draw();
     }
-    // Hit confirmation flash: brief white overlay sized to fighter bounding box
+    // Hit flash: white overlay sized to the fighter.
     if (p._hitFlashTimer && p._hitFlashTimer > 0) {
       p._hitFlashTimer--;
       ctx.save();
@@ -889,9 +844,8 @@ function gameLoop(timestamp) {
     }
   });
   if (typeof MoveScene !== 'undefined') MoveScene.draw();
-  // The Trials: reveal sweep, distortion band, perception cues, inversion tell.
-  // Above the fighters so a cue is never hidden behind a body, and inert unless
-  // a trial is armed (smb-trials.js).
+  // Trials draw: reveal sweep, distortion band, cues, inversion tell. Above fighters so cues aren't hidden.
+  // Inert unless a trial is armed (smb-trials.js).
   if (typeof drawTrials === 'function') drawTrials();
   // Chaos system: world-space draw (item drops, effect badges, platform effects)
   if (typeof chaosMode !== 'undefined' && chaosMode && typeof drawChaosWorldSpace === 'function') drawChaosWorldSpace();
@@ -937,7 +891,7 @@ function gameLoop(timestamp) {
   if (typeof drawTFKCOverlay   === 'function') drawTFKCOverlay();
   // Absorption aura on player (world-space cyan glow, active and permanent)
   if (typeof drawTFAbsorption      === 'function') drawTFAbsorption();
-  // Absorption cinematic v2 — memory-driven scene overlay
+  // Absorption cinematic v2, memory-driven scene overlay
   if (tfAbsorptionScene && typeof drawTFAbsorptionScene === 'function') drawTFAbsorptionScene();
   // Paradox empowerment aura (world-space, over fighters)
   if (typeof drawParadoxEmpowerment === 'function') drawParadoxEmpowerment();
@@ -965,7 +919,7 @@ function gameLoop(timestamp) {
   if (typeof updateTrials === 'function') updateTrials();
   updateMirrorGimmick();
   drawMirrorGimmickOverlay();
-  // Paradox revive system (screen-space overlay — replaces fake-death visually)
+  // Paradox revive system (screen-space overlay, replaces fake-death visually)
   if (typeof updateParadoxRevive === 'function') updateParadoxRevive();
   if (typeof drawParadoxRevive   === 'function') drawParadoxRevive();
   // Standalone Paradox entity update (fade-out cleanup outside of revive/opening-fight sequence)
@@ -993,7 +947,7 @@ function gameLoop(timestamp) {
     drawFakeDeathScene();
   }
 
-  // ---------- Blood stains — draw persistent marks on surfaces ----------
+  // Blood stains: persistent marks on surfaces
   for (let i = bloodStains.length - 1; i >= 0; i--) {
     const _bs = bloodStains[i];
     _bs.life--;
@@ -1006,7 +960,7 @@ function gameLoop(timestamp) {
   }
   ctx.globalAlpha = 1;
 
-  // ---------- Phase: updateParticles (prevent memory leak: remove expired) ----------
+  // Phase: updateParticles
   const _liveParticles = [];
   for (let i = 0; i < particles.length; i++) {
     const p = particles[i];
@@ -1036,16 +990,10 @@ function gameLoop(timestamp) {
   }
   particles = _liveParticles; // keep only live (life > 0) to prevent leak
 
-  // ---------- Phase: drawParticles ----------
-  // Two passes rather than drawing inside the update loop, so the composite
-  // mode is set twice per frame instead of once per particle.
-  //
-  // Pass 1: heavy matter (blood, debris, smoke) — round, normal blending.
-  // Pass 2: sparks — STREAKED along their own velocity and drawn additively.
-  //   A spark is a moving hot point; rendering it as a static dot is what made
-  //   every impact read as a puff of confetti. Stretching it along its travel
-  //   and letting overlaps bloom is most of the difference between "particles"
-  //   and "an impact".
+  // Phase: drawParticles
+  // Two passes so the composite mode is set twice per frame, not once per particle.
+  // Pass 1: heavy matter (blood, debris, smoke), normal blending.
+  // Pass 2: sparks, streaked along velocity and drawn additively. A static dot reads as confetti, a streak reads as impact.
   ctx.save();
   for (let i = 0; i < _liveParticles.length; i++) {
     const p = _liveParticles[i];
@@ -1077,7 +1025,7 @@ function gameLoop(timestamp) {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // ---------- Destruction debris (cosmetic — no collision, no sync) ----------
+  // Debris (cosmetic, no collision or sync)
   if (typeof updateDestruction === 'function') { updateDestruction(); drawDebrisChunks(); }
   if (typeof updateWorldReact === 'function') { updateWorldReact(); drawWorldReactFront(); }
 
@@ -1086,11 +1034,11 @@ function gameLoop(timestamp) {
   // Public Server name tags (world-space, above entities)
   if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.drawWorld();
 
-  // Damage texts — filter expired to prevent leak
+  // Damage texts, filter expired to prevent leak
   damageTexts.forEach(d => { d.update(); d.draw(); });
   damageTexts = damageTexts.filter(d => d.life > 0);
 
-  // Respawn countdowns — filter expired to prevent leak
+  // Respawn countdowns, filter expired to prevent leak
   for (const cd of respawnCountdowns) {
     cd.framesLeft--;
     if (cd.framesLeft <= 0) continue;
@@ -1131,7 +1079,7 @@ function gameLoop(timestamp) {
   }
 
   screenShake *= 0.9; // decay-based shake (smoother than instant drop)
-  // Reset to non-shake transform (keep scale + camera centering, remove shake)
+  // Drop the shake offset, keep scale and camera centering.
   if (typeof _applyGameTransform === 'function') {
     _applyGameTransform(finalScX, finalScY,
       canvas.width  / 2 - camCX * finalScX,
@@ -1154,7 +1102,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'shipflight' && typeof updateShipFlight === 'function') updateShipFlight();
   if (gameMode === 'assassination' && typeof updateAssassinationMode === 'function') updateAssassinationMode();
   if (gameMode === 'gauntlet' && typeof updateGauntletMode === 'function') updateGauntletMode();
-  // Ship & Fracture progression — tick preview timer each frame
+  // Ship & Fracture progression, tick preview timer each frame
   if (typeof updateFracturePreview === 'function') updateFracturePreview();
   if (typeof updateFractureBranch === 'function') updateFractureBranch();
   if (typeof updateLadder === 'function') updateLadder();
@@ -1174,7 +1122,7 @@ function gameLoop(timestamp) {
   if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortHUD === 'function') drawEscortHUD();
   if (gameMode === 'assassination' && typeof drawAssassinationHUD === 'function') drawAssassinationHUD();
   if (gameMode === 'gauntlet' && typeof drawGauntletHUD === 'function') drawGauntletHUD();
-  // New chaos modifier notification — timer ticked here, drawn in screen-space below
+  // New chaos modifier notification, timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
   if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
   if (exploreActive && typeof drawSidequestWorld === 'function') drawSidequestWorld();
@@ -1183,6 +1131,7 @@ function gameLoop(timestamp) {
   if (exploreActive && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
   // Absolute Axiom multiverse: dead-universe darkness + location title card
   if (typeof AAMultiverse !== 'undefined') AAMultiverse.drawOverlay(finalScX, finalScY, camCX, camCY);
+  if (typeof OwnerTools !== 'undefined') OwnerTools.drawWorld(ctx);
   // Achievement popups (drawn over everything, in screen space)
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
 
@@ -1200,7 +1149,6 @@ function gameLoop(timestamp) {
   if (typeof MoveScene !== 'undefined') MoveScene.drawScreen();
   if (typeof drawCinematicImpactEffects === 'function') drawCinematicImpactEffects();
   drawCinematicOverlay();
-  // Story world distortion intentionally disabled (purple scanlines removed per user request)
   drawAchievementPopups();
   if (damnationActive && typeof drawDamnationEffects === 'function') drawDamnationEffects();
   if (damnationActive && typeof drawDamnationAnchors === 'function') drawDamnationAnchors();
@@ -1245,15 +1193,14 @@ function gameLoop(timestamp) {
   if (typeof drawCinNameCard === 'function') drawCinNameCard(canvas.width, canvas.height);
   if (typeof drawTutorial === 'function') drawTutorial(ctx);
   if (typeof drawDesignerTestHUD === 'function') drawDesignerTestHUD(ctx);
-  // Absolute Axiom: RGS HUD + Dimension Punch overlay (topmost — must draw after finisher)
+  // Absolute Axiom: RGS HUD + Dimension Punch overlay (topmost, must draw after finisher)
   if (typeof _drawRGSHud === 'function') _drawRGSHud(canvas.width, canvas.height);
   if (typeof _drawDimPunchOverlay === 'function') _drawDimPunchOverlay(canvas.width, canvas.height);
 
   // Conviction HUD: timer bars (screen-space, above game HUD)
   if (typeof DomainManager !== 'undefined') DomainManager.drawHUD();
 
-  // ── Critical status overlays — always screen-space, always above HUD ──────
-  // Hide legacy DOM banner (replaced by canvas draw below)
+  // Critical status overlays: screen space, always on top. The legacy DOM banner is hidden.
   { const _b = document.getElementById('ctrlInvertedBanner'); if (_b) _b.style.display = 'none'; }
 
   ctx.setTransform(1, 0, 0, 1, 0, 0); // ensure screen space
@@ -1314,11 +1261,10 @@ function gameLoop(timestamp) {
       ctx.restore();
     }
   }
-  // ── End critical status overlays ─────────────────────────────────────────
 
   drawEdgeIndicators(finalScX, finalScY, camCX, camCY);
   if (typeof drawCinematicLetterbox === 'function') drawCinematicLetterbox();
-  // Restore the stable game transform after (remaining draws use it already)
+  // Restore the game transform for the remaining draws.
   if (typeof _applyGameTransform === 'function') {
     _applyGameTransform(finalScX, finalScY, canvas.width/2 - camCX*finalScX, canvas.height/2 - camCY*finalScY);
   } else {
@@ -1346,9 +1292,7 @@ function gameLoop(timestamp) {
   // Always tick FPS so console 'fps' command works without debug overlay open
   if (typeof _dbgTickFps === 'function' && !debugMode) _dbgTickFps();
 
-  // Training lab measurement HUD (screen-space). Called unconditionally in
-  // training mode — it ticks the rolling lockout stats every frame, so gating it
-  // on the panel being visible would only count frames you happened to be watching.
+  // Training lab HUD. Draws unconditionally in training mode, since it ticks lockout stats every frame.
   if (trainingMode && typeof renderTrainingLab === 'function') renderTrainingLab(ctx);
 
   // Debug overlay (drawn last, in screen-space)

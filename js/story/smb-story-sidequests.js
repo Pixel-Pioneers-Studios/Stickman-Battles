@@ -1,50 +1,22 @@
 'use strict';
-// smb-story-sidequests.js — optional side objectives for explore / walk→fight chapters
-// -------------------------------------------------------------------------------
-// A light layer on top of the explore world: each chapter may carry a few optional
-// objectives the player can find off the golden path. Nothing here is ever required:
-//   - foes a sidequest spawns are flagged isOptionalEnemy, so the clear-the-area gate
-//     and the exit-seal logic ignore them (see _exploreOptionalFoe),
-//   - nothing in the exit / level-win path reads this file.
+// smb-story-sidequests.js: optional side objectives for explore and walk-to-fight chapters.
+// Nothing here is required. Quest foes are flagged isOptionalEnemy, so the clear gate
+// and exit seal skip them. Nothing on the exit or win path reads this file.
 //
-// Definitions are plain data, looked up in this order:
-//   1. chapter.sidequests          (an arc file may carry its own)
-//   2. STORY_LEVELS[id].sidequests (the chapter's authored map entry)
-//   3. STORY_SIDEQUESTS[id]        (the table below)
-//
-// Quest fields (all strings are story-voice, second person, Kael is "you"):
-//   id        short id, unique within the chapter                     (required)
-//   type      'find'   touch a prop in the world
-//             'rescue' free someone; their captors must be down first
-//             'clear'  kill every foe of a nest
-//   title     HUD line                                                (required)
-//   at        0..1 fraction of the world's length, nudged to open ground
-//   style     find: 'journal' | 'cairn' | 'mark'; rescue: 'pinned' | 'bound';
-//             clear: 'echo' | 'drift'
-//   intro     subtitle the first time the player spots it
-//   done      subtitle on completion
-//   blocked   rescue: nag while captors live
-//   foes      rescue/clear: { count, name, weaponKey, classKey, aiDiff, color }
-//   reward    { tokens, exp } — paid once, through _storyTokenReward / _storyAwardKillExp
-//
-// Persistence: a finished objective is recorded in _story2.lootTaken under
-// '<chapterId>:sq<id>' — the same per-profile, migration-aware map that holds cache
-// pickups. (Stars only count '<id>:c0' / ':c1', so sidequests never touch 100%.)
-//
-// Hooks (all guarded by typeof at the call sites):
-//   storySidequestsReset()       _launchExplorationChapter, before the world builds
-//   storySidequestsArm(ch)       once the player exists (the 80-frame post-start tick)
-//   updateSidequests(p1)         updateExploration, each frame
-//   drawSidequestWorld()         world-space props, from gameLoop beside the goal object
-//   drawSidequestHUD()           screen-space tracker, from gameLoop beside drawExploreHUD
-//   storySidequestMarks()        minimap markers (smb-drawing-hud.js)
-//   storySidequestProgress(idx)  { got, total } for the star chart
-// Depends on: smb-story-config.js (_story2, _saveStory2, _storyTokenReward,
-//             _storyAwardKillExp), smb-story-engine-explore2.js (_exploreSpawnEnemy)
-// -------------------------------------------------------------------------------
+// Definitions are plain data, looked up in order: chapter.sidequests,
+// STORY_LEVELS[id].sidequests, then STORY_SIDEQUESTS[id].
+// Fields: id (unique per chapter), type ('find' | 'rescue' | 'clear'), title (HUD line),
+// at (0..1 along the world), style (visual variant), intro/done/blocked subtitles,
+// foes (rescue and clear), reward { tokens, exp } paid once. Text is second person.
+// Done state goes in _story2.lootTaken as '<chapterId>:sq<id>'. Stars only count
+// ':c0' and ':c1', so sidequests never change 100%.
+// Hooks are typeof-guarded at call sites: storySidequestsReset, storySidequestsArm,
+// updateSidequests, drawSidequestWorld, drawSidequestHUD, storySidequestMarks,
+// storySidequestProgress.
+// Depends on smb-story-config.js and smb-story-engine-explore2.js (_exploreSpawnEnemy).
 
 const STORY_SIDEQUESTS = {
-  // Act 0 — Home City, the first night of the invasion.
+  // Act 0: Home City, the first night of the invasion.
   2: [{
     id: 'a', type: 'rescue', style: 'pinned', at: 0.17,
     title: 'Free the trapped witness',
@@ -54,7 +26,7 @@ const STORY_SIDEQUESTS = {
     foes: { count: 1, name: 'Seam Enforcer', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'easy', color: '#cc4444' },
     reward: { tokens: 14, exp: 12 },
   }],
-  // Act 1 — Fracture Network.
+  // Act 1: Fracture Network.
   24: [{
     id: 'a', type: 'clear', style: 'echo', at: 0.40,
     title: 'Clear the echo nest',
@@ -63,7 +35,7 @@ const STORY_SIDEQUESTS = {
     foes: { count: 3, name: 'Unformed Echo', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#a47fd8' },
     reward: { tokens: 18, exp: 16 },
   }],
-  // Act 2 — the Ice Dimension, the third Architect's perfect world.
+  // Act 2: the Ice Dimension, the third Architect's perfect world.
   42: [{
     id: 'a', type: 'find', style: 'journal', at: 0.24,
     title: 'Find the frozen warrior\'s journal',
@@ -71,7 +43,7 @@ const STORY_SIDEQUESTS = {
     done: 'The pages are fused shut except one. "It was perfect. That was the trap."',
     reward: { tokens: 15, exp: 14 },
   }],
-  // Act 2 — the abandoned facility.
+  // Act 2: the abandoned facility.
   66: [{
     id: 'a', type: 'find', style: 'journal', at: 0.65,
     title: 'Find the technician\'s notebook',
@@ -79,7 +51,7 @@ const STORY_SIDEQUESTS = {
     done: 'A technician\'s notebook. "Subject asked if the sky was real. I said yes. I don\'t know why I said yes."',
     reward: { tokens: 20, exp: 16 },
   }],
-  // Act 3 — War-Torn Dimension.
+  // Act 3: War-Torn Dimension.
   86: [{
     id: 'a', type: 'rescue', style: 'bound', at: 0.58,
     title: 'Free the bound conscript',
@@ -89,7 +61,7 @@ const STORY_SIDEQUESTS = {
     foes: { count: 2, name: 'War Conscript', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'easy', color: '#a04a38' },
     reward: { tokens: 20, exp: 18 },
   }],
-  // Act 3 — Gravity Flux World.
+  // Act 3: Gravity Flux World.
   91: [{
     id: 'a', type: 'clear', style: 'drift', at: 0.26,
     title: 'Clear the drifter nest',
@@ -98,7 +70,7 @@ const STORY_SIDEQUESTS = {
     foes: { count: 3, name: 'Flux Drifter', weaponKey: 'spear', classKey: 'ninja', aiDiff: 'medium', color: '#7fae8a' },
     reward: { tokens: 24, exp: 20 },
   }],
-  // Act 3 — Titan World.
+  // Act 3: Titan World.
   99: [{
     id: 'a', type: 'find', style: 'cairn', at: 0.12,
     title: 'Find the pilgrim\'s cairn',
@@ -106,7 +78,7 @@ const STORY_SIDEQUESTS = {
     done: 'Under the top stone, a strip of cloth. Still warm. Someone left in a hurry. Or didn\'t leave.',
     reward: { tokens: 24, exp: 20 },
   }],
-  // Act 4 — the Creator's Domain.
+  // Act 4: the Creator's Domain.
   129: [{
     id: 'a', type: 'find', style: 'mark', at: 0.84,
     title: 'Find the earlier bearer\'s mark',
@@ -116,7 +88,7 @@ const STORY_SIDEQUESTS = {
   }],
 };
 
-let _sq = null;   // { chId, quests: [...] } for the running explore level, else null
+let _sq = null;   // { chId, quests } while an explore level runs
 
 function storySidequestsFor(ch) {
   if (!ch) return [];
@@ -135,11 +107,10 @@ function storySidequestProgress(idx) {
   return { got: defs.filter(d => _sqTaken(_sqKey(ch.id, d.id))).length, total: defs.length };
 }
 
-// ── Placement ─────────────────────────────────────────────────────────────────
-// A quest anchors to open surface ground: solid floor under it, clear of structure
-// plateaus, cache shafts, the duel checkpoint's arena lock and surface cache perches.
-// The explore world lives under ARENAS.__explore__; currentArena can still be the
-// previous screen's arena for a few frames after launch, so never read it at arm time.
+// Placement
+// Quests anchor to open ground: solid floor, clear of plateaus, shafts, arena locks and perches.
+// The explore world is ARENAS.__explore__. currentArena can still hold the previous screen's
+// arena for a few frames, so don't read it at arm time.
 function _sqArena() { return (typeof ARENAS !== 'undefined' && ARENAS.__explore__) || currentArena; }
 function _sqFloorAt(plats, x) {
   let best = null;
@@ -169,13 +140,13 @@ function _sqPlace(plats, want) {
   return null;
 }
 
-// ── Lifecycle ─────────────────────────────────────────────────────────────────
+// Lifecycle
 function storySidequestsReset() { _sq = null; }
 
 function storySidequestsArm(ch) {
   _sq = null;
   if (!ch || !exploreActive || gameMode !== 'exploration' || storeSurvivalState) return;
-  // A region world stacks its chapters end to end; quests sit in the launched chapter's segment.
+  // Region worlds stack chapters end to end. Quests go in the launched chapter's segment.
   const _segI = exploreRegion ? exploreRegion.chapters.indexOf(ch.id) : 0;
   if (_segI < 0) return;
   const _segLen = exploreRegion ? exploreRegion.segLen : exploreWorldLen;
@@ -186,7 +157,7 @@ function storySidequestsArm(ch) {
   const quests = [];
   for (const d of defs) {
     const spot = _sqPlace(plats, Math.round(_segI * _segLen + (d.at == null ? 0.5 : d.at) * _segLen));
-    if (!spot) continue;   // no safe ground: the objective quietly does not exist
+    if (!spot) continue;   // no safe ground: skip it
     quests.push({
       def: d, key: _sqKey(ch.id, d.id), done: _sqTaken(_sqKey(ch.id, d.id)),
       x: spot.x, floorY: spot.floorY, seen: false, spawned: false, foes: [],
@@ -275,9 +246,9 @@ function storySidequestMarks() {
   return _sq.quests.filter(q => q.seen || q.done).map(q => ({ x: q.x, y: q.floorY - 14, done: q.done }));
 }
 
-// ── World-space props ─────────────────────────────────────────────────────────
+// World-space props
 function _sqStick(x, y, sit, alpha, col) {
-  // A muted seated / standing figure; y is the ground line.
+  // Muted seated or standing figure. y is the ground line.
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.strokeStyle = col; ctx.lineWidth = 2.4; ctx.lineCap = 'round';
@@ -304,7 +275,7 @@ function _sqDrawProp(q) {
   if (q.def.type === 'find') {
     if (q.done) { ctx.restore(); return; }
     ctx.translate(x, y); ctx.scale(1.4, 1.4); ctx.translate(-x, -y);   // read at game zoom
-    // A faint pale glow on the ground so it can be spotted, never a pickup sparkle.
+    // Faint ground glow so it can be spotted. Not a pickup sparkle.
     const g = ctx.createRadialGradient(x, y - 6, 0, x, y - 6, 34);
     g.addColorStop(0, `rgba(190,226,220,${0.10 + 0.08 * pulse})`);
     g.addColorStop(1, 'rgba(190,226,220,0)');
@@ -377,7 +348,7 @@ function drawSidequestWorld() {
   }
 }
 
-// ── HUD tracker ───────────────────────────────────────────────────────────────
+// HUD tracker
 function drawSidequestHUD() {
   if (!_sq || !exploreActive) return;
   if ((typeof activeCinematic !== 'undefined' && activeCinematic) || (typeof isCinematic !== 'undefined' && isCinematic)) return;

@@ -1,16 +1,8 @@
 'use strict';
-// js/story/levels/ch22.js — Chapter 22 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch22.js: chapter 22 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 22 — The Void Arena (walk → duel vs the Void Collector)
-// "A collapsed dimension. No sky. No ground. Just floating platforms and the
-// silence of a dead universe. Here, something had set up camp." The run is a
-// hop across drifting fragments over the void (the gaps are falls); the
-// Collector's camp holds the one big slab at the midpoint — a debris throne,
-// violet braziers, cages of stolen fragments. "The platforms are moving. It
-// controls them." Past the camp, two plates slide and lift across the widest
-// gap toward the far edge of the dead universe.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 22, The Void Arena (walk, then duel the Void Collector).
+// Hop across drifting fragments over the void. The Collector's camp sits on the one big slab at the midpoint.
 (function () {
   const FR = [
     [0, 520, 440], [640, 820, 420], [960, 1120, 450], [1280, 1420, 400], [1560, 1760, 440],
@@ -24,15 +16,14 @@
   function layout() {
     const P = [];
     for (const m of MOVERS) _slMover(P, m.tag, m.x, m.y, m.w, m.ax, m.ay, 0.016, m.ph);
-    _slLedge(P, CAMP - 60, 440 - 96, 120);           // the throne's seat block
-    _slLedge(P, 2660, 440 - 70, 80); _slLedge(P, 3260, 440 - 70, 80);   // fragment cages
+    _slLedge(P, CAMP - 60, 440 - 96, 120);
+    _slLedge(P, 2660, 440 - 70, 80); _slLedge(P, 3260, 440 - 70, 80);
     return P;
   }
 
   function backdrop(v) {
     _slSkyAbove(v, '#020104');
     _slParallax(v, 0.03, (l, r) => {
-      // Dead stars, a dead red sun, the ghost of a galaxy
       ctx.fillStyle = 'rgba(200,180,200,0.35)';
       for (let i = Math.floor(l / 24); i * 24 < r; i++) if (_slHash(i + 61) < 0.3) ctx.fillRect(i * 24 + _slHash(i) * 18, -400 + _slHash(i + 5) * 1000, 1, 1);
       const sx = l + 1100;
@@ -55,13 +46,11 @@
   }
 
   function back(v) {
-    // Camp: throne of debris, braziers, cages
     if (_slVisible(v, 2560, 3440)) {
       ctx.fillStyle = '#1a1622';
       ctx.beginPath(); ctx.moveTo(CAMP - 110, 440); ctx.lineTo(CAMP - 90, 440 - 260); ctx.lineTo(CAMP - 40, 440 - 300); ctx.lineTo(CAMP, 440 - 340); ctx.lineTo(CAMP + 40, 440 - 300); ctx.lineTo(CAMP + 90, 440 - 260); ctx.lineTo(CAMP + 110, 440); ctx.fill();
       ctx.fillStyle = '#2a2436'; ctx.fillRect(CAMP - 60, 440 - 96, 120, 96);
       ctx.fillStyle = '#3a3248'; ctx.fillRect(CAMP - 66, 440 - 100, 132, 8);
-      // Embedded fragments, glowing in the throne's back
       for (let k = 0; k < 9; k++) {
         const fx = CAMP - 70 + _slHash(k) * 140, fy = 440 - 130 - _slHash(k + 4) * 190;
         ctx.fillStyle = `hsla(${200 + k * 20},80%,65%,${0.6 + 0.3 * Math.sin(frameCount * 0.05 + k)})`;
@@ -95,13 +84,11 @@
       ctx.fillStyle = '#2a2440';
       ctx.beginPath(); ctx.moveTo(pl.x, pl.y); ctx.lineTo(pl.x + pl.w, pl.y); ctx.lineTo(pl.x + pl.w * 0.65, pl.y + 40); ctx.lineTo(pl.x + pl.w * 0.3, pl.y + 34); ctx.fill();
       ctx.fillStyle = '#3e3658'; ctx.fillRect(pl.x, pl.y, pl.w, 6);
-      // The Collector's control tether
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = 'rgba(190,110,255,0.35)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(pl.x + pl.w / 2, pl.y + 30); ctx.quadraticCurveTo(pl.x + pl.w / 2 - 200, pl.y + 200, CAMP, 440 - 340); ctx.stroke();
       ctx.restore();
     }
-    // The far edge: where the dead universe simply stops
     if (_slVisible(v, 5500, 6200)) {
       const g = ctx.createLinearGradient(5600, 0, 6000, 0);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(230,220,255,0.35)');

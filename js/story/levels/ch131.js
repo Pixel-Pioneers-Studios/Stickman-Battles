@@ -1,17 +1,6 @@
 'use strict';
-// js/story/levels/ch131.js — Chapter 131 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 131 — Twin Enforcers (walk → duel vs the Twin Enforcers, 1 life)
-// The Corridor of Forms, where "the architecture shifted" as they arrived.
-// Plinths along the corridor carry the domain's primitive forms — a cube, a
-// sphere, a prism, a ring — each slowly turning, each with its wireframe
-// twin turning in exact step beside it ("They share a single coordination
-// system"). At the midpoint the corridor becomes a hall built in perfect
-// mirror symmetry about a bright centre line: two of everything, two arches,
-// two standing marks, the Enforcers' formation built into the room. Plinths
-// stacked in pairs are the climbs; the cache shafts are floor vents.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 131 map (Twin Enforcers, 1 life). See smb-story-levels.js for the contract.
+// Corridor of Forms. The midpoint is a mirror hall. Plinths in pairs are the climbs.
 (function () {
   const G = 440, HALL = 3000;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -54,7 +43,7 @@
       ctx.fillStyle = '#b8b4c8'; ctx.fillRect(x, y, w, G - y); ctx.fillStyle = '#ece8f8'; ctx.fillRect(x, y, w, 5);
       ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(x + w - 8, y, 8, G - y);
     }
-    // The mirror hall: two of everything about a bright centre line
+    // Mirror hall
     if (_slVisible(v, HALL - 440, HALL + 440)) {
       for (const s of [-1, 1]) {
         const ax = HALL + s * 160;

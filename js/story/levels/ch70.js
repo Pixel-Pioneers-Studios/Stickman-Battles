@@ -1,18 +1,9 @@
 'use strict';
-// js/story/levels/ch70.js — Chapter 70 map (story ARENA, boss). See smb-story-levels.js.
+// js/story/levels/ch70.js: Chapter 70 map (story ARENA, boss). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 70 — The Weight of What's Coming (boss teaser vs Axiom, one screen)
-// The Threshold. "You step through the dimension wall. And stop. It's already
-// there." The wall you came through stands at the left edge, a sheet of light
-// with the tear still open in it. Ahead is a flat black plain to a horizon
-// where the machinery turns — rings of white geometry, slow, enormous, the
-// hum "you feel in your teeth before you hear it". The threshold stones float
-// in the void-arena layout the boss floor hazard was tuned for. Seventeen
-// hairline fractures run through the floor ("seventeen fractures of growth");
-// they light as the encounter goes on, and when "the air pressure drops" the
-// horizon rings close in. Built on the Creator arena's boss rules.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 70: The Weight of What's Coming (boss teaser vs Axiom).
+// Flat black plain under turning white rings. The floor fractures light as the fight
+// goes on, and the rings close in as pressure drops. Built on the Creator arena's boss rules.
 (function () {
   const G = 460, WALL = 34;
   const STONES = [[350, 225, 200], [80, 295, 140], [680, 295, 140], [205, 378, 110], [585, 378, 110], [150, 152, 110], [640, 152, 110]];
@@ -34,7 +25,7 @@
   function backdrop(v) {
     _slSkyAbove(v, '#000000');
     const s = stage();
-    // The machinery on the horizon: rings of white geometry turning
+    // Horizon rings
     _slParallax(v, 0.08, (l, r) => {
       const cx = 560, cy = 300 - s * 30;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -56,7 +47,6 @@
       }
       ctx.restore();
     });
-    // The plain running to the horizon
     const g = ctx.createLinearGradient(0, 330, 0, G);
     g.addColorStop(0, 'rgba(40,30,60,0)'); g.addColorStop(1, 'rgba(40,30,60,0.6)');
     ctx.fillStyle = g; ctx.fillRect(v.x - 10, 330, v.w + 20, G - 330);
@@ -66,7 +56,7 @@
 
   function back(v) {
     const s = stage();
-    // The dimension wall you stepped through, the tear still open
+    // Dimension wall behind you, tear still open
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const wg = ctx.createLinearGradient(0, 0, WALL + 40, 0);
     wg.addColorStop(0, 'rgba(180,160,255,0.35)'); wg.addColorStop(1, 'rgba(180,160,255,0)');
@@ -79,7 +69,7 @@
     ctx.fillStyle = '#05030a';
     ctx.beginPath(); ctx.ellipse(WALL, G - 70, 16, 64, 0, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = 'rgba(230,220,255,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
-    // Pressure: the air itself bending in toward the centre of the arena
+    // Pressure rings closing in
     if (s > 0.7) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let k = 0; k < 3; k++) {
@@ -89,7 +79,7 @@
       }
       ctx.restore();
     }
-    // Threshold stones: black slabs with white rim light, fractured undersides
+    // Threshold stones
     for (let i = 0; i < STONES.length; i++) {
       const [x, y, w] = STONES[i];
       ctx.fillStyle = '#0a0810';
@@ -112,7 +102,7 @@
     g.addColorStop(0, '#120e1a'); g.addColorStop(1, '#000000');
     ctx.fillStyle = g; ctx.fillRect(-400, G, 1700, 300);
     ctx.fillStyle = 'rgba(240,236,255,0.6)'; ctx.fillRect(0, G, 900, 1.5);
-    // The seventeen fractures, lighting one by one as it measures you
+    // Seventeen fractures, lit as the fight goes on
     const lit = Math.round(s * 17);
     for (let i = 0; i < 17; i++) {
       const pts = _slJag(CRACKS[i], G + 2, CRACKS[i] + 14, G + 56, 5, 6, 710 + i);

@@ -1,18 +1,6 @@
 'use strict';
-// js/story/levels/ch109.js — Chapter 109 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 109 — The Drained Records (puzzle, 4 memory conduits)
-// Deeper in the Quiet Expanse, among the remains of what it was before Seraph
-// drained it: the stubs of buildings worn down to their footings, a road you
-// can still trace under the ash. Four memory conduits stand along it — grey
-// pillars with a cracked lens at the top, each lock on a footing at the
-// height puzzleSwitchDefs gives it. When a conduit is restored its lens
-// shows, for a few seconds, what the expanse held: colour, weather, figures
-// walking, lit windows — then it drains back to grey ("a dimension with
-// people and weather and the kind of noise that comes from things being
-// alive"). Restored conduits stay faintly warm. Building stubs are the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch. 109 map: the drained records puzzle, four memory conduits among the ash.
+// Layout contract: smb-story-levels.js. Conduit heights come from puzzleSwitchDefs.
 (function () {
   const G = 440, CORE = 3300;
   const CONDUITS = [[500, 390], [1200, 355], [2200, 370], [3000, 350]];
@@ -96,7 +84,6 @@
     const x0 = Math.max(-200, v.x - 20), x1 = Math.min(3800, v.x + v.w + 20);
     if (ph === 'back') {
       ctx.fillStyle = '#4a5a5e'; ctx.fillRect(x0, G - 12, x1 - x0, 12);
-      // The old road, still traceable under the ash
       ctx.fillStyle = 'rgba(30,44,48,0.6)'; for (let x = Math.ceil(x0 / 90) * 90; x < x1; x += 90) ctx.fillRect(x, G - 7, 40, 2);
       return;
     }

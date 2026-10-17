@@ -1,11 +1,6 @@
-// smb-lab-infiltration.js — Side Mission: Laboratory Infiltration
-// Depends on: smb-story-registry.js (STORY_CHAPTER_REGISTRY)
-//             smb-globals.js (STORY_PROGRESS)
-//             smb-progression.js (setStoryFlag, fireLoreMoment)
-// Must load: after smb-story-registry.js, before smb-story-finalize.js
-//
-// Chapter id 62 — inserted at end of Act III (Rifts/Veran), after Core Entry.
-// Reveals the fractures were engineered by the Creator before the Rural arc begins.
+// Side mission: Laboratory Infiltration. Chapter id 62, after Core Entry in Act III.
+// Depends on smb-story-registry.js (STORY_CHAPTER_REGISTRY), smb-globals.js (STORY_PROGRESS),
+// smb-progression.js (setStoryFlag, fireLoreMoment). Load after the registry, before smb-story-finalize.js.
 
 STORY_CHAPTER_REGISTRY.push({
     id: 66,
@@ -56,7 +51,7 @@ STORY_CHAPTER_REGISTRY.push({
 
     postText: 'The cells are empty. Whatever was held here is gone — freed or escaped. You find one remaining terminal. The logs confirm it: the fractures aren\'t natural. They were accelerated here, on purpose, by order of the Creator. Axiom\'s war was engineered. Every fracture you\'ve crossed — he opened.',
 
-    // Fires on first-clear win via the onComplete hook in story2OnMatchEnd.
+    // Fires on first clear, via onComplete in story2OnMatchEnd.
     onComplete() {
         if (typeof unlockAchievement === 'function') unlockAchievement('lab_infiltrator');
         if (typeof setStoryFlag === 'function') {

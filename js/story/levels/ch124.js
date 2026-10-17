@@ -1,19 +1,6 @@
 'use strict';
-// js/story/levels/ch124.js — Chapter 124 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 124 — Everything You Already Know (stealth)
-// The approach to the ridge where the hooded figure is waiting, swept by
-// Veran's signal drones. The drones are hers — small grey hulls with a blue
-// lens — and each one's scan falls on the ground as a blue cone, exactly its
-// detection zone (detection sits at guard y = 395). Every post has a high
-// route: a boulder to step on, then a shelf of the hillside running over the
-// cone. The ridge climbs behind the whole level toward the meeting point at
-// its base, a single standing stone with nobody beside it yet. Veran's relay
-// mast blinks on the skyline: she can see this ground. (First post moved to
-// x=750, clear of the x=450 spawn edge — mirrored in stealthGuardDefs and
-// spawnEnemies.)
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch124.js: Chapter 124 map (stealth). See smb-story-levels.js.
+// First post moved to x=750, clear of the x=450 spawn edge. Mirrored in stealthGuardDefs and spawnEnemies.
 (function () {
   const G = 440, MEET = 3250;
   const POSTS = [[750, 90], [1300, 95], [2000, 100], [2900, 90]];
@@ -27,7 +14,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#0e1220');
-    // The ridge climbing toward the meeting point, Veran's relay mast on it
     _slParallax(v, 0.2, (l, r) => {
       ctx.fillStyle = '#1e2836';
       ctx.beginPath(); ctx.moveTo(l - 40, 440);
@@ -60,7 +46,6 @@
       ctx.fillStyle = '#5a7a4a'; ctx.fillRect(hx, hy, hw, 4);
       ctx.fillStyle = '#2e3a2e'; ctx.fillRect(hx + 6, hy + 22, 14, G - hy - 22); ctx.fillRect(hx + hw - 20, hy + 22, 14, G - hy - 22);
     }
-    // The meeting point: a single standing stone, nobody beside it yet
     if (_slVisible(v, MEET - 80, MEET + 80)) {
       ctx.fillStyle = '#4a4c54'; ctx.beginPath(); ctx.moveTo(MEET - 18, G); ctx.lineTo(MEET - 12, G - 150); ctx.lineTo(MEET + 10, G - 156); ctx.lineTo(MEET + 18, G); ctx.fill();
     }

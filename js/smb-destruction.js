@@ -1,13 +1,9 @@
 'use strict';
-// smb-destruction.js — cosmetic impact destruction (scars, chunks, dust).
+// Cosmetic impact destruction: scars, chunks, dust.
 // Depends on: smb-globals.js, smb-particles-core.js
 //
-// IMPORTANT: this system is PURELY VISUAL. Nothing here is ever read by
-// collision, pathfinding, pickSafeSpawn(), or the network layer. Platform
-// geometry is never mutated — a "destroyed" slab is a slab with marks drawn
-// on it. That is deliberate: it buys the feel of destruction with none of the
-// cost (bot paths index platforms by array position, and online syncs no
-// world state at all, so real removal would desync).
+// Purely visual. Collision, pathfinding, pickSafeSpawn() and netcode never read it.
+// Platforms are never mutated. Bot paths index them by position and online syncs no world state.
 
 const MAX_SCARS  = 46;   // persistent crack decals
 const MAX_CHUNKS = 90;   // flying blocky debris
@@ -15,7 +11,6 @@ const MAX_CHUNKS = 90;   // flying blocky debris
 let surfaceScars = [];   // { pl, lx, ly, arms[], life, maxLife, power }
 let debrisChunks = [];   // { x, y, vx, vy, rot, vr, size, color, life, maxLife, bounces, pl }
 
-// ── Colour helpers ──────────────────────────────────────────
 function _destHexToRgb(hex) {
   if (typeof hex !== 'string') return null;
   const m = hex.trim().match(/^#?([0-9a-f]{6})$/i);
@@ -33,23 +28,19 @@ function _destShade(hex, amt) {
   return `rgb(${ch(c.r)},${ch(c.g)},${ch(c.b)})`;
 }
 
-// Perceived brightness 0..1 — decides whether a crack should read as a dark
-// line (bright slab) or as a lit rim (dark slab, where a dark line is invisible).
+// Perceived brightness 0..1. Decides dark line vs lit rim.
 function _destLum(hex) {
   const c = _destHexToRgb(hex) || { r: 130, g: 130, b: 130 };
   return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
 }
 
-// The surface a platform is made of — chunks should look like the thing
-// they were knocked off, so ice chips read as ice and stone reads as stone.
+// Chunks take the surface material, so ice chips read as ice.
 function _destSurfaceColor() {
   const a = (typeof currentArena !== 'undefined' && currentArena) ? currentArena : null;
   return (a && (a.platColor || a.groundColor)) || '#8a8a8a';
 }
 
-// ── Scar (crack) generation ─────────────────────────────────
-// Cracks spread ALONG the slab, so arms are biased toward horizontal and the
-// perpendicular jitter is clamped to the platform's own thickness.
+// Arms bias horizontal, jitter clamped to slab thickness.
 function _destMakeArms(power, vJitter, vertical) {
   const arms    = [];
   const armCount = 3 + Math.floor(Math.random() * 3 + power * 2);
@@ -68,17 +59,14 @@ function _destMakeArms(power, vJitter, vertical) {
       py  = Math.max(-vJitter, Math.min(vJitter, py));
       pts.push({ x: px, y: py });
     }
-    // Generated in "along-surface" space (x runs along the face). A wall is the
-    // same pattern rotated a quarter turn, so swap the axes rather than writing
-    // a second generator.
+    // Built in along-surface space. Walls reuse it with swapped axes.
     if (vertical) for (const q of pts) { const t = q.x; q.x = q.y; q.y = t; }
     arms.push({ pts, branch: null });
 
-    // Some arms fork partway along — that reads as fracture, not scratches.
+    // Some arms fork, which reads as fracture.
     if (Math.random() < 0.45 && pts.length > 2) {
       const at  = 1 + Math.floor(Math.random() * (pts.length - 2));
-      // pts may already be axis-swapped above, so read the branch root back out
-      // in generation space.
+      // pts may be axis-swapped already, so read the branch root back out.
       const _sp = pts[at];
       const src = vertical ? { x: _sp.y, y: _sp.x } : _sp;
       const bl  = (6 + Math.random() * 14) * (0.5 + power * 0.6);
@@ -99,9 +87,8 @@ function _destMakeArms(power, vJitter, vertical) {
   return arms;
 }
 
-// ── Public entry point ──────────────────────────────────────
 // spawnImpact(x, y, power, opts)
-//   power : 0..1+ — scales crack spread, chunk count, dust and shake
+//   power : 0..1+: scales crack spread, chunk count, dust and shake
 //   opts  : { pl, color, shake, chunks, noScar, axis, eject }
 //           axis 'v' cracks a WALL face (cracks run vertically, chunks spray
 //           sideways along `eject`); default is a floor/top surface.
@@ -128,27 +115,20 @@ function spawnImpact(x, y, power, opts) {
 
   const base = opts.color || _destSurfaceColor();
 
-  // 1. Crack decal — stored in PLATFORM-LOCAL coords so marks ride moving
-  //    platforms instead of hanging in the air where the slab used to be.
+  // Crack decal in platform-local coords, so it rides moving platforms.
   const vertical = opts.axis === 'v';
   if (!opts.noScar) {
-    // Perpendicular jitter is bounded by the slab's own thickness on that axis,
-    // so cracks never wander off the face they were cut into.
+    // Clamp jitter to the slab thickness so cracks stay on the face.
     const vJit = vertical ? Math.max(1.5, Math.min(6, pl.w * 0.42))
                           : Math.max(1.5, Math.min(6, pl.h * 0.42));
     const life = Math.round((520 + Math.random() * 260) * (0.6 + power * 0.5));
     surfaceScars.push({
       pl,
-      // A crack is the surface in shadow, not a hole punched through it — pure
-      // black reads as a gap on bright slabs (grass, ice, gold), and vanishes
-      // entirely on dark ones (volcanic rock), where the lit rim carries the
-      // read instead. Both colours come from the material, never from #000/#fff.
+      // Shadow, not a hole: pure black reads as a gap on bright slabs and vanishes on dark ones.
       crackColor: _destShade(base, _destLum(base) > 0.45 ? -0.62 : -0.40),
       rimColor:   _destShade(base, 0.40),
       rimAlpha:   _destLum(base) > 0.45 ? 0.10 : 0.24,
-      // A wall crack originates exactly ON the edge, so the clip would eat the
-      // half of the pattern that spreads outward. Nudge it inboard so the whole
-      // fracture sits on the visible face.
+      // Wall cracks start on the edge, so nudge them inboard or the clip eats half.
       lx: vertical ? Math.max(3, Math.min(pl.w - 3, x - pl.x)) : (x - pl.x),
       ly: vertical ? Math.max(3, Math.min(pl.h - 3, y - pl.y)) : 1,
       arms: _destMakeArms(power, vJit, vertical),
@@ -158,7 +138,7 @@ function spawnImpact(x, y, power, opts) {
     while (surfaceScars.length > MAX_SCARS) surfaceScars.shift();
   }
 
-  // 2. Blocky debris — knocked loose, spins, bounces once or twice, fades.
+  // Blocky debris.
   const want = opts.chunks == null ? Math.round(3 + power * 6) : opts.chunks;
   const room = Math.max(0, MAX_CHUNKS - debrisChunks.length);
   const n    = Math.min(want, room);
@@ -186,7 +166,7 @@ function spawnImpact(x, y, power, opts) {
     });
   }
 
-  // 3. Dust puff — low, wide, and the colour of the pulverised surface.
+  // Dust, tinted to the surface.
   if (typeof spawnParticles === 'function') {
     const dx = vertical ? x + (opts.eject || 0) * 3 : x;
     const dy = vertical ? y : pl.y - 2;
@@ -194,12 +174,10 @@ function spawnImpact(x, y, power, opts) {
     spawnParticles(dx, vertical ? y - 3 : pl.y - 5, _destShade(base, 0.52), Math.round(2 + power * 4));
   }
 
-  // 4. Weight.
   const sh = opts.shake == null ? Math.round(4 + power * 9) : opts.shake;
   if (sh > 0 && typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, sh);
 }
 
-// ── Per-frame update ────────────────────────────────────────
 function updateDestruction() {
   const ts = (typeof slowMotion === 'number' && slowMotion > 0) ? slowMotion : 1;
 
@@ -235,14 +213,13 @@ function updateDestruction() {
   }
 }
 
-// ── Draw: crack decals (call right after drawPlatforms) ─────
 function drawSurfaceScars() {
   if (!surfaceScars.length) return;
   if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return;
 
   for (const s of surfaceScars) {
     const pl = s.pl;
-    // Stale reference guard — arena may have changed under us.
+    // Stale reference guard: arena may have changed under us.
     if (!pl || currentArena.platforms.indexOf(pl) < 0 || pl.isFloorDisabled) continue;
 
     const t     = s.life / s.maxLife;
@@ -258,7 +235,6 @@ function drawSurfaceScars() {
     ctx.lineCap  = 'round';
     ctx.lineJoin = 'round';
 
-    // Pulverised patch at the point of impact.
     ctx.globalAlpha = 0.13 * alpha;
     ctx.fillStyle   = s.crackColor || '#000000';
     ctx.beginPath();
@@ -266,7 +242,7 @@ function drawSurfaceScars() {
     ctx.fill();
 
     for (const arm of s.arms) {
-      // Chiselled highlight, offset down a pixel — sells depth on a flat slab.
+      // Chiselled highlight, offset down a pixel: sells depth on a flat slab.
       ctx.globalAlpha = (s.rimAlpha == null ? 0.13 : s.rimAlpha) * alpha;
       ctx.strokeStyle = s.rimColor || '#ffffff';
       ctx.lineWidth   = 1.1;
@@ -275,7 +251,6 @@ function drawSurfaceScars() {
       for (let i = 1; i < arm.pts.length; i++) ctx.lineTo(ox + arm.pts[i].x, oy + arm.pts[i].y + 1);
       ctx.stroke();
 
-      // The crack itself, tapering as it runs out.
       ctx.globalAlpha = 0.46 * alpha;
       ctx.strokeStyle = s.crackColor || '#000000';
       for (let i = 1; i < arm.pts.length; i++) {
@@ -300,7 +275,6 @@ function drawSurfaceScars() {
   ctx.globalAlpha = 1;
 }
 
-// ── Draw: flying debris (call with the particle pass) ───────
 function drawDebrisChunks() {
   if (!debrisChunks.length) return;
   ctx.save();

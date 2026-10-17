@@ -1,49 +1,28 @@
 'use strict';
-// smb-story-cinematic-sequence.js — plays a RUN of story chapters as one
-// continuous cinematic instead of a click-through reader, one chapter at a time.
+// Plays a run of story chapters as one continuous cinematic, not a click-through reader.
+// Depends on smb-story-narrative-scene.js, smb-story-engine-flow.js and smb-story-config.js.
+// Loads after all of them.
 //
-// Depends on: smb-story-narrative-scene.js (showNarrativeScene + its `cinematic`
-// option), smb-story-engine-flow.js (_showBranchChoice, _beginChapter2),
-// smb-story-config.js (_story2, _saveStory2). Loads AFTER all of them.
-//
-// WHY THIS EXISTS
-// Saga III runs eleven consecutive text chapters (170-180) immediately before its
-// finale: Peak Form, After Everything, Into the Substrate, and the eight
-// Reckonings. Measured, Saga III is 35 chapters of which 25 are pure text. Inside
-// a 186-chapter game that is an earned slow movement; sold as a standalone it is
-// the stretch where "is this a game" gets asked.
-//
-// The fix is NOT to force combat into them. The Reckonings are deliberate
-// dialectic — "The Void Mind does not argue. It presents the version." — and
-// every one of them carries a branchPrompt with real choices. Converting them
-// would destroy interactive content (handoff landmine 1) and damage the best
-// writing in the game to fix a metric.
-//
-// So the sequence stays exactly as authored and the PRESENTATION changes: it
-// plays as one film with continuous camera, auto-advancing beats and a real
-// skip, and the choices land inside it as the only thing you actually do.
+// Saga III has eleven text-only chapters (170-180) before its finale. As one film they
+// keep their branch choices, which are the only thing the player actually does.
+// The sequence stays as authored. Only the presentation changes: one continuous camera,
+// auto-advancing beats, a real skip.
 
-// ── Declared runs ─────────────────────────────────────────────────────────────
-// `from`/`to` are runtime chapter ids, which is unavoidable here — but ids shift
-// on any renumber, and this repo has been bitten by that before. Each run
-// therefore carries the TITLES it expects at both ends; _resolveRun() verifies
-// them and refuses to play a run that has drifted, rather than silently playing
-// eleven wrong chapters. See docs/handoffs — "key on arc ids, never chapter
-// numbers" applies to saga bounds; here the titles are the guard.
+// Declared runs. Ids shift on renumbering, so each run also carries the expected
+// titles at both ends. _resolveRun() refuses a run whose titles have drifted.
 const STORY_CINEMATIC_RUNS = [
   {
     id:        'substrate_reckonings',
     from:      170, fromTitle: 'Peak Form',
     to:        180, toTitle:   'What Remains',
     label:     'The Reckonings',
-    // Minimum hold only — the real pacing is the reading-rate budget in
-    // smb-story-narrative-scene.js (CIN_CPS). This is the floor that keeps a
-    // one-word beat ("An attention.") from flashing past.
+    // Minimum hold. Real pacing comes from CIN_CPS in smb-story-narrative-scene.js.
+    // This floor stops one-word beats from flashing past.
     hold:      45,
   },
 ];
 
-// The run that starts at this chapter id, or null. Verified against titles.
+// The run starting at this chapter id, or null.
 function _resolveRun(chId) {
   if (typeof STORY_CHAPTERS2 === 'undefined') return null;
   for (const run of STORY_CINEMATIC_RUNS) {
@@ -64,10 +43,8 @@ function _resolveRun(chId) {
 
 function isStoryCinematicRunStart(chId) { return !!_resolveRun(chId); }
 
-// ── Per-chapter bookkeeping ───────────────────────────────────────────────────
-// Silent completion: the whole point is ONE cinematic, so eleven victory screens
-// would defeat it. This is the same bookkeeping _beginChapter2 does for its
-// `_menuHidden` no-fight path — mark defeated, award tokens, advance the pointer.
+// Per-chapter bookkeeping. Completion is silent: eleven victory screens would
+// break the one-film feel. Same steps as _beginChapter2's no-fight path.
 function _cinCompleteChapter(ch) {
   if (typeof _story2 === 'undefined' || !_story2) return;
   if (!Array.isArray(_story2.defeated)) _story2.defeated = [];
@@ -77,16 +54,11 @@ function _cinCompleteChapter(ch) {
   if (typeof _saveStory2 === 'function') _saveStory2();
 }
 
-// ── The runner ────────────────────────────────────────────────────────────────
-// Plays [run.from .. run.to] as one film. Per chapter: narration, then its
-// choice (if it has one), then silent completion, then straight into the next.
-//
-// Skipping is deliberately NOT "skip everything". It fast-forwards the narration
-// of the current chapter and lands on that chapter's choice. The choices are the
-// only interaction in the sequence and the entire conceit is that the Void Mind
-// is recording what YOU say — so they are never auto-answered on the player's
-// behalf. (The flags are currently record-only: nothing reads branchFlags, so a
-// player who abandons mid-run breaks nothing mechanically.)
+// The runner. Plays run.from..run.to as one film: narration, then the choice if any,
+// then silent completion, then the next chapter.
+// Skip fast-forwards the current narration and lands on its choice. Choices are never
+// auto-answered, since the Void Mind records what the player says. branchFlags is
+// record-only, so abandoning mid-run breaks nothing.
 function playStoryCinematicRun(chId, onDone) {
   const run = _resolveRun(chId);
   if (!run) return false;
@@ -95,7 +67,7 @@ function playStoryCinematicRun(chId, onDone) {
   for (let i = run.from; i <= run.to; i++) ids.push(i);
   const total = ids.length;
 
-  // Close the story modal — this takes over the screen.
+  // Close the story modal. The film takes over the screen.
   const modal = document.getElementById('storyModal');
   if (modal) modal.style.display = 'none';
 
@@ -103,8 +75,7 @@ function playStoryCinematicRun(chId, onDone) {
 
   const finish = () => {
     if (typeof onDone === 'function') { onDone(); return; }
-    // Default: hand control to the chapter after the run, exactly as a normal
-    // chapter completion would.
+    // Default: hand control to the chapter after the run, as normal completion does.
     const next = (typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[run.to + 1] : null;
     if (next && typeof _beginChapter2 === 'function') _beginChapter2(run.to + 1);
     else if (typeof openStoryMenu === 'function') openStoryMenu();
@@ -123,14 +94,12 @@ function playStoryCinematicRun(chId, onDone) {
       step();
     };
 
-    // The choice, if this chapter has one. Presented after its narration.
-    // A chapter with a playable `beat` (smb-story-engine-flow.js _playChapterBeat)
-    // plays it between its narration and its choice; the film resumes after, with
-    // any `afterNarrative` (the second half of a split narration) before the choice.
+    // The choice, if any, comes after narration. A playable `beat` plays between them,
+    // and any `afterNarrative` comes before the choice.
     const doChoice = () => {
       if (ch.beat && !ch._beatPlayed && typeof _playChapterBeat === 'function') {
         ch._beatPlayed = true;
-        if (typeof _seenNarrativeIds !== 'undefined') _seenNarrativeIds.add(ch.id); // a retry skips the narration
+        if (typeof _seenNarrativeIds !== 'undefined') _seenNarrativeIds.add(ch.id); // retries skip the narration
         _playChapterBeat(ch, () => { _activeStory2Chapter = ch; playAfter(); });
         return;
       }
@@ -152,7 +121,7 @@ function playStoryCinematicRun(chId, onDone) {
       });
     };
 
-    // Saga cold opens still apply inside a run (see _sagaChapterNarrative).
+    // Saga cold opens still apply inside a run (_sagaChapterNarrative).
     const lines = (typeof _sagaChapterNarrative === 'function')
       ? _sagaChapterNarrative(ch)
       : (ch.narrative || []);
@@ -165,7 +134,7 @@ function playStoryCinematicRun(chId, onDone) {
       hold:      run.hold || 80,
       label:     run.label,
       progress:  { done: idx, total: total },
-      // Skip lands on this chapter's choice rather than jumping the whole run.
+      // Skip lands on this chapter's choice, not the end of the run.
       onSkip:    doChoice,
     });
   };

@@ -1,36 +1,22 @@
 'use strict';
-// smb-trials.js — The Trials: gauntlet mechanics.
-// Depends on: smb-globals.js, smb-data-weapons.js, smb-particles-core.js,
-//             smb-combat.js, smb-fighter.js
-//
-// Spec: docs/TRIALS_DESIGN.md. Each trial takes away something the player relies
-// on and asks whether they still function without it. Order is
-// sense -> control -> self-knowledge.
-//
-//   Trial 1 (sense)          — invisible opponent + the lantern's reveal sweep.
-//   Trial 2 (control)        — gravity/controls invert on a readable tell.
-//   Trial 3 (self-knowledge) — a copy of the player mirroring their inputs.
-//
-// Everything here is opt-in per chapter and inert otherwise: with no trial armed
-// every update/draw entry point returns on its first line.
+// The Trials: gauntlet mechanics. Spec in docs/TRIALS_DESIGN.md. Each trial removes something the player relies on.
+// Depends on smb-globals.js, smb-data-weapons.js, smb-particles-core.js, smb-combat.js, smb-fighter.js.
+// 1 sense (invisible opponent, lantern reveal sweep), 2 control (gravity/controls invert on a tell),
+// 3 self-knowledge (a copy of the player mirroring inputs). Opt-in per chapter; unarmed, every entry point returns at once.
 
-// ============================================================
-// STATE
-// ============================================================
+// State
 var trialActive     = null;   // 'sense' | 'control' | 'selfknowledge' | null
 var trialSweeps     = [];     // active reveal sweeps
 var trialEchoes     = [];     // time-stamped residue left where the band crossed something
 var trialCues       = [];     // transient perception cues (swing arc, footfall, hit)
 var trialInvert     = null;   // Trial 2 tell/inversion state
-var trialPending    = null;   // { kind } — armed on the first frame the fighters exist
+var trialPending    = null;   // { kind }, armed on the first frame the fighters exist
 
-// Sweep tuning. Anchored to arena width, not to the clock — see the design doc's
-// "the one genuinely hard number". 900px arena: a 3s ring gap makes the band
-// wider than the map and stops being a sweep at all.
+// Sweep tuning, anchored to arena width. A 3s ring gap makes the band wider than a 900px map.
 const TRIAL_SWEEP_SPEED = 6.7;   // px/frame on the leading edge (~400px/s)
 const TRIAL_SWEEP_GAP   = 45;    // frames between leading and trailing edge (0.75s)
 const TRIAL_SWEEP_BAND  = TRIAL_SWEEP_SPEED * TRIAL_SWEEP_GAP;  // ~300px
-const TRIAL_SWEEP_LIFE  = 150;   // frames — crosses a 900px arena with margin
+const TRIAL_SWEEP_LIFE  = 150;   // frames, crosses a 900px arena with margin
 const TRIAL_ECHO_LIFE   = 180;   // frames a crossing residue lingers (3s dwell)
 
 function resetTrialState() {
@@ -44,13 +30,9 @@ function resetTrialState() {
   if (typeof tfControlsInverted !== 'undefined') tfControlsInverted = false;
 }
 
-// ============================================================
-// TRIAL 1 — SENSE
-// ============================================================
+// Trial 1: sense
 
-// The lantern's ability. Deals no damage: it fires a reveal sweep instead.
-// Called from WEAPONS.lantern.ability, which is why this is a global function
-// rather than a closure — the weapon table loads before this file.
+// Lantern ability. No damage, it fires a reveal sweep. A global because WEAPONS loads before this file.
 function trialLanternSweep(user) {
   if (!user || user.health <= 0) return;
   trialSweeps.push({ x: user.cx(), y: user.cy(), r: 0, life: TRIAL_SWEEP_LIFE, seen: new Set() });
@@ -58,8 +40,7 @@ function trialLanternSweep(user) {
   if (typeof SoundManager !== 'undefined' && SoundManager.ability) SoundManager.ability();
 }
 
-// Every fighter the sweep is meant to find. Kept as a helper so the invisible
-// flag is read in exactly one place.
+// Every fighter the sweep should find. The invisible flag is read in one place.
 function _trialHiddenFighters() {
   if (typeof players === 'undefined') return [];
   const out = [];
@@ -78,18 +59,15 @@ function updateTrialSweeps() {
     s.r += TRIAL_SWEEP_SPEED;
     s.life--;
 
-    // The band is the annulus between the leading and trailing edge. When it
-    // crosses a hidden body, stamp an echo AT THAT MOMENT'S POSITION — the
-    // player learns where they were, and it is stale the instant they have it.
+    // A band crossing a hidden body stamps an echo at that moment's position.
+    // It is stale as soon as the player sees it, which is the point.
     const inner = s.r - TRIAL_SWEEP_BAND;
     for (const h of hidden) {
       if (s.seen.has(h)) continue;
       const d = Math.hypot(h.cx() - s.x, h.cy() - s.y);
       if (d <= s.r && d >= inner) {
         s.seen.add(h);
-        // One echo per body, always the most recent: what the player knows is
-        // where they were LAST, not a trail. Also stops additive residue from
-        // stacking into an opaque blob if sweeps ever overlap.
+        // One echo per body, the most recent. Also stops residue stacking into a blob when sweeps overlap.
         for (let e = trialEchoes.length - 1; e >= 0; e--) if (trialEchoes[e].src === h) trialEchoes.splice(e, 1);
         trialEchoes.push({ src: h, x: h.cx(), y: h.cy(), w: h.w, h: h.h, life: TRIAL_ECHO_LIFE, max: TRIAL_ECHO_LIFE });
       }
@@ -102,28 +80,25 @@ function updateTrialSweeps() {
   }
 }
 
-// Secondary cues. 70% blind is a coin flip at this game's combat cadence, so
-// three things stay visible even while the body does not: the weapon arc when
-// the opponent swings, footfall dust on landing, and the hit reaction when the
-// player connects. The lantern is for FINDING; once engaged, the fight has
-// feedback.
+// Secondary cues. A 70% blind fight is a coin flip, so these stay visible: weapon arc, footfall, hit reaction.
+// The lantern is for finding; the fight keeps feedback once engaged.
 function updateTrialCues() {
   for (const h of _trialHiddenFighters()) {
-    // 1. Weapon arc — fires on the rising edge of an attack.
+    // Weapon arc, on the rising edge of an attack.
     const atk = h.attackTimer > 0;
     if (atk && !h._trialWasAttacking) {
       trialCues.push({ kind: 'swing', x: h.cx(), y: h.cy(), facing: h.facing || 1, life: 14, max: 14 });
     }
     h._trialWasAttacking = atk;
 
-    // 2. Footfall dust — fires on the rising edge of ground contact.
+    // Footfall dust, on the rising edge of ground contact.
     if (h.onGround && !h._trialWasGrounded) {
       trialCues.push({ kind: 'land', x: h.cx(), y: h.y + h.h, life: 20, max: 20 });
       if (typeof spawnParticles === 'function') spawnParticles(h.cx(), h.y + h.h, '#b8b0a0', 5);
     }
     h._trialWasGrounded = h.onGround;
 
-    // 3. Hit reaction — fires when the body loses health.
+    // Hit reaction, when the body loses health.
     if (h._trialLastHp === undefined) h._trialLastHp = h.health;
     if (h.health < h._trialLastHp) {
       trialCues.push({ kind: 'hit', x: h.cx(), y: h.cy(), w: h.w, h: h.h, life: 16, max: 16 });
@@ -136,11 +111,7 @@ function updateTrialCues() {
   }
 }
 
-// ── Rendering ───────────────────────────────────────────────────────────────
-// The band does NOT show the opponent. It shows distortions in space, and the
-// invisible opponent distorts space. The reveal being indirect is the whole
-// mechanic — the player infers a body from a disturbance rather than reading a
-// marker. That is the difference between a skill and a wallhack.
+// Rendering. The band shows distortion, not the opponent. Inferring a body from a disturbance is the mechanic.
 function drawTrialSweeps() {
   if (!trialSweeps.length && !trialEchoes.length && !trialCues.length) return;
   const t = (typeof frameCount !== 'undefined' ? frameCount : 0);
@@ -150,9 +121,7 @@ function drawTrialSweeps() {
     const fade  = Math.min(1, s.life / 30);
 
     ctx.save();
-    // The band itself — a lens of visible reality, brightest at the leading edge
-    // and falling off toward the trailing one. Drawn additively so it reads on a
-    // near-black arena (Null space, the void) as well as a bright one.
+    // Additive lens, brightest at the leading edge. Additive so it reads on dark arenas too.
     ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(s.x, s.y, inner, s.x, s.y, Math.max(inner + 1, s.r));
     g.addColorStop(0,    'rgba(90,150,190,0)');
@@ -165,14 +134,12 @@ function drawTrialSweeps() {
     if (inner > 0) { ctx.arc(s.x, s.y, inner, 0, Math.PI * 2, true); }
     ctx.fill();
 
-    // Leading edge — the bright front of the sweep
     ctx.strokeStyle = `rgba(190,240,255,${0.35 * fade})`;
     ctx.lineWidth = 9;
     ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = `rgba(235,252,255,${0.95 * fade})`;
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.stroke();
-    // Trailing edge, fainter — the band closing behind
     if (inner > 0) {
       ctx.strokeStyle = `rgba(140,210,255,${0.45 * fade})`;
       ctx.lineWidth = 1.5;
@@ -180,8 +147,7 @@ function drawTrialSweeps() {
     }
     ctx.globalCompositeOperation = 'source-over';
 
-    // Space distortion inside the band, wherever a hidden body sits. Concentric
-    // warped arcs around the body — a refraction, not a silhouette.
+    // Warped arcs around a hidden body: a refraction, not a silhouette.
     for (const h of _trialHiddenFighters()) {
       const dx = h.cx() - s.x, dy = h.cy() - s.y;
       const d = Math.hypot(dx, dy);
@@ -204,23 +170,19 @@ function drawTrialSweeps() {
   drawTrialCues();
 }
 
-// A pocket of bent space. Deliberately reads as "something is wrong here",
-// not as an outline of a fighter — concentric arcs that wobble, with a
-// chromatic split at the rim.
+// A pocket of bent space. Reads as 'something is wrong here', not as a fighter outline.
 function _drawTrialDistortion(cx, cy, w, h, alpha, t) {
   if (alpha <= 0.01) return;
   const rad = Math.max(w, h) * 0.8;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.globalCompositeOperation = 'lighter';
-  // Core smear first — the pull toward the centre of the disturbance
   const cg = ctx.createRadialGradient(cx, cy, 1, cx, cy, rad * 1.5);
   cg.addColorStop(0,   'rgba(150,215,255,0.55)');
   cg.addColorStop(0.5, 'rgba(120,180,255,0.20)');
   cg.addColorStop(1,   'rgba(120,180,255,0)');
   ctx.fillStyle = cg;
   ctx.beginPath(); ctx.arc(cx, cy, rad * 1.5, 0, Math.PI * 2); ctx.fill();
-  // Concentric warped rings — a refraction, never a silhouette
   for (let ring = 0; ring < 5; ring++) {
     const rr = rad * (0.35 + ring * 0.21);
     ctx.beginPath();
@@ -244,7 +206,7 @@ function drawTrialCues() {
     const a = c.life / c.max;
     ctx.save();
     if (c.kind === 'swing') {
-      // The arc of a weapon moving through air — visible even when the arm is not.
+      // Weapon arc stays visible even when the arm does not.
       ctx.globalAlpha = a * 0.85;
       ctx.strokeStyle = 'rgba(255,245,205,0.9)';
       ctx.lineWidth = 3;
@@ -262,7 +224,7 @@ function drawTrialCues() {
       const spread = (1 - a) * 26;
       ctx.beginPath(); ctx.ellipse(c.x, c.y - 2, 16 + spread, 5 + spread * 0.3, 0, 0, Math.PI * 2); ctx.stroke();
     } else if (c.kind === 'hit') {
-      // Connecting reveals the body for a beat — the fight has feedback.
+      // A connecting hit reveals the body for a beat.
       ctx.globalAlpha = a * 0.8;
       ctx.fillStyle = 'rgba(255,255,255,0.55)';
       ctx.fillRect(c.x - c.w / 2, c.y - c.h / 2, c.w, c.h);
@@ -274,15 +236,9 @@ function drawTrialCues() {
   }
 }
 
-// ── The stalking AI ─────────────────────────────────────────────────────────
-// Purpose-built, NOT an expert bot with the draw call removed — an invisible
-// fighter running normal aggression simply deletes the player. It stalks:
-// approach, one strike, retreat, reposition elsewhere. The retreat is also what
-// makes stale sweep information meaningful.
-// Navigation. The stalk state machine decides WHERE to stand and WHEN to strike;
-// getting there is delegated to the engine's own platform graph. Hand-rolling it
-// produced a stalker that could not cross the ruins floor gaps or climb to a
-// target two decks up, and walked itself under the world trying.
+// Stalking AI. Not an expert bot with the draw call removed: an invisible fighter at normal aggression deletes the player.
+// Loop: approach, one strike, retreat, reposition. The retreat makes stale sweep info meaningful.
+// Movement is delegated to the engine's platform graph; hand-rolled movement could not cross floor gaps.
 // Returns true if a waypoint was followed.
 function _trialNavigateTo(f, tx, ty, spd) {
   if (typeof pfGetNextWaypoint !== 'function') return false;
@@ -292,7 +248,7 @@ function _trialNavigateTo(f, tx, ty, spd) {
 
   if (wp.action === 'jump') {
     f.vx = wpDir * spd * 1.05;
-    if (f.onGround) f.vy = -20;
+    if (f.onGround) f.vy = -(wp.vy || 20);
   } else if (wp.action === 'doubleJump') {
     f.vx = wpDir * spd * 1.1;
     if (f.onGround) { f.vy = -20; f._pfDoubleJumpPending = true; }
@@ -320,20 +276,16 @@ function trialStalkAI(f) {
   if (!f || f.health <= 0) return;
   if (f.ragdollTimer > 0 || f.stunTimer > 0) return;
 
-  // Target validation is not optional here: this replaces Fighter.updateAI
-  // wholesale, so losing it would leave a statue on target death.
+  // Target validation is required: this replaces Fighter.updateAI, so a dead target would leave a statue.
   if (f._isInvalidAITarget(f.target)) f._acquireAITarget();
   f._trialRetargetCd = (f._trialRetargetCd || 0) - 1;
   if (f._trialRetargetCd <= 0) { f._acquireAITarget(); f._trialRetargetCd = 4; }
   const tgt = f.target;
   if (!tgt || tgt.health <= 0) { f.vx *= 0.85; return; }
 
-  // updateAI is called once every AI_TICK_INTERVAL frames (15), NOT every
-  // frame. Authoring timers in ticks silently makes every phase 15x longer than
-  // it reads — so durations are written in frames and converted here.
+  // updateAI runs every AI_TICK_INTERVAL (15) frames, so durations are authored in frames and converted here.
   const tick = f.aiTickInterval || (typeof AI_TICK_INTERVAL !== 'undefined' ? AI_TICK_INTERVAL : 15);
-  // Durations below are in FRAMES (60/s): strike windup ~0.25s, retreat ~1s,
-  // reposition ~1.5-2.5s. A 15-frame tick floors every phase at 0.25s.
+  // Durations are in frames (60/s): strike windup ~0.25s, retreat ~1s, reposition ~1.5-2.5s.
   const T = frames => Math.max(1, Math.round(frames / tick));
 
   if (f._stalkPhase === undefined) { f._stalkPhase = TRIAL_STALK.APPROACH; f._stalkTimer = 0; f._stalkSide = 1; }
@@ -344,15 +296,12 @@ function trialStalkAI(f) {
   const dy    = tgt.cy() - f.cy();       // positive => target is BELOW
   const dir   = dx >= 0 ? 1 : -1;
   const reach = (f.weapon && f.weapon.range) ? Math.min(f.weapon.range, 90) : 70;
-  // vx is set once per AI tick (15 frames) and friction eats most of it before
-  // the next one, so the authored speed has to overshoot to produce a real
-  // closing rate. Approach commits harder than the standoff phases.
+  // vx is set once per AI tick and friction eats most of it, so authored speed overshoots for a real closing rate.
   const speed = 7.6;
 
   switch (f._stalkPhase) {
     case TRIAL_STALK.APPROACH: {
-      // Close in on the chosen side so the player cannot simply hold one
-      // direction. Getting there is the pathfinder's job.
+      // Close in on the chosen side so the player cannot hold one direction.
       const wantX = tgt.cx() - f._stalkSide * (reach * 0.8);
       if (!_trialNavigateTo(f, wantX, tgt.y + tgt.h * 0.5, speed)) {
         const mvDir = (wantX - f.cx()) > 0 ? 1 : -1;
@@ -361,9 +310,7 @@ function trialStalkAI(f) {
       }
       f.facing = dir;
       if (adx <= reach && Math.abs(dy) < 70) { f._stalkPhase = TRIAL_STALK.STRIKE; f._stalkTimer = T(14); }
-      // Never stall in the approach. Switching flank keeps the pressure on;
-      // dropping to the standoff phase here made the stalker spend a third of
-      // the fight walking back out to 250px and it never closed at all.
+      // Never stall in the approach. Dropping to standoff here meant the stalker never closed.
       if (f._stalkTimer < -T(190)) { f._stalkSide = -f._stalkSide; f._stalkTimer = 0; }
       break;
     }
@@ -390,8 +337,7 @@ function trialStalkAI(f) {
       break;
     }
     case TRIAL_STALK.CIRCLE: {
-      // Hold at a distance and reposition, so the player's sweep information is
-      // genuinely stale by the time they act on it.
+      // Hold and reposition, so the sweep info is stale by the time the player acts on it.
       const wantX = tgt.cx() + f._stalkSide * 190;
       if (!_trialNavigateTo(f, wantX, tgt.y + tgt.h * 0.5, speed * 0.6)) {
         const mvDir = (wantX - f.cx()) > 0 ? 1 : -1;
@@ -404,21 +350,15 @@ function trialStalkAI(f) {
     }
   }
 
-  // Never idle, never freeze: a dead-end state machine leaves the fighter
-  // standing still, which is the one thing AI work in this codebase must not do.
+  // Never idle or freeze: a dead-end state machine would leave the fighter standing still.
   if (f._stalkTimer < -T(600)) { f._stalkPhase = TRIAL_STALK.APPROACH; f._stalkTimer = 0; }
-  // Anti-freeze nudge — edge-guarded. Unguarded it walked the stalker straight
-  // into a floor gap, which is how it kept ending up under the world.
+  // Anti-freeze nudge, edge-guarded. Unguarded, it walked the stalker into floor gaps.
   if (f.onGround && Math.abs(f.vx) < 0.2 && adx > reach && !f.isEdgeDanger(dir)) f.vx = dir * speed * 0.6;
 }
 
-// ============================================================
-// TRIAL 2 — CONTROL
-// ============================================================
-// The arena inverts gravity and/or the player's controls on a tell the player
-// has to learn to read. Tests adaptation under a changing rule rather than
-// perception. tfGravityInverted / tfControlsInverted already exist as live
-// globals, so the work here is the tell and the scheduling.
+// Trial 2: control
+// Inverts gravity and/or controls on a tell the player must learn to read. Tests adaptation to a changing rule.
+// tfGravityInverted / tfControlsInverted are existing live globals; the work here is the tell and the scheduling.
 const TRIAL_INVERT_TELL = 90;    // frames of warning before the flip lands
 
 function startTrialControl() {
@@ -432,7 +372,6 @@ function updateTrialControl() {
   if (s.tell > 0) {
     s.tell--;
     if (s.tell === 0) {
-      // The flip lands.
       s.mode = s.next;
       if (s.mode === 'gravity')  { if (typeof tfGravityInverted  !== 'undefined') tfGravityInverted  = !tfGravityInverted; }
       if (s.mode === 'controls') { if (typeof tfControlsInverted !== 'undefined') tfControlsInverted = !tfControlsInverted; }
@@ -448,8 +387,7 @@ function updateTrialControl() {
   }
 }
 
-// The tell. Readable, and different per axis so the player can learn WHICH rule
-// is about to change rather than only THAT one is.
+// The tell. Different per axis, so the player can learn WHICH rule changes, not only that one does.
 function drawTrialControlTell() {
   if (!trialInvert || trialInvert.tell <= 0) return;
   const p = 1 - trialInvert.tell / TRIAL_INVERT_TELL;
@@ -460,7 +398,7 @@ function drawTrialControlTell() {
   const H = (typeof GAME_H !== 'undefined' ? GAME_H : 520);
 
   ctx.save();
-  // Gravity: bands sweep vertically. Controls: bands sweep horizontally.
+  // Gravity: vertical bands. Controls: horizontal bands.
   ctx.globalAlpha = pulse * 0.5;
   ctx.strokeStyle = `rgba(${col},0.9)`;
   ctx.lineWidth = 2;
@@ -477,8 +415,7 @@ function drawTrialControlTell() {
   }
   ctx.restore();
 
-  // The wording is screen-space: drawTrials runs inside the world transform, so
-  // a world-space label sat off-camera and was never actually read.
+  // Screen-space label: drawTrials runs inside the world transform, so a world-space label was never read.
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = pulse;
@@ -493,21 +430,16 @@ function drawTrialControlTell() {
   ctx.restore();
 }
 
-// ============================================================
-// TRIAL 3 — SELF-KNOWLEDGE
-// ============================================================
-// A copy of the player that mirrors their inputs on a short delay. It cannot be
-// beaten by reflex, only by breaking your own pattern. Thematically this quietly
-// foreshadows Sovereign, whose whole design is reading the player's habits.
+// Trial 3: self-knowledge
+// A copy of the player mirroring their inputs with a delay. Beat it by breaking your own pattern, not by reflex.
+// Foreshadows Sovereign, whose design is reading the player's habits.
 const TRIAL_MIRROR_DELAY = 34;   // frames
 
 function trialMirrorRecord(p1) {
   if (!p1 || trialActive !== 'selfknowledge') return;
   if (!p1._trialTape) p1._trialTape = [];
   p1._trialTape.push({ vx: p1.vx, jump: !p1.onGround && p1.vy < 0, atk: p1.attackTimer > 0, face: p1.facing });
-  // Record and playback both run once per frame, so the tape self-limits at the
-  // delay length and index 0 slides forward at exactly 1 frame per frame. The
-  // +4 is slack for the frames where one side is skipped (hitstop, ragdoll).
+  // The tape self-limits at the delay length. The +4 is slack for frames where one side is skipped (hitstop, ragdoll).
   if (p1._trialTape.length > TRIAL_MIRROR_DELAY + 4) p1._trialTape.shift();
 }
 
@@ -516,7 +448,7 @@ function trialMirrorAI(f) {
   if (f.ragdollTimer > 0 || f.stunTimer > 0) return;
   const src = f._mirrorSource;
   if (!src || !src._trialTape || src._trialTape.length <= TRIAL_MIRROR_DELAY) {
-    // No tape yet — hold position rather than idling into a wall.
+    // No tape yet: hold position.
     f.vx *= 0.85;
     return;
   }
@@ -525,20 +457,14 @@ function trialMirrorAI(f) {
   f.vx = -frame.vx;
   f.facing = -frame.face;
   if (frame.jump && f.onGround) f.vy = -17;
-  // Swing on the RISING edge only. `atk` is true for every frame the player's
-  // attackTimer is running, so re-reading it per frame would spam attack() for
-  // the whole swing instead of mirroring one swing.
+    // Swing on the rising edge only. attackTimer stays set for the whole swing, so per-frame reads would spam attack().
   if (frame.atk && !f._mirrorPrevAtk) f.attack();
   f._mirrorPrevAtk = frame.atk;
 }
 
-// ============================================================
-// PER-FRAME ENTRY POINTS (called from gameLoop)
-// ============================================================
-// Applying the trial on a timer races startGame(): the fighters are rebuilt a
-// few frames in, so a delayed hook sets its flags on the PREVIOUS match's
-// fighter objects and they are silently discarded. Arming is therefore a
-// request, applied on the first frame the real fighters exist.
+// Per-frame entry points, called from gameLoop
+// Arming is a request applied on the first frame the real fighters exist. Applying it on a timer races startGame(),
+// which rebuilds fighters a few frames in, so flags would land on discarded objects.
 function _trialApplyPending() {
   if (!trialPending) return;
   if (typeof gameRunning === 'undefined' || !gameRunning) return;
@@ -546,9 +472,7 @@ function _trialApplyPending() {
   const p1 = players[0];
   if (!p1) return;
   const foe = players.find(p => p && p !== p1 && !p.isRemote);
-  // Only the trials that possess an opponent need one. The control trial inverts
-  // the rules of the space and arms on wave-defence chapters, where the enemies
-  // are minions and players[] holds the player alone.
+  // Only trials that possess an opponent need one. The control trial inverts space and arms on wave-defence chapters too.
   const kind = trialPending.kind;
   if ((kind === 'sense' || kind === 'selfknowledge') && !foe) return;
 
@@ -556,9 +480,7 @@ function _trialApplyPending() {
   trialActive = kind;
 
   if (kind === 'sense') {
-    // Invisible: the draw is skipped, the hitbox is not. The stalking AI is
-    // purpose-built — an expert bot with the draw call removed deletes the
-    // player outright.
+    // Invisible: draw is skipped, hitbox is not. An expert bot with the draw call removed would still delete the player.
     foe._trialInvisible = true;
     foe._trialStalker   = true;
     foe._trialLastHp    = foe.health;
@@ -569,12 +491,8 @@ function _trialApplyPending() {
     foe._trialMirror  = true;
     foe._mirrorSource = p1;
     p1._trialTape     = [];
-    // A copy has to hold what the player holds. The chapter cannot author this:
-    // the player brings whatever loadout they picked in the menu, so a fixed
-    // authored weaponKey means the "copy" replays your inputs through a
-    // different weapon's reach and timing and stops reading as a mirror at all.
-    // Colour is deliberately NOT copied — two identically coloured fighters
-    // running the same inputs are impossible to tell apart mid-fight.
+    // The copy holds the player's loadout, since the chapter cannot know it. Colour is not copied:
+    // identical fighters are unreadable mid-fight.
     if (p1.weapon) {
       foe.weapon    = p1.weapon;
       foe.weaponKey = p1.weaponKey;
@@ -591,10 +509,7 @@ function updateTrials() {
   if (trialActive === 'control') updateTrialControl();
   if (trialActive === 'selfknowledge' && typeof players !== 'undefined') {
     trialMirrorRecord(players[0]);
-    // Driven from here, NOT from Fighter.updateAI: AI_TICK_INTERVAL is 15, so a
-    // copy dispatched from updateAI consumed one tape frame per 15 recorded and
-    // played back at 1/15 speed, visibly choppy and drifting further behind the
-    // player every second. Playback has to be per-frame to match the recording.
+    // Driven from here, not Fighter.updateAI: updateAI runs every 15 frames and would play the tape back at 1/15 speed.
     for (const f of players) {
       if (f && f._trialMirror && f.health > 0 && typeof trialMirrorAI === 'function') trialMirrorAI(f);
     }

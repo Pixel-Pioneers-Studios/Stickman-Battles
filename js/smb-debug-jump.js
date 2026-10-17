@@ -1,15 +1,8 @@
 'use strict';
-// smb-debug-jump.js — F8 developer jump menu (story/cinematic/arena/boss fast-travel)
-// Depends on: smb-globals.js, smb-debug-console.js, smb-story-engine.js, smb-menu-startcore.js
-// Must load AFTER smb-debug-console.js
+// smb-debug-jump.js: F8 developer jump menu (story, cinematic, arena and boss fast-travel).
+// Load after smb-debug-console.js. Only active when debugMode is on (F1/F2/F3 or type 'debugmode').
 
-// ============================================================
-// F8 DEVELOPER JUMP MENU
-// Opens only when debugMode is true (F1/F2/F3 activates it,
-// or type "debugmode" to toggle). No effect on normal gameplay.
-// ============================================================
 
-// ---- Jump menu helpers ----
 function _dbgJumpMenuClose() {
   const p = document.getElementById('_dbgJumpPanel');
   if (p) p.remove();
@@ -27,7 +20,6 @@ function _dbgJumpMenuOpen() {
     'color:#0f0','padding:14px 16px','box-sizing:border-box',
   ].join(';');
 
-  // Header
   const hdr = document.createElement('div');
   hdr.style.cssText = 'font-size:1rem;font-weight:bold;letter-spacing:2px;margin-bottom:12px;border-bottom:1px solid #0a0;padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;';
   hdr.innerHTML = '<span>⚡ DEV JUMP MENU</span>';
@@ -43,7 +35,6 @@ function _dbgJumpMenuOpen() {
   hint.textContent = 'F8 to toggle  •  dev-only  •  no effect when debugMode is off';
   ov.appendChild(hint);
 
-  // Helper: section heading
   function _sec(label) {
     const d = document.createElement('div');
     d.style.cssText = 'font-size:0.78rem;letter-spacing:1px;color:#44bb66;margin:10px 0 5px;border-top:1px solid #0a0;padding-top:8px;';
@@ -51,7 +42,6 @@ function _dbgJumpMenuOpen() {
     ov.appendChild(d);
   }
 
-  // Helper: row with label + input + button
   function _row(label, inputEl, btnLabel, onBtn) {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:5px;align-items:center;margin:4px 0;';
@@ -72,7 +62,6 @@ function _dbgJumpMenuOpen() {
     ov.appendChild(row);
   }
 
-  // Helper: styled select
   function _sel(optMap) {
     const s = document.createElement('select');
     s.style.cssText = 'flex:1;background:rgba(0,30,0,0.9);border:1px solid #0a0;color:#0f0;font-family:monospace;font-size:0.75rem;padding:3px 6px;border-radius:4px;min-width:0;';
@@ -84,14 +73,12 @@ function _dbgJumpMenuOpen() {
     return s;
   }
 
-  // Helper: number input
   function _numIn(dflt, min, max) {
     const i = document.createElement('input');
     i.type = 'number'; i.value = dflt; i.min = min; i.max = max;
     return i;
   }
 
-  // ── Section 1: Story Fight ─────────────────────────────────────────────
   _sec('STORY FIGHT');
   const sfChapSel = _sel({
     0:'Ch 0 — Prologue', 1:'Ch 1 — Act 1', 2:'Ch 2', 3:'Ch 3', 4:'Ch 4',
@@ -99,7 +86,6 @@ function _dbgJumpMenuOpen() {
   });
   _row('Chapter', sfChapSel, '▶ Load', (v) => loadStoryFight(parseInt(v, 10)));
 
-  // ── Cinematic Viewer shortcut ─────────────────────────────────────────
   _sec('CINEMATIC VIEWER');
   const cvBtn = document.createElement('button');
   cvBtn.textContent = 'Open Cinematic Viewer (all cinematics, finishers, domains)';
@@ -108,7 +94,6 @@ function _dbgJumpMenuOpen() {
   cvBtn.onclick = () => { _dbgJumpMenuClose(); _cinViewerOpen(); };
   ov.appendChild(cvBtn);
 
-  // ── Section 2: Play Cinematic ──────────────────────────────────────────
   _sec('CINEMATIC');
   const cinSel = _sel({
     'boss_intro':  'Boss Intro (Backstory)',
@@ -122,7 +107,6 @@ function _dbgJumpMenuOpen() {
   });
   _row('Cinematic', cinSel, '▶ Play', (v) => playCinematic(v));
 
-  // ── Section 3: Spawn in Arena ──────────────────────────────────────────
   _sec('SPAWN ARENA');
   const arenaKeys = (typeof ARENAS !== 'undefined')
     ? Object.keys(ARENAS).filter(k => k !== 'creator' && k !== 'void')
@@ -130,7 +114,6 @@ function _dbgJumpMenuOpen() {
   const arenaSel = _sel(Object.fromEntries(arenaKeys.map(k => [k, k.charAt(0).toUpperCase() + k.slice(1)])));
   _row('Arena', arenaSel, '▶ Go', (v) => spawnInArena(v));
 
-  // ── Section 4: Force Boss Fight ────────────────────────────────────────
   _sec('BOSS FIGHT');
   const bossSel = _sel({
     'boss':     'Standard Boss',
@@ -138,7 +121,6 @@ function _dbgJumpMenuOpen() {
   });
   _row('Boss', bossSel, '▶ Start', (v) => forceBossFight(v));
 
-  // ── Status readout ─────────────────────────────────────────────────────
   const statusDiv = document.createElement('div');
   statusDiv.id = '_dbgJumpStatus';
   statusDiv.style.cssText = 'margin-top:14px;border-top:1px solid #0a0;padding-top:8px;font-size:0.72rem;color:#44aa66;min-height:32px;';
@@ -155,7 +137,6 @@ function _dbgJumpStatus(msg, isErr) {
   d.textContent = msg;
 }
 
-// ---- 4 debug jump functions ----
 
 /**
  * loadStoryFight(chapterId)
@@ -196,7 +177,6 @@ function playCinematic(cinematicId) {
     _dbgJumpStatus('A cinematic is already playing.', true); return;
   }
 
-  // Locate boss or TF entity if needed
   const boss = (typeof players !== 'undefined') ? players.find(p => p.isBoss && !p.isTrueForm) : null;
   const tf   = (typeof players !== 'undefined') ? players.find(p => p.isTrueForm) : null;
 
@@ -330,15 +310,9 @@ function forceBossFight(bossId) {
 }
 
 
-// ============================================================
-// CINEMATIC VIEWER  (dev + admin — always fully unlocked)
-// Auto-launches the right game mode when needed so cinematics
-// always have a live game world to render over.
-// ============================================================
+// Cinematic viewer (dev and admin). Auto-launches the game mode each cinematic needs.
 
-// Set once the player has opened the theater from the home screen and accepted
-// the spoiler warning. The viewer itself is unchanged — this only widens who is
-// allowed through the door.
+// Set once the player opens the theater and accepts the spoiler warning. Only widens who gets in.
 var _cinTheaterUnlocked = false;
 var _cinViewerPlayerMode = false;
 
@@ -360,8 +334,7 @@ function _cinViewerStatus(msg, isErr) {
   d.textContent = msg;
 }
 
-// Start a game in `mode`, then call onReady(). If a game is already running
-// it is ended first. Pass onReady=null when the cinematic auto-fires on launch.
+// Starts a game in `mode`, then calls onReady(). Pass null when the cinematic auto-fires on launch.
 function _cinViewerLaunch(mode, onReady, readyDelayMs) {
   _cinViewerClose();
   const delay = readyDelayMs || 800;
@@ -382,8 +355,7 @@ function _cinViewerLaunch(mode, onReady, readyDelayMs) {
   }
 }
 
-// Skip whatever cinematic is currently playing (used to dismiss the auto-backstory
-// before triggering a specific boss threshold cinematic).
+// Skips the playing cinematic (e.g. the auto backstory) before a specific threshold one.
 function _cinViewerSkipCurrent() {
   if (typeof endCinematic === 'function') endCinematic();
   if (typeof activeCinematic !== 'undefined') activeCinematic = null;
@@ -436,11 +408,8 @@ function _devPreviewDomain(classKey) {
   fighter.charClass    = classKey;
   fighter._domainRising = false;
   DomainManager.triggerExpansion(fighter);
-  // The entry cinematic resolves the def from charClass when it FINISHES (~5 s),
-  // so keep the override until the domain is actually active; the active domain
-  // carries its own def/defKey, making the restore safe from then on.
-  // No fixed timeout: rAF throttling (unfocused tab, low fps) stretches the
-  // 300-frame entry arbitrarily, so wait on actual rising/active state instead.
+  // Entry cinematic reads the def from charClass when it finishes (~5 s), so keep the override until the domain is active.
+  // Wait on real rising/active state, not a timeout: rAF throttling stretches the 300-frame entry.
   let _tries = 0;
   const _restoreIv = setInterval(() => {
     const active = DomainManager.domains && DomainManager.domains.some(d => d.owner === fighter);
@@ -467,7 +436,6 @@ function _cinViewerOpen() {
     'color:#0f0', 'padding:14px 16px', 'box-sizing:border-box',
   ].join(';');
 
-  // Header
   const hdr = document.createElement('div');
   hdr.style.cssText = 'font-size:1rem;font-weight:bold;letter-spacing:2px;margin-bottom:6px;' +
     'border-bottom:1px solid #0a0;padding-bottom:8px;display:flex;align-items:center;justify-content:space-between;';
@@ -489,7 +457,6 @@ function _cinViewerOpen() {
       + 'Auto-launch buttons start the right fight automatically.';
   ov.appendChild(hint);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
 
   function _sec(label, note) {
     const d = document.createElement('div');
@@ -561,13 +528,11 @@ function _cinViewerOpen() {
     return true;
   }
 
-  // ── AUTO-LAUNCH CINEMATICS ────────────────────────────────────────────────
-  // These buttons start the right game mode automatically so the cinematic
-  // always has a live game world to render over.
+  // Auto-launch: starts the right game mode so the cinematic has a world to render over.
 
   _sec('AUTO-LAUNCH', 'Starts the right fight automatically from any screen.');
 
-  // Boss Backstory — auto-plays from the boss constructor; just launch boss mode.
+  // Boss backstory plays from the boss constructor, so just launch boss mode.
   _btnRow('Boss Backstory  (auto-plays at fight start)', [
     ['Launch Boss Fight', () => {
       _cinViewerStatus('Launching boss fight — backstory plays automatically...');
@@ -575,8 +540,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // ── Boss phase transitions ────────────────────────────────────────────────
-  // Boss Phase 2 — launch boss, skip backstory after 1.5 s, trigger Phase 2.
+  // Boss Phase 2, launch boss, skip backstory after 1.5 s, trigger Phase 2.
   _btnRow('Boss Phase 2 Transition', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching boss fight...');
@@ -594,7 +558,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // Boss Rage (40%) — same pattern.
+  // Boss Rage (40%), same pattern.
   _btnRow('Boss Rage (40%)', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching boss fight...');
@@ -666,9 +630,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // TrueForm cinematics — launch trueform mode, trigger after entity spawns.
-  // NOTE: tf_entry (_makeTFEntryCinematic) is intentionally excluded — it is a dead
-  // fallback that never fires in gameplay; startTFOpeningFight always takes priority.
+  // TF cinematics launch trueform mode. tf_entry is excluded: it never fires in gameplay.
   const TF_CIN_MAP = {
     'tf_phase2':        ['TF Phase 2 Transition',  (tf) => typeof _makeTFPhase2Cinematic        === 'function' ? _makeTFPhase2Cinematic(tf)        : null],
     'tf_phase3':        ['TF Phase 3 Transition',  (tf) => typeof _makeTFPhase3Cinematic        === 'function' ? _makeTFPhase3Cinematic(tf)        : null],
@@ -700,7 +662,7 @@ function _cinViewerOpen() {
       }, 1200);
     });
 
-  // TF Opening Fight — special case (uses startTFOpeningFight not startCinematic).
+  // TF Opening Fight, special case (uses startTFOpeningFight not startCinematic).
   _btnRow('TF Opening Fight', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching TrueForm fight...');
@@ -720,7 +682,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // TF Paradox Return (~1000 HP) — Paradox bursts back in.
+  // TF Paradox Return (~1000 HP), Paradox bursts back in.
   _btnRow('TF Paradox Return (1000 HP)', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching TrueForm fight...');
@@ -740,7 +702,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // TF Ending — First Death (isIntro=true): fires after Paradox absorption in gameplay.
+  // TF Ending, First Death (isIntro=true): fires after Paradox absorption in gameplay.
   _btnRow('TF Ending — First Death (post-Paradox absorption)', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching TrueForm fight...');
@@ -752,7 +714,7 @@ function _cinViewerOpen() {
           const tf2 = (typeof players !== 'undefined') ? players.find(p => p.isTrueForm) : null;
           if (!tf2) { _cinViewerStatus('TrueForm lost after skip.', true); return; }
           if (typeof startTFEnding === 'function') {
-            startTFEnding(tf2, true); // isIntro=true — the path that actually fires in gameplay
+            startTFEnding(tf2, true);  // isIntro=true: the path gameplay uses
             _cinViewerStatus('Playing: TF Ending (First Death)');
           } else { _cinViewerStatus('startTFEnding not found.', true); }
         }, 300);
@@ -760,7 +722,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // TF Ending — Final (isIntro=false): fires at true end after Paradox arc resolves.
+  // TF Ending, Final (isIntro=false): fires at true end after Paradox arc resolves.
   _btnRow('TF Ending — Final (true death)', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching TrueForm fight...');
@@ -780,7 +742,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // Beast Phase 2 — launch a VS game, spawn a ForestBeast, trigger Phase 2 cinematic.
+  // Beast Phase 2, launch a VS game, spawn a ForestBeast, trigger Phase 2 cinematic.
   _btnRow('Beast Phase 2 Transition', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching VS fight, spawning Beast...');
@@ -801,7 +763,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // Yeti Phase 2 — same pattern.
+  // Yeti Phase 2, same pattern.
   _btnRow('Yeti Phase 2 Transition', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching VS fight, spawning Yeti...');
@@ -822,7 +784,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // Multiverse Travel — launch any vs game, trigger after 800ms.
+  // Multiverse Travel, launch any vs game, trigger after 800ms.
   _btnRow('Multiverse Travel', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching game for multiverse cinematic...');
@@ -836,7 +798,7 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // God / AA — launch appropriate mode, trigger after entity spawns.
+  // God / AA, launch appropriate mode, trigger after entity spawns.
   _btnRow('God Dialogue', [
     ['Launch + Play', () => {
       _cinViewerStatus('Launching God fight...');
@@ -879,12 +841,11 @@ function _cinViewerOpen() {
     }, '#0c0'],
   ]);
 
-  // ── IN-FIGHT TRIGGER (when already in the right fight) ───────────────────
-  // Use these if you want to trigger mid-fight without relaunching.
+  // In-fight triggers: fire mid-fight without relaunching.
 
   _sec('IN-FIGHT TRIGGER', 'Needs the fight already running with the right entity.');
 
-  // Boss threshold — direct trigger only
+  // Boss threshold, direct trigger only
   _selRow({
     'boss_warn75': 'Boss Warning (75%)',
     'boss_phase2': 'Boss Phase 2',
@@ -910,7 +871,7 @@ function _cinViewerOpen() {
     } catch(e) { _cinViewerStatus('Error: ' + e.message, true); }
   });
 
-  // TF threshold — direct trigger only
+  // TF threshold, direct trigger only
   _selRow({
     'tf_opening':       'TF Opening Fight',
     'tf_phase2':        'TF Phase 2 Transition',
@@ -965,7 +926,7 @@ function _cinViewerOpen() {
     } catch(e) { _cinViewerStatus('Error: ' + e.message, true); }
   });
 
-  // God / AA — direct trigger
+  // God / AA, direct trigger
   _selRow({
     'god_dialogue': 'God Dialogue',
     'god_merge':    'God Merge -> AA',
@@ -989,7 +950,7 @@ function _cinViewerOpen() {
     } catch(e) { _cinViewerStatus('Error: ' + e.message, true); }
   });
 
-  // Beast / Yeti — direct trigger (need entity in minions[])
+  // Beast / Yeti, direct trigger (need entity in minions[])
   _selRow({
     'beast_phase2': 'Beast Phase 2',
     'yeti_phase2':  'Yeti Phase 2',
@@ -1011,7 +972,7 @@ function _cinViewerOpen() {
     }
   });
 
-  // ── FINISHERS ─────────────────────────────────────────────────────────────
+  // Finishers
   _sec('FINISHERS', 'Auto-starts a VS match if no game is running.');
   const _finSel = _selRow({
     'w:sword':         'Sword -- Ghost Step',
@@ -1120,7 +1081,7 @@ function _cinViewerOpen() {
     }
   });
 
-  // ── CONVICTION ────────────────────────────────────────────────────────────
+  // Conviction
   _sec('CONVICTION', 'Auto-starts a VS match if no game is running.');
   _selRow({
     'thor':       'Torren -- Storm Realm',
@@ -1144,7 +1105,6 @@ function _cinViewerOpen() {
     }
   });
 
-  // ── Status ────────────────────────────────────────────────────────────────
   const statusDiv = document.createElement('div');
   statusDiv.id = '_cinViewerStatus';
   statusDiv.style.cssText = 'margin-top:14px;border-top:1px solid #0a0;padding-top:8px;' +
@@ -1155,12 +1115,8 @@ function _cinViewerOpen() {
   document.body.appendChild(ov);
 }
 
-// ============================================================
-// CUTSCENE THEATER — the player-facing door to the viewer above
-// Same panel, reached from the home screen instead of F8 + debugMode. Gated once
-// behind a spoiler confirm, because the list names endings and late bosses and
-// must not be stumbled into blind.
-// ============================================================
+// Cutscene theater: the player-facing door to the viewer above, reached from the home screen.
+// Gated behind a spoiler confirm, since the list names endings and late bosses.
 
 const _CIN_THEATER_KEY = 'smb_cutscene_spoiler_ok';
 

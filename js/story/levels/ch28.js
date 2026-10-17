@@ -1,16 +1,8 @@
 'use strict';
-// js/story/levels/ch28.js — Chapter 28 map. See smb-story-levels.js for the contract.
+// Chapter 28 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 28 — Into the Crucible (scavenge, 4 bearer records)
-// The approach to the Crucible: a volcanic vault where the rift entity stores
-// what it took from forty-seven failed bearers. Basalt terraces step up and
-// down over magma channels (the channels are under the floor — read as heat,
-// not hazard); reliquary niches line the walls. Records (positions mirrored
-// in scavengeItemDefs): Log I in a low niche, Log II high on the obsidian
-// spire, the Fragment Map across the chain bridge, the Signature Atlas on the
-// Crucible's outer wall.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 28, Into the Crucible (scavenge, 4 bearer records). Magma channels run under
+// the floor: heat, not hazard.
 (function () {
   const FLOOR = [[0, 700, 440], [700, 1000, 400], [1000, 1500, 440], [1500, 1700, 470], [1700, 2300, 440], [2300, 2600, 400], [2600, 3600, 440]];
   const SPIRE = [[1100, 360, 90], [1150, 280, 80], [1190, 200, 90]];

@@ -1,19 +1,9 @@
 'use strict';
-// js/story/levels/ch156.js — Chapter 156 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch156.js: Chapter 156 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 156 — Between Everything (escape, run right)
-// The Substrate: "older — the substrate God built the universe on". Under the
-// collapsed fracture system, the foundation of everything: vast horizontal
-// beams of pale stone running off into the dark in both directions, each one
-// carrying a world you can't see from here, and below them planes of faint
-// grid going down further than the eye goes. You run along the top of one
-// beam, broken into sections where the fracture system's collapse cracked it.
-// Sovereign's trail runs straight down the beam ahead of you — a line of
-// scorched footprints, evenly spaced, never deviating. Behind the collapse
-// wall the beam crumbles. God's Boundary at the end is a wall of warm light.
-// Fallen capstones are the high routes.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 156, Between Everything (escape, run right).
+// Running along a fractured pale-stone beam above the Substrate. Sovereign's
+// footprints lead the way; God's Boundary waits at the end.
 (function () {
   const BEAM = [[0, 1100, 440], [1170, 2200, 440], [2270, 3300, 430], [3370, 4250, 440], [4320, 5000, 440]];
   const CAPS = [[700, 340, 110], [1500, 330, 110], [1630, 250, 110], [2600, 340, 110], [3700, 330, 110], [3830, 250, 110], [4500, 340, 110]];
@@ -28,21 +18,20 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#04040a');
-    // Other beams far off above and below, each carrying a world you can't see
+    // Distant beams, each carrying a world
     for (const [par, y, h, a] of [[0.05, 120, 26, 0.35], [0.1, 220, 34, 0.45], [0.15, 560, 40, 0.5], [0.08, 680, 30, 0.3]]) {
       _slParallax(v, par, (l, r) => {
         ctx.fillStyle = `rgba(150,145,130,${a})`; ctx.fillRect(l - 20, y, r - l + 40, h);
         for (let x = Math.floor(l / 300) * 300; x < r + 300; x += 300) { ctx.fillStyle = `rgba(80,76,70,${a})`; ctx.fillRect(x, y, 6, h); }
       });
     }
-    // Grid planes going down further than the eye goes
     _slParallax(v, 0.25, (l, r) => {
       for (let k = 0; k < 6; k++) { ctx.strokeStyle = `rgba(160,170,220,${0.12 - k * 0.015})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(l - 20, 470 + k * 40); ctx.lineTo(r + 20, 470 + k * 40); ctx.stroke(); }
     });
   }
 
   function back(v) {
-    // Sovereign's trail: scorched footprints, evenly spaced, never deviating
+    // Sovereign's trail
     for (let x = Math.ceil((v.x - 40) / 70) * 70; x < v.x + v.w + 40; x += 70) {
       if (!BEAM.some(([a, b]) => x >= a && x < b)) continue;
       const y = (BEAM.find(([a, b]) => x >= a && x < b) || [0, 0, 440])[2];
@@ -54,13 +43,13 @@
       ctx.fillStyle = '#9a968a'; ctx.fillRect(-w / 2, -10, w, 22); ctx.fillStyle = '#b8b4a6'; ctx.fillRect(-w / 2, -10, w, 4);
       ctx.restore();
     }
-    // God's Boundary: a wall of warm light
+    // God's Boundary
     if (_slVisible(v, BOUNDARY - 200, BOUNDARY + 400)) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const g = ctx.createLinearGradient(BOUNDARY, 0, BOUNDARY + 300, 0); g.addColorStop(0, 'rgba(255,240,200,0)'); g.addColorStop(0.3, 'rgba(255,240,200,0.6)'); g.addColorStop(1, 'rgba(255,248,220,0.85)');
       ctx.fillStyle = g; ctx.fillRect(BOUNDARY, v.y - 20, 400, 480 - v.y); ctx.restore();
     }
-    // Behind the wall the beam crumbles
+    // Collapsed beam behind the wall
     const wx = (typeof escapeWallX !== 'undefined') ? escapeWallX : -200;
     for (let k = 0; k < 8; k++) { const t = ((frameCount * 0.6 + k * 37) % 120) / 120, x = wx - 30 - _slHash(k + 1560) * 260; if (_slVisible(v, x - 20, x + 20)) { ctx.fillStyle = `rgba(154,150,138,${1 - t})`; ctx.fillRect(x, 445 + t * 220, 18, 10); } }
   }

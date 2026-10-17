@@ -1,15 +1,9 @@
 'use strict';
 
-// ============================================================
-// MAP ANALYZER  v2
-// ============================================================
-// analyzeMap(arena, key)  — returns a rich report object
-// scoreMap(report)        — returns letter grade S/A/B/C/F
-// formatMapAnalysis(r)    — human-readable string
-// analyzeAllMaps()        — array of {key, ...report} for all ARENAS
-// ============================================================
+// Map analyzer v2. analyzeMap(arena, key) returns a report, scoreMap(report) a letter grade S/A/B/C/F,
+// formatMapAnalysis(r) a readable string, analyzeAllMaps() a report for every entry in ARENAS.
 
-// Friendly display names — falls back to the arena key itself
+// Display names. Falls back to the arena key.
 const _ARENA_DISPLAY = {
   grass:      'Grasslands', lava:       'Lava Pit',   space:    'Deep Space',
   city:       'City Rooftops', void:    'The Void',   creator:  'Creator\'s Arena',
@@ -24,7 +18,6 @@ const _ARENA_DISPLAY = {
   bossSanctum:'Boss Sanctum',
 };
 
-// ─────────────────────────────────────────────────────────────
 function analyzeMap(arena, key) {
   const displayName = (key && _ARENA_DISPLAY[key]) || arena.name || key || 'Unknown';
   const isLarge     = !!(arena.worldWidth);
@@ -46,8 +39,7 @@ function analyzeMap(arena, key) {
     suggestions:   [],
   };
 
-  // ── 1. Platform density score (platforms per 300px of map width) ─────
-  const idealDensity = isLarge ? 2.5 : 1.8; // platforms per 300px
+  const idealDensity = isLarge ? 2.5 : 1.8; // per 300px of width
   const actualDensity = (nonFloor.length / mapWidth) * 300;
   report.scores.density = Math.round(Math.min(100, (actualDensity / idealDensity) * 100));
   if (nonFloor.length < 2) {
@@ -63,7 +55,7 @@ function analyzeMap(arena, key) {
     report.strengths.push('Good platform density');
   }
 
-  // ── 2. Vertical balance score ────────────────────────────────────────
+  // Vertical balance
   let vertScore = 50;
   if (nonFloor.length >= 2) {
     const ys       = nonFloor.map(p => p.y);
@@ -82,7 +74,7 @@ function analyzeMap(arena, key) {
   if (vertScore >= 80)      report.strengths.push('Strong vertical gameplay');
   else if (vertScore < 40)  { report.issues.push('Flat map — poor vertical variety'); report.suggestions.push('Add platforms at 3+ height tiers (y ≈ 150, 270, 380)'); }
 
-  // ── 3. Spawn fairness score ─────────────────────────────────────────
+  // Spawn fairness
   let spawnScore = 100;
   const floor = floors[0];
   if (floor) {
@@ -95,20 +87,20 @@ function analyzeMap(arena, key) {
       report.issues.push('Spawn positions too close — players start in each other\'s face');
       report.suggestions.push('Widen floor or add separate spawn platforms 300px+ apart');
     } else if (isLarge) {
-      // On large maps check viewport-relative separation (Phase 2 fixed spawn logic uses this)
+      // Large maps: check separation relative to the viewport
       const viewSpan = Math.min(GAME_W - 160, floor.w);
       const effSep   = viewSpan * (0.70 - 0.25);
       if (effSep < 160) { spawnScore = 50; report.issues.push('Effective spawn separation narrow on this map width'); }
       else spawnScore = 90;
     }
-    // Check if dominant wide platforms are near centre blocking spawn area
+    // Wide platforms near the centre can block the spawn area
     const centrePlatform = nonFloor.find(p => p.w > 250 && Math.abs(p.x + p.w/2 - GAME_W/2) < 100);
     if (centrePlatform) report.strengths.push('Central landmark platform (good for contested fights)');
   }
   report.scores.spawn = spawnScore;
   if (spawnScore >= 80) report.strengths.push('Fair spawn distribution');
 
-  // ── 4. Camera compatibility score ───────────────────────────────────
+  // Camera compatibility
   let camScore = 90;
   if (isLarge) {
     const mapLeft  = arena.mapLeft  !== undefined ? arena.mapLeft  : 0;
@@ -124,7 +116,7 @@ function analyzeMap(arena, key) {
   report.scores.camera = Math.max(0, camScore);
   if (camScore >= 85) report.strengths.push('Camera-friendly layout');
 
-  // ── 5. Hazard evaluation ────────────────────────────────────────────
+  // Hazards
   if (arena.hasLava)         report.strengths.push('Lava hazard adds pressure');
   if (arena.isLowGravity)    report.strengths.push('Low gravity expands vertical play');
   if (arena.isHeavyGravity)  report.strengths.push('Heavy gravity increases ground game stakes');
@@ -134,17 +126,15 @@ function analyzeMap(arena, key) {
   return report;
 }
 
-// ─────────────────────────────────────────────────────────────
 function scoreMap(report) {
   const s = report.scores;
-  // Weighted average of sub-scores
   const weighted = (
     (s.density  || 50) * 0.25 +
     (s.vertical || 50) * 0.30 +
     (s.spawn    || 50) * 0.25 +
     (s.camera   || 50) * 0.20
   );
-  // Issue penalty: –8 per issue, strength bonus +3 each
+  // -8 per issue, +3 per strength
   const adjusted = weighted - (report.issues.length * 8) + (report.strengths.length * 3);
   const final = Math.max(0, Math.min(100, adjusted));
 
@@ -155,7 +145,6 @@ function scoreMap(report) {
   return 'F';
 }
 
-// ─────────────────────────────────────────────────────────────
 function formatMapAnalysis(report) {
   const grade = scoreMap(report);
   const scores = report.scores;
@@ -182,7 +171,6 @@ function formatMapAnalysis(report) {
   return lines.join('\n');
 }
 
-// ─────────────────────────────────────────────────────────────
 function analyzeAllMaps() {
   if (typeof ARENAS === 'undefined') return [];
   return Object.entries(ARENAS).map(([key, arena]) => {

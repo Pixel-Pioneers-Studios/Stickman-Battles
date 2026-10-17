@@ -1,16 +1,6 @@
 'use strict';
-// js/story/levels/ch58.js — Chapter 58 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 58 — Converted (walk → duel vs two Converted Guards)
-// The fallback perimeter in the interference layer: the Architects' defensive
-// line, already half taken. Crystal barricades and watchtowers line the walk;
-// the Third Architect's blue banners hang from them — and the Creator's white
-// geometry is crawling across every one, "overlaid on their original
-// programming," the same overlay as on the guards. Watchtower platforms and
-// barricade tops are the climbs. At the midpoint, the guard post the
-// converted guards still hold. Cache shafts are bunker hatches.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch58.js: Chapter 58 map (Converted Guards duel). See smb-story-levels.js.
+// Crystal barricades and watchtowers along the walk, Creator geometry over the Architects' banners.
 (function () {
   const G = 440, POST = 3000;
   const TOWER = [[400, 350, 100], [520, 260, 110], [1150, 340, 110], [1290, 260, 110], [2220, 350, 100], [2350, 270, 110],
@@ -25,7 +15,7 @@
     return P;
   }
 
-  // The Creator's overlay: white hexagonal geometry crawling over a rect
+  // Creator overlay: white hex geometry over a rect
   function overlay(x, y, w, h, seed, amt) {
     ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
     ctx.strokeStyle = `rgba(240,240,255,${0.35 + 0.15 * Math.sin(frameCount * 0.04 + seed)})`; ctx.lineWidth = 1;
@@ -51,7 +41,7 @@
 
   function back(v) {
     const x0 = Math.max(-200, v.x - 40), x1 = Math.min(6200, v.x + v.w + 40);
-    // The defensive line: a low crystal barricade along the whole walk
+    // Low crystal barricade along the walk
     ctx.fillStyle = '#2a3446'; ctx.fillRect(x0, G - 36, x1 - x0, 36);
     for (let k = Math.floor(x0 / 60); k * 60 < x1; k++) { ctx.fillStyle = '#3a4a62'; ctx.beginPath(); ctx.moveTo(k * 60, G - 36); ctx.lineTo(k * 60 + 30, G - 52); ctx.lineTo(k * 60 + 60, G - 36); ctx.fill(); }
     // Watchtowers
@@ -62,7 +52,7 @@
       ctx.fillStyle = '#4a5a78'; ctx.fillRect(x, y, w, 9);
       ctx.fillStyle = '#2a3446'; ctx.fillRect(x, y - 24, 6, 24); ctx.fillRect(x + w - 6, y - 24, 6, 24); ctx.fillRect(x, y - 26, w, 4);
     }
-    // The Third Architect's banners, being overwritten
+    // Third Architect's banners, being overwritten
     for (let i = 0; i < BANNERS.length; i++) {
       const bx = BANNERS[i];
       if (!_slVisible(v, bx - 40, bx + 40)) continue;
@@ -73,9 +63,10 @@
       ctx.beginPath(); ctx.arc(bx + 28, G - 170, 14, 0, Math.PI * 2); ctx.stroke();
       overlay(bx + 3, G - 216, 50 + wave, 110, i, 0.3 + 0.12 * i);
     }
-    // Bunker hatches over the cache shafts
+    // Bunker hatches over cache shafts
     for (const hx of HATCH) if (_slVisible(v, hx - 80, hx + 80)) { ctx.fillStyle = '#4a5a78'; ctx.fillRect(hx - 64, G - 20, 16, 20); ctx.fillRect(hx + 48, G - 20, 16, 20); }
-    // The guard post the converted still hold: Creator geometry over everything
+    // Guard post the converted still hold
+
     if (_slVisible(v, POST - 500, POST + 500)) {
       ctx.fillStyle = '#2a3446'; ctx.fillRect(POST - 200, G - 180, 400, 180);
       ctx.fillStyle = '#3a4a62'; ctx.fillRect(POST - 210, G - 188, 420, 10);

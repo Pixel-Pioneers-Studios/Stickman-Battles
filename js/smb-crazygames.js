@@ -1,14 +1,12 @@
 'use strict';
-// smb-crazygames.js — CrazyGames SDK v3 integration
-// Wraps all SDK calls with null checks so the game runs identically outside CrazyGames.
+// CrazyGames SDK v3 wrapper. Null checks let the game run unchanged outside CrazyGames.
 
 var cgSdk = (function () {
-  var MIN_AD_GAP_MS = 180000;   // >= 3 minutes between midgame ads
+  var MIN_AD_GAP_MS = 180000;   // ms between midgame ads
   var _lastAdAt   = 0;
   var _breaksSeen = 0;
 
-  // CrazyGames requires game audio to be silent while an ad plays. Restores
-  // whatever mute state the player had, and keeps the portal's mute if set.
+  // Mute game audio during an ad (CrazyGames rule). Restores the prior mute state after.
   var _preAdMuted = null;
   function _adMute() {
     if (_preAdMuted !== null) return;
@@ -20,26 +18,20 @@ var cgSdk = (function () {
     try { SoundManager.setMuted(was || !!window._cgAudioMuted); } catch (e) {}
   }
 
-  // Returns the SDK only when it is fully initialized (i.e. on CrazyGames).
-  // On other hosts the SDK object may exist but throws on property access.
-  // Touching the SDK before init() resolves logs a console error per access.
+  // Only returns the SDK once init() has resolved. Earlier access throws or logs errors.
   var _initDone = false;
   function sdk() {
     if (!_initDone) return null;
     try {
       var s = (window.CrazyGames && window.CrazyGames.SDK) || null;
       if (!s) return null;
-      // Probe .game — throws if SDK is present but not initialized (e.g. itch.io)
+      // Throws if the SDK exists but is not initialised (itch.io)
       void s.game;
       return s;
     } catch(e) { return null; }
   }
 
-  // v3 requires an explicit awaited init(); until it resolves the SDK reports
-  // itself as undetected and every other call throws. Fired immediately rather
-  // than on window 'load' — the portal watches for the loading-start call while
-  // the game is still loading, and 'load' waits on every asset and pending
-  // request, which can be seconds later or never.
+  // v3 needs an awaited init(). Fire it now, not on window 'load': the portal watches for loading start, and load can wait a long time.
   (function _cgInit() {
     var raw = (window.CrazyGames && window.CrazyGames.SDK) || null;
     if (!raw || typeof raw.init !== 'function') return;
@@ -52,8 +44,7 @@ var cgSdk = (function () {
     if (!s) return;
 
     try { s.game.loadingStart(); } catch(e) { return; }
-    // Report loading finished once the page really is done — immediately if it
-    // already is, so the pair is never left unbalanced.
+    // Report loading done once the page is done, or now if it already is.
     if (document.readyState === 'complete') {
       try { s.game.loadingStop(); } catch(e) {}
     } else {
@@ -62,7 +53,7 @@ var cgSdk = (function () {
       });
     }
 
-    // Use the platform profile when available; guests remain supported.
+    // Platform profile when available. Guests still work.
     if (s.user && typeof s.user.getUser === 'function') {
       Promise.resolve(s.user.getUser()).then(function (user) {
         window._cgUser = user || null;
@@ -116,7 +107,7 @@ var cgSdk = (function () {
       });
     }
 
-    // If opened via an invite link or as instant multiplayer, auto-navigate to online mode
+    // Invite link or instant multiplayer: go straight to online mode
     var inviteCode = null;
     var lobbyCode = null;
     try {
@@ -136,10 +127,10 @@ var cgSdk = (function () {
     } catch (e) {}
 
     if (lobbyCode) {
-      window._pubInvitePending = true;   // smb-tutorial.js: do not start the first-run fight
+      window._pubInvitePending = true;   // skips the first-run fight (smb-tutorial.js)
       setTimeout(function () {
         if (!window.PubHub) return;
-        // The SDK can resolve after the first-run fight has already begun.
+        // SDK can resolve after the first-run fight has started.
         if (typeof tutorialActive !== 'undefined' && tutorialActive) {
           if (typeof endTutorial === 'function') endTutorial(false);
           if (typeof gameRunning !== 'undefined' && gameRunning && typeof backToMenu === 'function') backToMenu();
@@ -157,9 +148,7 @@ var cgSdk = (function () {
             if (typeof networkJoinRoom === 'function') networkJoinRoom();
           }
         } else if (typeof LobbyManager !== 'undefined' && !(window.NetworkManager && NetworkManager.isConnected())) {
-          // Instant multiplayer with no invite: the party leader hosts a room
-          // straight away. updateRoom() inside connect() hands the room to CG,
-          // which brings the rest of the party in through the join listener.
+          // Instant multiplayer with no invite: host a room now. CG brings the party in via the join listener.
           LobbyManager.createLobby({ maxPlayers: 2, isPrivate: true });
         }
       }, 400);
@@ -203,36 +192,33 @@ var cgSdk = (function () {
     },
     isAudioMuted: function () { return !!window._cgAudioMuted; },
 
-    // Portal invite link for a Public Server lobby (smb-public-hub.js). Returns
-    // a URL (or a promise of one), or null when the portal offers none.
+    // Portal invite link for a Public Server lobby (smb-public-hub.js). A URL, a promise of one, or null.
     lobbyInviteLink: function (code) {
       var s = sdk();
       if (!s || !s.game || typeof s.game.inviteLink !== 'function') return null;
       try { return s.game.inviteLink({ lobby: String(code || '') }); } catch (e) { return null; }
     },
 
-    // Called after host room is created — shows the Invite Friends button.
+    // Called after a host room is created. Shows the Invite Friends button.
     showInviteBtn: function () {
       var btn = document.getElementById('cgInviteBtn');
       if (btn) btn.style.display = 'inline-block';
     },
 
-    // Called when host clicks Invite Friends — triggers native CG share modal,
-    // falling back to copying the invite URL to clipboard.
+    // Invite Friends: native CG share modal, or copy the URL to the clipboard.
     showInviteButton: function () {
       var s = sdk();
       var roomCode = (window.NetworkManager && NetworkManager.room) ? NetworkManager.room : '';
       var params = { roomName: roomCode };
 
       if (s && s.game) {
-        // inviteLink is CG's current API; showInviteButton is deprecated and
-        // only used when an older SDK lacks inviteLink.
+        // inviteLink is the current API. showInviteButton is only for older SDKs.
         if (typeof s.game.inviteLink === 'function') {
           try {
             var link = s.game.inviteLink(params);
             Promise.resolve(link).then(function (url) {
               var copied = function () { if (typeof showToast === 'function') showToast('Invite link copied!'); };
-              // The portal iframe may deny clipboard access; the room code still works.
+              // Portal iframe may deny clipboard access. The room code still works.
               var denied = function () { if (typeof showToast === 'function') showToast('Room code: ' + roomCode, 4000); };
               if (url && navigator.clipboard) navigator.clipboard.writeText(url).then(copied, denied);
               else denied();
@@ -245,7 +231,7 @@ var cgSdk = (function () {
         }
       }
 
-      // No SDK — copy a plain URL with the room code as a query param
+      // No SDK: copy a plain URL with the room code
       var fallback = location.href.split('?')[0] + '?code=' + encodeURIComponent(roomCode);
       if (navigator.clipboard) {
         navigator.clipboard.writeText(fallback).then(function () {
@@ -254,18 +240,15 @@ var cgSdk = (function () {
       }
     },
 
-    // ── Ad breaks ─────────────────────────────────────────────────────────────
-    // Midgame ads are only allowed between matches, never during gameplay, and
-    // CrazyGames asks for a comfortable gap between them. The first break of a
-    // session is skipped so a new player reaches a second match before seeing
-    // an ad. Always calls onDone(), including when no ad is shown at all.
+    // Midgame ads only between matches, with a gap between them. The first break of a session is skipped.
+    // Always calls onDone().
     adBreak: function (onDone) {
       function done() { if (onDone) { try { onDone(); } catch (e) {} } }
       var s = sdk();
       if (!s || !s.ad || typeof s.ad.requestAd !== 'function') { done(); return; }
-      // Never interrupt an online match — the other peers keep playing.
+      // Never interrupt an online match
       if (typeof onlineMode !== 'undefined' && onlineMode) { done(); return; }
-      // Never interrupt a cinematic.
+      // Never interrupt a cinematic
       if (typeof activeCinematic !== 'undefined' && activeCinematic) { done(); return; }
       _breaksSeen++;
       var now = Date.now();
@@ -283,14 +266,13 @@ var cgSdk = (function () {
       } catch (e) { settle(); }
     },
 
-    // True only when the portal SDK is initialised and can serve ads (never on itch/local).
+    // True only when the SDK can serve ads (never on itch or locally)
     adReady: function () {
       var s = sdk();
       return !!(s && s.ad && typeof s.ad.requestAd === 'function');
     },
 
-    // Rewarded ad — call from an explicit player-initiated button only.
-    // onReward() runs when the ad completed; onSkip() when it did not.
+    // Rewarded ad: call only from a player-initiated button. onReward() on completion, onSkip() otherwise.
     requestRewardedAd: function (onReward, onSkip) {
       var s = sdk();
       if (!s || !s.ad || typeof s.ad.requestAd !== 'function') { if (onSkip) onSkip(); return; }
@@ -312,7 +294,7 @@ var cgSdk = (function () {
       } catch (e) { fin(false); }
     },
 
-    // Call between matches. onDone() fires when the ad finishes (or if no ad available).
+    // Call between matches. onDone() always runs.
     requestMidgameAd: function (onDone) {
       var s = sdk();
       if (!s) { if (onDone) onDone(); return; }

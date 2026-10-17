@@ -1,8 +1,7 @@
 'use strict';
-// smb-attacktest-gui.js — _atkOpenGUI visual overlay + console patch integration
+// smb-attacktest-gui.js: visual overlay for _atkOpenGUI, plus the console patch.
 // Depends on: smb-globals.js, smb-fighter.js, smb-combat.js
 
-// ─── VISUAL GUI ───────────────────────────────────────────────
 function _atkOpenGUI() {
   const existing = document.getElementById('atkViewerOverlay');
   if (existing) { existing.remove(); return; }
@@ -11,7 +10,6 @@ function _atkOpenGUI() {
   ov.id = 'atkViewerOverlay';
   ov.style.cssText = 'position:fixed;top:0;right:0;width:340px;max-height:100vh;overflow-y:auto;z-index:9995;background:rgba(6,6,18,0.97);border-left:2px solid #8800ff;font-family:monospace;color:#ccbbff;display:flex;flex-direction:column;';
 
-  // Header
   const hdr = document.createElement('div');
   hdr.style.cssText = 'padding:10px 14px 6px;background:rgba(50,0,100,0.9);border-bottom:1px solid #8800ff;flex-shrink:0;';
   hdr.innerHTML = '<span style="font-size:1rem;font-weight:bold;letter-spacing:1px;color:#cc88ff">⚔ ATTACK VIEWER</span>'
@@ -19,7 +17,6 @@ function _atkOpenGUI() {
     + '<div style="font-size:0.7rem;color:#8866aa;margin-top:3px;">Click an attack to fire it as a pure effect. No boss spawned.</div>';
   ov.appendChild(hdr);
 
-  // Options bar
   const optBar = document.createElement('div');
   optBar.style.cssText = 'padding:7px 14px;background:rgba(20,10,40,0.9);border-bottom:1px solid #440088;font-size:0.72rem;display:flex;gap:10px;align-items:center;flex-shrink:0;';
   optBar.innerHTML = `<label style="cursor:pointer"><input type="checkbox" id="atkGUISafe" ${_atkSafeMode?'checked':''}> Safe</label>`
@@ -28,7 +25,6 @@ function _atkOpenGUI() {
     + `<button id="atkGUIReset" style="margin-left:auto;padding:2px 8px;background:rgba(180,0,0,0.4);border:1px solid #880000;border-radius:4px;color:#ffaaaa;cursor:pointer;font-size:0.7rem;">Reset</button>`;
   ov.appendChild(optBar);
 
-  // Admin class equip bar
   const kitBar = document.createElement('div');
   kitBar.style.cssText = 'padding:6px 14px;background:rgba(15,0,35,0.9);border-bottom:1px solid #440088;font-size:0.7rem;flex-shrink:0;';
   kitBar.innerHTML = '<div style="color:#aa88cc;margin-bottom:4px;">⚙ Equip Admin Kit on player:</div>'
@@ -41,7 +37,6 @@ function _atkOpenGUI() {
     + '</div>';
   ov.appendChild(kitBar);
 
-  // Class tabs
   const tabBar = document.createElement('div');
   tabBar.style.cssText = 'display:flex;flex-shrink:0;border-bottom:1px solid #440088;';
   const classKeys = Object.keys(ATK_REGISTRY);
@@ -57,13 +52,11 @@ function _atkOpenGUI() {
   }
   ov.appendChild(tabBar);
 
-  // Attack list
   const listDiv = document.createElement('div');
   listDiv.id = 'atkGUIList';
   listDiv.style.cssText = 'flex:1;overflow-y:auto;padding:6px 10px;';
   ov.appendChild(listDiv);
 
-  // Demo all footer
   const footer = document.createElement('div');
   footer.style.cssText = 'padding:8px 14px;border-top:1px solid #440088;flex-shrink:0;';
   footer.innerHTML = '<button id="atkGUIDemoAll" style="width:100%;padding:5px;background:rgba(100,0,200,0.4);border:1px solid #8800ff;border-radius:5px;color:#cc88ff;font-family:monospace;cursor:pointer;">▶ Demo All Attacks</button>';
@@ -71,7 +64,6 @@ function _atkOpenGUI() {
 
   document.body.appendChild(ov);
 
-  // Render attack cards
   function _syncOpts() {
     const safeEl  = document.getElementById('atkGUISafe');
     const scaleEl = document.getElementById('atkGUIScale');
@@ -112,7 +104,6 @@ function _atkOpenGUI() {
   document.getElementById('atkGUIReset').addEventListener('click', () => _atkResetEffects());
   document.getElementById('atkGUIDemoAll').addEventListener('click', () => { _syncOpts(); _atkAll(activeKey); });
 
-  // Kit equip buttons
   ov.querySelectorAll('.atkKitBtn').forEach(btn => {
     btn.addEventListener('click', () => {
       _syncOpts();
@@ -124,7 +115,6 @@ function _atkOpenGUI() {
   _consolePrint('[ATK] GUI opened — click any attack card to fire it.', '#88bbff');
 }
 
-// ─── PATCH CONSOLE ────────────────────────────────────────────
 (function _patchConsoleForATK() {
   if (typeof _consoleExec !== 'function') {
     window.addEventListener('load', _patchConsoleForATK, { once: true });
@@ -141,7 +131,6 @@ function _atkOpenGUI() {
     _orig(raw);
   };
   _consoleExec.__atkPatched = true;
-  // Browser DevTools aliases
   window.atkSummon = (l)   => _atkSummon(l);
   window.atkList   = (k)   => _atkList(k);
   window.atkAll    = (k)   => _atkAll(k);

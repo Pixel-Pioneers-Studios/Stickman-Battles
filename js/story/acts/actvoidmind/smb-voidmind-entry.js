@@ -1,15 +1,6 @@
-// Void Mind arc — Entry: "Into the Substrate"
-// id 156 — The transition from ch.155 ("After Everything") into the Void Mind's domain.
-//
-// Absolute Axiom is gone. The domain has gone quiet. The player expects silence.
-// What they find instead is an attention — patient, vast, already present.
-//
-// This chapter is narrative only (no fight, no choices) — it establishes that
-// the Void Mind has been here the entire time and that the reckonings are beginning.
-//
-// Placement: sits between ch.155 and the Reckoning arc (157–164).
-// The act structure in smb-story-finalize.js registers this as the first chapter
-// of Act X — The Substrate.
+// Void Mind arc, entry (id 156). Narrative only, no fight or choices.
+// Follows ch.155 and comes before the Reckoning arc (157-164).
+// smb-story-finalize.js registers it as the first chapter of Act X.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -27,7 +18,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The fragment was still for the first time in the story.',
       'As if it had recognized where it was.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+// Narration after the beat (see _playBranchAfterNarrative).
     afterNarrative: [
       'You became aware of something.',
       '',
@@ -52,7 +43,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'Something begins.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the descent into the quiet; nothing is hunting you yet.
+// Playable beat (_playChapterBeat in smb-story-engine-flow.js). Nothing hunts you yet.
     beat: {
       type: 'exploration', exploreMode: 'traversal',
       arena: 'void', style: 'void', worldLength: 3000,

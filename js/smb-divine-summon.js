@@ -1,25 +1,22 @@
 'use strict';
-// smb-divine-summon.js — Press H to call a divine Herald that sweeps the arena and destroys all AI enemies
-// Depends on: smb-globals.js, smb-combat.js, smb-particles-core.js
-// Load after: smb-god-cinematics.js
+// Press H to call a divine Herald that sweeps the arena and destroys all AI enemies.
+// Depends on smb-globals.js, smb-combat.js, smb-particles-core.js. Load after smb-god-cinematics.js.
 
-// ── State ─────────────────────────────────────────────────────────────────────
 const _DS_COOLDOWN_FRAMES = 60 * 120; // 2 minutes
 let _dsCooldown = 0;
 let _dsActive   = null; // null or state object
 
-// ── Mode gate ─────────────────────────────────────────────────────────────────
 function _dsAllowed() {
   if (typeof gameRunning === 'undefined' || !gameRunning) return false;
   if (typeof isCinematic !== 'undefined' && isCinematic)  return false;
   if (typeof activeCinematic !== 'undefined' && activeCinematic) return false;
   if (typeof paused !== 'undefined' && paused) return false;
   if ((typeof onlineMode !== 'undefined' && onlineMode) || window._pubHubActive) return false;
-  // Admin-only — lore note: God's body is destroyed; this summon is a developer tool only
+  // Admin-only dev tool. God's body is destroyed, so this is not lore.
   const localPlayer = typeof players !== 'undefined' && players.find(p => !p.isAI && !p.isRemote);
   const accountId   = localPlayer && localPlayer.accountId;
   if (typeof _isAdmin !== 'function' || !_isAdmin(String(accountId || ''))) return false;
-  // Block during boss/trueform/god encounters — those have their own power fantasy
+  // Blocked in boss, TrueForm and God fights, which have their own power fantasy.
   const blockedModes = new Set(['boss', 'trueform', 'god', 'absoluteaxiom', 'exploration']);
   if (typeof gameMode !== 'undefined' && blockedModes.has(gameMode)) return false;
   return true;
@@ -33,7 +30,6 @@ function _dsGetTargets() {
   return all.filter(e => e && e.isAI && !e.isBoss && e.health > 0);
 }
 
-// ── Trigger ───────────────────────────────────────────────────────────────────
 function triggerDivineSummon() {
   if (!_dsAllowed())     return;
   if (_dsCooldown > 0)   return;
@@ -43,29 +39,23 @@ function triggerDivineSummon() {
   _dsCooldown = _DS_COOLDOWN_FRAMES;
 
   _dsActive = {
-    phase:    'entry',    // entry → sweep → exit
+    phase:    'entry',    // entry, sweep, exit
     timer:    0,
-    // Herald world-space position
     x:        GAME_W / 2,
     y:        -220,       // starts above screen
     targetY:  60,         // rests here while sweeping
-    // Sweep state
     sweepX:   -80,
     killed:   new Set(),
     // Kill flash effects: [{x,y,life,maxLife}]
     strikes:  [],
-    // Screen flash
     flashAlpha: 0,
-    // Text
     textAlpha: 0,
-    // Halo pulse timer
     haloPulse: 0,
     // Trail segments left by wings
     trail: [],
   };
 }
 
-// ── Update ────────────────────────────────────────────────────────────────────
 function updateDivineSummon() {
   if (_dsCooldown > 0) _dsCooldown--;
   if (!_dsActive) return;
@@ -74,20 +64,16 @@ function updateDivineSummon() {
   ds.timer++;
   ds.haloPulse++;
 
-  // Tick kill-strike effects
   ds.strikes = ds.strikes.filter(s => --s.life > 0);
 
-  // Tick wing trail
   ds.trail = ds.trail.filter(t => --t.life > 0);
 
   if (ds.phase === 'entry') {
-    // Fall from above onto targetY
     ds.y += (ds.targetY - ds.y) * 0.14;
     ds.flashAlpha = Math.max(0, ds.flashAlpha - 0.04);
     ds.textAlpha  = Math.min(1, ds.timer / 18);
 
     if (ds.timer === 8) {
-      // Arrival shockwave
       ds.flashAlpha = 0.55;
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
       if (typeof spawnParticles === 'function') {
@@ -105,10 +91,8 @@ function updateDivineSummon() {
     ds.sweepX += 10;
     ds.x = ds.sweepX;
 
-    // Wing trail
     ds.trail.push({ x: ds.x, y: ds.y, life: 22, maxLife: 22 });
 
-    // Advance on targets as we pass their x
     const targets = _dsGetTargets();
     for (const e of targets) {
       if (ds.killed.has(e)) continue;
@@ -116,17 +100,15 @@ function updateDivineSummon() {
 
       ds.killed.add(e);
 
-      // Register a golden strike beam at the enemy
       ds.strikes.push({ x: e.cx(), y: e.cy(), life: 28, maxLife: 28 });
 
-      // Particle burst
       if (typeof spawnParticles === 'function') {
         spawnParticles(e.cx(), e.cy(), '#ffe066', 14);
         spawnParticles(e.cx(), e.cy(), '#ffffff', 8);
         spawnParticles(e.cx(), e.cy(), '#ffcc44', 6);
       }
 
-      // Kill — all damage through dealDamage
+      // Kill: dealDamage, never direct health writes
       if (typeof dealDamage === 'function') {
         dealDamage(null, e, 99999, 22);
       }
@@ -149,13 +131,12 @@ function updateDivineSummon() {
   }
 }
 
-// ── Draw (world-space) ────────────────────────────────────────────────────────
+// Draw (world-space)
 function drawDivineSummon() {
   if (!_dsActive) return;
   const ds = _dsActive;
   const { x, y } = ds;
 
-  // — Wing trail ghost echoes —
   for (const t of ds.trail) {
     const a = (t.life / t.maxLife) * 0.18;
     if (a < 0.01) continue;
@@ -165,12 +146,10 @@ function drawDivineSummon() {
     ctx.restore();
   }
 
-  // — Kill-strike vertical beams —
   for (const s of ds.strikes) {
     const frac = s.life / s.maxLife;
     ctx.save();
     ctx.globalAlpha = frac * 0.85;
-    // Beam from sky to target
     const grad = ctx.createLinearGradient(s.x, 0, s.x, s.y + 20);
     grad.addColorStop(0, 'rgba(255,230,80,0)');
     grad.addColorStop(0.6, 'rgba(255,230,80,0.9)');
@@ -178,7 +157,6 @@ function drawDivineSummon() {
     ctx.fillStyle = grad;
     const bw = 14 + (1 - frac) * 20;
     ctx.fillRect(s.x - bw / 2, 0, bw, s.y + 20);
-    // Burst ring at impact
     ctx.strokeStyle = `rgba(255,220,80,${frac * 0.9})`;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -187,7 +165,6 @@ function drawDivineSummon() {
     ctx.restore();
   }
 
-  // — Herald body ambient glow —
   if (ds.phase !== 'exit' || ds.timer < 20) {
     const glowAlpha = ds.phase === 'entry' ? Math.min(0.4, ds.timer / 32 * 0.4)
                     : ds.phase === 'sweep'  ? 0.38
@@ -205,10 +182,8 @@ function drawDivineSummon() {
     ctx.restore();
   }
 
-  // — Light rays radiating from the Herald —
   _dsDrawRays(x, y);
 
-  // — Herald figure —
   const bodyAlpha = ds.phase === 'entry' ? Math.min(1, ds.timer / 20)
                   : ds.phase === 'exit'  ? Math.max(0, 1 - ds.timer / 30)
                   : 1.0;
@@ -217,7 +192,6 @@ function drawDivineSummon() {
   _dsDrawHerald(x, y, 1.0, null);
   ctx.restore();
 
-  // — Halo ring —
   const haloScale = 1 + 0.06 * Math.sin(ds.haloPulse * 0.12);
   ctx.save();
   ctx.globalAlpha = bodyAlpha * 0.85;
@@ -230,7 +204,6 @@ function drawDivineSummon() {
   ctx.stroke();
   ctx.restore();
 
-  // — Screen flash on arrival —
   if (ds.flashAlpha > 0.01) {
     ctx.save();
     ctx.globalAlpha = ds.flashAlpha;
@@ -239,7 +212,6 @@ function drawDivineSummon() {
     ctx.restore();
   }
 
-  // — "A DIVINE PRESENCE DESCENDS" text (world-space top center) —
   if (ds.textAlpha > 0.01) {
     ctx.save();
     ctx.globalAlpha = ds.textAlpha;
@@ -269,12 +241,10 @@ function _dsDrawHerald(x, y, scale, overrideColor) {
   ctx.shadowColor = overrideColor || '#ffe066';
   ctx.shadowBlur  = overrideColor ? 0 : 18;
 
-  // Head
   ctx.beginPath();
   ctx.arc(x, y, 13 * s, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Torso
   const neckY  = y + 13 * s;
   const hipY   = neckY + 44 * s;
   ctx.beginPath();
@@ -282,16 +252,13 @@ function _dsDrawHerald(x, y, scale, overrideColor) {
   ctx.lineTo(x, hipY);
   ctx.stroke();
 
-  // Arms (outstretched — cruciform / wings-open pose)
   const shoulderY = neckY + 10 * s;
   const armSpan   = 50 * s;
-  // Upper arm
   ctx.beginPath();
   ctx.moveTo(x - armSpan, shoulderY + 10 * s);
   ctx.lineTo(x, shoulderY);
   ctx.lineTo(x + armSpan, shoulderY + 10 * s);
   ctx.stroke();
-  // Forearm (bent slightly upward — exaltation gesture)
   ctx.beginPath();
   ctx.moveTo(x - armSpan, shoulderY + 10 * s);
   ctx.lineTo(x - armSpan - 18 * s, shoulderY - 12 * s);
@@ -301,7 +268,6 @@ function _dsDrawHerald(x, y, scale, overrideColor) {
   ctx.lineTo(x + armSpan + 18 * s, shoulderY - 12 * s);
   ctx.stroke();
 
-  // Legs (hanging, slightly spread)
   ctx.beginPath();
   ctx.moveTo(x, hipY);
   ctx.lineTo(x - 16 * s, hipY + 34 * s);
@@ -311,14 +277,12 @@ function _dsDrawHerald(x, y, scale, overrideColor) {
   ctx.lineTo(x + 16 * s, hipY + 34 * s);
   ctx.stroke();
 
-  // Wing feather lines (arcs from upper arms)
   ctx.lineWidth = 2 * s;
   ctx.globalAlpha *= 0.55;
   for (let i = 0; i < 5; i++) {
     const t    = i / 4;
     const wAng = Math.PI * (0.55 + t * 0.55); // upward arc range
     const wr   = (30 + i * 12) * s;
-    // Left wing
     ctx.beginPath();
     ctx.moveTo(x - armSpan + 8 * s, shoulderY + 6 * s);
     ctx.lineTo(
@@ -326,7 +290,6 @@ function _dsDrawHerald(x, y, scale, overrideColor) {
       shoulderY + 6 * s  - Math.sin(wAng) * wr * 0.7
     );
     ctx.stroke();
-    // Right wing (mirrored)
     const wAngR = Math.PI - wAng;
     ctx.beginPath();
     ctx.moveTo(x + armSpan - 8 * s, shoulderY + 6 * s);
@@ -365,7 +328,6 @@ function _dsDrawRays(x, y) {
   ctx.restore();
 }
 
-// ── Screen-space HUD (cooldown arc + ready indicator) ─────────────────────────
 // Called with actual canvas dimensions (after ctx.setTransform reset)
 function drawDivineSummonHUD(cw, ch) {
   if (typeof gameRunning === 'undefined' || !gameRunning) return;
@@ -375,20 +337,17 @@ function drawDivineSummonHUD(cw, ch) {
   const ready = _dsCooldown <= 0 && !_dsActive;
   const frac  = ready ? 1 : 1 - _dsCooldown / _DS_COOLDOWN_FRAMES;
 
-  // Position: top-right corner
   const cx = cw - 36, cy = 36, r = 16;
 
   ctx.save();
   ctx.globalAlpha = ready ? 0.9 : 0.65;
 
-  // Background ring
   ctx.strokeStyle = 'rgba(255,220,80,0.18)';
   ctx.lineWidth   = 3.5;
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Progress arc
   ctx.strokeStyle = ready ? '#88ffaa' : '#ffe066';
   ctx.shadowColor = ready ? '#88ffaa' : '#ffe066';
   ctx.shadowBlur  = ready ? 10 : 6;
@@ -397,7 +356,6 @@ function drawDivineSummonHUD(cw, ch) {
   ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
   ctx.stroke();
 
-  // Center icon
   ctx.shadowBlur = 0;
   ctx.font       = `bold 11px "Segoe UI", Arial`;
   ctx.textAlign  = 'center';
@@ -405,7 +363,6 @@ function drawDivineSummonHUD(cw, ch) {
   ctx.globalAlpha *= (ready ? 1 : 0.85);
   ctx.fillText('H', cx, cy + 4);
 
-  // "READY" pulse
   if (ready) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 320);
     ctx.globalAlpha = 0.6 * pulse;
@@ -417,7 +374,6 @@ function drawDivineSummonHUD(cw, ch) {
   ctx.restore();
 }
 
-// ── Key listener ──────────────────────────────────────────────────────────────
 document.addEventListener('keydown', function _dsKeyHandler(e) {
   const ae = document.activeElement;
   if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;

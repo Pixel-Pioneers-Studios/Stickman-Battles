@@ -1,19 +1,7 @@
 'use strict';
-// js/story/levels/ch115.js — Chapter 115 map. See smb-story-levels.js for the contract.
+// Chapter 115 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 115 — What VAEL Saw Before (scavenge, 4 imprints)
-// The Memory Tides: a long strand of the Fracture Coast where the tide leaves
-// things from VAEL's past that "washed up and couldn't be reclaimed". Each
-// imprint lies with the thing it remembers: a door standing on its own in
-// the shallows, frame and all (the door that always opened first); a sphere
-// of some other world's sky resting on a rock (the world before the tear);
-// a shape in the sand where something hit and VAEL wasn't ready (the last
-// thing they didn't see coming); and letters written in the wet sand on a
-// spit of rock, half washed out, the same name started over and over (a
-// name they keep misplacing). The tide line walks in and out, and its future
-// line runs a little ahead of it. Rocks are the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 115, What VAEL Saw Before (scavenge, 4 imprints). Rocks are the climbs.
 (function () {
   const G = 440;
   const DOOR = 520, GLOBE = [1150, 380, 100], DENT = 2100, NAME = [2945, 370, 110];

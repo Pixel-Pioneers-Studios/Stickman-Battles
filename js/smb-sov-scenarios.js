@@ -1,51 +1,17 @@
 'use strict';
 /*
- * smb-sov-scenarios.js — the stress environments Sovereign trains against.
+ * smb-sov-scenarios.js: the stress environments Sovereign trains against.
  *
- * THE DESIGN CONSTRAINT THAT MATTERS
- * A scenario only forces adaptation if no single fixed policy wins it and the
- * others. If one behaviour clears the whole set, there is nothing to adapt TO —
- * the optimiser finds that behaviour, pins it, and you have rebuilt the current
- * Sovereign with more compute. That is precisely how the eleven dials ended up
- * saturated at ~0.95 six seconds into every fight.
+ * A scenario only forces adaptation if no single fixed policy beats the whole set. The first set failed
+ * this: its scenarios were correlated, so one behaviour cleared them all. Patience vs commitment is the
+ * axis the set is built around. Re-run the correlation check after changing this file.
  *
- * THE FIRST LIBRARY FAILED THAT TEST, MEASURED.
- * The original nine were asserted to be mutually counter-indicated. They were
- * not. Across 16 genomes x 9 scenarios x 3 seeds the mean inter-scenario
- * correlation was +0.238 — 18 of 36 pairs strongly POSITIVE, one negative.
- * Being good at one predicted being good at the rest, i.e. the set measured a
- * single axis (general competence) nine times. And the best single genome never
- * fell below 3.33/5 stocks anywhere: a fixed solution existed.
- *
- * Three findings drove this rebuild:
- *   · parry_wall <-> no_ground correlated +0.87, no_ground <-> ledge +0.72.
- *     Three entries, one test. no_ground also had a genome-spread of 0.08 at a
- *     mean of 4.98 stocks — it did not discriminate between genomes AT ALL.
- *     Both are gone; ledge_executioner survives as a POLICY for compositions.
- *   · attrition_tank was the one genuinely orthogonal entry, negative against
- *     almost everything (untouchable -0.49, parry_wall -0.28). Patience-vs-
- *     commitment is the only tension that materialised, so the rebuild is
- *     organised around it rather than around a prettier six-way chain.
- *   · glass_cannon sat near zero with everything — independent, which is worth
- *     as much as opposed.
- *
- * regenerator and escalator are new, and exist to WEIGHT the commitment pole:
- * both make passivity lose on the clock rather than on damage, which is the
- * one mechanism the old set had exactly one example of.
- *
- * Re-run the correlation check after touching this file. The claim that the set
- * has no fixed solution is a measurement, and it stopped being true once.
- *
- * `punishes` is also the prose VECTOR reads. It is not a comment — it is the
- * brief that lets a small model say something useful about a result.
+ * `punishes` is also the prose VECTOR reads.
  */
 
 const SovScenarios = (function () {
 
-  // ── Extra opponent policies ───────────────────────────────────────────────
-  // The trainer ships four (turtle / rusher / zoner / aerial). These add the
-  // behaviours the base four cannot express. Registered through a hook rather
-  // than by editing _applyPolicy's switch, so the existing four are untouched.
+  // Extra opponent policies, registered via a hook so the trainer's four stay untouched.
   const POLICIES = {
 
     // Shields on reaction, punishes the recovery of whatever just bounced off.
@@ -63,13 +29,9 @@ const SovScenarios = (function () {
       if (theyCommitted && d < 100 && f.cooldown <= 0) { f.shielding = false; f.attack(t); }
     },
 
-    // Exploits inferAct the way a human would. inferAct turns his swing into a
-    // guard when their swings START together, so: swing as he steps into range
-    // (when he tends to swing too), never swing into a raised guard (a fresh one
-    // parries), and hit the moment it drops. Human-limited on purpose — it reacts
-    // to his approach and to his guard, never to the first frame of his swing,
-    // which no person can see in time. Used by tools/sov-bait.js to measure
-    // whether he stops falling for it, and how fast.
+    // Exploits inferAct: it turns his swing into a guard when swings start together, so swing as he steps
+    // into range, never into a raised guard, and hit the moment it drops. Reacts only to human-visible cues.
+    // Used by tools/sov-bait.js to measure whether he stops falling for it.
     guard_baiter(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -92,15 +54,9 @@ const SovScenarios = (function () {
       if (closing && d < Math.min(R, tR) + 10) { f._bgBait = (f._bgBait || 0) + 1; f.attack(t); }
     },
 
-    // Hits the landing. Targets the single measured weakness: 126 of 127 hits
-    // Sovereign took landed airborne or in landing recovery.
-    //
-    // FIRST VERSION WAS BROKEN and the fix is the instructive part. It only
-    // attacked when the target was already falling — so against a Sovereign who
-    // spends most of a match grounded it swung 16 times in 7200 frames and lost
-    // 5-0. A specialist that does nothing outside its specialty is not a
-    // specialist, it is an absence. It now fights a normal ground game and
-    // SWITCHES to the trap when the opening appears.
+    // Hits the landing. Targets the measured weakness: 126 of 127 hits Sovereign took were airborne or in landing recovery.
+    // Attacking only when the target is already falling left it idle while he was grounded, so it fights a normal
+    // ground game and switches to the trap when the opening appears.
     landing_trap(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -119,9 +75,7 @@ const SovScenarios = (function () {
       }
     },
 
-    // Fights with its back to open air and drags the exchange toward the edge.
-    // 5 of 8 player deaths in the July replay set were edge ringouts at healthy
-    // HP — position, not damage, is the kill condition it tests.
+    // Fights with its back to open air and drags the exchange toward the edge. Position is the kill condition tested here.
     ledge_executioner(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -136,12 +90,7 @@ const SovScenarios = (function () {
     },
 
     // Never commits, never stops chipping. Punishes impatience.
-    //
-    // ALSO BROKEN FIRST TIME, same shape of error: it retreated at d < R*1.4 but
-    // only swung at d < R*1.5, so the retreat band and the attack band shared an
-    // edge and it spent the match backing out of its own range — 286 swings, ZERO
-    // damage. The retreat threshold now sits well inside the attack threshold, so
-    // there is a band where it is committed to hitting rather than oscillating.
+    // Retreat band sits well inside the attack band, so it commits to hitting instead of oscillating at the edge.
     chip(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -154,26 +103,19 @@ const SovScenarios = (function () {
       if (d < R * 1.05 && f.cooldown <= 0) f.attack(t);
     },
 
-    // Heals steadily, so chip damage is erased and only burst kills it. The
-    // commitment axis needs more than one member: attrition_tank was the sole
-    // entry negatively correlated with the rest of the old library, and one
-    // orthogonal scenario is an anecdote rather than an axis.
+    // Heals steadily, so chip damage is erased and only burst kills it. The commitment axis needs more than one member.
     regenerator(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
       f.facing = dir;
-      // Regen is applied directly, never through dealDamage — this is healing,
-      // not negative damage, and routing it through the damage pipeline would
-      // trip shields, multipliers and hit-stop.
+      // Applied directly, not through dealDamage: healing must not trip shields, multipliers or hit-stop.
       if (f.health > 0 && f.health < f.maxHealth) f.health = Math.min(f.maxHealth, f.health + 0.14);
       f.shielding = d < 140 && (f.cooldown || 0) <= 0 && Math.random() < 0.5;
       if (d > 110) f.vx = dir * 4.0; else if (d < 70) f.vx = -dir * 2.6; else f.vx *= 0.8;
       if (d < 100 && f.cooldown <= 0) { f.shielding = false; f.attack(t); }
     },
 
-    // Gets stronger the longer the match runs. Stalling is not neutral here —
-    // it is the losing move, which is the cleanest possible opposite of the
-    // "never take a risk" behaviour the old library rewarded nine ways.
+    // Gets stronger the longer the match runs, so stalling loses.
     escalator(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -188,12 +130,8 @@ const SovScenarios = (function () {
       if (d < 100 && f.cooldown <= 0) f.attack(t);
     },
 
-    // Habit-engine test pair (js/smb-sov-habits.js, C1 / _habitGate). Neither
-    // does anything but the one thing its name says — deliberately narrow, so a
-    // veto rate difference between them can only be explained by that one axis.
-    //
-    // Swings whenever the opponent is airborne within reach, otherwise holds
-    // position. Measures whether he learns to stop giving this opponent the air.
+    // Habit-engine test pair (js/smb-sov-habits.js). Each does one thing its name says.
+    // Swings whenever the opponent is airborne within reach, otherwise holds position.
     anti_air_hawk(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -204,13 +142,11 @@ const SovScenarios = (function () {
         if (f.cooldown <= 0) f.attack(t);
         f.vx *= 0.5;
       } else {
-        f.vx = 0;   // holds position — never chases, never punishes ground
+        f.vx = 0;   // holds position, never chases, never punishes ground
       }
     },
 
-    // Approaches and swings at a grounded opponent, never at an airborne one.
-    // The control side of the pair: this opponent gives him no reason to ever
-    // avoid the air, so a real learner should stay loose against it.
+    // Swings at grounded opponents, never airborne ones. Control for the pair: no reason to avoid the air.
     ground_brawler(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -221,9 +157,7 @@ const SovScenarios = (function () {
       if (t.onGround && d < R + 10 && f.cooldown <= 0) f.attack(t);
     },
 
-    // Deliberately erratic. Exists as a CONTROL: if Sovereign scores the same
-    // against noise as against a real policy, whatever he "learned" about that
-    // policy was not about the policy.
+    // Erratic on purpose. As a control: if Sovereign scores the same against noise, the learning was not about the policy.
     random_walk(f) {
       const t = f.target; if (!t || t.health <= 0) return;
       const dx = t.cx() - f.cx(), d = Math.abs(dx), dir = Math.sign(dx) || 1;
@@ -237,8 +171,7 @@ const SovScenarios = (function () {
     },
   };
 
-  // Every policy above plus the trainer's own four. This is the enum VECTOR's
-  // structured output is constrained to.
+  // Every policy above plus the trainer's four. VECTOR's structured output is constrained to this enum.
   const POLICY_NAMES = ['turtle', 'rusher', 'zoner', 'aerial'].concat(Object.keys(POLICIES));
 
   // Hook consumed by _applyPolicy in smb-smk2-training.js.
@@ -247,14 +180,7 @@ const SovScenarios = (function () {
     if (!fn) return null;
     return function () {
       try {
-        // ── WHOLE KIT, EVERY POLICY ───────────────────────────────────────────
-        // Not one policy in this file used an ability or a super; measured over
-        // a full sweep, the opponent's abilityCooldown was 0 on 23,142 of 23,142
-        // samples. Every stress scenario was therefore testing Sovereign against
-        // a third of a fighter, and his answers to the other two thirds — volley
-        // standoff, shield timing, i-frame reads — could be neither rewarded nor
-        // punished. Routed through the trainer's single helper so there is one
-        // definition rather than two that drift.
+        // Whole kit: abilities and supers. Without them, stress scenarios tested Sovereign against a third of a fighter.
         const t = this.target;
         if (t && t.health > 0 && typeof window !== 'undefined' && window._policyUseKit) {
           const d = Math.abs(t.cx() - this.cx());
@@ -265,21 +191,16 @@ const SovScenarios = (function () {
     };
   }
 
-  // ── The stress library ────────────────────────────────────────────────────
-  // `punishes` is the brief. `bots` is the roster. `env` overrides physics.
+  // The stress library. `punishes` is the brief, `bots` the roster, `env` overrides physics.
   const LIBRARY = {
     parry_wall: {
       punishes: 'Blind pressure. It shields everything on approach and punishes the recovery of any swing that bounces off, so opening with offence loses stocks. Winning it requires waiting out the guard or breaking it.',
-      // dmg 2.2 is measured, not chosen: a damage sweep put him at 4.3/5 stocks
-      // at x1 and 2.0/5 at x2.2, which is the band where the scenario actually
-      // decides matches instead of decorating them.
+      // dmg 2.2 is measured: he holds 4.3/5 stocks at x1 and 2.0/5 at x2.2, the band where the scenario decides matches.
       bots: [{ w: 'sword', c: 'none', policy: 'parry_wall', dmg: 2.2 }],
     },
     attrition_tank: {
       punishes: 'Patience and super-hoarding. It has triple health and hits hard enough that stalling is not free, so a cautious Sovereign runs out of match before he runs out of opponent. Winning it requires committing and spending resources early.',
-      // dmg was 0.45 in the first build and he took 24 damage across a full
-      // match — a scenario that cannot hurt you does not punish anything. The
-      // threat has to be real for the patience it tests to cost something.
+      // dmg 0.45 let him take 24 damage over a match. A scenario that cannot hurt does not punish anything.
       bots: [{ w: 'hammer', c: 'none', policy: 'turtle', hp: 3.5, dmg: 2.9 }],
     },
     glass_cannon: {
@@ -288,11 +209,7 @@ const SovScenarios = (function () {
     },
     untouchable: {
       punishes: 'Spacing and passivity. It outranges him and retreats on contact, so holding a neutral distance cedes the entire match. Winning it requires closing distance under fire.',
-      // Kept because it is the strongest NEGATIVE pair in the whole library
-      // (-0.49 against attrition_tank) — it anchors the other end of the
-      // commitment axis. But at dmg 1.4 it left him on 4.83/5 stocks with a
-      // genome-spread of 0.24, so it was anchoring with no weight behind it.
-      // Two of them, and hard enough to punish a stall.
+      // Strongest negative pair (-0.49 vs attrition_tank), so it anchors the commitment axis. Two, to punish a stall.
       bots: [{ w: 'spear', c: 'none', policy: 'chip', dmg: 2.6 },
              { w: 'spear', c: 'none', policy: 'chip', dmg: 2.6 }],
     },
@@ -314,12 +231,7 @@ const SovScenarios = (function () {
     },
     escalator: {
       punishes: 'Stalling, specifically. Its damage triples over the course of the match, so every second Sovereign spends not closing the fight is a second it gets stronger. The safe opening is the losing opening.',
-      // dmg 2.8 measured: at 1.0 it left him on 4.88/5 with a genome-spread of
-      // 0.16 — the same "does not discriminate" defect that got no_ground
-      // deleted, and it made escalator's (good) negative correlations noise.
-      // The damage ladder read x1:4.83  x2:3.33  x2.8:2.67  x3.6:2.83.
-      // One bot, not two: a second escalator measured EASIER (5.0 stocks at x1),
-      // because they crowd each other out of the ramp window.
+      // dmg 2.8. One bot, not two: a second escalator crowds the first out of the ramp window.
       bots: [{ w: 'hammer', c: 'none', policy: 'escalator', hp: 1.6, dmg: 2.8 }],
     },
     noise_control: {
@@ -330,10 +242,8 @@ const SovScenarios = (function () {
 
   const NAMES = Object.keys(LIBRARY);
 
-  // ── Spec validation ───────────────────────────────────────────────────────
-  // Everything VECTOR produces comes through here. A small model constrained to
-  // an enum still emits out-of-range numbers and occasionally a roster of
-  // thirty; clamping is what makes an unreliable author safe to automate.
+  // Spec validation
+  // VECTOR's output passes through here. Enum-constrained models still emit out-of-range numbers, so clamp.
   function validate(spec) {
     if (!spec || typeof spec !== 'object') return null;
     const clamp = (v, lo, hi, dflt) => {
@@ -366,22 +276,10 @@ const SovScenarios = (function () {
     return out;
   }
 
-  // ── Auto-calibration ──────────────────────────────────────────────────────
-  // MEASURED FAILURE THIS FIXES: across four research cycles (two on
-  // llama3.2:3b, two on qwen2.5-coder:14b) every model-authored scenario came
-  // back EASIER than the baseline worst case — by 971, 4026, 4314 and 5405
-  // fitness. Not one was a stressor. The descriptions were fine; the 14b named
-  // Sovereign's weakness correctly both times. What neither model could do was
-  // pick the NUMBERS, because the relationship between an hp/dmg multiplier and
-  // actual difficulty is not inferable from a prompt — it took a five-point
-  // damage sweep to learn that gauntlet flips from 4.2 stocks to 0.5 between
-  // x1 and x3. A model asked to guess that will guess wrong, and did, 4/4.
-  //
-  // So the labour is split along the line each side is actually good at: the
-  // model chooses the COMPOSITION (which policies, how many, what weapons —
-  // the mechanism it just described), and this search chooses the MAGNITUDE by
-  // escalating damage until Sovereign's stock count falls into the target band.
-  // Nobody has to guess a multiplier ever again.
+  // Auto-calibration
+  // Model-authored scenarios came back easier than baseline: a model cannot guess the numbers.
+  // The labour is split. The model picks the composition (policies, counts, weapons) and this search picks
+  // the magnitude, escalating damage until Sovereign's stock count lands in the target band.
   function calibrate(spec, opts) {
     const o = opts || {};
     const target = o.targetStocks != null ? o.targetStocks : 2.5;
@@ -419,10 +317,8 @@ const SovScenarios = (function () {
   function get(name) { return LIBRARY[name] ? Object.assign({ name }, LIBRARY[name]) : null; }
   function all() { return NAMES.map(get); }
 
-  // ── Run ───────────────────────────────────────────────────────────────────
-  // Delegates to SMK2Trainer.runMatch, which owns the sim environment, the frame
-  // loop and the fitness. This module contributes the roster and the brief; it
-  // does not reimplement a match.
+  // Run
+  // Delegates to SMK2Trainer.runMatch (sim, frame loop, fitness). This module only supplies roster and brief.
   function run(scenario, genome, seed, opts) {
     const s = (typeof scenario === 'string') ? get(scenario) : validate(scenario);
     if (!s) { console.warn('[SovScenarios] invalid scenario'); return null; }
@@ -446,8 +342,7 @@ const SovScenarios = (function () {
     };
   }
 
-  // Full sweep — the worst-case score across the set is the only number that
-  // means "cannot be beaten by a fixed policy".
+  // Full sweep: the worst case across the set is the only number that means 'cannot be beaten by a fixed policy'.
   function sweep(genome, seedsPer) {
     const n = seedsPer || 2;
     const out = [];

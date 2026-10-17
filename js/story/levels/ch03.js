@@ -1,19 +1,10 @@
 'use strict';
-// js/story/levels/ch03.js — Chapter 3 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch03.js: Chapter 3 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 3 — Disorientation (escape)
-// "The block is shifting — reality collapsing inward from behind." The street
-// itself has broken into slabs: some heaved up, some dropped, so the run east
-// is a sequence of short climbs and drops with the collapse wall closing in.
-// Buildings lean, one has been sheared and shifted sideways, debris floats up
-// into the tear field. The run ends at Stable Ground: an intact plaza held
-// together by a shimmering field.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 3: Disorientation (escape). Broken slabs, short climbs and drops; the collapse wall closes from behind.
 (function () {
   const G = 440;
-  // [x0, x1, y] — the broken street. Steps stay inside one jump so the
-  // collapse wall (up to 4.5 px/frame) is outrun by a player who keeps moving.
+  // [x0, x1, y]. Steps stay within one jump so a moving player outruns the collapse wall (4.5 px/frame).
   const SLABS = [
     [0, 520, 440], [520, 760, 410], [760, 980, 440], [980, 1180, 472],
     [1180, 1500, 440], [1500, 1640, 392], [1640, 1900, 440], [1900, 2150, 480],
@@ -36,14 +27,12 @@
   function backdrop(v) {
     _slSkyAbove(v, '#0d0d1e');
     _slParallax(v, 0.06, (l, r) => {
-      // The tear field: the sky behind the collapse, fractured
       for (let i = Math.floor(l / 260) - 1; i * 260 < r + 260; i++) {
         const x = i * 260 + _slHash(i) * 140;
         _slSkyCrack(_slJag(x, -40, x + 60 + _slHash(i + 1) * 80, 160 + _slHash(i + 2) * 120, 7, 18, i * 13), 0.28 + 0.1 * Math.sin(frameCount * 0.03 + i));
       }
     });
     _slParallax(v, 0.22, (l, r) => {
-      // Skyline, every tower leaning a different way
       for (let i = Math.floor(l / 80) - 1; i * 80 < r + 80; i++) {
         const h = 160 + _slHash(i) * 180, w = 50 + _slHash(i + 30) * 30, x = i * 80;
         const tilt = (_slHash(i + 60) - 0.5) * 0.12;
@@ -55,7 +44,6 @@
         ctx.restore();
       }
     });
-    // Debris drifting upward into the field
     _slParallax(v, 0.5, (l, r) => {
       for (let i = Math.floor(l / 70); i * 70 < r; i++) {
         const t = (frameCount * (0.3 + _slHash(i) * 0.5) + _slHash(i + 5) * 600) % 600;
@@ -96,7 +84,6 @@
     if (_slVisible(v, 1100, 1900)) {
       _leanBldg(1160, 280, 300, -0.07, '#3a4048', 3);
       _leanBldg(1560, 300, 340, 0.04, '#4a3a34', 4);
-      // Bus on its side: roof facing us, wheels toward the buildings
       const B = BUS;
       ctx.fillStyle = '#c8a02a'; ctx.fillRect(B.x, G - B.h, B.w, B.h);
       ctx.fillStyle = '#a8841e'; ctx.fillRect(B.x, G - B.h, B.w, 6);
@@ -109,22 +96,18 @@
     if (_slVisible(v, 1850, 2700)) {
       _leanBldg(1900, 260, 280, 0.08, '#3e3a46', 5);
       _leanBldg(2240, 320, 360, -0.04, '#4e4038', 6);
-      // Car nose-down into the dropped slab
       ctx.save(); ctx.translate(CAR.x + CAR.w / 2, 480 - 20); ctx.rotate(0.22);
       _slCar(-CAR.w / 2, 20, CAR.w, '#6a3a34', { hazard: true });
       ctx.restore();
-      // Burst water main
       for (let k = 0; k < 14; k++) {
         const t = (frameCount * 2.2 + k * 23) % 140;
         ctx.fillStyle = `rgba(170,200,230,${0.6 * (1 - t / 140)})`;
         ctx.beginPath(); ctx.arc(2180 + Math.sin(k) * (t * 0.25), 440 - t * (1.4 - t / 220), 3 + t * 0.03, 0, Math.PI * 2); ctx.fill();
       }
-      // Bent streetlight
       ctx.strokeStyle = '#3a3f46'; ctx.lineWidth = 6;
       ctx.beginPath(); ctx.moveTo(2470, 404); ctx.lineTo(2470, 300); ctx.quadraticCurveTo(2475, 250, 2540, 272); ctx.stroke();
     }
     if (_slVisible(v, 2600, 3700)) {
-      // Fallen billboard
       ctx.fillStyle = '#3a3e44';
       ctx.fillRect(2700, G - 96, 110, 8);
       ctx.fillRect(2716, G - 88, 6, 88); ctx.fillRect(2788, G - 88, 6, 88);
@@ -132,7 +115,6 @@
       ctx.fillStyle = '#d8d0c0'; ctx.fillRect(0, -70, 220, 70);
       ctx.fillStyle = '#c03a2a'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.fillText('MOVING SOON', 110, -28);
       ctx.restore();
-      // Stable Ground: a plaza held whole by a field, buildings standing straight
       _slBrick(PLAZA + 60, G - 300, 300, 300, '#5a4a40');
       _slWindowGrid(PLAZA + 70, G - 290, 280, 200, 4, 3, { lit: 0.55, seed: 11, glow: true });
       _slBrick(PLAZA + 380, G - 260, 300, 260, '#4a4a52');

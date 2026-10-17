@@ -1,12 +1,9 @@
 // smb-boss-helpers.js
-// Boss/TrueForm utility helpers: debug, TF arena mechanics, state reset, FallenGod class.
+// Boss and TrueForm helpers: debug API, TF arena reset, FallenGod, Axiom origin cutscene, depth-phase grid.
 // Depends on: smb-globals.js, smb-boss-effects.js, smb-boss-cinematics.js
 // Must load: AFTER smb-boss-effects.js, BEFORE smb-loop.js
 
-// ============================================================
-// TRUE FORM ADAPTIVE AI — DEBUG API
-// Use via the game console (F1 → open console)
-// ============================================================
+// TrueForm debug API. Open the game console with F1.
 function showAdaptationLevel() {
   const tf = players && players.find(p => p.isTrueForm);
   if (!tf) { console.warn('[TF-Adapt] No active TrueForm.'); return; }
@@ -43,7 +40,6 @@ function forceAdaptationLevel(value) {
   const tf = players && players.find(p => p.isTrueForm);
   if (!tf) { console.warn('[TF-Adapt] No active TrueForm.'); return; }
   tf.adaptationLevel = Math.max(0, Math.min(100, Number(value) || 0));
-  // Force visual state update immediately
   tf._adaptOrbitMult = 1.0 + (tf.adaptationLevel / 100) * 1.4;
   tf._adaptGlowBoost = tf.adaptationLevel / 100;
   tf._adaptFlicker   = Math.max(0, (tf.adaptationLevel - 68) / 32);
@@ -55,11 +51,9 @@ function tfWarpArena(key) {
   if (!ARENAS[key]) return;
   currentArenaKey = key;
   currentArena    = ARENAS[key];
-  // Randomize layout if safe
   if (key !== 'lava') randomizeArenaLayout(key);
   generateBgElements();
   initMapPerks(key);
-  // Reset floor state
   const floorPl = currentArena.platforms.find(p => p.isFloor);
   if (floorPl) floorPl.isFloorDisabled = false;
   tfFloorRemoved = false;
@@ -77,7 +71,6 @@ function tfPortalTeleport(tf, target) {
     tf._finishAttackState && tf._finishAttackState('portal');
     return;
   }
-  // Black portal flash
   spawnParticles(tf.cx(), tf.cy(), '#000000', 20);
   spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
   setTimeout(() => {
@@ -97,7 +90,6 @@ function tfPortalTeleport(tf, target) {
 
 function tfSetSize(fighter, scale) {
   if (!fighter) return;
-  // Restore original size first
   if (tfSizeTargets.has(fighter)) {
     const orig = tfSizeTargets.get(fighter);
     fighter.w = orig.w; fighter.h = orig.h;
@@ -111,7 +103,7 @@ function tfSetSize(fighter, scale) {
 }
 
 function resetTFState() {
-  forceResetGravity(); // clears gravityState, tfGravityInverted, tfGravityTimer
+  forceResetGravity();
 
   tfControlsInverted    = false;
   tfControlsInvertTimer = 0;
@@ -140,7 +132,7 @@ function resetTFState() {
   if (tfMultiverse) { tfMultiverse.shards && (tfMultiverse.shards.length = 0); tfMultiverse = null; }
   tfSupernova        = null;
   tfAttackRetryQueue = [];
-  // Clear any pending TrueForm-instance deferred attacks (chain, slash, teleport combo, etc.)
+  // Clears deferred TrueForm attacks (chain, slash, teleport combo)
   if (typeof players !== 'undefined') {
     const _tf = players.find(p => p.isTrueForm);
     if (_tf) {
@@ -151,9 +143,9 @@ function resetTFState() {
       _tf._pendingShockwave     = null;
     }
   }
-  // Restore slow-motion if any attack left it in a reduced state
+  // Restore slow-motion an attack may have left
   if (slowMotion < 1.0) { slowMotion = 1.0; hitSlowTimer = 0; }
-  // Reset dimension shift and depth phase — always restore 2D on fight end
+  // Always restore 2D at fight end
   if (tfDimensionIs3D) {
     tfDimensionIs3D = false;
     set3DView(settings.view3D ? 'settings' : false);
@@ -162,52 +154,42 @@ function resetTFState() {
     tfDepthPhaseActive  = false;
     tfDepthEnabled      = false;
     set3DView(settings.view3D ? 'settings' : false);
-    // Clear all entity Z values
     if (typeof players !== 'undefined') players.forEach(p => { p.z = 0; });
   }
-  // Reset telegraph / warning system
   resetBossWarnings();
-  // Restore void arena floor
   if (ARENAS.void) {
     const floorPl = ARENAS.void.platforms.find(p => p.isFloor);
     if (floorPl) floorPl.isFloorDisabled = false;
   }
   if (typeof resetQTEState === 'function') resetQTEState();
-  // Reset intro-sequence state machine
   if (typeof tfCinematicState      !== 'undefined') tfCinematicState      = 'none';
   if (typeof paradoxDeathComplete  !== 'undefined') paradoxDeathComplete  = false;
   if (typeof absorptionComplete    !== 'undefined') absorptionComplete    = false;
   if (typeof tfAbsorptionScene     !== 'undefined') tfAbsorptionScene     = null;
-  // Hide the controls-inverted DOM banner if it's still showing
   const _cib = document.getElementById('ctrlInvertedBanner');
   if (_cib) _cib.style.display = 'none';
 }
 
-// ============================================================
-// FALLEN GOD  (Godfall arc boss — lore narrator / post-epilogue)
-// ============================================================
+// FallenGod: Godfall arc boss, lore narrator after the epilogue.
 class FallenGod extends Boss {
   constructor() {
     super();
     this.isFallenGod  = true;
     this.name         = 'FALLEN GOD';
     this.color        = '#ffaa00';
-    // 1.5× the story-scaled health set by _startGameCore
-    // (multiplied after construction, see smb-menu.js patch)
+    // 1.5x the story-scaled health. Multiplied after construction (see smb-menu.js patch).
     this._healthMult  = 1.5;
-    // Slightly slower beams — emphasises gravitas over speed
+    // Slower beams: gravitas over speed
     this.beamCooldown = 36;
     this.minionCooldown = 24;
-    // Unique draw tint (golden silhouette)
+    // Golden silhouette
     this._fallenGodTint = true;
   }
 
-  // Override draw to give a golden tint on top of base Boss rendering
-  // Called as p.draw() — a `ctx` parameter here would shadow the global canvas context.
+  // Golden rim on top of the base Boss draw. Called as p.draw(), so no ctx parameter (it would shadow the canvas global).
   draw() {
     super.draw();
     if (!this._fallenGodTint) return;
-    // Overlay a subtle golden rim around the entity
     ctx.save();
     ctx.globalAlpha = 0.18 + 0.08 * Math.sin(Date.now() / 400);
     ctx.fillStyle   = '#ffcc44';
@@ -218,25 +200,12 @@ class FallenGod extends Boss {
   }
 }
 
-// ── Axiom Origin Cutscene — plays after the Fallen God is defeated ────────────
-// Full-screen canvas overlay, independent of the game loop (uses its own RAF).
-// Draws Axiom's origin story in sequential scene "bursts", then calls onDoneCallback.
-// CANON:
-//   Axiom was a regular human who was robbed by someone far stronger.
-//   He fought back and won. The feeling was unlike anything he'd known.
-//   He became a hero, growing stronger as he saved others.
-//   He found five others who had started the same way and shared his goals.
-//   Together they fought an exceptionally strong enemy.
-//   The battle caused a fracture — a tear in the universe itself.
-//   They stepped through together. The fracture sealed behind them.
-//   Void surrounded them. Yet they floated instead of falling.
-//   Dark energy corrupted them all, making them unrecognisable to each other.
-//   Each became the ruler of a branch. Five total. Endless war.
-//   True Form controls one branch. Paradox is True Form's enemy (no branch).
+// Axiom origin cutscene, played after the Fallen God falls. Full-screen overlay with its own RAF; calls onDoneCallback when done.
+// Canon: Axiom was robbed, fought back and became a hero. He and five others stepped through a fracture together and the void corrupted them into five rival rulers.
+// True Form rules one branch. Paradox is True Form's enemy and has no branch.
 function startAxiomOriginCutscene(onDoneCallback) {
   if (typeof document === 'undefined') { if (typeof onDoneCallback === 'function') onDoneCallback(); return; }
 
-  // ── Overlay + canvas setup ─────────────────────────────────────────────────
   let ov = document.getElementById('_axiomCutsceneOv');
   if (!ov) {
     ov = document.createElement('div');
@@ -256,7 +225,6 @@ function startAxiomOriginCutscene(onDoneCallback) {
   const ctx  = cvs.getContext('2d');
   const CW = cvs.width, CH = cvs.height;
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
 
   // Fade alpha for a scene: sf=sceneFrame (0..sd-1)
   function fade(sf, sd, ff) {
@@ -300,13 +268,11 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.restore();
   }
 
-  // Walk-cycle angle set
   function walk(t) {
     const s = Math.sin(t);
     return { la: Math.PI*0.75+s*0.35, ra: Math.PI*0.25-s*0.35, ll: Math.PI*0.65-s*0.25, rl: Math.PI*0.35+s*0.25 };
   }
 
-  // Single caption line
   function cap(text, alpha, col, yf) {
     if (alpha <= 0) return;
     ctx.save();
@@ -319,7 +285,6 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.restore();
   }
 
-  // Secondary caption line (smaller, dimmer)
   function cap2(text, alpha, col) {
     if (alpha <= 0) return;
     ctx.save();
@@ -332,7 +297,6 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.restore();
   }
 
-  // Ground strip + fill below
   function ground(y, alpha) {
     ctx.save();
     ctx.globalAlpha = alpha * 0.4;
@@ -343,7 +307,6 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.restore();
   }
 
-  // City skyline silhouette + window dots
   function skyline(alpha) {
     const bldgs = [
       [0.02,0.55,0.10,0.45],[0.13,0.44,0.09,0.56],[0.23,0.49,0.08,0.51],
@@ -363,7 +326,6 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.restore();
   }
 
-  // Sparse void stars
   function stars(alpha) {
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -376,13 +338,12 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.restore();
   }
 
-  // ── Scene definitions ──────────────────────────────────────────────────────
-  // Each { dur: frames, fn(sf, sd) } — sf=0-based sceneFrame, sd=scene duration
+  // Each { dur, fn(sf, sd) }: sf is 0-based, sd is the scene duration.
   const ALLY_COLS = ['#4488ff','#ff6633','#33cc77','#bb44ff','#ffcc22'];
 
   const scenes = [
 
-    // 0 — Title card (2s)
+    // 0: title card
     { dur: 120, fn(sf, sd) {
       const a = fade(sf, sd);
       ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center';
@@ -394,7 +355,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       ctx.restore();
     }},
 
-    // 1 — City streets, Axiom walking (3s)
+    // 1: city, Axiom walking
     { dur: 180, fn(sf, sd) {
       const a = fade(sf, sd);
       const GY = CH * 0.75, H = CH * 0.17;
@@ -406,7 +367,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap('He was just a man.', a, '#aaaaaa');
     }},
 
-    // 2 — Robbery + fight (4s)
+    // 2: robbery and fight
     { dur: 240, fn(sf, sd) {
       const a = fade(sf, sd);
       const GY = CH*0.75, H = CH*0.17;
@@ -416,11 +377,9 @@ function startAxiomOriginCutscene(onDoneCallback) {
       const pt    = phase===0 ? sf/120 : (sf-120)/120;
       ctx.save(); ctx.globalAlpha = a;
       if (phase === 0) {
-        // Robber looms close, arm extended in threat
         stick(CW*(0.37-pt*0.02), GY, H*1.4, '#cc2222', {
           la: Math.PI*0.75, ra: -Math.PI*0.1, ll: Math.PI*0.6, rl: Math.PI*0.4,
         });
-        // Axiom backing away, arms raised in surprise
         stick(CW*(0.56+pt*0.03), GY, H, '#4488ff', {
           la: Math.PI*0.8, ra: Math.PI*0.5, ll: Math.PI*0.6, rl: Math.PI*0.4,
         });
@@ -429,11 +388,9 @@ function startAxiomOriginCutscene(onDoneCallback) {
         ctx.font=`bold ${Math.round(CH*0.05)}px Arial`;
         ctx.fillText('!', CW*(0.56+pt*0.03), GY-H*1.1-CH*0.03);
       } else {
-        // Axiom punches forward
         stick(CW*0.5, GY, H, '#4488ff', {
           la: Math.PI*0.85, ra: 0.1, ll: Math.PI*0.55, rl: Math.PI*0.45,
         });
-        // Robber knocked back, tipping over
         ctx.save();
         ctx.translate(CW*(0.34-pt*0.09), GY-H*1.4*0.5);
         ctx.rotate(pt * Math.PI * 0.5);
@@ -446,7 +403,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap(phase===0 ? 'He was robbed by someone far stronger.' : 'He fought back.  He won.', a, '#cccccc');
     }},
 
-    // 3 — Awakening (3s)
+    // 3: awakening
     { dur: 180, fn(sf, sd) {
       const a  = fade(sf, sd);
       const GY = CH*0.72, H = CH*0.20;
@@ -458,7 +415,6 @@ function startAxiomOriginCutscene(onDoneCallback) {
       g.addColorStop(0,'rgba(80,130,255,0.55)'); g.addColorStop(1,'rgba(0,0,0,0)');
       ctx.save(); ctx.globalAlpha=a*pulse; ctx.fillStyle=g; ctx.fillRect(0,0,CW,CH); ctx.restore();
       ctx.save(); ctx.globalAlpha=a;
-      // Arms raised in awakening/triumph
       stick(cx0, GY, H, '#88aaff', {
         la: Math.PI*1.25, ra: -Math.PI*0.25, ll: Math.PI*0.62, rl: Math.PI*0.38,
         shadow: '#4488ff', shadowBlur: 18,
@@ -474,7 +430,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap2('He had never felt so alive.', a);
     }},
 
-    // 4 — Hero rise (3s)
+    // 4: hero rise
     { dur: 180, fn(sf, sd) {
       const a  = fade(sf, sd);
       const GY = CH*0.75, H = CH*0.17;
@@ -489,7 +445,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap2('His strength grew.', a);
     }},
 
-    // 5 — Meeting allies (3s)
+    // 5: meeting allies
     { dur: 180, fn(sf, sd) {
       const a  = fade(sf, sd);
       const GY = CH*0.75, H = CH*0.17;
@@ -509,7 +465,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap2('They found each other.', a, '#888888');
     }},
 
-    // 6 — The fracture (5s)
+    // 6: the fracture
     { dur: 300, fn(sf, sd) {
       const a  = fade(sf, sd);
       const GY = CH*0.75, H = CH*0.17;
@@ -543,7 +499,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap(sf<=180?'They faced something they could not overcome.':'The universe itself cracked.', a, sf<=180?'#cc8888':'#aaccff');
     }},
 
-    // 7 — Through the fracture / void (4s)
+    // 7: through the fracture, void
     { dur: 240, fn(sf, sd) {
       const a   = fade(sf, sd);
       const vp  = Math.min(1, sf/160);
@@ -584,7 +540,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap(capT, a, '#99bbdd');
     }},
 
-    // 8 — Corruption (4s)
+    // 8: corruption
     { dur: 240, fn(sf, sd) {
       const a  = fade(sf, sd);
       const cp = Math.min(1, sf/190);
@@ -619,7 +575,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap(cT, a, `rgba(${Math.round(180-cp*100)},${Math.round(120-cp*80)},255,1)`);
     }},
 
-    // 9 — Five branches / endless war (3.5s)
+    // 9: five branches, endless war
     { dur: 210, fn(sf, sd) {
       const a = fade(sf, sd);
       ctx.fillStyle='#030008'; ctx.fillRect(0,0,CW,CH);
@@ -664,7 +620,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
       cap2('Five rulers.  Endless war.', a*(sf>80?1:0), '#cc5533');
     }},
 
-    // 10 — Epilogue (2.5s)
+    // 10: epilogue
     { dur: 150, fn(sf, sd) {
       const a=fade(sf, sd, 30);
       ctx.fillStyle='#000'; ctx.fillRect(0,0,CW,CH);
@@ -702,10 +658,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
   rafId = requestAnimationFrame(tick);
 }
 
-// ── Depth Phase floor grid ─────────────────────────────────────────────────────
-// Drawn between background and entities. Uses proper perspective foreshortening
-// so horizontal lines bunch near the horizon and spread toward camera — no CSS
-// rotateX needed to sell the 3D illusion.
+// Depth-phase floor grid, drawn between background and entities. Perspective foreshortening sells the 3D look without CSS rotateX.
 function drawDepthFloorGrid() {
   if (typeof tfDepthPhaseActive === 'undefined' || !tfDepthPhaseActive) return;
   ctx.save();
@@ -714,16 +667,16 @@ function drawDepthFloorGrid() {
   const BOTTOM  = GAME_H;
   const VP_X    = GAME_W * 0.5;  // vanishing point X (center)
 
-  // Fade-in alpha (0→1 over the 30-frame transition)
+  // Fade-in over the 30-frame transition
   const fadeIn = (typeof tfDepthTransitionTimer !== 'undefined' && tfDepthTransitionTimer > 0)
     ? 1 - tfDepthTransitionTimer / 30
     : 1;
 
-  // Slow pulse driven by real time — no extra global needed
+  // Pulse on real time, no extra global
   const pulse    = Date.now() * 0.001;
   const pulseMod = 0.85 + 0.15 * Math.sin(pulse * 1.8);
 
-  // ── Dark overlay — kills arena colour so grid reads cleanly ───────────────
+  // Dark overlay so arena colour doesn't fight the grid
   ctx.globalAlpha = fadeIn * 0.62;
   const dimGrad = ctx.createLinearGradient(0, HORIZON - 30, 0, BOTTOM);
   dimGrad.addColorStop(0,    'rgba(0,0,0,0)');
@@ -733,8 +686,7 @@ function drawDepthFloorGrid() {
   ctx.fillRect(0, HORIZON - 30, GAME_W, BOTTOM - (HORIZON - 30));
   ctx.globalAlpha = 1;
 
-  // ── Horizontal lines (proper perspective foreshortening) ──────────────────
-  // Lines are equally spaced in world-Z; projected with sqrt so they bunch near horizon.
+  // Horizontal lines: equally spaced in world-Z, projected with sqrt so they bunch near the horizon.
   const H_ROWS = 16;
   ctx.shadowColor = '#7730ee';
   ctx.shadowBlur  = 5;
@@ -752,14 +704,13 @@ function drawDepthFloorGrid() {
     ctx.stroke();
   }
 
-  // ── Vertical lines converging to vanishing point ──────────────────────────
   const V_COLS = 22;
   ctx.shadowColor = '#4411aa';
   ctx.shadowBlur  = 3;
   ctx.lineWidth   = 0.75;
   for (let i = 0; i <= V_COLS; i++) {
     const bx = (i / V_COLS) * GAME_W;
-    // At horizon: converge 16% toward center; full spread at bottom
+    // Converge 16% toward center at the horizon
     const tx = VP_X + (bx - VP_X) * 0.16;
     ctx.globalAlpha = fadeIn * pulseMod * 0.45;
     ctx.strokeStyle = '#5522bb';
@@ -769,7 +720,6 @@ function drawDepthFloorGrid() {
     ctx.stroke();
   }
 
-  // ── Horizon glow band ─────────────────────────────────────────────────────
   const horizPulse = 0.75 + 0.25 * Math.sin(pulse * 1.2);
   ctx.globalAlpha  = fadeIn * horizPulse * 0.85;
   const horizGrad  = ctx.createLinearGradient(0, HORIZON - 18, 0, HORIZON + 20);
@@ -779,7 +729,6 @@ function drawDepthFloorGrid() {
   ctx.fillStyle = horizGrad;
   ctx.fillRect(0, HORIZON - 18, GAME_W, 38);
 
-  // Crisp horizon line on top of the glow
   ctx.globalAlpha = fadeIn * horizPulse;
   ctx.strokeStyle = 'rgba(220,140,255,0.95)';
   ctx.lineWidth   = 2;
@@ -790,7 +739,6 @@ function drawDepthFloorGrid() {
   ctx.lineTo(GAME_W, HORIZON);
   ctx.stroke();
 
-  // ── Control hint ──────────────────────────────────────────────────────────
   if (typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled) {
     ctx.globalAlpha = fadeIn * 0.5;
     ctx.shadowBlur  = 0;
@@ -805,8 +753,7 @@ function drawDepthFloorGrid() {
   ctx.restore();
 }
 
-// ── 3D View helper ────────────────────────────────────────────────────────────
-// mode: false = 2D, 'tf' = TrueForm dramatic 3D, 'settings' = gentle persistent 3D
+// 3D view mode: false = 2D, 'tf' = dramatic 3D (TrueForm), 'settings' = gentle persistent 3D.
 function set3DView(mode) {
   const c = document.getElementById('gameCanvas');
   if (!c) return;

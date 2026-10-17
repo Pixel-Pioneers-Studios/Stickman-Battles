@@ -1,10 +1,10 @@
 'use strict';
-// smb-finisher-weapon2.js — finishers for the 11 weapons missing them (loads after smb-finisher-weapon.js)
+// smb-finisher-weapon2.js: finishers for the 11 weapons missing them (loads after smb-finisher-weapon.js)
 // Depends on: smb-finisher-helpers.js, smb-finisher-weapon.js (WEAPON_FINISHERS, _wfDef, _wfBaseSetup, _wfTick, _wfDrawAura)
 
 Object.assign(WEAPON_FINISHERS, {
 
-  // ── katana ───────────────────────────────────────────────────
+  // katana
   katana: _wfDef('IAIJUTSU','rgba(200,225,255,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.cutA=0; data.splitA=0; data.clickF=0;
       // Attacker ends up behind the target (opposite side), sheathing
@@ -14,7 +14,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.66); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:44,fn(){
-          // INSTANT CUT — attacker is already behind, thin line crosses target
+          // instant cut: attacker is already behind, thin line crosses target
           data.cutA=1; data.clickF=10;
           CinCam.slowMo(1.0); CinCam.shake(20);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -23,7 +23,7 @@ Object.assign(WEAPON_FINISHERS, {
           CinCam.focusOn(tgt); CinCam.zoomTo(1.4);
         }},
         {frame:54,fn(){
-          // DELAYED split — the sheathe "clicks", wound opens
+          // delayed split: the sheathe "clicks", wound opens
           data.splitA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.shake(34);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',30);
@@ -38,7 +38,7 @@ Object.assign(WEAPON_FINISHERS, {
       if(data.clickF>0) data.clickF--;
       if(timer<12){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
       else if(timer<44){
-        // Attacker stands PERFECTLY STILL, aura tightens
+        // Attacker stands perfectly still, aura tightens
         const p=(timer-12)/32;
         att.x=data.ax0; att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0;
         data.auraAlpha=p*0.85; data.auraR=18+p*22;
@@ -50,7 +50,6 @@ Object.assign(WEAPON_FINISHERS, {
         data.auraAlpha=Math.max(0,data.auraAlpha-0.04);
       }
       else{
-        // Target collapses straight DOWN
         att.x=data.behindX; att.y=data.ay0;
         const p=Math.min(1,(timer-54)/52);
         tgt.x=data.tx0; tgt.y=data.ty0+_finEaseIn(p)*62;
@@ -71,7 +70,7 @@ Object.assign(WEAPON_FINISHERS, {
         ctx.lineTo(data.tx0+tgt.w+26,data.ty0+tgt.h*0.7);
         ctx.stroke();
       }
-      // Delayed split — wound opens, two halves separate slightly
+      // Delayed split: wound opens, two halves separate slightly
       if(data.splitA>0){
         ctx.strokeStyle=`rgba(255,255,255,${data.splitA})`; ctx.lineWidth=2+data.splitA*5;
         ctx.shadowColor='#ffffff'; ctx.shadowBlur=30*data.splitA;
@@ -88,7 +87,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:34,dur:12}, impact:44, face:_wfPassThroughFace(44) }
   ),
 
-  // ── whip ─────────────────────────────────────────────────────
+  // whip
   whip: _wfDef('JUDGMENT LASH','rgba(255,190,60,1)',130,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.cracks=[]; data.coilA=0;
       data.apexY=data.ty0-110;
@@ -99,7 +98,6 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); data.coilA=1; if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:38,fn(){
-          // YANK airborne
           CinCam.slowMo(0.5); CinCam.focusOn(tgt); CinCam.zoomTo(1.55);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffcc44',22);
         }},
@@ -107,7 +105,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:64,fn(){ data.cracks.push({x:tgt.cx()+tgt.w,y:data.apexY-10,f:8}); CinCam.shake(16); spawnParticles(tgt.cx()+tgt.w,data.apexY-10,'#ffffff',12); }},
         {frame:72,fn(){ data.cracks.push({x:tgt.cx(),y:data.apexY+8,f:8}); CinCam.shake(18); spawnParticles(tgt.cx(),data.apexY+8,'#ffffff',12); }},
         {frame:82,fn(){
-          // SLAM down into the ground
+          // slam down into the ground
           data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(50);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -141,7 +139,7 @@ Object.assign(WEAPON_FINISHERS, {
       _finBars(ctx,data.bars); _finVignette(ctx,0.44);
       _wfDrawAura(ctx,att,'rgba(255,190,60,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      // The lash itself — curving line from attacker hand to target
+      // The lash itself: curving line from attacker hand to target
       if(timer>=20&&timer<82){
         ctx.strokeStyle='rgba(255,200,80,0.85)'; ctx.lineWidth=3; ctx.shadowColor='#ffbb33'; ctx.shadowBlur=18;
         const hx=att.cx()+data.dir*12, hy=att.cy()-6;
@@ -149,7 +147,6 @@ Object.assign(WEAPON_FINISHERS, {
         ctx.quadraticCurveTo((hx+tgt.cx())/2,Math.min(hy,tgt.cy())-30,tgt.cx(),tgt.cy());
         ctx.stroke();
       }
-      // Crack snap flashes
       for(const c of data.cracks){ if(c.f>0){
         const a=c.f/8;
         _finImpactLines(ctx,c.x,c.y,8,26*a,'#ffffff',2+a*3);
@@ -167,7 +164,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:[{at:48,dur:9},{at:56,dur:9},{at:64,dur:9},{at:72,dur:12}], impact:82 }
   ),
 
-  // ── flail ────────────────────────────────────────────────────
+  // flail
   flail: _wfDef('WRECKING BALL','rgba(170,175,185,1)',126,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.orbit=0; data.orbitR=30; data.ballX=0; data.ballY=0;
       data.tl=_makeTimeline([
@@ -175,7 +172,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:34,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:44,fn(){
-          // RELEASE — massive horizontal smash
+          // release: massive horizontal smash
           CinCam.slowMo(1.0); CinCam.shake(56);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
           if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
@@ -216,7 +213,6 @@ Object.assign(WEAPON_FINISHERS, {
       if(timer>=12&&timer<60){
         ctx.strokeStyle='rgba(120,120,130,0.85)'; ctx.lineWidth=2.5; ctx.shadowColor='#888'; ctx.shadowBlur=6;
         ctx.beginPath(); ctx.moveTo(att.cx()+data.dir*8,att.cy()-4); ctx.lineTo(data.ballX,data.ballY); ctx.stroke();
-        // The iron ball
         const grd=ctx.createRadialGradient(data.ballX-4,data.ballY-4,2,data.ballX,data.ballY,13);
         grd.addColorStop(0,'#dddddd'); grd.addColorStop(1,'#555a63');
         ctx.fillStyle=grd; ctx.shadowColor='#aaa'; ctx.shadowBlur=14;
@@ -235,7 +231,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:24,dur:22}, impact:44 , approach:{ at:10, dur:14, gap:40 } }
   ),
 
-  // ── electricstaff ────────────────────────────────────────────
+  // electricstaff
   electricstaff: _wfDef('OVERLOAD','rgba(60,220,255,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.cageA=0; data.pillarA=0; data.cageBars=8;
       const _floorPl=currentArena&&currentArena.platforms&&currentArena.platforms.find(pl=>pl.isFloor&&!pl.isFloorDisabled);
@@ -244,13 +240,12 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:30,fn(){
-          // Staff plants — cage of vertical lightning bars forms
+          // Staff plants: cage of vertical lightning bars forms
           data.cageA=1; CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt);
           spawnParticles(tgt.cx(),tgt.cy(),'#44ddff',24);
           if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14;
         }},
         {frame:48,fn(){
-          // PILLAR detonates the cage
           data.pillarA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(46);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -283,7 +278,6 @@ Object.assign(WEAPON_FINISHERS, {
           _finLightning(ctx,bx,top,bx+Math.sin(timer*0.5+i)*5,data.groundY,`rgba(120,230,255,${data.cageA})`,2.5,6);
         }
       }
-      // Detonating pillar
       if(data.pillarA>0){
         const cx=tgt.cx();
         const grd=ctx.createLinearGradient(cx,data.groundY,cx,data.ty0-90);
@@ -305,7 +299,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:32,dur:18}, impact:48 , approach:{ at:14, dur:18, gap:30 } }
   ),
 
-  // ── shield ───────────────────────────────────────────────────
+  // shield
   shield: _wfDef('AEGIS BREAK','rgba(90,150,255,1)',126,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.wallA=0; data.shatterA=0; data.lines=0; data.shards=[];
       // Wall materializes just past the target in the charge direction
@@ -315,12 +309,12 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:30,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); CinCam.focusMidpoint(att,tgt); data.wallA=1; if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:40,fn(){
-          // PIN against the hard-light wall
+          // pin against the hard-light wall
           CinCam.slowMo(0.45); CinCam.shake(20); CinCam.focusOn(tgt);
           spawnParticles(data.wallX,tgt.cy(),'#88bbff',22);
         }},
         {frame:54,fn(){
-          // Wall SHATTERS, target through it
+          // Wall shatters, target through it
           data.shatterA=1; data.shockR=1; data.shockAlpha=1;
           for(let i=0;i<10;i++) data.shards.push({x:data.wallX,y:tgt.cy()+(i-5)*9,vx:data.dir*(2+Math.random()*4),vy:(Math.random()-0.5)*5,a:1});
           CinCam.slowMo(1.0); CinCam.shake(48);
@@ -338,20 +332,18 @@ Object.assign(WEAPON_FINISHERS, {
       for(const s of data.shards){ s.x+=s.vx; s.y+=s.vy; s.a=Math.max(0,s.a-0.025); }
       if(timer<12){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; data.lines=0; }
       else if(timer<40){
-        // CHARGE with shield raised, speed lines
+        // charge with shield raised, speed lines
         const p=(timer-12)/28;
         att.x=_finLerp(data.ax0,data.tx0-data.dir*(att.w+6),_finEaseIn(p)); att.y=data.ay0;
         tgt.x=data.tx0;tgt.y=data.ty0;
         data.auraAlpha=p*0.85; data.auraR=24+p*26; data.lines=p;
       }
       else if(timer<54){
-        // Pinned against wall
         att.x=data.tx0-data.dir*(att.w+6); att.y=data.ay0;
         tgt.x=data.dir>0?data.wallX-tgt.w:data.wallX; tgt.y=data.ty0;
         data.auraAlpha=Math.max(0,data.auraAlpha-0.03); data.lines=0;
       }
       else{
-        // Through the broken wall
         att.x=data.tx0-data.dir*(att.w+6); att.y=data.ay0;
         const p=Math.min(1,(timer-54)/46);
         tgt.x=(data.dir>0?data.wallX-tgt.w:data.wallX)+data.dir*_finEaseOut(p)*42;
@@ -369,13 +361,11 @@ Object.assign(WEAPON_FINISHERS, {
         ctx.strokeStyle=`rgba(180,210,255,${data.lines*0.7})`; ctx.lineWidth=2;
         for(let i=0;i<6;i++){ const ly=att.cy()+(i-3)*9; ctx.beginPath(); ctx.moveTo(att.cx()-data.dir*40,ly); ctx.lineTo(att.cx()-data.dir*12,ly); ctx.stroke(); }
       }
-      // Hard-light wall
       if(data.wallA>0){
         ctx.fillStyle=`rgba(120,170,255,${data.wallA*0.4})`;
         ctx.strokeStyle=`rgba(255,216,102,${data.wallA})`; ctx.lineWidth=3; ctx.shadowColor='#88bbff'; ctx.shadowBlur=20;
         ctx.beginPath(); ctx.rect(data.wallX-6,tgt.cy()-46,12,92); ctx.fill(); ctx.stroke();
       }
-      // Shatter shards
       for(const s of data.shards){ if(s.a>0){
         ctx.fillStyle=`rgba(200,224,255,${s.a})`; ctx.shadowColor='#88bbff'; ctx.shadowBlur=10;
         ctx.fillRect(s.x-3,s.y-3,6,6);
@@ -392,7 +382,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:[{at:28,dur:14},{at:42,dur:14}], impact:54 , approach:{ at:12, dur:16, gap:18 } }
   ),
 
-  // ── broomstick ───────────────────────────────────────────────
+  // broomstick
   broomstick: _wfDef('CLEAN SWEEP','rgba(210,170,110,1)',124,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.loopT=0; data.dustA=0; data.trail=[];
       data.loopCX=(data.ax0+data.tx0)/2; data.loopCY=data.ty0-90; data.loopR=55;
@@ -402,7 +392,6 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:24,fn(){ CinCam.slowMo(0.6); CinCam.zoomTo(1.2); CinCam.focusMidpoint(att,tgt); }},
         {frame:40,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:48,fn(){
-          // DIVE-RAM
           data.dustA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(44);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -420,7 +409,6 @@ Object.assign(WEAPON_FINISHERS, {
       tgt.x=data.tx0; if(timer<48) tgt.y=data.ty0;
       if(timer<12){ att.x=data.ax0;att.y=data.ay0; data.auraAlpha=0; }
       else if(timer<48){
-        // Aerial loop above
         const p=(timer-12)/36; data.loopT=p;
         const ang=-Math.PI/2 - p*Math.PI*2*data.dir;
         att.x=data.loopCX+Math.cos(ang)*data.loopR - att.w/2;
@@ -465,14 +453,14 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:36,dur:14}, impact:48 , approach:{ at:16, dur:20, gap:44 } }
   ),
 
-  // ── peashooter ───────────────────────────────────────────────
+  // peashooter
   peashooter: _wfDef('FULL BLOOM','rgba(90,210,90,1)',122,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.peas=[]; data.crank=0; data.bonkA=0;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:30,fn(){
-          // Crank done — fire a converging hail of peas
+          // Crank done: fire a converging hail of peas
           CinCam.slowMo(0.07); CinCam.zoomTo(1.5); CinCam.focusOn(tgt);
           for(let i=0;i<16;i++){ const a=(i/16)*Math.PI*2; data.peas.push({x:tgt.cx()+Math.cos(a)*150,y:tgt.cy()+Math.sin(a)*120,tx:tgt.cx(),ty:tgt.cy(),p:0,sp:0.05+Math.random()*0.04,done:false}); }
           if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14;
@@ -511,12 +499,10 @@ Object.assign(WEAPON_FINISHERS, {
       _finBars(ctx,data.bars); _finVignette(ctx,0.38);
       _wfDrawAura(ctx,att,'rgba(90,210,90,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      // converging hail of peas
       for(const pe of data.peas){ if(pe.p<1){
         ctx.fillStyle='rgba(110,220,90,0.95)'; ctx.shadowColor='#66cc44'; ctx.shadowBlur=8;
         ctx.beginPath(); ctx.arc(pe.x,pe.y,4,0,Math.PI*2); ctx.fill();
       }}
-      // last bonk pea
       if(data.bonkA>0){
         ctx.fillStyle=`rgba(150,240,120,${data.bonkA})`; ctx.shadowColor='#88dd66'; ctx.shadowBlur=12;
         ctx.beginPath(); ctx.arc(tgt.cx(),tgt.cy()-14-(1-data.bonkA)*8,5,0,Math.PI*2); ctx.fill();
@@ -533,7 +519,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:26,dur:10}, impact:40 }
   ),
 
-  // ── slingshot ────────────────────────────────────────────────
+  // slingshot
   slingshot: _wfDef('ORBITAL STONE','rgba(255,150,40,1)',132,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.stoneY=0; data.stoneUp=true; data.craterA=0; data.lookA=0;
       const _floorPl=currentArena&&currentArena.platforms&&currentArena.platforms.find(pl=>pl.isFloor&&!pl.isFloorDisabled);
@@ -544,13 +530,13 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:26,fn(){ CinCam.slowMo(0.5); CinCam.zoomTo(1.4); CinCam.focusOn(att); }},
         {frame:46,fn(){
-          // beat of silence — both look up
+          // beat of silence: both look up
           data.lookA=1; CinCam.slowMo(0.18); CinCam.zoomTo(1.2); CinCam.focusMidpoint(att,tgt);
           if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14;
         }},
         {frame:64,fn(){ data.stoneUp=false; CinCam.zoomTo(1.45); CinCam.focusOn(tgt); }},
         {frame:74,fn(){
-          // METEOR crash + crater shockwave
+          // meteor crash + crater shockwave
           data.craterA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(60);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -572,7 +558,6 @@ Object.assign(WEAPON_FINISHERS, {
         data.auraAlpha=Math.max(0,(data.auraAlpha||0)-0.02);
       }
       else if(timer<74){
-        // Crash down
         const p=(timer-64)/10;
         data.stoneY=_finLerp(-40,data.groundY-12,_finEaseIn(p));
       }
@@ -587,7 +572,6 @@ Object.assign(WEAPON_FINISHERS, {
       _finBars(ctx,data.bars); _finVignette(ctx,0.44);
       _wfDrawAura(ctx,att,'rgba(255,150,40,1)',data.auraAlpha||0,data.auraR||22,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      // The orbital stone
       if(timer>=26&&timer<74){
         const sr=timer<64?9:18;
         if(!data.stoneUp){ // flaming trail on descent
@@ -599,7 +583,6 @@ Object.assign(WEAPON_FINISHERS, {
         ctx.fillStyle=grd; ctx.shadowColor='#ff8822'; ctx.shadowBlur=20;
         ctx.beginPath(); ctx.arc(data.stoneX,data.stoneY,sr,0,Math.PI*2); ctx.fill();
       }
-      // Crater shockwave
       if(data.shockR>0&&data.shockAlpha>0){
         ctx.strokeStyle=`rgba(255,150,40,${data.shockAlpha})`; ctx.lineWidth=7; ctx.shadowColor='#ff8822'; ctx.shadowBlur=30;
         ctx.beginPath(); ctx.arc(data.stoneX,data.groundY,data.shockR,Math.PI,0); ctx.stroke();
@@ -613,7 +596,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:22,dur:12}, impact:74 }
   ),
 
-  // ── paperairplane ────────────────────────────────────────────
+  // paperairplane
   paperairplane: _wfDef('A THOUSAND FOLDS','rgba(190,215,255,1)',126,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.planes=[]; data.crossA=0;
       data.tl=_makeTimeline([
@@ -626,7 +609,7 @@ Object.assign(WEAPON_FINISHERS, {
         }},
         {frame:48,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:56,fn(){
-          // STRIKE together — single cross flash
+          // strike together: single cross flash
           data.crossA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(38);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -679,7 +662,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:20,dur:12}, impact:56 }
   ),
 
-  // ── boomerang ────────────────────────────────────────────────
+  // boomerang
   boomerang: _wfDef('INFINITE RETURN','rgba(220,175,70,1)',126,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.angA=0; data.angB=Math.PI; data.spin=0; data.hits=[];
       data.tl=_makeTimeline([
@@ -688,7 +671,6 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:24,fn(){ CinCam.slowMo(0.3); CinCam.zoomTo(1.5); CinCam.focusOn(tgt); }},
         {frame:50,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.58); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:58,fn(){
-          // BOTH strike at once
           data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(44);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
@@ -703,7 +685,6 @@ Object.assign(WEAPON_FINISHERS, {
       data.spin+=0.6;
       for(const h of data.hits) h.f--;
       data.hits=data.hits.filter(h=>h.f>0);
-      // Speed of orbit accelerates
       if(timer<58){ const sp=0.1+((timer-12)/46)*0.32; data.angA+=sp; data.angB-=sp;
         // register hit flashes when a boomerang crosses the target center (x ~ 0)
         if(timer%6===0){ data.hits.push({x:tgt.cx(),y:tgt.cy(),f:5}); }
@@ -717,7 +698,6 @@ Object.assign(WEAPON_FINISHERS, {
       _finBars(ctx,data.bars); _finVignette(ctx,0.44);
       _wfDrawAura(ctx,att,'rgba(220,175,70,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      // Two counter-orbiting boomerangs
       if(timer<60){
         const R=46;
         for(const o of [{ang:data.angA,c:1},{ang:data.angB,c:-1}]){
@@ -742,7 +722,7 @@ Object.assign(WEAPON_FINISHERS, {
     , { swing:{at:18,dur:12}, impact:58 }
   ),
 
-  // ── flamethrower ─────────────────────────────────────────────
+  // flamethrower
   flamethrower: _wfDef('INCINERATE','rgba(255,110,30,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.tornadoA=0; data.skyA=0; data.detA=0; data.emberY=0;
       const _floorPl=currentArena&&currentArena.platforms&&currentArena.platforms.find(pl=>pl.isFloor&&!pl.isFloorDisabled);
@@ -757,7 +737,7 @@ Object.assign(WEAPON_FINISHERS, {
         }},
         {frame:50,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.55); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:58,fn(){
-          // COLLAPSE inward into one detonation
+          // collapse inward into one detonation
           data.detA=1; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(54);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});

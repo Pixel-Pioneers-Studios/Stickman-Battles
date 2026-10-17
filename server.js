@@ -202,8 +202,12 @@ function _recordMatchesIdentity(rec, id) {
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
 
+// Copies of the game run straight from a folder (VS Code Live Server / Live
+// Preview on any port, or file:// which sends Origin "null") — the build is
+// handed around offline, so those players still get the lobby server.
+const LOCAL_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/i;
 function _originAllowed(origin) {
-  if (!origin) return true;
+  if (!origin || origin === 'null' || LOCAL_ORIGIN.test(origin)) return true;
   if (ALLOWED_ORIGINS.has(origin) || CRAZYGAMES_ORIGIN.test(origin)) return true;
   return PORTAL_ORIGINS.some(re => re.test(origin));
 }

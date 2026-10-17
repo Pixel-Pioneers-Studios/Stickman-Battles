@@ -1,5 +1,5 @@
 'use strict';
-// smb-finisher-tf — Depends on: smb-finisher-helpers.js
+// smb-finisher-tf: Depends on: smb-finisher-helpers.js
 
 const FIN_TF_ERASURE = {
   name: 'ERASURE',
@@ -69,10 +69,7 @@ const FIN_TF_ERASURE = {
   }
 };
 
-// ============================================================
-// TRUE FORM FINISHER 4: PHASE SHIFT
-// Theme: reality phases — target blinks out, reappears broken
-// ============================================================
+// True Form finisher 4: Phase Shift
 const FIN_TF_PHASE_SHIFT = {
   name: 'PHASE SHIFT',
   accentColor: 'rgba(80,60,200,1)',
@@ -152,10 +149,7 @@ const FIN_TF_PHASE_SHIFT = {
   }
 };
 
-// ============================================================
-// CREATOR FINISHER 3: CODE DELETION
-// Theme: precise, surgical — player falls through deleted floor
-// ============================================================
+// Creator finisher 3: Code Deletion
 const FIN_CR_CODE_DELETION = {
   name: 'CODE DELETION',
   accentColor: 'rgba(0,200,100,1)',

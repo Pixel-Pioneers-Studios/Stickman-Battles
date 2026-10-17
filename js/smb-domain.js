@@ -1,13 +1,11 @@
-// smb-domain.js — Conviction system
-// Loaded after: smb-combat.js, smb-fighter.js, smb-enemies-class.js, smb-god.js
-// Loaded before: smb-loop-core.js
-// Globals used: players, gameRunning, GAME_W, GAME_H, ctx, canvas, dealDamage,
-//               spawnParticles, queueAnnouncement, slowMotion, screenShake
+// smb-domain.js: Conviction system.
+// Loads after smb-combat, smb-fighter, smb-enemies-class, smb-god. Before smb-loop-core.
+// Uses players, gameRunning, GAME_W, GAME_H, ctx, canvas, dealDamage,
+// spawnParticles, queueAnnouncement, slowMotion, screenShake.
 
 'use strict';
 
-// ── Domain Definitions ────────────────────────────────────────────────────
-// One entry per class key.  'none' has no domain — 5th super fires normally.
+// One per class key. 'none' has no domain, so its 5th super fires normally.
 const DOMAIN_DEFS = {
   thor: {
     name:       'Storm Realm',
@@ -31,7 +29,7 @@ const DOMAIN_DEFS = {
     name:       'Shadow Realm',
     color:      '#bb44ff',
     bgTint:     'rgba(8,0,28,0.60)',
-    spawnEvery: 0,            // no hazard rain — the slow IS the domain
+    spawnEvery: 0,            // no hazard rain, the slow is the domain
     hazardType: null,
     ownerBuff: {},            // owner keeps normal speed; everyone else is slowed
     slowFactor: 0.5,          // victims run at half time (bosses resist: +0.25)
@@ -101,7 +99,7 @@ const DOMAIN_DEFS = {
     spawnEvery: 0,
     hazardType: null,
     ownerBuff:  {},           // sustain comes from harvested souls, not a flat drip
-    harvestEvery: 300,        // frames between Reapings — souls launch as homing skulls
+    harvestEvery: 300,        // frames between Reapings, which launch souls as homing skulls
     soulDamage:   9,          // damage per launched soul on impact
     maxSouls:     8,          // orbiting soul cap
     healPerSoul:  0.006,      // per-frame heal per orbiting soul (full orbit ≈ 2.9 hp/s)
@@ -136,17 +134,16 @@ const DOMAIN_DEFS = {
     spawnEvery: 58,           // familiars stream in
     hazardType: 'spirit_swarm',
     ownerBuff:  { healPerFrame: 0.010 },
-    swarmDamage: 16,          // per familiar — it dies on contact
+    swarmDamage: 16,          // per familiar, it dies on contact
     announce:   'They never stopped answering. They never will.',
   },
-  // Sovereign has no class — this domain is reached through `_domainKey`, not
-  // `charClass` (see _domainKeyOf). Keyed 'sovereign' so nothing a player can
-  // equip resolves to it.
+// Sovereign has no class, so this is reached via _domainKey (see _domainKeyOf).
+// Keyed 'sovereign' so no equippable class resolves to it.
   sovereign: {
     name:       'Absolute Dominion',
     color:      '#ff3311',
     bgTint:     'rgba(30,0,0,0.56)',
-    spawnEvery: 0,            // the closing corridor IS the domain — no hazard rain
+    spawnEvery: 0,            // the closing corridor is the domain, no hazard rain
     hazardType: 'null_wall',
     ownerBuff:  { power: true },
     wallStart:  400,          // corridor half-width at expansion
@@ -165,13 +162,11 @@ const DOMAIN_DEFS = {
   },
 };
 
-// ── DomainManager singleton ───────────────────────────────────────────────
 const DomainManager = (() => {
   const RISE_FRAMES   = 300; // 5 s at 60 fps
   const DOMAIN_FRAMES = 25 * 60; // 25 s
-  // Minimum frames between two domain-hazard hits on the same target (see
-  // _dealDomainDamage). 15 frames = 4 hits/s ceiling — still lethal if you stand
-  // still, but it guarantees a reaction window instead of instant deletion.
+  // Min frames between domain-hazard hits on one target (see _dealDomainDamage).
+  // 15 frames is 4 hits/s: still lethal if you stand still, but gives a reaction window.
   const _DOMAIN_HIT_CD = 15;
 
   // Frames between passive-weapon fires during active domain
@@ -181,7 +176,7 @@ const DomainManager = (() => {
     fryingpan: 85, broomstick: 60, combat: 75, peashooter: 16,
     slingshot: 68, paperairplane: 52, flail: 95, whip: 62,
     boomerang: 56, katana: 32, flamethrower: 90, electricstaff: 42,
-    shuriken: 40, // ninja-class domains only — replaces the weapon passive
+    shuriken: 40, // ninja-class domains only, replaces the weapon passive
   };
 
   // [{owner, defKey, def, timer, hazards[], spawnCooldown}]
@@ -189,21 +184,15 @@ const DomainManager = (() => {
   // [{fighter, timer}]
   let _rising  = [];
 
-  // ── Domain entry cinematic tracking ────────────────────────────────
   let _domainCinActive = false;
   let _domainCinOwner  = null;
 
-  // ── Domain play region ──────────────────────────────────────────────
-  // Every hazard position below was authored in 0..GAME_W screen space, but
-  // hazard.x is compared against fighter.cx() — WORLD space. In a 900px arena
-  // those coincide; in a scrolling story world (worldWidth 3600+) the whole
-  // domain anchored itself to world x 0..900 no matter where the fight was, so
-  // hazards spawned off in the far left of the map and never reached anyone.
-  //
-  // _dAnchorOrigin picks the left edge of a GAME_W-wide region around the owner,
-  // clamped inside the world. It is resolved ONCE at expansion and stored on the
-  // domain, so hazards already in flight never shift when the camera moves.
-  // In a 900px arena it returns 0 and every offset below is unchanged.
+  // Hazard positions are authored in 0..GAME_W, but hazard.x is compared against
+  // fighter.cx() in world space. They only match in a 900px arena. In a scrolling
+  // story world the domain anchored at world x 0..900 and hazards never reached the fight.
+  // _dAnchorOrigin picks a GAME_W-wide region around the owner, clamped to the world.
+  // Resolved once at expansion so live hazards don't drift with the camera.
+  // In a 900px arena it returns 0 and offsets are unchanged.
   function _dAnchorOrigin(fighter) {
     const wl = (typeof worldLeftBound  === 'function') ? worldLeftBound()  : 0;
     const wr = (typeof worldRightBound === 'function') ? worldRightBound() : GAME_W;
@@ -216,23 +205,21 @@ const DomainManager = (() => {
     return (domain && isFinite(domain.originX)) ? domain.originX : 0;
   }
 
-  // Which DOMAIN_DEFS entry a fighter expands into. Classed fighters use their
-  // class; `_domainKey` lets a classless entity (Sovereign) own a domain without
-  // being given a charClass, which would pull in CLASSES/CLASS_AFFINITY lookups
-  // and class rendering it was never built for.
+  // Which DOMAIN_DEFS entry a fighter expands into. Classed fighters use their class.
+  // _domainKey lets a classless entity (Sovereign) own a domain without a charClass,
+  // which would pull in class lookups it was never built for.
   function _domainKeyOf(fighter) {
     if (!fighter) return null;
     return fighter._domainKey || fighter.charClass;
   }
 
-  // ── Hazard spawning ─────────────────────────────────────────────────
 
   function _spawnHazard(domain) {
     const { def } = domain;
     const OX = _dOX(domain);
     switch (def.hazardType) {
       case 'lightning': {
-        // 2 bolts every interval — dense pressure; first bolt aimed at an enemy
+        // 2 bolts per interval, dense pressure; first bolt aimed at an enemy
         const count = Math.random() < 0.55 ? 2 : 1;
         const _enemies = typeof players !== 'undefined'
           ? players.filter(p => p !== domain.owner && p.health > 0 && !p.isBoss)
@@ -256,19 +243,18 @@ const DomainManager = (() => {
         break;
       }
       case 'debris': {
-        // Logs from both sides — staggered heights, deadly speed
+        // Logs from both sides, staggered heights, deadly speed
         for (let side = 0; side < 2; side++) {
           const left = side === 0;
           const x    = OX + (left ? -40 : GAME_W + 40);
-          // Band widened downward: the old 0.35±0.20 spread sat entirely above a
-          // grounded fighter, so logs flew harmlessly overhead almost every time.
+          // Band widened downward so logs hit grounded fighters, not just overhead.
           const y    = GAME_H * 0.45 + (Math.random() - 0.5) * GAME_H * 0.50;
           const spd  = 20 + Math.random() * 8;
           domain.hazards.push({
             type: 'debris', x, y,
             vx: left ? spd : -spd,
             vy: (Math.random() - 0.5) * 4,
-            damage: 21, radius: 24, hitSet: new Set(),   // owner has _powerBuff (×1.35) → ~28 felt
+            damage: 21, radius: 24, hitSet: new Set(),   // ~28 felt with _powerBuff (×1.35)
           });
         }
         break;
@@ -287,7 +273,7 @@ const DomainManager = (() => {
         break;
       }
       case 'bullet': {
-        // Both sides — dense burst, faster projectiles
+        // Both sides, dense burst, faster projectiles
         for (let side = 0; side < 2; side++) {
           const left = side === 0;
           for (let i = 0; i < 5; i++) {
@@ -326,7 +312,7 @@ const DomainManager = (() => {
             type: 'chaos_bolt',
             x: _cx, y: _cy,
             vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-            damage: 12, radius: 9, hitSet: new Set(),   // owner has _powerBuff (×1.35) → ~16 felt
+            damage: 12, radius: 9, hitSet: new Set(),   // ~16 felt with _powerBuff (×1.35)
           });
         }
         if (typeof spawnParticles === 'function') spawnParticles(_cx, _cy, '#cccccc', 16);
@@ -334,8 +320,7 @@ const DomainManager = (() => {
         break;
       }
 
-      // Warrior: swords erupt out of the ground under each enemy's feet. Long
-      // telegraph, tight radius — pure "read it and move" pressure.
+      // Warrior: swords erupt under each enemy's feet. Long telegraph, tight radius.
       case 'blade_wall': {
         const _foes = _getDomainTargets(domain.owner);
         const _spots = [];
@@ -346,7 +331,7 @@ const DomainManager = (() => {
             type: 'blade_wall',
             x: Math.max(OX + 40, Math.min(OX + GAME_W - 40, sx)),
             warningTimer: 44, riseTimer: 0, risen: false,
-            damage: 16,              // owner has _powerBuff (×1.35) → ~22 felt
+            damage: 16,              // ~22 felt with _powerBuff
             radius: 34, height: 96,
             hitSet: new Set(),
           });
@@ -354,8 +339,7 @@ const DomainManager = (() => {
         break;
       }
 
-      // Summoner: familiars peel off the sigil and drift toward whoever is closest.
-      // Slow and killable-by-dodging — they expire on contact or when life runs out.
+      // Summoner: familiars drift toward the nearest enemy and expire on contact.
       case 'spirit_swarm': {
         const _cx0 = OX + GAME_W / 2, _cy0 = GAME_H * 0.40;
         const count = 2 + (Math.random() < 0.4 ? 1 : 0);
@@ -376,7 +360,7 @@ const DomainManager = (() => {
       }
 
       case 'holy_beam': {
-        // Three beams — impossible to dodge all, must pick which to take
+        // Three beams, too many to dodge all, so pick which one to take
         const x1 = OX + 60  + Math.random() * (GAME_W * 0.28);
         const x2 = OX + GAME_W * 0.40 + Math.random() * (GAME_W * 0.20);
         const x3 = OX + GAME_W * 0.65 + Math.random() * (GAME_W * 0.28);
@@ -393,10 +377,8 @@ const DomainManager = (() => {
     }
   }
 
-  // Sovereign: two null walls bounding a corridor that closes over the domain's
-  // life and re-centres on Sovereign himself. The arena stops being neutral
-  // ground — he decides where the fight happens. Contact costs a tick and shoves
-  // the target back inward, so the walls confine rather than ring out.
+  // Sovereign: two null walls bound a corridor that closes over the domain's life
+  // and re-centres on him. Contact costs a tick and shoves the target inward.
   function _createNullWalls(domain) {
     const cx = domain.owner.cx();
     for (const side of [-1, 1]) {
@@ -411,7 +393,7 @@ const DomainManager = (() => {
   }
 
   function _createVoidRocks(domain) {
-    // Three rocks at different radii — inner, mid, and outer ring
+    // Three rocks at inner, mid and outer radii
     const OX     = _dOX(domain);
     const orbits = [120, 200, 280];
     for (let i = 0; i < 3; i++) {
@@ -429,13 +411,12 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Weapon-specific persistent hazards ─────────────────────────────
 
   function _createWeaponHazards(domain) {
     const wk = domain.owner.weaponKey;
     const OX = _dOX(domain);
 
-    // Torren + Hammer → Mjolnir roams the arena freely, periodically dart-strikes an enemy
+    // Torren + Hammer: Mjolnir roams the arena and periodically dart-strikes an enemy
     if (domain.defKey === 'thor') {
       domain.hazards.push({
         type:        'mjolnir',
@@ -454,7 +435,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Varek → Ember Chains: fire chains whipping across the arena
+    // Varek: ember chains whip across the arena
     if (domain.defKey === 'kratos') {
       domain.hazards.push({
         type:       'blades_of_chaos',
@@ -466,17 +447,15 @@ const DomainManager = (() => {
         armLength:  200,             // longer reach
         phase:      'sweep',
         resetTimer: 0,
-        damage:     26,              // owner has _powerBuff (×1.35) → ~35 felt
+        damage:     26,              // ~35 felt with _powerBuff
         radius:     20,
         hitSet:     new Set(),
       });
     }
 
-    // Ninja: no hazards — the time dilation IS the domain.
-    // (Shadow clones removed in the 3.9.x rework; the shadow_clone hazard
-    // machinery below is retained for potential reuse.)
+    // Ninja: no hazards, the time dilation is the domain.
 
-    // Gunner + Gun → Twin turrets, each fires 4-bullet aimed bursts rapidly
+    // Gunner: twin turrets fire 4-bullet aimed bursts
     if (domain.defKey === 'gunner') {
       for (let side = 0; side < 2; side++) {
         domain.hazards.push({
@@ -485,15 +464,15 @@ const DomainManager = (() => {
           y:         GAME_H * 0.50,
           facing:    side === 0 ? 1 : -1,
           fireTimer: 40 + side * 55,  // stagger so salvos don't overlap
-          fireEvery: 140,             // fire every ~2.3 s (was 62 — too fast)
-          damage:    12,              // was 24 — halved
+          fireEvery: 140,             // fire every ~2.3 s
+          damage:    12,
           radius:    12,
           hitSet:    new Set(),
         });
       }
     }
 
-    // Archer + Bow → Giant power arrow — fast, huge, crosses the whole arena
+    // Archer: giant power arrow crosses the whole arena
     if (domain.defKey === 'archer') {
       domain.hazards.push({
         type:       'giant_arrow',
@@ -503,13 +482,13 @@ const DomainManager = (() => {
         fromLeft:   true,
         phase:      'cooldown',
         phaseTimer: 90,     // 1.5 s cooldown before first shot
-        damage:     44,     // the single biggest domain hit — but heavily telegraphed
+        damage:     44,     // biggest domain hit, heavily telegraphed
         radius:     28,
         hitSet:     new Set(),
       });
     }
 
-    // Paladin + Shield → Divine shield orb, faster orbit, punishing on contact
+    // Paladin: divine shield orb, faster orbit, punishes contact
     if (domain.defKey === 'paladin') {
       domain.hazards.push({
         type:   'divine_shield',
@@ -523,21 +502,21 @@ const DomainManager = (() => {
       });
     }
 
-    // Berserker → Rage Pulse — huge AoE, frequent, brutally high damage
+    // Berserker: rage pulse, big AoE, frequent, high damage
     if (domain.defKey === 'berserker') {
       domain.hazards.push({
         type:       'rage_pulse',
         pulseTimer: 70,
-        pulseEvery: 110,   // pulse every ~1.8 s — relentless
+        pulseEvery: 110,   // pulse every ~1.8 s
         ringRadius: 0,
         ringActive: false,
-        damage:     22,    // owner has _powerBuff (×1.35) → ~30 felt
+        damage:     22,    // ~30 felt with _powerBuff
         radius:     105,   // covers most of the arena
         hitSet:     new Set(),
       });
     }
 
-    // Knight → Gravity Vortex: strong pull drags enemies into the void rocks
+    // Knight: gravity vortex pulls enemies into the void rocks
     if (domain.defKey === 'megaknight') {
       domain.hazards.push({
         type:   'gravity_vortex',
@@ -550,7 +529,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Ronin → Spirit Katana: a spectral blade orbits then launches at full speed
+    // Ronin: spectral blade orbits, then launches at full speed
     if (domain.defKey === 'ronin') {
       domain.hazards.push({
         type:        'spirit_katana',
@@ -566,13 +545,13 @@ const DomainManager = (() => {
         radius:      18,
         hitSet:      new Set(),
       });
-      // Deferred Cuts: while the flag is set, dealDamage (smb-combat.js) marks
-      // every successful hit by the owner; the sheathe detonates all marks at once.
+      // Deferred Cuts: dealDamage (smb-combat.js) marks each owner hit;
+      // the sheathe detonates all marks at once.
       domain.sheatheTimer = domain.def.sheatheEvery || 240;
       domain.owner._roninCutsActive = true;
     }
 
-    // Reaper → Scythe Pendulum: giant spectral scythe swings across the arena
+    // Reaper: spectral scythe pendulum swings across the arena
     if (domain.defKey === 'reaper') {
       domain.hazards.push({
         type:      'scythe_pendulum',
@@ -586,16 +565,15 @@ const DomainManager = (() => {
         radius:    22,
         hitCd:     new Map(),
       });
-      // Soul Tithe: while the flag is set, dealDamage (smb-combat.js) rips a soul
-      // wisp from every enemy the owner damages (pendulum hits included); souls
-      // orbit the Reaper and heal them until the Reaping launches them as skulls.
+      // dealDamage (smb-combat.js) rips a soul wisp from each enemy the owner hits.
+      // Souls orbit and heal the Reaper until the Reaping launches them.
       domain.harvestTimer = domain.def.harvestEvery || 300;
       domain.harvestSouls = []; // orbiting souls: {angle, orbitR, bobSeed}
       domain.owner._soulTitheActive = true;
       domain.owner._soulTitheCount  = 0;
     }
 
-    // Pugilist → Surge Fists: two giant fists punch inward from each side alternately
+    // Pugilist: two giant fists punch inward from each side, alternating
     if (domain.defKey === 'pugilist') {
       domain.hazards.push({
         type:       'surge_fist',
@@ -605,7 +583,7 @@ const DomainManager = (() => {
         vx:         0,
         phase:      'cooldown',
         phaseTimer: 65,
-        damage:     24,    // owner has _powerBuff (×1.35) → ~32 felt
+        damage:     24,    // ~32 felt with _powerBuff
         radius:     28,
         hitSet:     new Set(),
       });
@@ -617,15 +595,14 @@ const DomainManager = (() => {
         vx:         0,
         phase:      'cooldown',
         phaseTimer: 135,
-        damage:     24,    // owner has _powerBuff (×1.35) → ~32 felt
+        damage:     24,    // ~32 felt with _powerBuff
         radius:     28,
         hitSet:     new Set(),
       });
     }
 
-    // Warrior → Duel Ring: a closing ring centred on the owner. Anyone outside it
-    // is bleeding out slowly — the domain forces the fight instead of chip-damaging
-    // you to death, so a skilled player just has to hold the middle and duel.
+    // Warrior: a closing ring centred on the owner. Anyone outside it bleeds slowly,
+    // so the domain forces a duel instead of chip damage.
     if (domain.defKey === 'warrior') {
       domain.hazards.push({
         type:      'duel_ring',
@@ -638,8 +615,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Summoner → Summoning Sigil: the anchor the familiars stream out of. Harmless
-    // on its own; it pulses brighter right before each wave so the wave is readable.
+    // Summoner: the sigil the familiars stream from. Harmless alone, pulses before each wave.
     if (domain.defKey === 'summoner') {
       domain.hazards.push({
         type:      'summon_circle',
@@ -653,7 +629,7 @@ const DomainManager = (() => {
       });
     }
 
-    // Berserker → weapon-specific extra hazard on top of the rage pulse
+    // Berserker: extra weapon hazard on top of the rage pulse
     if (domain.defKey === 'berserker') {
       const wk = domain.owner.weaponKey;
       const _bladedWeapons  = ['sword', 'katana', 'scythe', 'whip', 'spear'];
@@ -690,7 +666,6 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Domain lifecycle ────────────────────────────────────────────────
 
   function _clearOwnerBuffs(owner) {
     if (!owner) return;
@@ -703,7 +678,6 @@ const DomainManager = (() => {
     delete owner._pendingSoulRips;
   }
 
-  // ── Domain entry cinematic ──────────────────────────────────────────
 
   const _DOMAIN_ENTRY_TILT = {
     thor: -3.5, kratos: 4, ninja: -5,
@@ -737,8 +711,8 @@ const DomainManager = (() => {
     none:       'No class. No rules. Just power.',
   };
 
-  // Hand the camera back — only the riser that took it may release it, so a
-  // clashing second expansion can't cut the first one's framing short.
+  // Only the riser that took the camera may release it, so a clashing second
+  // expansion can't cut the first one's framing short.
   function _releaseDomainCin(f) {
     if (_domainCinOwner && _domainCinOwner !== f) return;
     if (typeof CinCam !== 'undefined') CinCam.restore();
@@ -755,10 +729,9 @@ const DomainManager = (() => {
     const t = r.timer; // counts DOWN from RISE_FRAMES (300)
     const d = r.animData || (r.animData = {});
 
-    // Common: entry setup — no tilt (tilt can clip name card text)
-    // Two fighters can expand within the same 5 s rise (a clash). The camera is a
-    // single global, so only the first riser takes it; the second still gets its
-    // full entry animation and domain, just without stealing the framing.
+    // Common: entry setup, no tilt (tilt can clip the name card)
+    // Two fighters can expand in the same 5 s rise (a clash). The camera is one global,
+    // so only the first riser takes it. The second still gets its entry and domain.
     if (t === RISE_FRAMES - 5 && (!_domainCinActive || _domainCinOwner === f)) {
       _domainCinActive = true;
       _domainCinOwner  = f;
@@ -781,7 +754,6 @@ const DomainManager = (() => {
 
     switch (_dk) {
 
-      // ── Torren: hammer raised → lightning strikes → supercharge → ground slam ──
       case 'thor': {
         if (t === 275) {
           CinFX.bgContrast('#000a1a', 0.88, 60);
@@ -807,7 +779,7 @@ const DomainManager = (() => {
           CinFX.shockwave(f.cx(), GAME_H - 80, '#44aaff', { count: 3, maxR: 340, lw: 6, dur: 65 });
           if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 58);
           d.slamFired = true;
-          d.slamActivate = true; // domain activates at slam impact
+                d.slamActivate = true; // domain activates at slam impact
           if (typeof spawnParticles === 'function') {
             spawnParticles(f.cx(), GAME_H - 80, '#44aaff', 55);
             spawnParticles(f.cx(), GAME_H - 80, '#ffffff', 28);
@@ -829,7 +801,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Varek: axe charged → rage explosion → axe thrown into sky → war domain ──
       case 'kratos': {
         if (t === 275) {
           CinFX.bgContrast('#1a0500', 0.90, 60);
@@ -871,7 +842,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Ninja: vanish → teleport behind each foe → launcher strikes → time dilation ──
       case 'ninja': {
         if (t === 278) { CinFX.bgContrast('#030008', 0.92, 65); }
         if (t === 268) {
@@ -906,7 +876,7 @@ const DomainManager = (() => {
             d.slashes.push({ x1: v.cx() - 60, y1: v.cy() + 50, x2: v.cx() + 60, y2: v.cy() - 70, alpha: 1 });
             _dealDomainDamage(f, v, 18, 0);
             if (v.health > 0) {
-              v.vy = -20;   // launcher (max upward velocity) — slow kicks in while they hang
+              v.vy = -20;   // launcher (max upward velocity), slow kicks in while they hang
               v.vx *= 0.2;
               v.stunTimer = Math.max(v.stunTimer || 0, 20);
             }
@@ -918,9 +888,9 @@ const DomainManager = (() => {
           }
         }
         if (t === 168) {
-          // All strikes done — the domain takes hold while victims hang in the air
+          // All strikes done. The domain takes hold while victims hang in the air
           d.vanished = false;
-          d.earlyActivate = true; // announce suppressed — nameCard already shown
+          d.earlyActivate = true; // announce suppressed, nameCard already shown
           CinFX.shockwave(f.cx(), f.cy(), '#bb44ff', { count: 2, maxR: 320, lw: 5, dur: 45 });
           CinFX.flash('#660099', 0.50, 8);
           CinFX.impactFrame(f, { dur: 3 });
@@ -933,7 +903,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Gunner: guns hot → reticles lock → bullet burst → designator beam ──
       case 'gunner': {
         if (t === 276) {
           CinFX.bgContrast('#1a0e00', 0.86, 58);
@@ -972,7 +941,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Archer: giant arrow nocked → fires skyward → rain of arrows ──
       case 'archer': {
         if (t === 278) {
           CinFX.bgContrast('#001a05', 0.86, 58);
@@ -1017,7 +985,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Paladin: holy light → divine cross → pillar of judgment → shield slam ──
       case 'paladin': {
         if (t === 278) {
           CinFX.bgContrast('#1a1800', 0.84, 60);
@@ -1061,7 +1028,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Berserker: rage veins → frenzy thrash → ROAR shatters ground → blood pool ──
       case 'berserker': {
         if (t === 278) {
           CinFX.bgContrast('#1a0000', 0.90, 62);
@@ -1100,7 +1066,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Knight: reality cracks → void gauntlet charges → punches rift open ──
       case 'megaknight': {
         if (t === 278) {
           CinFX.bgContrast('#050013', 0.90, 62);
@@ -1144,7 +1109,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Ronin: perfect stillness → spirit blade materializes → single slash tears sky ──
       case 'ronin': {
         if (t === 278) {
           CinFX.bgContrast('#050510', 0.92, 60);
@@ -1180,7 +1144,6 @@ const DomainManager = (() => {
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
         if (t === 60)  _releaseDomainCin(f);
-        // Animate spirit blade alpha
         if (d.spiritBladeActive) {
           if (d.spiritBladeFade === 'in')  d.spiritBladeAlpha = Math.min(1, d.spiritBladeAlpha + 0.04);
           if (d.slashFired) d.spiritBladeAlpha = Math.max(0, d.spiritBladeAlpha - 0.06);
@@ -1189,7 +1152,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Reaper: darkness creeps → giant scythe rises → souls float → reap ──
       case 'reaper': {
         if (t === 278) {
           CinFX.bgContrast('#100510', 0.90, 62);
@@ -1226,12 +1188,10 @@ const DomainManager = (() => {
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
         if (t === 60)  _releaseDomainCin(f);
-        // Animate souls drifting upward
         if (d.souls) for (const s of d.souls) { s.y += s.vy; s.alpha = Math.max(0, s.alpha - 0.005); }
         break;
       }
 
-      // ── Pugilist: ground shakes → fists slam down → arena walls close in ──
       case 'pugilist': {
         if (t === 278) {
           CinFX.bgContrast('#120000', 0.88, 60);
@@ -1267,13 +1227,11 @@ const DomainManager = (() => {
         }
         if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
         if (t === 60)  _releaseDomainCin(f);
-        // Animate fist drop during entry
         if (d.fistDropL) d.fistLY = Math.min(GAME_H * 0.38, d.fistLY + 14);
         if (d.fistDropR) d.fistRY = Math.min(GAME_H * 0.38, d.fistRY + 14);
         break;
       }
 
-      // ── Warrior: plant the stance → swords ring the ground → the duel ring closes ──
       case 'warrior': {
         if (t === 278) {
           CinFX.bgContrast('#1a1000', 0.88, 60);
@@ -1307,7 +1265,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Summoner: the sigil is drawn → familiars answer one by one → menagerie ──
       case 'summoner': {
         if (t === 278) {
           CinFX.bgContrast('#001a18', 0.90, 62);
@@ -1349,7 +1306,6 @@ const DomainManager = (() => {
         break;
       }
 
-      // ── Sovereign: the arena is claimed — rails slam in, the lock ring seals ──
       case 'sovereign': {
         if (t === 278) {
           CinFX.bgContrast('#1a0200', 0.90, 60);
@@ -1413,7 +1369,6 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Domain sky effects (world-space; class-specific atmosphere) ────
 
   // '#44aaff' -> 'rgba(68,170,255,a)'
   function _dRgba(hex, a) {
@@ -1421,8 +1376,7 @@ const DomainManager = (() => {
     return `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},${a})`;
   }
 
-  // Horizontal extent of the playable world, so wide (scrolling) arenas don't get a
-  // hard tint edge partway across the map.
+  // Horizontal extent of the playable world, so wide arenas don't get a hard tint edge.
   function _dWorldSpan() {
     const a = (typeof currentArena !== 'undefined') ? currentArena : null;
     const left  = a && a.mapLeft  !== undefined ? Math.min(0, a.mapLeft) : 0;
@@ -1432,11 +1386,9 @@ const DomainManager = (() => {
     return { left: left - 80, right: right + 80 };
   }
 
-  // ── Shared domain frame ────────────────────────────────────────────────
-  // Every DOMAIN_DEF has always carried a `bgTint`, but nothing consumed it — so an
-  // expanded domain looked like the ordinary arena with sparkles on top. This is the
-  // layer that makes the arena read as somewhere else: colour grade, horizon glow,
-  // the domain's own walls, drifting motes, and a visible warning as it collapses.
+  // Every DOMAIN_DEF has a bgTint, but nothing used it, so the domain looked like the
+  // plain arena with sparkles. This layer makes it read as somewhere else: colour grade,
+  // horizon glow, walls, motes, and a warning as it collapses.
   function _drawDomainFrame(domain) {
     const { def, timer } = domain;
     const now  = performance.now();
@@ -1449,13 +1401,13 @@ const DomainManager = (() => {
     const { left, right } = _dWorldSpan();
     const span = right - left;
     const col  = def.color || '#ffffff';
-    // Last ~3 s: the walls stutter so the owner can see the domain is about to drop
+    // Last ~3 s: walls stutter to warn the owner the domain is about to drop
     const dying   = timer < 180 ? 1 - timer / 180 : 0;
     const flicker = dying > 0 ? (0.65 + 0.35 * Math.sin(now / (60 - dying * 38))) : 1;
 
     ctx.save();
 
-    // 1. Colour grade — the authored bgTint, finally applied
+    // 1. Colour grade from bgTint
     if (def.bgTint) {
       ctx.globalAlpha = a;
       ctx.fillStyle = def.bgTint;
@@ -1470,7 +1422,7 @@ const DomainManager = (() => {
     ctx.fillStyle = _dhGrd;
     ctx.fillRect(left, GAME_H * 0.42, span, GAME_H * 0.58);
 
-    // 3. Domain walls — a hard boundary you can see, with a scan travelling down it
+    // 3. Domain walls, with a scan travelling down them
     ctx.globalAlpha = a * 0.9 * flicker;
     ctx.shadowColor = col; ctx.shadowBlur = 26;
     for (const wx of [left + 74, right - 74]) {
@@ -1482,19 +1434,17 @@ const DomainManager = (() => {
       ctx.strokeStyle = _dRgba(col, 0.55);
       ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(wx, 0); ctx.lineTo(wx, GAME_H); ctx.stroke();
-      // scan pulse
       const scanY = ((now / 9 + seed * 130) % (GAME_H + 160)) - 80;
       ctx.strokeStyle = _dRgba('#ffffff', 0.5);
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(wx - 7, scanY); ctx.lineTo(wx + 7, scanY); ctx.stroke();
     }
-    // Ceiling seam
     ctx.strokeStyle = _dRgba(col, 0.35);
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(left, 6); ctx.lineTo(right, 6); ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // 4. Ambient motes drifting through the space
+    // 4. Ambient motes
     ctx.fillStyle = col;
     ctx.shadowColor = col; ctx.shadowBlur = 8;
     for (let m = 0; m < 30; m++) {
@@ -1516,7 +1466,6 @@ const DomainManager = (() => {
 
     switch (defKey) {
       case 'thor': {
-        // Dark storm clouds scrolling across the top
         ctx.globalAlpha = fadeIn * 0.5;
         for (let c = 0; c < 7; c++) {
           const cx = ((c * 145 + now * 0.025) % (GAME_W + 120)) - 60;
@@ -1529,13 +1478,11 @@ const DomainManager = (() => {
           ctx.fillStyle = '#252a55';
           ctx.beginPath(); ctx.ellipse(cx - 14, cy - 4, cw * 0.34, ch * 0.37, 0, 0, Math.PI * 2); ctx.fill();
         }
-        // Lightning flicker across top
         if (Math.sin(now / 220) > 0.90) {
           ctx.globalAlpha = 0.12 * fadeIn;
           ctx.fillStyle = '#aaddff';
           ctx.fillRect(0, 0, GAME_W, GAME_H * 0.28);
         }
-        // Occasional crack lightning
         if (Math.sin(now / 310) > 0.93) {
           ctx.globalAlpha = 0.45 * fadeIn;
           ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
@@ -1548,7 +1495,6 @@ const DomainManager = (() => {
       }
 
       case 'kratos': {
-        // Blood rain drops
         ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 4;
         for (let d = 0; d < 24; d++) {
           const dropX = (d * 39 + now * 0.1) % GAME_W;
@@ -1557,7 +1503,6 @@ const DomainManager = (() => {
           ctx.fillStyle = '#cc0000';
           ctx.beginPath(); ctx.ellipse(dropX, dropY, 1.5, 5, 0, 0, Math.PI * 2); ctx.fill();
         }
-        // Ember glows near ground
         for (let e = 0; e < 8; e++) {
           const ex = (e * 118 + now * 0.028) % GAME_W;
           const ey = GAME_H * 0.72 + Math.sin(now / 400 + e) * 28;
@@ -1570,7 +1515,6 @@ const DomainManager = (() => {
       }
 
       case 'ninja': {
-        // Shadow tendrils from both edges
         ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 16;
         for (let i = 0; i < 5; i++) {
           const side = i % 2 === 0 ? 0 : GAME_W;
@@ -1589,7 +1533,6 @@ const DomainManager = (() => {
       }
 
       case 'paladin': {
-        // Divine light rays fanning from top center
         ctx.fillStyle = '#ffffcc';
         ctx.shadowColor = '#ffff88'; ctx.shadowBlur = 28;
         for (let r = 0; r < 7; r++) {
@@ -1606,7 +1549,6 @@ const DomainManager = (() => {
       }
 
       case 'gunner': {
-        // Floating targeting reticles drifting across the arena
         for (let ti = 0; ti < 4; ti++) {
           const tx = 80 + ti * 220 + Math.sin(now / 1000 + ti) * 28;
           const ty = GAME_H * 0.28 + Math.sin(now / 800 + ti * 1.4) * 38;
@@ -1621,7 +1563,6 @@ const DomainManager = (() => {
       }
 
       case 'archer': {
-        // Falling forest leaves
         for (let l = 0; l < 14; l++) {
           const lx = (l * 67 + now * 0.038) % GAME_W;
           const ly = (l * 41 + now * 0.055) % GAME_H;
@@ -1638,12 +1579,10 @@ const DomainManager = (() => {
       }
 
       case 'berserker': {
-        // Blood pool at ground level
         ctx.globalAlpha = fadeIn * 0.40;
         ctx.fillStyle = '#880000';
         ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 14;
         ctx.fillRect(0, GAME_H - 18, GAME_W, 22);
-        // Rising blood wisps
         for (let w = 0; w < 6; w++) {
           const wx    = (w * 152 + now * 0.018) % GAME_W;
           const wFrac = ((now / 10 + w * 40) % 80) / 80;
@@ -1656,7 +1595,6 @@ const DomainManager = (() => {
       }
 
       case 'megaknight': {
-        // Void crack lines from fixed positions
         ctx.strokeStyle = '#9944ff'; ctx.lineWidth = 1.5;
         ctx.shadowColor = '#7700cc'; ctx.shadowBlur = 12;
         for (let vc = 0; vc < 5; vc++) {
@@ -1667,7 +1605,6 @@ const DomainManager = (() => {
           ctx.lineTo(vcx + Math.sin(now / 500 + vc) * 55 - 27, vcy + Math.cos(now / 400 + vc) * 45 - 22);
           ctx.stroke();
         }
-        // Drifting star points
         ctx.fillStyle = '#ffffff';
         ctx.shadowColor = '#aa88ff'; ctx.shadowBlur = 8;
         for (let s = 0; s < 20; s++) {
@@ -1680,7 +1617,6 @@ const DomainManager = (() => {
       }
 
       case 'warrior': {
-        // Colosseum banners hanging above, and dust drifting through the light
         ctx.globalAlpha = fadeIn * 0.20;
         ctx.fillStyle = '#8a6a3a';
         for (let b = 0; b < 6; b++) {
@@ -1706,7 +1642,6 @@ const DomainManager = (() => {
       }
 
       case 'summoner': {
-        // Dormant familiar eyes blinking open in the dark, and rune motes rising
         ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 14;
         for (let e = 0; e < 10; e++) {
           const ex = (e * 97 + 40) % GAME_W;
@@ -1730,7 +1665,6 @@ const DomainManager = (() => {
       }
 
       case 'ronin': {
-        // Falling cherry blossoms
         ctx.shadowColor = '#ccccff'; ctx.shadowBlur = 6;
         for (let b = 0; b < 18; b++) {
           const bx = (b * 53 + now * 0.028 * (1 + b * 0.04)) % GAME_W;
@@ -1741,7 +1675,6 @@ const DomainManager = (() => {
           ctx.ellipse(bx, by, 4, 2.5, now / 600 + b, 0, Math.PI * 2);
           ctx.fill();
         }
-        // Faint sword slash echo lines
         ctx.globalAlpha = fadeIn * 0.12;
         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1;
         ctx.shadowBlur = 10;
@@ -1753,7 +1686,6 @@ const DomainManager = (() => {
       }
 
       case 'reaper': {
-        // Drifting soul orbs
         ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 12;
         for (let s = 0; s < 14; s++) {
           const sx = (s * 67 + 30) % GAME_W;
@@ -1762,7 +1694,6 @@ const DomainManager = (() => {
           ctx.fillStyle = s % 2 === 0 ? '#cc44cc' : '#ee88ee';
           ctx.beginPath(); ctx.arc(sx, sy, 4 + s % 3, 0, Math.PI * 2); ctx.fill();
         }
-        // Dark fog wisps at ground level
         ctx.globalAlpha = fadeIn * 0.22;
         ctx.fillStyle = '#330033';
         ctx.shadowBlur = 0;
@@ -1776,7 +1707,6 @@ const DomainManager = (() => {
       }
 
       case 'sovereign': {
-        // Command grid — a lattice of scan lines that reads as the arena being run
         ctx.strokeStyle = '#ff3311';
         ctx.lineWidth = 1;
         for (let i = 0; i < 9; i++) {
@@ -1793,7 +1723,6 @@ const DomainManager = (() => {
       }
 
       case 'pugilist': {
-        // Impact star sparks
         ctx.shadowColor = '#ee4444'; ctx.shadowBlur = 10;
         for (let i = 0; i < 12; i++) {
           const ix = (i * 79 + 24) % GAME_W;
@@ -1801,7 +1730,6 @@ const DomainManager = (() => {
           const pulse = Math.sin(now / (180 + i * 22) + i) * 0.5 + 0.5;
           ctx.globalAlpha = fadeIn * pulse * 0.30;
           ctx.fillStyle = i % 2 === 0 ? '#ff6644' : '#ffcc44';
-          // 4-pointed impact star
           const sr = 4 + i % 3;
           ctx.beginPath();
           for (let p = 0; p < 8; p++) {
@@ -1819,7 +1747,6 @@ const DomainManager = (() => {
     ctx.restore();
   }
 
-  // ── Entry animation drawing helpers ────────────────────────────────────
 
   function _dLerp(a, b, t) { return a + (b - a) * t; }
   function _dClamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -1883,7 +1810,6 @@ const DomainManager = (() => {
     let   hamY = fy - 92;
     const isHammer = f.weaponKey === 'hammer';
 
-    // ── Phase 1: Weapon rises (t=295→268) ──────────────────────────────────
     if (t > 268) {
       const p = _dSmooth(_dClamp((RISE_FRAMES - t) / 27, 0, 1));
       hamY = fy - 40 - p * 52;
@@ -1900,7 +1826,6 @@ const DomainManager = (() => {
       } else {
         _drawWeaponAtPos(f, hamX, hamY, sc, '#aaddff', 6 + p * 16);
       }
-      // Faint spark trails rising with the hammer
       if (p > 0.35) {
         ctx.globalAlpha = p * 0.4;
         for (let i = 0; i < Math.floor(p * 4); i++) {
@@ -1911,7 +1836,6 @@ const DomainManager = (() => {
       }
     }
 
-    // ── Phase 2: Held high, anticipation crackle (t=268→260) ───────────────
     if (t <= 268 && t > 260) {
       const p = _dSmooth((268 - t) / 8);
       // Refresh crackle paths every 3 frames so sparks are stable arcs
@@ -1930,10 +1854,9 @@ const DomainManager = (() => {
       ctx.globalAlpha = 1;
     }
 
-    // ── Phase 3: Massive sky lightning strike (d.lightningTimer 65→0) ──────
     if (d.lightningTimer > 0) {
       const hamHeadY = hamY - 10;
-      // Regenerate bolt paths every 3 frames — stable arcs, not per-frame noise
+          // Regenerate bolt paths every 3 frames so arcs stay stable, not jittery
       if (!d.boltRefresh || d.boltRefresh <= 0) {
         d.coreBolt  = _dMakeBoltPath(hamX, -20, hamX, hamHeadY, 12, 18, 8);
         d.midBolt   = _dMakeBoltPath(hamX, -20, hamX, hamHeadY, 12, 10, 5);
@@ -1947,21 +1870,17 @@ const DomainManager = (() => {
       d.boltRefresh--;
 
       const a = _dClamp(d.lightningTimer / 55, 0, 1);
-      // Draw weapon while it's still held high, charged by lightning
       if (isHammer) _drawHammer(hamX, hamY, 38 * a, '#ffffff');
       else _drawWeaponAtPos(f, hamX, hamY, 1, '#ffffff', 38 * a);
 
-      // Multi-layer core bolt — white → blue → cyan outer glow
       ctx.globalAlpha = a;
       _dDrawBolt(d.coreBolt,  '#ffffff', 14, 45);
       _dDrawBolt(d.midBolt,   '#aaddff',  8, 28);
       _dDrawBolt(d.innerBolt, '#88ccff',  3, 10);
 
-      // Side bolts from sky
       ctx.globalAlpha = a * 0.65;
       for (const bolt of d.sideBolts) _dDrawBolt(bolt, '#88ccff', 2.5, 14);
 
-      // Corona at hammer head — stable radius with subtle breathing
       ctx.globalAlpha = a * 0.92;
       ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#aaddff'; ctx.shadowBlur = 50;
       const coronaR = 16 + 3 * Math.sin(now / 30);
@@ -1973,24 +1892,21 @@ const DomainManager = (() => {
       d.lightningTimer--;
     }
 
-    // ── Phase 4: Supercharge aura, weapon held (t=248→228) ─────────────────
     if (t <= 248 && t > 228) {
       const p = _dSmooth((248 - t) / 20);
       if (isHammer) _drawHammer(hamX, hamY, 28 + p * 28, '#44aaff');
       else _drawWeaponAtPos(f, hamX, hamY, 1, '#44aaff', 28 + p * 28);
 
-      // Outer pulsing ring
       ctx.globalAlpha = (0.45 + 0.2 * Math.sin(now / 70)) * p;
       ctx.strokeStyle = '#44aaff'; ctx.lineWidth = 3 + p * 5;
       ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 30;
       ctx.beginPath(); ctx.arc(hamX, fy, 24 + p * 30, 0, Math.PI * 2); ctx.stroke();
 
-      // Inner fill
       ctx.globalAlpha = 0.18 * p;
       ctx.fillStyle = '#44aaff';
       ctx.beginPath(); ctx.arc(hamX, fy, 18 + p * 18, 0, Math.PI * 2); ctx.fill();
 
-      // Rotating arc bolts — paths stable for 3 frames
+      // Rotating arc bolts, paths stable for 3 frames
       if (!d.auralRefresh || d.auralRefresh <= 0) {
         d.auralBolts = Array.from({ length: 6 }, (_, i) => {
           const ang = (i / 6) * Math.PI * 2 + now / 180;
@@ -2006,7 +1922,6 @@ const DomainManager = (() => {
       ctx.globalAlpha = 1;
     }
 
-    // ── Phase 5: Weapon slams DOWN (t=228→215) ─────────────────────────────
     if (d.slamStart && t <= 228 && !d.slamFired) {
       const p = _dEaseIn(_dClamp((228 - t) / 13, 0, 1));
       const startY = fy - 92, endY = GAME_H - 92;
@@ -2014,30 +1929,27 @@ const DomainManager = (() => {
       if (isHammer) _drawHammer(hamX, hamY, 18 + p * 32, '#44aaff');
       else _drawWeaponAtPos(f, hamX, hamY, 1, '#44aaff', 18 + p * 32);
 
-      // Motion trail — ghost copies fading above the descending weapon
       const trailCount = 5;
       for (let tr = 1; tr <= trailCount; tr++) {
         const trFrac = tr / (trailCount + 1);
         const trY    = hamY - (p * (endY - startY)) * trFrac * 0.38;
         ctx.globalAlpha = (1 - trFrac) * 0.38 * p;
         ctx.fillStyle = '#44aaff'; ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 8;
-        if (isHammer) ctx.fillRect(hamX - 20, trY - 22, 40, 20); // hammer head shape
-        else          ctx.fillRect(hamX - 4, trY - 16, 8, 16);   // weapon shaft shape
+        if (isHammer) ctx.fillRect(hamX - 20, trY - 22, 40, 20);
+        else          ctx.fillRect(hamX - 4, trY - 16, 8, 16);
       }
       ctx.globalAlpha = 1;
     }
 
-    // ── Phase 6: Impact shockwave (t=215→165) ──────────────────────────────
     if (d.slamFired && t <= 215 && t > 165) {
       const p = _dEaseOut((215 - t) / 50);
 
-      // Semicircle shockwave expanding from ground
       ctx.globalAlpha = _dSmooth(1 - p) * 0.78;
       ctx.strokeStyle = '#44aaff'; ctx.lineWidth = _dLerp(5, 1, p);
       ctx.shadowColor = '#44aaff'; ctx.shadowBlur = 24;
       ctx.beginPath(); ctx.arc(fx, GAME_H - 80, p * 320, Math.PI, Math.PI * 2); ctx.stroke();
 
-      // Stable ground-bolt paths — regenerate every 4 frames
+      // Stable ground-bolt paths, regenerate every 4 frames
       if (!d.groundBoltRefresh || d.groundBoltRefresh <= 0) {
         d.groundBolts = Array.from({ length: 6 }, () => {
           const ba = (Math.random() - 0.5) * Math.PI;
@@ -2051,7 +1963,6 @@ const DomainManager = (() => {
       ctx.globalAlpha = _dSmooth(1 - p) * 0.62;
       for (const bolt of d.groundBolts) _dDrawBolt(bolt, '#aaddff', 2.2, 18);
 
-      // Weapon resting at ground after slam
       ctx.globalAlpha = _dSmooth(1 - p) * 0.7;
       if (isHammer) _drawHammer(hamX, GAME_H - 92, 18, '#44aaff');
       else _drawWeaponAtPos(f, hamX, GAME_H - 92, 1, '#44aaff', 18);
@@ -2064,7 +1975,6 @@ const DomainManager = (() => {
   function _drawKratosEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Axe raised with red energy (t=295→262)
     if (t > 262) {
       const phase = _dClamp((RISE_FRAMES - t) / 33, 0, 1);
       const axeY  = fy - 35 - phase * 25;
@@ -2085,7 +1995,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Rage burst ring (t=262→248)
     if (d.rageBurst && d.rageBurstTimer > 0) {
       const ba = d.rageBurstTimer / 45;
       ctx.globalAlpha = ba * 0.55;
@@ -2094,7 +2003,6 @@ const DomainManager = (() => {
       d.rageBurstTimer--;
     }
 
-    // Axe thrown into sky (t=235→200)
     if (d.axeThrown && t <= 235) {
       d.axeY += d.axeVy; d.axeVy += 0.4;
       if (d.axeY > -30) {
@@ -2110,8 +2018,7 @@ const DomainManager = (() => {
       }
     }
 
-    // Ground heat (t=248+) — soft glow hugging the ground
-    // (was a hard glowing rect that read as a floating red bar)
+    // Soft glow hugging the ground. A hard rect read as a floating bar.
     if (t <= 248) {
       const hp = _dClamp((248 - t) / 60, 0, 0.3);
       ctx.globalAlpha = hp;
@@ -2130,7 +2037,6 @@ const DomainManager = (() => {
   function _drawNinjaEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Shadow shroud over the owner while phasing between targets
     if (d.vanished) {
       ctx.globalAlpha = 0.75;
       ctx.fillStyle = '#220044'; ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 22;
@@ -2144,7 +2050,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Launcher slash arcs at each strike point
     if (d.slashes) {
       for (const s of d.slashes) {
         if (s.alpha <= 0) continue;
@@ -2175,7 +2080,6 @@ const DomainManager = (() => {
   function _drawGunnerEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Targeting reticles (t=262+)
     if (d.reticlesActive) {
       const rPos = [{x: fx - 200, y: fy - 30}, {x: fx + 180, y: fy + 20}, {x: fx - 80, y: fy - 80}, {x: fx + 100, y: fy - 60}];
       for (const rp of rPos) {
@@ -2189,7 +2093,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Bullet trails expanding outward (t=246+)
     if (d.bulletTrails && d.bulletTrails.length > 0) {
       for (const bt of d.bulletTrails) {
         if (bt.len < bt.maxLen) bt.len += bt.speed;
@@ -2205,7 +2108,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Orbital designator beam (t=228+)
     if (d.beamActive && d.beamAlpha > 0) {
       d.beamAlpha = Math.max(0, d.beamAlpha - 0.008);
       const ba = d.beamAlpha;
@@ -2228,7 +2130,6 @@ const DomainManager = (() => {
   function _drawArcherEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Giant power arrow nocked (t=264→245)
     if (d.arrowNocked && t > 245) {
       d.arrowCharge = _dClamp(d.arrowCharge + 0.03, 0, 1);
       const sc = 0.7 + d.arrowCharge * 0.8;
@@ -2248,7 +2149,6 @@ const DomainManager = (() => {
       ctx.restore();
     }
 
-    // Arrow flying upward (t=245→220)
     if (d.arrowFired && d.arrowY !== undefined) {
       d.arrowY += d.arrowVy; d.arrowAlpha = Math.max(0, d.arrowAlpha - 0.015);
       if (d.arrowY > -60) {
@@ -2268,7 +2168,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Arrow rain falling (t=228+)
     if (d.arrowRain && d.arrowRain.length > 0) {
       for (const ar of d.arrowRain) {
         ar.y += ar.vy; ar.timer = Math.max(0, ar.timer - 1);
@@ -2289,7 +2188,6 @@ const DomainManager = (() => {
   function _drawPaladinEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Shield glow pre-activation (t=295→264)
     if (t > 264) {
       const phase = _dClamp((RISE_FRAMES - t) / 31, 0, 1);
       ctx.globalAlpha = phase * 0.55;
@@ -2297,7 +2195,6 @@ const DomainManager = (() => {
       ctx.beginPath(); ctx.arc(fx - 10, fy, 20 + phase * 10, 0, Math.PI * 2); ctx.fill();
     }
 
-    // Divine cross in sky (t=264→228)
     if (d.crossFade) {
       d.crossAlpha = Math.min(0.9, d.crossAlpha + 0.04);
       const cx2 = GAME_W / 2, cy2 = GAME_H * 0.22;
@@ -2312,7 +2209,6 @@ const DomainManager = (() => {
       if (t <= 228) d.crossAlpha = Math.max(0, d.crossAlpha - 0.03);
     }
 
-    // Holy pillar (t=246→228)
     if (d.pillarActive && d.pillarAlpha > 0) {
       const pg = ctx.createLinearGradient(fx, fy, fx, 0);
       pg.addColorStop(0, `rgba(255,255,180,${d.pillarAlpha * 0.6})`);
@@ -2325,7 +2221,6 @@ const DomainManager = (() => {
       ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, 0); ctx.stroke();
     }
 
-    // Shield slam residual (t=228+)
     if (t <= 228) {
       const sp = _dClamp((228 - t) / 40, 0, 1);
       ctx.globalAlpha = (1 - sp) * 0.28;
@@ -2337,7 +2232,6 @@ const DomainManager = (() => {
   function _drawBerserkerEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Red rage veins radiating from body (t=265+)
     if (d.veinsActive && d.veins) {
       for (const v of d.veins) {
         ctx.globalAlpha = (0.65 + 0.25 * Math.sin(now / 150 + v.ang)) * 0.7;
@@ -2350,7 +2244,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Frenzy erratic glow (t=265→252)
     if (t <= 265 && t > 252) {
       const phase = (265 - t) / 13;
       ctx.globalAlpha = 0.42 + phase * 0.28;
@@ -2359,7 +2252,6 @@ const DomainManager = (() => {
       ctx.beginPath(); ctx.ellipse(fx + jx, fy + jy, 22 + phase * 18, 28 + phase * 14, 0, 0, Math.PI * 2); ctx.fill();
     }
 
-    // ROAR shockwave ring (t=252→220)
     if (t <= 252 && t > 220) {
       const phase = (252 - t) / 32;
       ctx.globalAlpha = (1 - phase) * 0.58;
@@ -2370,7 +2262,6 @@ const DomainManager = (() => {
       ctx.beginPath(); ctx.arc(fx, fy, Math.max(0, phase * 200 - 20), 0, Math.PI * 2); ctx.stroke();
     }
 
-    // Blood pool at feet (t=252+)
     if (d.bloodPool) {
       d.bloodPoolR = Math.min(60, d.bloodPoolR + 1.2);
       ctx.globalAlpha = 0.52;
@@ -2384,7 +2275,6 @@ const DomainManager = (() => {
   function _drawMegaknightEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
 
-    // Reality cracks radiating outward (t=264+)
     if (d.cracks && d.cracks.length > 0) {
       for (const c of d.cracks) {
         if (c.len < 90) c.len += c.growth;
@@ -2402,7 +2292,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Void gauntlet charging (t=264→248)
     if (t <= 264 && t > 248) {
       const phase = (264 - t) / 16;
       const gx = fx + (f.facing || 1) * 18;
@@ -2420,7 +2309,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Void tear growing (t=248→60)
     if (d.voidTear && t <= 248) {
       d.voidTearW = Math.min(80, d.voidTearW + 4);
       d.voidTearH = Math.min(130, d.voidTearH + 6);
@@ -2451,7 +2339,6 @@ const DomainManager = (() => {
 
   function _drawRoninEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
-    // Spirit blade materializing beside the fighter
     if (d.spiritBladeActive && d.spiritBladeAlpha > 0) {
       ctx.save();
       ctx.globalAlpha = d.spiritBladeAlpha;
@@ -2467,7 +2354,6 @@ const DomainManager = (() => {
       ctx.beginPath(); ctx.moveTo(0, -28); ctx.lineTo(0, 22); ctx.stroke();
       ctx.restore();
     }
-    // Diagonal slash trail
     if (d.slashFired && d.slashAlpha > 0) {
       ctx.save();
       ctx.globalAlpha = d.slashAlpha;
@@ -2482,7 +2368,6 @@ const DomainManager = (() => {
 
   function _drawReaperEntry(f, t, now, d) {
     const fx = f.cx(), fy = f.cy();
-    // Floating souls
     if (d.souls) {
       for (const s of d.souls) {
         if (s.alpha <= 0) continue;
@@ -2497,7 +2382,6 @@ const DomainManager = (() => {
         ctx.restore();
       }
     }
-    // Rising scythe silhouette
     if (d.scytheRising) {
       d.scytheY = Math.max(d.scytheTargetY, d.scytheY - 8);
       ctx.save();
@@ -2512,7 +2396,6 @@ const DomainManager = (() => {
   }
 
   function _drawPugilistEntry(f, t, now, d) {
-    // Giant fists dropping from sky
     if (d.fistDropL && d.fistLY !== undefined) {
       ctx.save();
       ctx.translate(d.fistLX || f.cx() - 100, d.fistLY);
@@ -2541,7 +2424,6 @@ const DomainManager = (() => {
   }
 
   function _drawWarriorEntry(f, t, now, d) {
-    // Ring of planted swords rising around the owner
     if (d.swordsPlanted) {
       const rise = d.swordRise || 0;
       ctx.save();
@@ -2564,7 +2446,6 @@ const DomainManager = (() => {
       }
       ctx.restore();
     }
-    // The duel ring snapping shut
     if (d.ringDraw) {
       ctx.save();
       ctx.globalAlpha = 0.55;
@@ -2578,7 +2459,6 @@ const DomainManager = (() => {
   }
 
   function _drawSummonerEntry(f, t, now, d) {
-    // Sigil inscribing itself on the floor
     if (d.sigilDraw) {
       const p = d.sigilProg || 0;
       ctx.save();
@@ -2601,7 +2481,6 @@ const DomainManager = (() => {
       }
       ctx.restore();
     }
-    // Familiars converging on the summoner
     if (d.familiars) {
       ctx.save();
       ctx.shadowColor = '#66ffcc'; ctx.shadowBlur = 18;
@@ -2623,7 +2502,6 @@ const DomainManager = (() => {
     const cx = f.cx(), cy = f.cy();
     const top = GAME_H - 470, bot = GAME_H - 40;
 
-    // Rails slamming in from off-screen to the corridor's opening width
     if (d.railProg !== undefined) {
       const e = _dEaseOut(d.railProg);
       ctx.shadowColor = '#ff3311'; ctx.shadowBlur = 22;
@@ -2639,7 +2517,6 @@ const DomainManager = (() => {
       }
     }
 
-    // Lock ring sealing behind him — brackets closing onto a full circle
     if (d.ringProg !== undefined) {
       const e = _dSmooth(d.ringProg);
       const R = _dLerp(190, 96, e);
@@ -2701,7 +2578,6 @@ const DomainManager = (() => {
     const def = DOMAIN_DEFS[defKey];
     if (!def) return;
 
-    // Remove any existing domain by this fighter
     _removeDomainFor(fighter);
 
     const domain = {
@@ -2709,8 +2585,7 @@ const DomainManager = (() => {
       timer: DOMAIN_FRAMES,
       hazards: [],
       spawnCooldown: 30, // first hazard after 0.5 s
-      // Left edge of this domain's GAME_W-wide region, in world coords. Resolved
-      // once here so the region can't drift under hazards that are already live.
+      // Left edge of the region (world coords), fixed here so live hazards don't drift.
       originX: _dAnchorOrigin(fighter),
     };
 
@@ -2718,14 +2593,11 @@ const DomainManager = (() => {
     if (def.hazardType === 'null_wall') _createNullWalls(domain);
     _createWeaponHazards(domain);
 
-    // Torren and Varek keep their own weapon in hand through the domain; the
-    // Stormbreaker / Blade of Olympus display swaps were removed.
 
     _domains.push(domain);
 
     if (!suppressAnnounce && typeof queueAnnouncement === 'function') {
-      // Conviction is the class-bearer name for the system; Sovereign is not a
-      // bearer and never earned one.
+      // Sovereign is not a class bearer and never gets this.
       const _label = defKey === 'sovereign' ? 'DOMAIN EXPANSION' : 'CONVICTION';
       queueAnnouncement(_label + ' — ' + def.name.toUpperCase(), def.color);
     }
@@ -2735,24 +2607,19 @@ const DomainManager = (() => {
       spawnParticles(fighter.cx(), fighter.cy(), '#ffffff', 20);
     }
 
-    // ── Weapon-specific Conviction burst ─────────────────────────────
     _applyWeaponConvictionBonus(fighter, def);
 
-    // Ninja: the ongoing passive is always shuriken volleys — generic weapon
-    // passives (energy slashes, bullets, arrows) don't fit the Shadow Realm theme
+    // Ninja: passive is always shuriken volleys.
     if (defKey === 'ninja') {
       fighter._convictionPassive = { key: 'shuriken', timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS.shuriken };
     }
 
-    // Sovereign wields the nullblade, which has no entry in _PASSIVE_CDS or the
-    // Conviction bonus table — without this the domain would hold the corridor
-    // and fire nothing. Sword slashes are the closest existing passive.
+    // Sovereign's nullblade has no _PASSIVE_CDS entry, so it uses sword slashes.
     if (defKey === 'sovereign') {
       fighter._convictionPassive = { key: 'sword', timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS.sword };
     }
   }
 
-  // ── Weapon Conviction Bonus — unique burst per weapon on activation ──
   function _applyWeaponConvictionBonus(fighter, def) {
     const wep  = fighter.weaponKey || '';
     const cx   = fighter.cx(), cy = fighter.cy();
@@ -2812,7 +2679,7 @@ const DomainManager = (() => {
       }
 
       case 'axe': {
-        // 3 orbiting axes — stored on fighter, updated in DomainManager.update()
+        // 3 orbiting axes, stored on fighter, updated in DomainManager.update()
         fighter._convictionOrbitAxes = [];
         for (let i = 0; i < 3; i++) {
           fighter._convictionOrbitAxes.push({ angle: (i / 3) * Math.PI * 2, r: 60, life: 420, hitSet: new Set() });
@@ -3008,7 +2875,7 @@ const DomainManager = (() => {
       }
 
       case 'flamethrower': {
-        // 270° fire burst — wide arc, sustained damage
+        // 270° fire burst, wide arc, sustained damage
         fighter._convictionFlameBurst = { frames: 60, angle: f < 0 ? Math.PI : 0 };
         spawnParticles(cx, cy, '#ff4400', 35);
         spawnParticles(cx, cy, '#ffaa00', 18);
@@ -3048,13 +2915,11 @@ const DomainManager = (() => {
         break;
     }
 
-    // Start domain-duration weapon passive (fires on cooldown for the full 25 s)
     if (wep && _PASSIVE_CDS[wep]) {
       fighter._convictionPassive = { key: wep, timer: DOMAIN_FRAMES, cd: _PASSIVE_CDS[wep] };
     }
   }
 
-  // ── Weapon passive that fires on cooldown throughout active domain ──────
   function _fireWeaponPassive(fighter) {
     if (!fighter || fighter.health <= 0 || !fighter._convictionPassive) return;
     const wep = fighter._convictionPassive.key;
@@ -3320,7 +3185,6 @@ const DomainManager = (() => {
     if (!fighter) return;
     fighter._domainRising = false;
     if (typeof CinPerf !== 'undefined') CinPerf.end(fighter);
-    // Clean up any in-progress domain entry cinematic for this fighter
     if (_domainCinOwner === fighter) {
       if (typeof CinCam !== 'undefined') CinCam.restore();
       if (typeof CinFX  !== 'undefined') CinFX.motionTrailOff(fighter);
@@ -3329,7 +3193,6 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Public API ─────────────────────────────────────────────────────
 
   function triggerExpansion(fighter) {
     if (!fighter || fighter.health <= 0) return;
@@ -3354,7 +3217,7 @@ const DomainManager = (() => {
     _removeDomainFor(fighter);
     fighter._domainSuperCount = 0;
     fighter._domainRising = false;
-    // Death clears any deferred cuts on this fighter — marks never survive a respawn
+      // Death clears deferred cuts. Marks never survive a respawn.
     fighter._roninCuts = 0;
     fighter._roninCutOwner = null;
   }
@@ -3363,18 +3226,14 @@ const DomainManager = (() => {
     return _domains.length > 0 || _rising.length > 0;
   }
 
-  // True while this fighter's own domain is expanding or live. Supers spent in
-  // that window do not advance the counter toward the next domain — a domain
-  // that charges its own successor compounds instead of costing anything.
+  // True while own domain is expanding or live. Supers spent then don't count toward the next one.
   function ownsDomain(fighter) {
     if (!fighter) return false;
     return _domains.some(d => d.owner === fighter) || _rising.some(r => r.fighter === fighter);
   }
 
-  // ── Ronin Deferred Cuts (Death's Dojo) ─────────────────────────────
-  // While owner._roninCutsActive is set, dealDamage (smb-combat.js) stores a cut
-  // mark on each target the owner hits (target._roninCuts / _roninCutOwner).
-  // Every sheatheEvery frames the blade "sheathes" and all marks detonate at once.
+  // dealDamage (smb-combat.js) marks each target the owner hits (target._roninCuts).
+  // Every sheatheEvery frames the blade sheathes and all marks detonate.
   let _iaiFx = []; // detonation slash fans: {x, y, cuts, life, maxLife, angles[]}
 
   function _roninCutPool() {
@@ -3395,7 +3254,7 @@ const DomainManager = (() => {
     if (!owner || owner.health <= 0) { _clearRoninCuts(owner); return; }
     const def = domain.def;
     let hitAny = false;
-    // Guard: detonation damage re-enters dealDamage — must not re-apply marks
+    // Detonation damage re-enters dealDamage, so don't re-apply marks here
     owner._roninDetonating = true;
     for (const e of _roninCutPool()) {
       if (!e || e._roninCutOwner !== owner || !(e._roninCuts > 0)) continue;
@@ -3423,12 +3282,9 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Reaper Soul Tithe (Eternal Harvest) ─────────────────────────────
-  // While owner._soulTitheActive is set, dealDamage (smb-combat.js) queues a soul
-  // rip at each enemy the owner damages. The wisp flies to the Reaper and joins
-  // the orbit; every harvestEvery frames the Reaping launches every orbiting soul
-  // as a homing skull. Skulls and wisps live at module level (like _iaiFx) so the
-  // final Reaping can still land after the domain itself has closed.
+  // While _soulTitheActive is set, dealDamage (smb-combat.js) queues a soul rip
+  // on each enemy the owner hits. Wisps join the orbit until the Reaping launches them.
+  // Skulls and wisps are module-level so the final Reaping lands after the domain ends.
   let _soulWisps  = []; // rip wisps flying to the owner: {x, y, owner, life}
   let _soulSkulls = []; // launched harvest skulls: {x, y, vx, vy, target, owner, damage, life}
   let _harvestFx  = []; // reap release rings: {x, y, life, maxLife}
@@ -3446,14 +3302,14 @@ const DomainManager = (() => {
     const souls = domain.harvestSouls;
     if (!owner || owner.health <= 0 || !souls || !souls.length) return;
     const targets = _getDomainTargets(owner);
-    if (!targets.length) return; // nothing to reap — souls keep orbiting
+    if (!targets.length) return; // nothing to reap, souls keep orbiting
     const def = domain.def;
     for (let i = 0; i < souls.length; i++) {
       const s   = souls[i];
       const tgt = targets[i % targets.length];
       const sx  = owner.cx() + Math.cos(s.angle) * s.orbitR;
       const sy  = owner.cy() - 26 + Math.sin(s.angle) * s.orbitR * 0.6;
-      // Launch outward with scatter, then home in — reads as a burst, not a beam
+      // Launch outward with scatter, then home in, so it reads as a burst
       const a = Math.atan2(tgt.cy() - sy, tgt.cx() - sx) + (Math.random() - 0.5) * 1.1;
       _soulSkulls.push({
         x: sx, y: sy, vx: Math.cos(a) * 3.5, vy: Math.sin(a) * 3.5,
@@ -3468,19 +3324,12 @@ const DomainManager = (() => {
     if (typeof SoundManager !== 'undefined' && SoundManager.soulHarvest) SoundManager.soulHarvest();
   }
 
-  // Domain hazards manage hit cadence via hitSet/setTimeout — bypass normal iframes
-  // so that being in combat doesn't permanently shield players from the domain.
-  //
-  // Anti-burst floor: because the normal iframe window is zeroed below, a dense
-  // hazard set (a bullet wall, the three holy beams, orbiting void rocks with the
-  // vortex pulling you through them) could land several full hits on the same
-  // frame — which is what made domains read as unsurvivable rather than hard.
-  // A target now takes domain-hazard damage at most once every _DOMAIN_HIT_CD
-  // frames; regular attacks from the owner are unaffected.
+  // Domain hazards pace their own hits (hitSet/setTimeout), so they skip normal iframes.
+  // Dense hazard sets could land several full hits in one frame, so a target takes
+  // domain-hazard damage at most once per _DOMAIN_HIT_CD frames.
   function _dealDomainDamage(owner, target, dmg, kbForce) {
     if (!target || target.health <= 0 || !owner || owner.health <= 0) return;
-    // Respect the finisher lock (invincible=9999): domain hazards must never
-    // damage/kill a target mid-finisher cinematic.
+    // Finisher lock (invincible=9999): hazards can't hit a target mid-finisher.
     if (target.invincible > 1000) return;
     if ((target._domainHitCd || 0) > 0) return;
     target._domainHitCd = _DOMAIN_HIT_CD;
@@ -3515,7 +3364,7 @@ const DomainManager = (() => {
     const entIsPlayerSide   = !ent.isBoss   && !ent._brBot   && !ent.isMinion;
     if (!ownerIsPlayerSide || !entIsPlayerSide) return false;
 
-    // Co-op modes share the same side even when older setup code did not stamp _teamId.
+    // Co-op shares a side even if _teamId was never set.
     if (typeof gameMode !== 'undefined' && (
         gameMode === 'boss' || gameMode === 'god' ||
         (gameMode === 'minigames' && (minigameType === 'survival' || minigameType === 'defense'))
@@ -3525,12 +3374,10 @@ const DomainManager = (() => {
     return false;
   }
 
-  // ── Update (called once per game frame before player.update()) ─────
 
-  // True only while update() runs. Every hazard, passive, Ronin cut and Reaper
-  // skull deals its damage from inside update(), so dealDamage (smb-combat.js)
-  // reads this to deny super meter for domain-generated damage while the
-  // owner's own attacks inside the domain still charge normally.
+  // True only while update() runs. Hazard, passive, Ronin cut and Reaper skull damage
+  // is applied from inside update(). dealDamage reads this to skip super meter for it,
+  // so the owner's own attacks in the domain still charge.
   let _hazardTick = false;
   function isHazardTick() { return _hazardTick; }
 
@@ -3542,7 +3389,6 @@ const DomainManager = (() => {
   function _updateBody() {
     if (!gameRunning) return;
 
-    // ── Rising fighters ───────────────────────────────────────────
     for (let i = _rising.length - 1; i >= 0; i--) {
       const r = _rising[i];
       r.timer--;
@@ -3562,8 +3408,7 @@ const DomainManager = (() => {
       // Fire cinematic events tied to the rising phase countdown
       _tickDomainEntry(r);
 
-      // Early activation: Torren activates at the hammer slam (t=215), Ninja once the
-      // launcher strikes land (t=168) — not at the end of rising
+      // Early activation: Torren at the hammer slam (t=215), Ninja at launcher hits (t=168).
       if ((r.animData.slamActivate || r.animData.earlyActivate) && !r.animData.domainActivated) {
         r.animData.domainActivated = true;
         _activateDomain(r.fighter, true); // nameCard already shown during entry
@@ -3575,7 +3420,6 @@ const DomainManager = (() => {
       }
     }
 
-    // ── Ninja time dilation: reset then re-apply so it self-clears when domains end ──
     const _slowPool = []
       .concat(typeof players !== 'undefined' ? players : [])
       .concat(typeof minions !== 'undefined' ? minions : [])
@@ -3583,7 +3427,6 @@ const DomainManager = (() => {
     for (const e of _slowPool) {
       if (!e) continue;
       if (e._domainSlowFactor !== undefined && e._domainSlowFactor !== 1) e._domainSlowFactor = 1;
-      // Tick down the per-target domain hazard damage cooldown
       if (e._domainHitCd > 0) e._domainHitCd--;
     }
     const _slowSources = [];
@@ -3591,12 +3434,12 @@ const DomainManager = (() => {
       if (dm.defKey === 'ninja' && dm.owner && dm.owner.health > 0) _slowSources.push(dm.owner);
     }
     for (const r of _rising) {
-      // Slow starts at the first launcher strike of the entry, before the domain exists
+      // Slow starts at the first launcher strike, before the domain exists
       if (r.fighter.charClass === 'ninja' && r.animData && r.animData.slowStarted &&
           r.fighter.health > 0) _slowSources.push(r.fighter);
     }
-    // Online: each client only runs its own ninja's domain, so the owner pings
-    // the slow over gameEvent and the other client re-creates the source here.
+    // Online: each client runs only its own ninja's domain, so the owner pings the
+    // slow via gameEvent and the other client recreates it here.
     if (typeof onlineMode !== 'undefined' && onlineMode && typeof frameCount !== 'undefined') {
       const _me = players[onlineLocalSlot];
       if (frameCount % 15 === 0 && _me && _slowSources.indexOf(_me) !== -1 &&
@@ -3620,7 +3463,6 @@ const DomainManager = (() => {
       }
     }
 
-    // ── Active domains ────────────────────────────────────────────
     for (let i = _domains.length - 1; i >= 0; i--) {
       const domain = _domains[i];
       const { owner, def } = domain;
@@ -3642,7 +3484,7 @@ const DomainManager = (() => {
         }
       }
 
-      // Ronin: sheathe countdown — the click detonates every deferred cut at once
+      // Ronin: sheathe countdown. The click detonates every cut at once.
       if (domain.defKey === 'ronin' && domain.sheatheTimer !== undefined) {
         domain.sheatheTimer--;
         if (domain.sheatheTimer <= 0) {
@@ -3671,7 +3513,7 @@ const DomainManager = (() => {
         }
       }
 
-      // Void rocks: advance orbit angle — inner rock faster, outer slower
+            // Void rocks: inner rock orbits faster than outer
       if (def.hazardType === 'void_rock') {
         for (const h of domain.hazards) {
           if (h.type === 'void_rock') {
@@ -3681,7 +3523,6 @@ const DomainManager = (() => {
         }
       }
 
-      // Spawn hazards
       if (def.spawnEvery > 0) {
         domain.spawnCooldown--;
         if (domain.spawnCooldown <= 0) {
@@ -3690,15 +3531,13 @@ const DomainManager = (() => {
         }
       }
 
-      // Identify valid targets across all active entity buckets. This keeps
-      // Domains useful in boss/minion/training modes without hitting teammates.
+      // Valid targets across all active entity buckets. Lets domains work in boss,
+      // minion and training modes without hitting teammates.
       const targets = _getDomainTargets(owner);
 
-      // Left edge of this domain's region — bounds and respawn positions below are
-      // authored in 0..GAME_W and must be offset into world space (see _dAnchorOrigin).
+      // Left edge of the region. Bounds below are offset by it (see _dAnchorOrigin).
       const OX = _dOX(domain);
 
-      // Update individual hazards
       for (let j = domain.hazards.length - 1; j >= 0; j--) {
         const h = domain.hazards[j];
         let remove = false;
@@ -3734,11 +3573,9 @@ const DomainManager = (() => {
             // Slight gravity on physical projectiles
             if (h.type === 'shadow_blade' || h.type === 'arrow') h.vy += 0.18;
             if (h.type === 'shadow_blade') h.angle += 0.12;
-            // Out-of-bounds cleanup
             if (h.x < OX - 80 || h.x > OX + GAME_W + 80 || h.y > GAME_H + 80) {
               remove = true; break;
             }
-            // Collision
             for (const t of targets) {
               if (h.hitSet.has(t)) continue;
               const dx = h.x - t.cx(), dy = h.y - t.cy();
@@ -3801,8 +3638,7 @@ const DomainManager = (() => {
             break;
           }
 
-          // Warrior: the duel ring closes over the domain's life; standing outside
-          // it costs you a small, regular tick. Walking back in stops it entirely.
+          // Warrior: standing outside the closing ring costs a small regular tick.
           case 'duel_ring': {
             const _rs = def.ringStart || 300, _re = def.ringEnd || 170;
             const _prog = 1 - Math.max(0, domain.timer) / DOMAIN_FRAMES;
@@ -3821,9 +3657,8 @@ const DomainManager = (() => {
             break;
           }
 
-          // Sovereign: the corridor walls track him and close. Damage is gated by
-          // the shared _DOMAIN_HIT_CD, and the shove is always inward so the walls
-          // can never push a target off the stage.
+          // Sovereign: walls track him and close. The shove is always inward so they
+          // never push a target off the stage.
           case 'null_wall': {
             const _ws = def.wallStart || 400, _we = def.wallEnd || 155;
             const _prog = 1 - Math.max(0, domain.timer) / DOMAIN_FRAMES;
@@ -3877,7 +3712,7 @@ const DomainManager = (() => {
             break;
           }
 
-          // Summoner: the sigil is pure telegraph — it brightens as the next wave nears.
+          // Summoner: the sigil is telegraph only, brightening as the next wave nears.
           case 'summon_circle': {
             h.angle += 0.014;
             h.pulse = Math.max(0, (h.pulse || 0) - 1);
@@ -3917,14 +3752,13 @@ const DomainManager = (() => {
                   ? OX + 60  + Math.random() * (GAME_W * 0.55)
                   : OX + GAME_W * 0.1 + Math.random() * (GAME_W * 0.4);
               }
-              // Lunge from 240 px — very hard to maintain safe distance
+              // Lunge from 240 px, very hard to maintain safe distance
               const nearest = targets.reduce((best, t) => {
                 const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
                 return (!best || d < best.d) ? { t, d } : best;
               }, null);
               if (nearest && nearest.d < 240) {
                 h.state = 'lunge';
-                // Aim directly at target
                 const tdx = nearest.t.cx() - h.x, tdy = nearest.t.cy() - h.y;
                 const tlen = Math.hypot(tdx, tdy) || 1;
                 h.vx = (tdx / tlen) * 18;
@@ -3968,7 +3802,7 @@ const DomainManager = (() => {
                 const d = Math.hypot(t.cx() - h.x, t.cy() - h.y);
                 return (!best || d < best.d) ? { t, d } : best;
               }, null);
-              // 4-bullet burst — tighter spread, faster projectiles
+              // 4-bullet burst, tighter spread, faster projectiles
               for (let b = 0; b < 4; b++) {
                 const spread = (b - 1.5) * 0.09;
                 let bvx, bvy;
@@ -3999,7 +3833,7 @@ const DomainManager = (() => {
               h.phaseTimer--;
               if (h.phaseTimer <= 0) {
                 h.phase = 'warning';
-                h.phaseTimer = 72; // 1.2 s warning — shorter reaction window
+                h.phaseTimer = 72; // 1.2 s warning, shorter reaction window
                 h.fromLeft = Math.random() < 0.5;
                 h.x = OX + (h.fromLeft ? -60 : GAME_W + 60);
                 h.y = GAME_H * 0.22 + Math.random() * GAME_H * 0.35;
@@ -4084,7 +3918,7 @@ const DomainManager = (() => {
           }
 
           case 'gravity_vortex': {
-            // Pull non-owner players toward arena center — stronger when closer to void rocks
+            // Pull non-owner players toward arena center, stronger when closer to void rocks
             for (const t of targets) {
               const dx = h.x - t.cx(), dy = h.y - t.cy();
               const dist = Math.hypot(dx, dy) || 1;
@@ -4173,9 +4007,8 @@ const DomainManager = (() => {
                 if (h.hitSet.has(t)) continue;
                 if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
                   h.hitSet.add(t);
-                  // kb was 18 (hardest of any domain hazard): a strike near the
-                  // edge stunned for 62 frames and ring-out killed outright, so
-                  // the sure-hit was taking whole stocks on 16 damage.
+                  // Was kb 18. Near the edge that stunned 62 frames and ring-outs killed,
+                  // so the sure hit took whole stocks.
                   _dealDomainDamage(owner, t, h.damage, 10);
                   if (typeof spawnParticles === 'function') {
                     spawnParticles(h.x, h.y, '#ffee44', 26);
@@ -4184,7 +4017,7 @@ const DomainManager = (() => {
                   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 20);
                 }
               }
-              // After hit, timer expired, or off-screen — resume roaming
+              // After hit, timer expired, or off-screen, resume roaming
               if (h.stateTimer <= 0 || h.hitSet.size > 0 ||
                   h.x < OX - 120 || h.x > OX + GAME_W + 120 || h.y > GAME_H + 120) {
                 // Shield recently-struck targets from roam pass-through damage
@@ -4201,7 +4034,7 @@ const DomainManager = (() => {
               }
             }
 
-            // Trailing sparks — brighter during strike
+            // Trailing sparks, brighter during strike
             if (typeof spawnParticles === 'function' && Math.random() < (h.state === 'strike' ? 0.55 : 0.28))
               spawnParticles(h.x, h.y, h.state === 'roam' ? '#ffffaa' : '#88ccff', 1);
             break;
@@ -4261,21 +4094,17 @@ const DomainManager = (() => {
           }
 
           case 'scythe_pendulum': {
-            // Swing the pendulum
             h.angleVel += -0.0004 * Math.sin(h.angle); // gravity-like restoring force
             h.angle += h.angleVel * h.swingDir;
-            // Clamp angle so it stays in visible range
             if (Math.abs(h.angle) > Math.PI * 0.44) {
               h.swingDir *= -1;
               h.angle = Math.sign(h.angle) * Math.PI * 0.44;
             }
             const bladeX = h.anchorX + Math.sin(h.angle) * h.armLength;
             const bladeY = h.anchorY + Math.cos(h.angle) * h.armLength;
-            // Decrement per-target hit cooldowns
             for (const [tf, cd] of h.hitCd) {
               if (cd <= 1) h.hitCd.delete(tf); else h.hitCd.set(tf, cd - 1);
             }
-            // Check blade tip contact
             for (const t of targets) {
               if (h.hitCd.has(t)) continue;
               if (Math.hypot(t.cx() - bladeX, t.cy() - bladeY) < h.radius + t.w / 2) {
@@ -4331,7 +4160,7 @@ const DomainManager = (() => {
           }
 
           case 'chaos_bolt': {
-            // Moves like a bullet — reuse bullet movement + out-of-bounds cleanup
+            // Moves like a bullet, reuse bullet movement + out-of-bounds cleanup
             h.x += h.vx; h.y += h.vy;
             if (h.x < OX - 60 || h.x > OX + GAME_W + 60 || h.y < -60 || h.y > GAME_H + 60) {
               remove = true; break;
@@ -4464,14 +4293,13 @@ const DomainManager = (() => {
                   }
                 }
               }
-              // Sparks along the sweeping tip
               if (Math.random() < 0.65 && typeof spawnParticles === 'function')
                 spawnParticles(tipX, tipY, '#ff4400', 4);
-              // Reverse at ±160° from center — proper two-sided sweep
+              // Reverse at ±160° from center, proper two-sided sweep
               if (h.angle > Math.PI * 0.88 || h.angle < -Math.PI * 0.88) {
                 h.sweepDir *= -1;
                 h.phase = 'reset';
-                h.resetTimer = 30; // 0.5 s pause — just long enough to read, not long enough to breathe
+                h.resetTimer = 30; // 0.5 s pause
                 h.hitSet.clear();
               }
             } else {
@@ -4486,7 +4314,6 @@ const DomainManager = (() => {
         if (remove) domain.hazards.splice(j, 1);
       }
 
-      // Domain expired
       if (domain.timer <= 0) {
         if (domain.defKey === 'ronin') {
           // Final sheathe: whatever cuts remain land as the dojo closes
@@ -4511,7 +4338,6 @@ const DomainManager = (() => {
       if (--_iaiFx[fi].life <= 0) _iaiFx.splice(fi, 1);
     }
 
-    // ── Reaper Soul Tithe: rip wisps fly to the owner and join the orbit ──
     for (let wi = _soulWisps.length - 1; wi >= 0; wi--) {
       const w = _soulWisps[wi];
       const o = w.owner;
@@ -4534,15 +4360,13 @@ const DomainManager = (() => {
             SoundManager.soulAbsorb(dm.harvestSouls.length);
           }
         } else {
-          // Orbit full (or domain already closed) — the surplus soul is consumed
-          // directly as a small burst heal
+          // Orbit full (or domain closed): the surplus soul becomes a small heal
           o.health = Math.min(o.maxHealth, o.health + 2);
         }
         if (typeof spawnParticles === 'function') spawnParticles(o.cx(), o.cy() - 20, '#ee88ee', 6);
       }
     }
 
-    // ── Reaper harvest skulls: home in, strike, retarget if the mark dies ──
     for (let si = _soulSkulls.length - 1; si >= 0; si--) {
       const sk = _soulSkulls[si];
       if (!sk.owner || sk.owner.health <= 0 || --sk.life <= 0) {
@@ -4565,7 +4389,7 @@ const DomainManager = (() => {
       if (spd > 7) { sk.vx *= 7 / spd; sk.vy *= 7 / spd; }
       sk.x += sk.vx; sk.y += sk.vy;
       if (tdist < 20) {
-        // Guard recursion: skull impact re-enters dealDamage — must not re-rip a soul
+        // Skull impact re-enters dealDamage, so don't re-rip a soul
         sk.owner._soulTitheDetonating = true;
         _dealDomainDamage(sk.owner, sk.target, sk.damage, 7);
         sk.owner._soulTitheDetonating = false;
@@ -4577,18 +4401,15 @@ const DomainManager = (() => {
       }
     }
 
-    // Age harvest release rings
     for (let hi = _harvestFx.length - 1; hi >= 0; hi--) {
       if (--_harvestFx[hi].life <= 0) _harvestFx.splice(hi, 1);
     }
 
-    // ── Per-frame Conviction weapon effects ───────────────────────────
     const _allFighters = [...(typeof players !== 'undefined' ? players : []),
                           ...(typeof minions !== 'undefined' ? minions : [])];
     for (const fighter of _allFighters) {
       if (!fighter || fighter.health <= 0) continue;
 
-      // Axe orbiting effect
       if (fighter._convictionOrbitAxes && fighter._convictionOrbitAxes.length) {
         const axes = fighter._convictionOrbitAxes;
         const _enemies2 = _allFighters.filter(e => e && e !== fighter && e.health > 0
@@ -4671,7 +4492,6 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Draw — bg tint (screen-space; call before world-space phase) ───
 
   function draw() {
     if (!gameRunning) return;
@@ -4681,8 +4501,8 @@ const DomainManager = (() => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     const cW = canvas.width, cH = canvas.height;
 
-    // Clashing domains each tint the screen. Two tints at full strength stack to
-    // near-black, so only the first pays full price; the rest read as a wash over it.
+    // Clashing domains each tint the screen. Stacked tints go near-black, so only the first
+    // one is at full strength.
     for (let i = 0; i < _domains.length; i++) {
       ctx.globalAlpha = i === 0 ? 1 : 0.45;
       ctx.fillStyle = _domains[i].def.bgTint;
@@ -4700,13 +4520,12 @@ const DomainManager = (() => {
     ctx.restore();
   }
 
-  // ── Draw — hazards (world-space; call inside game transform) ───────
 
   function drawHazards() {
     // Entry animations for rising fighters (drawn before active domain hazards)
     for (const r of _rising) _drawDomainEntryAnim(r);
 
-    // Ninja time dilation aura on slowed fighters — ghost shell + drifting ripple ring
+    // Ninja time dilation aura on slowed fighters, ghost shell + drifting ripple ring
     const _slowDrawPool = []
       .concat(typeof players !== 'undefined' ? players : [])
       .concat(typeof minions !== 'undefined' ? minions : [])
@@ -4728,13 +4547,12 @@ const DomainManager = (() => {
       ctx.restore();
     }
 
-    // ── Ronin Deferred Cuts: marks over targets, sheathe glint, detonation fans ──
     const _roninDomains = _domains.filter(d => d.defKey === 'ronin' && d.owner && d.owner.health > 0);
     if (_roninDomains.length || _iaiFx.length) {
       const _rNow = Date.now();
       for (const rd of _roninDomains) {
         const _imminent = rd.sheatheTimer !== undefined && rd.sheatheTimer < 45;
-        // Cut marks hovering over each marked target — flash faster as the click nears
+        // Cut marks over each target, flashing faster as the click nears
         for (const mf of _roninCutPool()) {
           if (!mf || mf.health <= 0 || mf._roninCutOwner !== rd.owner || !(mf._roninCuts > 0)) continue;
           const n = Math.min(mf._roninCuts, rd.def.maxCuts || 5);
@@ -4754,7 +4572,7 @@ const DomainManager = (() => {
           }
           ctx.restore();
         }
-        // Sheathe glint on the owner — the tell that every cut is about to land
+        // Sheathe glint on the owner: the tell that cuts are about to land
         if (_imminent) {
           const _ro = rd.owner;
           const _gl = 1 - rd.sheatheTimer / 45;
@@ -4770,7 +4588,7 @@ const DomainManager = (() => {
           ctx.restore();
         }
       }
-      // Detonation slash fans — every deferred cut opens at once
+      // Detonation fans, all cuts open at once
       for (const fx of _iaiFx) {
         const _fp   = fx.life / fx.maxLife; // 1 → 0
         const _flen = 26 + (1 - _fp) * 34;
@@ -4792,11 +4610,10 @@ const DomainManager = (() => {
       }
     }
 
-    // ── Reaper Soul Tithe: orbiting souls, rip wisps, harvest skulls, reap rings ──
     const _reaperDomains = _domains.filter(d => d.defKey === 'reaper' && d.owner && d.owner.health > 0);
     if (_reaperDomains.length || _soulWisps.length || _soulSkulls.length || _harvestFx.length) {
       const _sNow = Date.now();
-      // Orbiting souls around each Reaper — pulse faster as the Reaping nears
+      // Orbiting souls, pulsing faster as the Reaping nears
       for (const rd of _reaperDomains) {
         const souls = rd.harvestSouls || [];
         const _reapSoon = rd.harvestTimer !== undefined && rd.harvestTimer < 45 && souls.length;
@@ -4817,14 +4634,12 @@ const DomainManager = (() => {
             sx + Math.sin(s.angle) * 7, sy - Math.cos(s.angle) * 4 + 5,
             sx + Math.sin(s.angle) * 11, sy + 9);
           ctx.stroke();
-          // Soul core
           ctx.globalAlpha = (_reapSoon ? 0.75 : 0.55) + _sp * 0.25;
           ctx.fillStyle = _reapSoon ? '#ffffff' : '#ee88ee';
           ctx.beginPath(); ctx.arc(sx, sy, 3.4 + _sp * 1.2, 0, Math.PI * 2); ctx.fill();
           ctx.restore();
         }
       }
-      // Rip wisps streaking toward the Reaper
       for (const w of _soulWisps) {
         ctx.save();
         ctx.globalAlpha = Math.min(0.8, w.life / 60);
@@ -4835,13 +4650,12 @@ const DomainManager = (() => {
         ctx.beginPath(); ctx.arc(w.x, w.y, 6, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
-      // Harvest skulls — glowing head with hollow eyes, facing their travel direction
+      // Harvest skulls, glowing head with hollow eyes, facing their travel direction
       for (const sk of _soulSkulls) {
         const fdir = sk.vx >= 0 ? 1 : -1;
         ctx.save();
         ctx.globalAlpha = Math.min(1, sk.life / 30);
         ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 14;
-        // Trail
         ctx.strokeStyle = '#cc44cc'; ctx.lineWidth = 3; ctx.lineCap = 'round';
         ctx.globalAlpha *= 0.5;
         ctx.beginPath();
@@ -4849,16 +4663,14 @@ const DomainManager = (() => {
         ctx.lineTo(sk.x - sk.vx * 2.4, sk.y - sk.vy * 2.4);
         ctx.stroke();
         ctx.globalAlpha = Math.min(1, sk.life / 30);
-        // Skull
         ctx.fillStyle = '#eeddee';
         ctx.beginPath(); ctx.arc(sk.x, sk.y, 6.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillRect(sk.x - 3.5, sk.y + 3, 7, 4); // jaw
+        ctx.fillRect(sk.x - 3.5, sk.y + 3, 7, 4);
         ctx.fillStyle = '#440044';
         ctx.beginPath(); ctx.arc(sk.x + fdir * 2.6, sk.y - 1, 1.7, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(sk.x - fdir * 1.4, sk.y - 1, 1.7, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
-      // Reap release rings
       for (const fx of _harvestFx) {
         const _fp = fx.life / fx.maxLife; // 1 → 0
         ctx.save();
@@ -4870,12 +4682,10 @@ const DomainManager = (() => {
       }
     }
 
-    // Draw conviction weapon overlay effects (world-space)
     const _cvFighters = typeof players !== 'undefined' ? players : [];
     for (const fighter of _cvFighters) {
       if (!fighter || fighter.health <= 0) continue;
 
-      // Orbiting axe indicators
       if (fighter._convictionOrbitAxes && fighter._convictionOrbitAxes.length) {
         for (const ax of fighter._convictionOrbitAxes) {
           const ax_x = fighter.cx() + Math.cos(ax.angle) * ax.r;
@@ -4891,7 +4701,6 @@ const DomainManager = (() => {
         }
       }
 
-      // Shield reflect dome ring
       if (fighter._convictionReflectDome > 0) {
         fighter._convictionReflectDome--;
         const alpha = Math.min(1, fighter._convictionReflectDome / 60) * 0.55;
@@ -4909,7 +4718,6 @@ const DomainManager = (() => {
         if (fighter._convictionReflectDome === 0) delete fighter._convictionReflectDome;
       }
 
-      // Flail spin glow
       if (fighter._convictionFlailSpin > 0) {
         const alpha = Math.min(1, fighter._convictionFlailSpin / 30) * 0.4;
         ctx.save();
@@ -4933,11 +4741,8 @@ const DomainManager = (() => {
     }
   }
 
-  // ox = left edge of the owning domain's region (see _dAnchorOrigin). Only the
-  // few screen-space telegraphs below need it; hazard h.x is already world-space.
-  // `owner` was referenced by the rage_pulse case but never bound in this scope,
-  // so drawing a Berserker conviction threw ReferenceError every frame and tripped
-  // the error boundary. It is now passed in explicitly.
+  // ox: left edge of the owning domain's region (see _dAnchorOrigin). Hazard h.x is already world space.
+  // owner is passed in explicitly, since the rage_pulse case can't see it otherwise.
   function _drawHazard(h, def, ox, owner) {
     const OX = isFinite(ox) ? ox : 0;
     ctx.save();
@@ -4988,7 +4793,6 @@ const DomainManager = (() => {
           ctx.ellipse(h.x, _gy + 8, h.radius * (0.4 + w * 0.7), 8, 0, 0, Math.PI * 2);
           ctx.fill();
         } else {
-          // Erupted blade
           const up = Math.min(1, (30 - h.riseTimer) / 6);
           const top = _gy - h.height * up;
           ctx.globalAlpha = Math.min(1, h.riseTimer / 12);
@@ -5043,7 +4847,6 @@ const DomainManager = (() => {
         ctx.beginPath();
         ctx.ellipse(h.x, h.y, h.radius, h.radius * 0.75, 0, 0, Math.PI * 2);
         ctx.stroke();
-        // Ring notches so the boundary reads at a glance
         ctx.globalAlpha = 0.55;
         ctx.lineWidth = 2;
         for (let i = 0; i < 16; i++) {
@@ -5066,7 +4869,6 @@ const DomainManager = (() => {
         ctx.beginPath(); ctx.arc(h.x, h.y, pr * 1.5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#ccfff0';
         ctx.beginPath(); ctx.arc(h.x, h.y, pr * 0.55, 0, Math.PI * 2); ctx.fill();
-        // Trailing wisp tail
         ctx.globalAlpha *= 0.4;
         ctx.fillStyle = '#66ffcc';
         ctx.beginPath(); ctx.arc(h.x - h.vx * 2.2, h.y - h.vy * 2.2, pr * 0.5, 0, Math.PI * 2); ctx.fill();
@@ -5086,7 +4888,6 @@ const DomainManager = (() => {
           ctx.ellipse(h.x, h.y, rr, rr * 0.42, 0, 0, Math.PI * 2);
           ctx.stroke();
         }
-        // Rotating sigil spokes
         ctx.lineWidth = 2;
         for (let i = 0; i < 6; i++) {
           const a = h.angle + (i / 6) * Math.PI * 2;
@@ -5181,7 +4982,7 @@ const DomainManager = (() => {
         ctx.globalAlpha = pulse;
         ctx.translate(h.x, h.y);
         ctx.shadowColor = '#bb44ff'; ctx.shadowBlur = 16;
-        // Body silhouette — simple stickman ghost
+        // Stickman ghost body
         ctx.fillStyle = '#220033';
         ctx.beginPath(); ctx.arc(0, -26, 10, 0, Math.PI * 2); ctx.fill(); // head
         ctx.fillRect(-7, -16, 14, 22);  // torso
@@ -5189,7 +4990,6 @@ const DomainManager = (() => {
         ctx.fillRect(4,   6, 8, 18);    // right leg
         ctx.fillRect(-16, -14, 10, 6);  // left arm
         ctx.fillRect(6,   -14, 10, 6);  // right arm
-        // Sword silhouette
         ctx.fillStyle = '#6600aa';
         ctx.fillRect(8, -30, 3, 28);    // blade
         ctx.fillRect(4, -8,  11, 3);    // guard
@@ -5199,13 +4999,10 @@ const DomainManager = (() => {
       case 'turret': {
         ctx.translate(h.x, h.y);
         ctx.shadowColor = '#ff9900'; ctx.shadowBlur = 12;
-        // Base
         ctx.fillStyle = '#333333';
         ctx.fillRect(-h.radius, 0, h.radius * 2, 14);
-        // Body
         ctx.fillStyle = '#555555';
         ctx.fillRect(-h.radius + 2, -14, h.radius * 2 - 4, 14);
-        // Barrel
         ctx.fillStyle = '#888888';
         ctx.fillRect(h.facing > 0 ? h.radius - 4 : -h.radius - 8, -7, 12, 5);
         // Muzzle glow (pulses with fireTimer)
@@ -5222,7 +5019,6 @@ const DomainManager = (() => {
 
       case 'giant_arrow': {
         if (h.phase === 'warning') {
-          // Show which side it will enter from
           const alpha = 0.30 + 0.25 * Math.sin(performance.now() / 120);
           ctx.globalAlpha = alpha;
           ctx.strokeStyle = '#44ff88';
@@ -5230,7 +5026,6 @@ const DomainManager = (() => {
           ctx.setLineDash([10, 8]);
           ctx.beginPath(); ctx.moveTo(OX + (h.fromLeft ? 0 : GAME_W), h.y); ctx.lineTo(OX + (h.fromLeft ? GAME_W : 0), h.y); ctx.stroke();
           ctx.setLineDash([]);
-          // Chevron at entry side
           ctx.fillStyle = '#44ff88';
           const ex = OX + (h.fromLeft ? 14 : GAME_W - 14);
           ctx.beginPath();
@@ -5242,17 +5037,14 @@ const DomainManager = (() => {
           ctx.translate(h.x, h.y);
           if (!h.fromLeft) ctx.scale(-1, 1);
           ctx.shadowColor = '#44ff88'; ctx.shadowBlur = 20;
-          // Large shaft
           ctx.fillStyle = '#2a8a50';
           ctx.fillRect(-h.radius * 2, -5, h.radius * 4, 10);
-          // Arrowhead
           ctx.fillStyle = '#88ffcc';
           ctx.beginPath();
           ctx.moveTo(h.radius * 2,  0);
           ctx.lineTo(h.radius * 2 - 28, -16);
           ctx.lineTo(h.radius * 2 - 28,  16);
           ctx.closePath(); ctx.fill();
-          // Fletching
           ctx.fillStyle = '#44ff88';
           ctx.beginPath();
           ctx.moveTo(-h.radius * 2,  0);
@@ -5272,14 +5064,12 @@ const DomainManager = (() => {
         ctx.translate(h.x, h.y);
         ctx.rotate(h.angle + Math.PI / 2);
         ctx.shadowColor = '#ffffaa'; ctx.shadowBlur = 18;
-        // Kite shield shape
         ctx.fillStyle = '#ddcc44';
         ctx.beginPath();
         ctx.moveTo(0, -h.radius);
         ctx.bezierCurveTo(h.radius, -h.radius, h.radius, h.radius * 0.4, 0, h.radius * 1.3);
         ctx.bezierCurveTo(-h.radius, h.radius * 0.4, -h.radius, -h.radius, 0, -h.radius);
         ctx.fill();
-        // Shield face design
         ctx.fillStyle = '#ffffff';
         ctx.globalAlpha = 0.7;
         ctx.beginPath();
@@ -5287,7 +5077,6 @@ const DomainManager = (() => {
         ctx.bezierCurveTo(h.radius * 0.6, -h.radius * 0.7, h.radius * 0.6, h.radius * 0.2, 0, h.radius * 0.9);
         ctx.bezierCurveTo(-h.radius * 0.6, h.radius * 0.2, -h.radius * 0.6, -h.radius * 0.7, 0, -h.radius * 0.7);
         ctx.fill();
-        // Holy glow pulse
         ctx.globalAlpha = 0.30 + 0.20 * Math.sin(performance.now() / 150);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -5297,7 +5086,6 @@ const DomainManager = (() => {
 
       case 'rage_pulse': {
         if (!owner) break;
-        // Draw the expanding ring when active
         if (h.ringActive && h.ringRadius > 0) {
           const alpha = Math.max(0, 1 - h.ringRadius / (h.radius + 40));
           ctx.globalAlpha = alpha * 0.7;
@@ -5315,7 +5103,6 @@ const DomainManager = (() => {
 
       case 'gravity_vortex': {
         const now = performance.now();
-        // Swirling rings
         for (let ring = 0; ring < 3; ring++) {
           const r    = 28 + ring * 22;
           const spin = now / (400 + ring * 120) + ring * Math.PI * 0.66;
@@ -5332,7 +5119,6 @@ const DomainManager = (() => {
           ctx.fillStyle = '#9944ff';
           ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI * 2); ctx.fill();
         }
-        // Core glow
         ctx.globalAlpha = 0.55 + 0.20 * Math.sin(now / 220);
         ctx.fillStyle = '#220044';
         ctx.shadowColor = '#cc66ff'; ctx.shadowBlur = 20;
@@ -5345,21 +5131,18 @@ const DomainManager = (() => {
         ctx.translate(h.x, h.y);
         ctx.rotate(h.spinAngle);
         ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 26;
-        // Motion trail when striking
         if (h.state === 'strike') {
           ctx.globalAlpha = 0.38;
           ctx.fillStyle = '#aaddff';
           ctx.beginPath(); ctx.arc(-h.vx * 2.2, -h.vy * 2.2, h.radius * 0.8, 0, Math.PI * 2); ctx.fill();
           ctx.globalAlpha = 1;
         }
-        // Head
         ctx.fillStyle = '#cccccc';
         ctx.fillRect(-14, -8, 28, 12);
         ctx.fillStyle = '#eeeeee';
         ctx.fillRect(-13, -7, 26, 5);
         ctx.fillStyle = '#888888';
         ctx.fillRect(-14, 3, 28, 2);
-        // Handle
         ctx.fillStyle = '#8B4513';
         ctx.fillRect(-3, 4, 6, 18);
         ctx.fillStyle = '#5c2e0a';
@@ -5367,7 +5150,7 @@ const DomainManager = (() => {
         ctx.fillRect(-3, 12, 6, 2);
         ctx.fillStyle = '#cccccc';
         ctx.fillRect(-4, 20, 8, 4);
-        // Lightning glow — pulses faster when striking
+        // Lightning glow, pulses faster when striking
         const mRate = h.state === 'strike' ? 45 : 95;
         ctx.globalAlpha = 0.6 + 0.3 * Math.sin(performance.now() / mRate);
         ctx.strokeStyle = '#aaddff';
@@ -5383,15 +5166,12 @@ const DomainManager = (() => {
         ctx.translate(h.x, h.y);
         ctx.rotate(h.orbitAngle + (h.state === 'launch' ? Math.atan2(h.launchVy, h.launchVx) : 0));
         ctx.shadowColor = '#ccccff'; ctx.shadowBlur = 22 * pulse;
-        // Blade
         ctx.fillStyle = '#eeeeff';
         ctx.fillRect(-2, -22, 4, 40);
         ctx.fillStyle = '#aaaadd';
         ctx.fillRect(-1.5, -22, 1.5, 40);
-        // Guard
         ctx.fillStyle = '#888899';
         ctx.fillRect(-7, 14, 14, 3);
-        // Glow outline
         ctx.globalAlpha = 0.55 * pulse;
         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(0, -22); ctx.lineTo(0, 18); ctx.stroke();
@@ -5404,12 +5184,10 @@ const DomainManager = (() => {
         const bladeY2 = h.anchorY + Math.cos(h.angle) * h.armLength;
         const now3 = performance.now();
         ctx.save();
-        // Chain/arm
         ctx.strokeStyle = '#882288'; ctx.lineWidth = 2;
         ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 8;
         ctx.globalAlpha = 0.55;
         ctx.beginPath(); ctx.moveTo(h.anchorX, h.anchorY); ctx.lineTo(bladeX2, bladeY2); ctx.stroke();
-        // Blade at tip
         ctx.globalAlpha = 0.85 + 0.15 * Math.sin(now3 / 160);
         ctx.translate(bladeX2, bladeY2);
         ctx.rotate(h.angle + Math.PI * 0.5);
@@ -5418,7 +5196,6 @@ const DomainManager = (() => {
         ctx.beginPath(); ctx.arc(0, 0, 28, -Math.PI * 0.7, Math.PI * 0.1); ctx.stroke();
         ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(0, 0, 28, -Math.PI * 0.7, Math.PI * 0.1); ctx.stroke();
-        // Handle spike
         ctx.strokeStyle = '#662266'; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 18); ctx.stroke();
         ctx.restore();
@@ -5433,15 +5210,12 @@ const DomainManager = (() => {
         ctx.translate(h.x, h.y);
         if (!h.fromLeft) ctx.scale(-1, 1);
         ctx.shadowColor = '#ee4444'; ctx.shadowBlur = 22 * fpulse;
-        // Main fist body
         ctx.fillStyle = '#cc2222';
         ctx.beginPath(); ctx.roundRect(-h.radius, -h.radius, h.radius * 2, h.radius * 2 - 4, 10); ctx.fill();
-        // Knuckles
         ctx.fillStyle = '#ff6666';
         for (let k = -1; k <= 1; k++) {
           ctx.beginPath(); ctx.arc(k * 9, -h.radius + 4, 5, 0, Math.PI * 2); ctx.fill();
         }
-        // Impact glow on front
         ctx.globalAlpha = fpulse * 0.5;
         ctx.fillStyle = '#ffaaaa';
         ctx.beginPath(); ctx.arc(h.radius - 6, 0, 10, 0, Math.PI * 2); ctx.fill();
@@ -5466,16 +5240,13 @@ const DomainManager = (() => {
         ctx.save();
         ctx.translate(h.x, h.y);
         ctx.shadowColor = '#ff4444'; ctx.shadowBlur = 14;
-        // Platform base
         ctx.fillStyle = '#441111';
         ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#ff2222'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); ctx.stroke();
-        // Rotating barrel
         ctx.rotate(h.angle);
         ctx.fillStyle = '#cc3333';
         ctx.fillRect(0, -3, 17, 6);
-        // Muzzle glow
         ctx.globalAlpha = 0.6 + 0.4 * Math.sin(performance.now() / 50);
         ctx.fillStyle = '#ff6666';
         ctx.beginPath(); ctx.arc(17, 0, 5, 0, Math.PI * 2); ctx.fill();
@@ -5484,8 +5255,7 @@ const DomainManager = (() => {
       }
 
       case 'arc_salvo': {
-        // Invisible fire source — draws a faint pulsing sigil at owner position
-        // (The bolts it creates use bullet draw code)
+        // Invisible fire source. The bolts use bullet draw code.
         break;
       }
 
@@ -5500,7 +5270,6 @@ const DomainManager = (() => {
           ctx.setLineDash([8, 6]);
           ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, GAME_H); ctx.stroke();
           ctx.setLineDash([]);
-          // Base glow
           ctx.globalAlpha = 0.65 * _epPulse;
           ctx.fillStyle = '#003344';
           ctx.beginPath(); ctx.ellipse(px, GAME_H - 10, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
@@ -5539,7 +5308,6 @@ const DomainManager = (() => {
         const _bbAng = Math.atan2(h.vy || 0, h.vx || 1);
         ctx.rotate(_bbAng + Math.PI * 0.5);
         ctx.shadowColor = '#ff2222'; ctx.shadowBlur = 16;
-        // Bloody crescent slash mark
         ctx.strokeStyle = '#cc0000'; ctx.lineWidth = 5; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.arc(0, 0, h.radius * 1.4, -Math.PI * 0.7, Math.PI * 0.1); ctx.stroke();
         ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
@@ -5554,7 +5322,6 @@ const DomainManager = (() => {
       case 'blades_of_chaos': {
         if (h.phase !== 'sweep') break;
         ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 20;
-        // Draw chain from center to tip
         const segments = 8;
         const segLen = h.armLength / segments;
         for (let s = 0; s < segments; s++) {
@@ -5563,7 +5330,6 @@ const DomainManager = (() => {
           const y0 = h.y + Math.sin(h.angle) * h.armLength * t0;
           const x1 = h.x + Math.cos(h.angle) * h.armLength * t1;
           const y1 = h.y + Math.sin(h.angle) * h.armLength * t1;
-          // Chain link (alternating rectangles)
           ctx.fillStyle = s % 2 === 0 ? '#cc3300' : '#ff6600';
           ctx.globalAlpha = 0.9 - s * 0.06;
           ctx.beginPath();
@@ -5571,7 +5337,6 @@ const DomainManager = (() => {
           ctx.lineTo(x1, y1 + 4); ctx.lineTo(x0, y0 + 4);
           ctx.closePath(); ctx.fill();
         }
-        // Blade tip — glowing fire point
         const tipX = h.x + Math.cos(h.angle) * h.armLength;
         const tipY = h.y + Math.sin(h.angle) * h.armLength;
         ctx.globalAlpha = 1;
@@ -5590,7 +5355,6 @@ const DomainManager = (() => {
     ctx.restore();
   }
 
-  // ── Draw — speech bubbles (world-space; call after entities) ──────
 
   function drawSpeechBubbles() {
     for (const r of _rising) {
@@ -5618,7 +5382,6 @@ const DomainManager = (() => {
       const bH  = 44;
       const top = by - bH - 8;
 
-      // Bubble
       ctx.fillStyle   = 'rgba(255,255,255,0.93)';
       ctx.strokeStyle = def.color;
       ctx.lineWidth   = 2;
@@ -5627,7 +5390,6 @@ const DomainManager = (() => {
       else { ctx.rect(bx - bW / 2, top, bW, bH); }
       ctx.fill(); ctx.stroke();
 
-      // Tail
       ctx.fillStyle   = 'rgba(255,255,255,0.93)';
       ctx.strokeStyle = def.color;
       ctx.lineWidth   = 1.5;
@@ -5638,7 +5400,6 @@ const DomainManager = (() => {
       ctx.closePath();
       ctx.fill(); ctx.stroke();
 
-      // Text
       ctx.textAlign = 'center';
       ctx.fillStyle = '#111';
       ctx.font = 'bold 13px Arial';
@@ -5654,7 +5415,6 @@ const DomainManager = (() => {
     }
   }
 
-  // ── Draw — HUD (screen-space; call after ctx.setTransform(1,0,0,1,0,0)) ──
 
   function drawHUD() {
     if (_domains.length === 0) return;
@@ -5672,7 +5432,6 @@ const DomainManager = (() => {
       const bx    = cW / 2 - DOMAIN_BAR_W / 2;
       const pulse = frac <= (5 / 25) ? (0.85 + 0.15 * Math.sin(now / 100)) : 1;
 
-      // Domain name
       ctx.font      = 'bold 13px Arial';
       ctx.textAlign = 'center';
       ctx.fillStyle   = domain.def.color;
@@ -5680,16 +5439,13 @@ const DomainManager = (() => {
       ctx.shadowBlur  = 10;
       ctx.fillText(domain.def.name, cW / 2, yOff);
 
-      // Bar background
       ctx.shadowBlur = 0;
       ctx.fillStyle  = 'rgba(0,0,0,0.52)';
       ctx.fillRect(bx, yOff + 4, DOMAIN_BAR_W, DOMAIN_BAR_H);
 
-      // Bar fill
       ctx.fillStyle = domain.def.color;
       ctx.fillRect(bx, yOff + 4, DOMAIN_BAR_W * frac * pulse, DOMAIN_BAR_H);
 
-      // Seconds label
       ctx.fillStyle   = '#ffffff';
       ctx.font        = '11px Arial';
       ctx.textAlign   = 'center';
@@ -5711,7 +5467,6 @@ const DomainManager = (() => {
     }
     _domains.length = 0;
     _rising.length  = 0;
-    // Clear any lingering ninja time dilation
     if (typeof players !== 'undefined') {
       for (const p of players) {
         if (p && p._domainSlowFactor !== undefined) { p._domainSlowFactor = 1; p._domainSlowAccum = 0; }

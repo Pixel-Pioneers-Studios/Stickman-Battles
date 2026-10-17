@@ -1,19 +1,8 @@
 'use strict';
-// js/story/levels/ch83.js — Chapter 83 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch83.js: chapter 83 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 83 — What You Carry (defense)
-// The Fragment Core: a chamber in the Void Between where the Fallen God shows
-// you the fragment as it actually is. It hangs over the resonance point (the
-// nexus, x=450) as a crystal the size of a house. While the Fallen God talks
-// it changes: at first gold, the way you were told to see it — then the gold
-// peels away from a black core rimmed in violet, "crystallized Void Mind
-// emission". Far behind it, past the membrane, the Mind itself is a dark mass
-// on the horizon with the emission rising off it like heat off a reactor, and
-// where the membrane is thin on both sides the emissions bleed through (that
-// is where the waves come from). Crystal shards grown out of the floor are
-// the ledges, two low and two high.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch 83: defense. The Fragment Core hangs over the resonance point (x=450).
+// Its gold skin peels off a black core as the Fallen God talks. Shards are the ledges.
 (function () {
   const G = 440, NX = 450;
   const SHARDS = [[90, 345, 130], [680, 345, 130], [290, 255, 110], [500, 255, 110]];
@@ -24,7 +13,7 @@
     return P;
   }
 
-  // 0 → 1 through the fight script: how much of the gold has come away
+  // 0 to 1 over the fight script: how much gold has come away
   function truth() {
     const n = (typeof storyFightScript !== 'undefined' && storyFightScript.length) || 6;
     const i = (typeof storyFightScriptIdx !== 'undefined') ? storyFightScriptIdx : 0;
@@ -33,7 +22,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#04020a');
-    // The Mind on the horizon, emission rising off it like heat
     _slParallax(v, 0.06, (l, r) => {
       const cx = 450;
       ctx.fillStyle = '#0a0612';
@@ -50,7 +38,6 @@
 
   function back(v) {
     const t = truth();
-    // The membrane, thin at both sides where the emissions bleed through
     for (const [ex, dir] of [[0, 1], [900, -1]]) {
       const g = ctx.createLinearGradient(ex, 0, ex + dir * 120, 0);
       g.addColorStop(0, 'rgba(120,60,200,0.35)'); g.addColorStop(1, 'rgba(120,60,200,0)');
@@ -60,7 +47,7 @@
         ctx.fillStyle = `rgba(200,140,255,${0.6 * (1 - p)})`; ctx.fillRect(ex + dir * p * 120, 120 + _slHash(k + 831) * 300, 3, 3);
       }
     }
-    // The fragment over the resonance point: gold, then the truth under it
+    // Gold on the outside, the black core under it
     const cy = 170, H = 150;
     const facets = [[0, -H], [46, -H * 0.45], [38, H * 0.5], [0, H * 0.75], [-40, H * 0.45], [-48, -H * 0.4]];
     ctx.save(); ctx.translate(NX, cy + Math.sin(frameCount * 0.02) * 4);
@@ -72,7 +59,6 @@
     ctx.fillStyle = '#08040e';
     ctx.beginPath(); facets.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = `rgba(190,120,255,${0.3 + 0.6 * t})`; ctx.lineWidth = 2; ctx.stroke();
-    // The gold skin, peeling away from the bottom up as the truth comes out
     ctx.save(); ctx.beginPath(); ctx.rect(-60, -H - 10, 120, (H * 1.85 + 10) * (1 - t)); ctx.clip();
     ctx.fillStyle = 'rgba(232,196,110,0.92)';
     ctx.beginPath(); facets.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill();
@@ -84,7 +70,6 @@
       ctx.fillStyle = `rgba(232,196,110,${1 - p})`; ctx.fillRect(-40 + _slHash(k + 832) * 80, H * 0.6 + p * 120, 5, 3);
     }
     ctx.restore();
-    // Crystal shards grown out of the floor (the ledges)
     for (let i = 0; i < SHARDS.length; i++) {
       const [x, y, w] = SHARDS[i];
       ctx.fillStyle = '#1a1028';

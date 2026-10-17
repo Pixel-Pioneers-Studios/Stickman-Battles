@@ -1,4 +1,4 @@
-// smc-save.js — Persistent save system: auto-save, export, import
+// smb-save.js: persistent save system (auto-save, export, import).
 'use strict';
 
 console.info('[BOOT ORDER] smb-save init');
@@ -21,8 +21,7 @@ const SAVE_VERSION = 3;
 const SAVE_KEY     = 'smb_state';
 const CANONICAL_SAVE_KEY = 'smb_state';
 
-// Dynamic key helpers — route through AccountManager when available so each
-// account gets its own isolated save slot.
+// Dynamic key helpers. They go through AccountManager so each account gets its own save slot.
 function _getSaveKey()   { return (window.AccountManager) ? window.AccountManager.getActiveSaveKey() : SAVE_KEY; }
 function _getBackupKey() { return _getSaveKey() + '_backup'; }
 
@@ -183,7 +182,6 @@ function _canonicalSaveMeaningful(data) {
   return false;
 }
 
-// ── Default save structure (used for deep-merge / version migrations) ─────────
 const _SAVE_DEFAULTS = {
   version: SAVE_VERSION,
   coins: 0,
@@ -217,9 +215,7 @@ const _SAVE_DEFAULTS = {
   updatedAt: 0,
 };
 
-// ── Custom Weapon helpers ─────────────────────────────────────────────────────
-// window.CUSTOM_WEAPONS is populated by smb-designer.js or cheat console.
-// We persist both the selected key and all weapon objects across sessions.
+// window.CUSTOM_WEAPONS is filled by smb-designer.js or the cheat console. Selected key and weapon objects persist.
 function saveCustomWeaponSelection(key) {
   try { localStorage.setItem('smc_customWeapon', key || ''); } catch(e) {}
 }
@@ -257,7 +253,6 @@ function loadCustomWeaponsData() {
   } catch(e) {}
 }
 
-// ── Migration ─────────────────────────────────────────────────────────────────
 function _migrateSave(data) {
   const d = Object.assign({}, data);
   // v1 → v2: ensure settings.musicMute exists (was added in v2)
@@ -286,7 +281,6 @@ function _migrateSave(data) {
   return d;
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
 function _deepMerge(defaults, saved) {
   const out = Object.assign({}, defaults);
   for (const k of Object.keys(saved)) {
@@ -302,7 +296,6 @@ function _deepMerge(defaults, saved) {
   return out;
 }
 
-// ── Gather progression state from globals (SHIP, FRACTURES, motivationStage) ──
 function _gatherProgressionData() {
   const data = {};
   try { if (typeof SHIP !== 'undefined') data.ship = JSON.parse(JSON.stringify(SHIP)); } catch(e) {}
@@ -319,14 +312,11 @@ function _gatherProgressionData() {
   return data;
 }
 
-// ── Flush volatile runtime state into account.data (SSOT approach) ───────────
-// Called by saveGame() before serializing.  account.data is the single source
-// of truth; this function writes runtime globals that are NOT automatically
-// committed via setAccountFlag (story, storyProgress, settings, progression).
-// For fields that ARE committed via setAccountFlag (coins, cosmetics, unlock
-// flags), we write from runtime as a safety net using the "never lower" rule.
+// Writes runtime globals into account.data before saving. account.data is the source of truth.
+// Fields committed through setAccountFlag (coins, cosmetics, unlock flags) are mirrored here as a
+// safety net, using the never-lower rule.
 function _flushRuntimeIntoBase(base) {
-  // story — _story2 lives in smb-story-config.js; flush its snapshot
+  // story: _story2 lives in smb-story-config.js; flush its snapshot
   if (typeof getStoryDataForSave === 'function') {
     const _snap = getStoryDataForSave();
     if (_snap && Array.isArray(_snap.defeated)) {
@@ -334,7 +324,7 @@ function _flushRuntimeIntoBase(base) {
       if (window._smbDebugSave) console.info('[STORY FLUSH]', { defeated: _snap.defeated.length, chapter: _snap.chapter });
     }
   }
-  // storyProgress — STORY_PROGRESS is mutated directly in smb-progression.js
+  // storyProgress: STORY_PROGRESS is mutated directly in smb-progression.js
   if (typeof STORY_PROGRESS !== 'undefined') {
     if (!base.storyProgress || typeof base.storyProgress !== 'object') base.storyProgress = {};
     if (typeof STORY_PROGRESS.act     === 'number') base.storyProgress.act     = STORY_PROGRESS.act;
@@ -344,25 +334,23 @@ function _flushRuntimeIntoBase(base) {
     }
     if (!Array.isArray(base.storyProgress.defeated)) base.storyProgress.defeated = [];
   }
-  // chapter top-level — take the highest observed value
+  // chapter top-level: take the highest observed value
   const _rch = (base.story && typeof base.story.chapter === 'number') ? base.story.chapter
     : (base.storyProgress && typeof base.storyProgress.chapter === 'number') ? base.storyProgress.chapter : 0;
   if (typeof base.chapter !== 'number' || _rch > base.chapter) base.chapter = _rch;
-  // coins — prefer the runtime global (authoritative after setCoins / _refreshRuntimeFromSave)
-  // Fall back to getCoins() only if playerCoins is not yet a number (parse-time edge case).
+  // coins: the runtime global is authoritative. Fall back to getCoins() only if playerCoins isn't a number yet.
   base.coins = (typeof playerCoins === 'number') ? playerCoins : getCoins();
-  // cosmetics — runtime is always authoritative (kept in sync by addCosmetic → setAccountFlag)
+  // cosmetics: runtime is always authoritative (kept in sync by addCosmetic → setAccountFlag)
   if (typeof unlockedCosmetics !== 'undefined' && Array.isArray(unlockedCosmetics)) {
     base.cosmetics = unlockedCosmetics.slice();
   }
-  // achievements
   if (typeof earnedAchievements !== 'undefined') {
     const _ach = Array.from(earnedAchievements);
     base.achievements = _ach;
     if (!base.unlocks) base.unlocks = {};
     base.unlocks.achievements = _ach;
   }
-  // unlock flags — safety net; never lower a flag that's already true in account.data
+  // unlock flags: safety net; never lower a flag that's already true in account.data
   if (!base.unlocks) base.unlocks = {};
   if (typeof bossBeaten         !== 'undefined') base.unlocks.bossBeaten      = base.unlocks.bossBeaten      || !!bossBeaten;
   if (typeof unlockedTrueBoss   !== 'undefined') base.unlocks.trueform        = base.unlocks.trueform        || !!unlockedTrueBoss;
@@ -378,20 +366,16 @@ function _flushRuntimeIntoBase(base) {
     const _ids = Array.from(collectedLetterIds);
     if (!Array.isArray(base.unlocks.letters) || _ids.length > base.unlocks.letters.length) base.unlocks.letters = _ids;
   }
-  // settings
   base.settings = {
     sfxVol:    parseFloat(localStorage.getItem('smc_sfxVol') || '0.35'),
     sfxMute:   (localStorage.getItem('smc_sfxMute')   === '1'),
     musicMute: (localStorage.getItem('smc_musicMute') === '1'),
     ragdoll:   (typeof settings !== 'undefined') ? !!settings.ragdollEnabled : (localStorage.getItem('smc_ragdoll') === '1'),
   };
-  // progression
   base.progression = _gatherProgressionData();
-  // version stamp
   base.version = SAVE_VERSION;
 }
 
-// ── Gather current state from individual localStorage keys (used by export) ──
 function _gatherSaveData() {
   const active = _getActiveAcctDirect();
   const chapter = (typeof STORY_PROGRESS !== 'undefined' && typeof STORY_PROGRESS.chapter === 'number')
@@ -414,15 +398,14 @@ function _gatherSaveData() {
       flags:   Object.assign({}, STORY_PROGRESS.flags),
     } : null,
     unlocks: {
-      // Core unlocks — read from runtime globals (authoritative after _refreshRuntimeFromSave)
+      // Core unlocks: read from runtime globals (authoritative after _refreshRuntimeFromSave)
       bossBeaten:   (typeof bossBeaten        !== 'undefined') ? !!bossBeaten        : false,
       trueform:     (typeof unlockedTrueBoss   !== 'undefined') ? !!unlockedTrueBoss   : false,
       megaknight:   (typeof unlockedMegaknight !== 'undefined') ? !!unlockedMegaknight : false,
       letters:      (typeof collectedLetterIds !== 'undefined') ? Array.from(collectedLetterIds) : [],
       achievements: (typeof earnedAchievements !== 'undefined') ? Array.from(earnedAchievements) : [],
-      // Extended unlocks with runtime globals
       paradoxCompanion:   (typeof paradoxCompanionActive !== 'undefined') ? !!paradoxCompanionActive : false,
-      // Extended unlocks — sourced from runtime globals (hydrated by _refreshRuntimeFromSave)
+      // Extended unlocks: sourced from runtime globals (hydrated by _refreshRuntimeFromSave)
       sovereignBeaten: (typeof sovereignBeaten !== 'undefined') ? !!sovereignBeaten : false,
       storyOnline:     (typeof storyOnline     !== 'undefined') ? !!storyOnline     : false,
       tfEndingSeen:    !!(active && active.data && active.data.unlocks && active.data.unlocks.tfEndingSeen),
@@ -451,37 +434,32 @@ function _gatherSaveData() {
   };
 }
 
-// ── Write save data back into individual localStorage keys ────────────────────
 function _applySaveData(data) {
   const d = _deepMerge(_SAVE_DEFAULTS, data);
   if (typeof restoreStoryDataFromSave === 'function') {
-    // Always restore story data — fall back to default so switching to a new account
-    // (which has no story field) resets _story2 instead of leaving the old account's data.
+    // Restore story data. Falling back to the default resets _story2 for a new account that has no story field.
     const storyPayload = (d.story && d.story.defeated) ? d.story
       : (typeof _defaultStory2Progress === 'function' ? _defaultStory2Progress() : null);
     if (storyPayload) restoreStoryDataFromSave(storyPayload);
   }
 }
 
-// ── Refresh runtime variables after loading a save ───────────────────────────
 // Called after _applySaveData() so that module-level globals (which were set at
 // parse time from localStorage) are brought in sync with the newly-active account.
 function _refreshRuntimeFromSave(data) {
   if (!data) return;
 
-  // Skip if we already hydrated this account — prevents redundant re-runs within a session.
+  // Skip if we already hydrated this account: prevents redundant re-runs within a session.
   // Keyed by account ID (not a boolean) so account switches automatically pass through.
   const _acct = _getActiveAcctDirect();
   const _acctId = _acct ? _acct.id : null;
   if (_acctId && _acctId === _hydratedAccountId) return;
 
-  // ── Reset phase: bring all account-specific globals to their initial defaults
-  // before applying save data. This ensures no previous account's state bleeds
-  // through when the incoming data is sparse or omits a field entirely.
+  // Reset account-scoped globals first, so no previous account's state leaks through sparse data.
   if (typeof resetProgressionGlobals   === 'function') resetProgressionGlobals();
   if (typeof resetAccountScopedGlobals === 'function') resetAccountScopedGlobals();
 
-  // Unlock globals — smb-globals.js
+  // Unlock globals: smb-globals.js
   if (data.unlocks) {
     if (typeof bossBeaten         !== 'undefined') bossBeaten         = !!data.unlocks.bossBeaten;
     if (typeof unlockedTrueBoss   !== 'undefined') unlockedTrueBoss   = !!data.unlocks.trueform;
@@ -492,36 +470,33 @@ function _refreshRuntimeFromSave(data) {
     }
     // Extended runtime globals reset by resetAccountScopedGlobals() above; restore here
     if (typeof paradoxCompanionActive !== 'undefined') paradoxCompanionActive = !!data.unlocks.paradoxCompanion;
-    // New v3 runtime globals
     if (typeof sovereignBeaten !== 'undefined') sovereignBeaten = !!data.unlocks.sovereignBeaten;
     if (typeof storyOnline     !== 'undefined') storyOnline     = !!data.unlocks.storyOnline;
-    // God encounter flags
     if (typeof godEncountered  !== 'undefined') godEncountered  = !!data.unlocks.godEncountered;
     if (typeof godDefeated     !== 'undefined') godDefeated     = !!data.unlocks.godDefeated;
     if (typeof bossRushUnlocked        !== 'undefined') bossRushUnlocked        = !!data.unlocks.bossRushUnlocked;
     if (typeof absoluteAxiomUnlocked   !== 'undefined') absoluteAxiomUnlocked   = !!data.unlocks.absoluteAxiomUnlocked;
   }
 
-  // Coins — mirror account.data.coins into runtime global; use getCoins() for the canonical value
+  // Coins: mirror account.data.coins into runtime global; use getCoins() for the canonical value
   if (typeof playerCoins !== 'undefined') playerCoins = (typeof data.coins === 'number') ? data.coins : 0;
   if (typeof unlockedCosmetics !== 'undefined' && Array.isArray(data.cosmetics)) {
     unlockedCosmetics.length = 0;
     data.cosmetics.forEach(function(id) { unlockedCosmetics.push(id); });
   }
 
-  // Achievement Set — smb-achievements.js
   if (typeof earnedAchievements !== 'undefined' && data.unlocks && Array.isArray(data.unlocks.achievements)) {
     earnedAchievements.clear();
     data.unlocks.achievements.forEach(function(id) { earnedAchievements.add(id); });
     if (typeof _achUpdateNavCount === 'function') _achUpdateNavCount();
   }
 
-  // Settings — smb-globals.js (const object; properties must be mutated, not replaced)
+  // Settings is a const object: mutate its properties, don't replace it
   if (data.settings) {
     if (typeof data.settings.ragdoll !== 'undefined') settings.ragdollEnabled = !!data.settings.ragdoll;
   }
 
-  // Progression globals — smb-progression.js (may not be loaded yet at parse time; guarded)
+  // Progression globals: smb-progression.js (may not be loaded yet at parse time; guarded)
   if (data.progression) {
     try {
       if (typeof SHIP !== 'undefined' && data.progression.ship) {
@@ -548,7 +523,6 @@ function _refreshRuntimeFromSave(data) {
     } catch(e) {}
   }
 
-  // Story progress — smb-globals.js (STORY_PROGRESS available at all times)
   if (data.storyProgress && typeof STORY_PROGRESS !== 'undefined') {
     if (typeof data.storyProgress.act     === 'number') STORY_PROGRESS.act     = data.storyProgress.act;
     if (typeof data.storyProgress.chapter === 'number') STORY_PROGRESS.chapter = data.storyProgress.chapter;
@@ -565,16 +539,13 @@ function _refreshRuntimeFromSave(data) {
   // Sync secret-letter UI (no-op if still in loading phase)
   if (typeof syncCodeInput === 'function') syncCodeInput();
 
-  // Sync mode-card visibility so unlocked modes (Boss, TrueForm, Sovereign, etc.)
-  // show correctly after a page reload — without this they stay hidden because
-  // refreshMenuFromAccount() ran at smb-menu-utils.js parse time before loadGame().
+  // Refresh mode-card visibility so unlocked modes show after reload. refreshMenuFromAccount() runs too early without this.
   if (typeof refreshMenuFromAccount === 'function') refreshMenuFromAccount();
 
-  // Mark this account as hydrated — guards against redundant re-runs this session
+  // Mark this account as hydrated: guards against redundant re-runs this session
   if (_acctId) _hydratedAccountId = _acctId;
 }
 
-// ── Debounced save ────────────────────────────────────────────────────────────
 let _saveQueued = false;
 let _saveTimer  = null;
 let _flushInProgress = false;
@@ -585,11 +556,10 @@ function queueGameStateSave() {
   _saveTimer = setTimeout(function() {
     _saveQueued = false;
     _saveTimer  = null;
-    saveGame(); // full flush — captures _story2 and all volatile runtime state
+    saveGame(); // full flush: captures _story2 and all volatile runtime state
   }, 50);
 }
 
-// ── Account flag setters ──────────────────────────────────────────────────────
 function setAccountFlag(path, value, acctOverride) {
   const acct = acctOverride || _getActiveAcctDirect();
   if (!acct) return;
@@ -620,9 +590,7 @@ function setAccountFlagWithRuntime(path, value, runtimeSetter) {
   }
 }
 
-// ── Canonical coin API — single source of truth is account.data.coins ────────
-// All coin reads and writes MUST go through these three functions.
-// playerCoins is a runtime mirror kept in sync; never read it directly for logic.
+// All coin reads and writes go through these three functions. playerCoins is a runtime mirror, so don't read it for logic.
 
 function getCoins() {
   const acct = _getActiveAcctDirect();
@@ -658,7 +626,6 @@ function addCoins(n) {
   setCoins(getCoins() + delta);
 }
 
-// ── Legacy updateCoins — kept for backward-compat; delegates to setCoins ─────
 function updateCoins(fn) {
   if (typeof fn !== 'function') return;
   const next = fn(getCoins());
@@ -669,7 +636,6 @@ function updateCoins(fn) {
   setCoins(next);
 }
 
-// ── Collection wrappers ───────────────────────────────────────────────────────
 function addCosmetic(id) {
   if (typeof unlockedCosmetics === 'undefined') return;
   if (unlockedCosmetics.indexOf(id) !== -1) return;
@@ -766,8 +732,7 @@ function applyRewardDeltaLocally(reward) {
       setAccountFlag(['chapter'], chapterValue);
       setAccountFlag(['story', 'chapter'], chapterValue);
       setAccountFlag(['storyProgress', 'chapter'], chapterValue);
-      // chapterValue is the next-chapter pointer; the chapters actually beaten are
-      // currentChapter .. chapterValue-1, so mark those (not the unplayed next one).
+      // chapterValue is the next-chapter pointer, so beaten chapters are currentChapter .. chapterValue-1.
       const beaten = [];
       for (let c = currentChapter; c < chapterValue; c++) beaten.push(c);
       const defeated = activeSave && activeSave.story && Array.isArray(activeSave.story.defeated)
@@ -809,22 +774,17 @@ function applyServerRewardSave(save) {
   }
 }
 
-// ── Legacy key cleanup ────────────────────────────────────────────────────────
 function _clearLegacyKeys() {
   return;
 }
 
-// ── Rehydration guard (keyed by account ID, not a boolean) ───────────────────
 let _hydratedAccountId = null;
 
-// ── Safe active-account accessor ──────────────────────────────────────────────
-// GameState.getActiveAccount() reads _state.persistent directly inside the IIFE
-// closure.  In some browser/timing scenarios it returns null even when
-// getPersistent().accounts[activeAccountId] exists.  This helper bypasses that
-// by reading through getPersistent() — the path that always works.
+// Active account, read through getPersistent(). GameState.getActiveAccount() can return null in some
+// timing cases even when the account exists.
 let _diagWarnedOnce = false;
 function _getActiveAcctDirect() {
-  // Path 1 — GameState via getPersistent() (primary)
+  // Path 1: GameState via getPersistent() (primary)
   if (window.GameState && typeof GameState.getPersistent === 'function') {
     try {
       const p = GameState.getPersistent();
@@ -852,7 +812,7 @@ function _getActiveAcctDirect() {
     console.warn('[DIAG-1] window.GameState missing or no getPersistent');
   }
 
-  // Path 2 — Direct localStorage fallback (bypasses GameState entirely)
+  // Path 2: Direct localStorage fallback (bypasses GameState entirely)
   try {
     const raw = localStorage.getItem('smb_state');
     if (!raw) return null;
@@ -883,7 +843,6 @@ function forceRehydrateFromAccount(acct) {
   if (typeof refreshCoinDisplay === 'function') refreshCoinDisplay();
 }
 
-// ── Dev guard: warn on stale localStorage reads for account-scoped keys ───────
 function _guardLocalStorageRead(key) {
   if (key && /^smc_|^smb_(bossBeaten|trueform|megaknight|sovereignBeaten|storyOnline|damnationScar|interTravel|patrolMode)$/.test(key)) {
     console.warn('[storage] Blocked localStorage read for account-scoped key:', key,
@@ -891,7 +850,6 @@ function _guardLocalStorageRead(key) {
   }
 }
 
-// ── Flush hooks (beforeunload + visibilitychange) ─────────────────────────────
 (function() {
   function _flushSave() {
     if (_flushInProgress) return;
@@ -899,7 +857,7 @@ function _guardLocalStorageRead(key) {
     clearTimeout(_saveTimer);
     _saveTimer  = null;
     _saveQueued = false;
-    try { saveGame(); } catch(e) {} // full flush — captures _story2 before tab closes
+    try { saveGame(); } catch(e) {} // full flush: captures _story2 before tab closes
     // Reset flag after a tick so the handler can fire again after navigation (e.g. spa reload)
     setTimeout(function() { _flushInProgress = false; }, 200);
   }
@@ -909,8 +867,7 @@ function _guardLocalStorageRead(key) {
   });
 })();
 
-// ── Save ──────────────────────────────────────────────────────────────────────
-// _SAVE_BACKUP_KEY is now computed dynamically via _getBackupKey()
+// Backup key comes from _getBackupKey().
 
 function saveGame() {
   if (!window.__SMB_STORAGE_OK__) {
@@ -932,10 +889,7 @@ function saveGame() {
     if (!window.GameState) return;
     const acct = _getActiveAcctDirect();
     if (!acct) { console.warn('[SAVE SKIPPED] no active account found'); return; }
-    // account.data is the single source of truth.
-    // Start from existing account.data (already contains all setAccountFlag mutations)
-    // then flush volatile runtime state (story, storyProgress, settings, progression)
-    // that does not go through setAccountFlag on every change.
+    // Start from account.data (it already has the setAccountFlag mutations), then flush volatile state.
     const base = (acct.data && typeof acct.data === 'object') ? acct.data : {};
     _flushRuntimeIntoBase(base);
     const normalized = _normalizeAccountSaveShape(base) || base;
@@ -969,7 +923,7 @@ function saveGame() {
   }
 }
 
-// ── Load (called once on page start, and on every account switch) ─────────────
+// Called on page start and on every account switch.
 function loadGame() {
   if (!window.__SMB_STORAGE_OK__ && window.__SMB_RUNTIME_SAVE__) {
     console.info('[RUNTIME LOAD]');
@@ -1029,7 +983,6 @@ function loadGame() {
       return;
     }
 
-    // ── Primary path: account.data in GameState (not caught by canonical path) ─
     if (acct && acct.data && typeof acct.data.version === 'number') {
       const wasLegacy = acct.data.version < SAVE_VERSION;
       const data = wasLegacy ? _migrateSave(acct.data) : acct.data;
@@ -1047,7 +1000,6 @@ function loadGame() {
       return;
     }
 
-    // ── First run: no save data exists at all ─────────────────────────────────
     if (window.__SMB_STORAGE_OK__) {
       if (typeof resetProgressionGlobals   === 'function') resetProgressionGlobals();
       if (typeof resetAccountScopedGlobals === 'function') resetAccountScopedGlobals();
@@ -1067,7 +1019,6 @@ function loadGame() {
   }
 }
 
-// ── Export ────────────────────────────────────────────────────────────────────
 function exportSave() {
   try {
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(_gatherSaveData()))));
@@ -1121,7 +1072,6 @@ function importSaveFromFile(input) {
   reader.readAsText(file);
 }
 
-// ── Import ────────────────────────────────────────────────────────────────────
 function importSave(saveString) {
   try {
     const str = (saveString || '').trim();
@@ -1150,7 +1100,6 @@ function importSave(saveString) {
   }
 }
 
-// ── Import modal helpers (called from HTML) ───────────────────────────────────
 function openImportSaveModal() {
   const m = document.getElementById('importSaveModal');
   if (m) { m.style.display = 'flex'; document.getElementById('importSaveText').value = ''; }
@@ -1169,7 +1118,6 @@ function confirmImportSave() {
   }
 }
 
-// ── Toast notification ────────────────────────────────────────────────────────
 function _showSaveToast(msg, isError) {
   let t = document.getElementById('smcSaveToast');
   if (!t) {
@@ -1192,10 +1140,8 @@ function _showSaveToast(msg, isError) {
   t._hideTimer = setTimeout(() => { t.style.opacity = '0'; }, 2800);
 }
 
-// ── Auto-save every 15 s ──────────────────────────────────────────────────────
 setInterval(saveGame, 15000);
 
-// ── Load on startup ───────────────────────────────────────────────────────────
 loadGame();
 window.__SMB_SAVE_READY = true;
 

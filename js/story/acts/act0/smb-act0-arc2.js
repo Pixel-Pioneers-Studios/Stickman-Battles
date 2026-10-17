@@ -227,7 +227,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 650, text: 'Prove you\'re an asset. Win.', color: '#ffffff', timer: 220 },
     ],
     preText: 'Veran — the Architect. She built the portals to contain something, and now she\'s testing whether you\'re friend or threat.',
-    opponentName: 'Veran — The Architect', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#4488dd',
+    opponentName: 'Veran — The Architect', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#3ddc84',
     armor: ['helmet'],
     playerLives: 2,
     arena: 'storyRelay',
@@ -266,11 +266,8 @@ STORY_CHAPTER_REGISTRY.push(
     postText: '"There will be more," Veran says. "We need to go through the primary fracture — into the space between dimensions. Find the rift entity\'s anchor point and destroy it." She hands you a compass that points toward rifts. "Follow it."',
   },
 
-  // ─────── Arc 0-fragments: Fragment Echoes (ids 13-15) ───────────
-  // Three brief narrative interludes — Paradox's voice heard for the
-  // first time, triggered by Kael's super, near-death, and shield use.
-  // noFight + isEpilogue: stay as single chapters, skipped by promotion.
-  // _menuHidden: silently complete and chain to the next chapter.
+  // Fragment Echoes (ids 13-15): Paradox's voice, triggered by super, near-death and shield use.
+  // noFight + isEpilogue keep these single chapters. _menuHidden chains to the next one.
 
   {
     id: 13, title: 'Resonance',
@@ -387,8 +384,7 @@ STORY_CHAPTER_REGISTRY.push(
     ],
   },
 
-  // ═══════════════ ACT II — INTO THE WOUND ═══════════════
 
-  // ─────── Arc 1-0: Fracture Network (ids 17-23) ──────────────────
+  // Fracture Network (ids 17-23)
 
 );

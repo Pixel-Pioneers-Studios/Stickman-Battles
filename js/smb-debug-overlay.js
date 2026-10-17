@@ -1,15 +1,8 @@
 'use strict';
-// smb-debug-overlay.js — Debug HUD, sanity checks, debug menu panel
-// Depends on: smb-globals.js, smb-state.js
-// Must load BEFORE smb-debug-console.js
+// smb-debug-overlay.js: debug HUD, sanity checks, debug menu panel.
+// Depends on smb-globals.js, smb-state.js. Must load before smb-debug-console.js.
+// F1 hitboxes, F2 collision boxes, F3 physics. Type "debugmode" anywhere to enable.
 
-// ============================================================
-// DEVELOPER DEBUG TOOLKIT
-// Toggle with F1 key. Slow motion with F2.
-// Hidden activation: type "debugmode" anywhere.
-// ============================================================
-
-// ---- FPS tracker ----
 let _dbgFpsFrames  = 0;
 let _dbgFpsTimer   = 0;
 let _dbgFpsCurrent = 0;
@@ -28,7 +21,6 @@ function _dbgTickFps() {
   }
 }
 
-// ---- Sanity checks ----
 function runSanityChecks() {
   const all = [...players, ...minions, ...trainingDummies];
   for (const p of all) {
@@ -45,7 +37,6 @@ function runSanityChecks() {
       console.warn('[DBG] Invalid health on', p.name || 'fighter', p.health);
       p.health = isNaN(p.health) ? (p.maxHealth || 100) : 0;
     }
-    // Bot stuck detection
     if (p.isAI && !p.isBoss) {
       p._dbgStuckTimer = p._dbgStuckTimer || 0;
       p._dbgLastX      = p._dbgLastX !== undefined ? p._dbgLastX : p.x;
@@ -62,10 +53,8 @@ function runSanityChecks() {
       }
       p._dbgLastX = p.x;
     }
-    // Target revalidation
     if (p.isAI && p.target) {
       if (p.target.health <= 0 || !players.includes(p.target) && !trainingDummies.includes(p.target) && !minions.includes(p.target)) {
-        // Re-assign nearest living target
         const living = [...players, ...trainingDummies].filter(q => q !== p && q.health > 0);
         p.target = living.length ? living.reduce((a, b) => Math.hypot(b.cx()-p.cx(),b.cy()-p.cy()) < Math.hypot(a.cx()-p.cx(),a.cy()-p.cy()) ? b : a) : null;
       }
@@ -73,7 +62,6 @@ function runSanityChecks() {
   }
 }
 
-// ---- Render debug overlay ----
 function renderDebugOverlay(ctx) {
   _dbgTickFps();
 
@@ -125,35 +113,31 @@ function renderDebugOverlay(ctx) {
   }
   ctx.restore();
 
-  // ---- F1: Hitbox overlay (game space) ----
   if (showHitboxes && gameRunning) {
     ctx.save();
     const all2 = [...players, ...minions, ...trainingDummies];
     for (const p of all2) {
       if (p.health <= 0) continue;
-      // Body hitbox — green
       ctx.strokeStyle = 'rgba(0,255,100,0.85)';
       ctx.lineWidth   = 1.5;
       ctx.strokeRect(p.x, p.y, p.w, p.h);
-      // Centre cross
       ctx.strokeStyle = 'rgba(0,255,0,0.5)';
       ctx.lineWidth = 0.5;
       ctx.beginPath(); ctx.moveTo(p.cx()-4, p.cy()); ctx.lineTo(p.cx()+4, p.cy()); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(p.cx(), p.cy()-4); ctx.lineTo(p.cx(), p.cy()+4); ctx.stroke();
-      // Weapon tip — red dot
+      // Weapon tip, red dot
       if (p.attackTimer > 0 && typeof p.getWeaponTipPos === 'function') {
         const tip = p.getWeaponTipPos();
         if (tip) {
           ctx.fillStyle = 'rgba(255,30,30,0.95)';
           ctx.beginPath(); ctx.arc(tip.x, tip.y, 6, 0, Math.PI*2); ctx.fill();
-          // Weapon reach circle — translucent red
           ctx.strokeStyle = 'rgba(255,80,80,0.3)';
           ctx.lineWidth = 1;
           ctx.beginPath(); ctx.arc(p.cx(), p.cy(), p.weapon ? p.weapon.range : 50, 0, Math.PI*2); ctx.stroke();
         }
       }
     }
-    // Beam hazard zones — orange
+    // Beam hazard zones, orange
     ctx.strokeStyle = 'rgba(255,140,0,0.7)';
     ctx.lineWidth   = 2;
     for (const b of bossBeams) {
@@ -164,7 +148,6 @@ function renderDebugOverlay(ctx) {
     ctx.restore();
   }
 
-  // ---- F2: Collision box overlay (game space) ----
   if (showCollisionBoxes && gameRunning && currentArena) {
     ctx.save();
     for (const pl of currentArena.platforms) {
@@ -177,13 +160,11 @@ function renderDebugOverlay(ctx) {
       }
       ctx.lineWidth = 1.5;
       ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
-      // Label
       ctx.fillStyle = 'rgba(0,200,255,0.8)';
       ctx.font      = '8px monospace';
       ctx.textAlign = 'left';
       ctx.fillText(`${Math.round(pl.x)},${Math.round(pl.y)} ${pl.w}×${pl.h}${pl.isFloor?' [floor]':''}`, pl.x + 2, pl.y - 2);
     }
-    // Arena deathY line
     if (currentArena.deathY) {
       ctx.strokeStyle = 'rgba(255,40,40,0.6)';
       ctx.setLineDash([6, 4]);
@@ -194,7 +175,6 @@ function renderDebugOverlay(ctx) {
       ctx.font = '9px monospace';
       ctx.fillText(`deathY=${currentArena.deathY}`, 4, currentArena.deathY - 3);
     }
-    // LavaY line
     if (currentArena.lavaY) {
       ctx.strokeStyle = 'rgba(255,140,0,0.7)';
       ctx.setLineDash([4, 3]);
@@ -208,14 +188,12 @@ function renderDebugOverlay(ctx) {
     ctx.restore();
   }
 
-  // ---- F3: Physics info (game space) ----
   if (showPhysicsInfo && gameRunning) {
     ctx.save();
     const all3 = [...players, ...minions, ...trainingDummies];
     for (const p of all3) {
       if (p.health <= 0) continue;
       const cx = p.cx(), cy = p.cy();
-      // Velocity arrow — yellow
       const velScale = 5;
       ctx.strokeStyle = '#ffcc00';
       ctx.lineWidth   = 1.5;
@@ -223,11 +201,9 @@ function renderDebugOverlay(ctx) {
       ctx.moveTo(cx, cy);
       ctx.lineTo(cx + p.vx * velScale, cy + p.vy * velScale);
       ctx.stroke();
-      // Arrowhead
       const ax = cx + p.vx * velScale, ay = cy + p.vy * velScale;
       ctx.fillStyle = '#ffcc00';
       ctx.beginPath(); ctx.arc(ax, ay, 3, 0, Math.PI*2); ctx.fill();
-      // Physics label
       ctx.fillStyle = '#ffee88';
       ctx.font      = '8px monospace';
       ctx.textAlign = 'center';
@@ -240,7 +216,6 @@ function renderDebugOverlay(ctx) {
   }
 }
 
-// ---- Debug menu UI ----
 function openDebugMenu() {
   if (document.getElementById('debugMenuOverlay')) return;
   const ov = document.createElement('div');
@@ -307,7 +282,6 @@ function openDebugMenu() {
   document.addEventListener('keydown', close);
 }
 
-// ---- Key hooks (F1/F2/F3 + secret buffer) ----
 document.addEventListener('keydown', e => {
   // Console input: allow Enter (submit) and Escape (close) to pass through, block everything else
   const _ae = document.activeElement;
@@ -327,7 +301,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'F3' && debugMode) { e.preventDefault(); showPhysicsInfo = !showPhysicsInfo; return; }
   // F5: cycle the training lab measurement panels (training mode only)
   if (e.key === 'F5') {
-    // Only claim F5 inside the training lab — elsewhere it stays browser refresh.
+    // Only claim F5 inside the training lab, elsewhere it stays browser refresh.
     if (!gameRunning || !trainingMode) return;
     e.preventDefault();
     if (typeof tlabCycle === 'function') tlabCycle();

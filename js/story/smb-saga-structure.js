@@ -1,26 +1,19 @@
 // smb-saga-structure.js
-// Saga layer — groups STORY_ACT_STRUCTURE acts/arcs into standalone games.
-// Depends on: smb-story-finalize.js (MUST load after it — needs the chapterRanges
-//             that _expandStoryChaptersInPlace() rebuilds at load time).
+// Saga layer: groups STORY_ACT_STRUCTURE acts and arcs into standalone games.
+// Depends on smb-story-finalize.js, which must load first (it rebuilds chapterRanges).
 //
 // See docs/SAGA_SPLIT_PLAN.md.
 //
-// The story ships as one build. ACTIVE_SAGA selects which slice of it that build
-// presents. 'full' is the default and every helper below then reports the whole
-// story, so the combined game behaves exactly as it did before this file existed.
+// One build ships the whole story. ACTIVE_SAGA picks the slice it presents. 'full' (default)
+// reports the whole story, so the combined game is unchanged.
 //
-// Bounds are keyed on ARC IDS, never chapter numbers: _expandStoryChaptersInPlace()
-// rewrites every chapterRange to expanded indices, and although that is currently a
-// no-op (186 authored -> 186 runtime), adding a single plain-duel chapter re-enables
-// it. Arc ids are stable across expansion; chapter numbers are not.
+// Bounds are arc ids, not chapter numbers. Expansion rewrites chapter ranges, and arc ids survive it.
 'use strict';
 
 // Which saga this build ships. 'full' | 'saga1' | 'saga2' | 'saga3'.
 const ACTIVE_SAGA = 'full';
 
-// The Saga II / Saga III boundary falls INSIDE Act VIII — the companion arc
-// (arc5-bridge) is Saga III's cold open, not Saga II's denouement. That is why
-// these are arc bounds and not act bounds.
+// The Saga II / III boundary falls inside Act VIII (arc5-bridge is Saga III's cold open), so bounds are arc-based.
 const SAGA_STRUCTURE = [
   {
     id: 'saga1', title: 'The Fragment', color: '#88aacc',
@@ -36,14 +29,12 @@ const SAGA_STRUCTURE = [
     id: 'saga3', title: 'The Substrate', color: '#220033',
     tagline: 'What cannot be erased.',
     firstArc: 'arc5-bridge', lastArc: 'arc-vm-fight',
-    // Act VIII is split across Saga II and Saga III. Its authored name is
-    // "True Form" — correct for Saga II, which contains that fight, and wrong
-    // for Saga III, which only inherits the companion-arc tail.
+    // Act VIII is split across Sagas II and III. "True Form" fits II (the fight), not III (companion tail).
     actLabels: { act8: 'The Aftermath' },
   },
 ];
 
-// ── Resolution ────────────────────────────────────────────────────────────────
+// Resolution
 
 // Flatten the act structure into ordered { act, actIdx, arc } records.
 function _sagaFlatArcs() {
@@ -100,9 +91,8 @@ function sagaForChapter(chIdx) {
   return null;
 }
 
-// The act list a saga presents, as a derived VIEW — the source STORY_ACT_STRUCTURE
-// is never mutated. Acts on a saga boundary are trimmed to only their in-saga arcs,
-// and act numbering restarts per saga (Saga III opens on "Act I", not "Act IX").
+// The act list a saga presents, as a derived view. STORY_ACT_STRUCTURE is never mutated.
+// Act numbering restarts per saga (Saga III opens on Act I).
 function sagaActView(sagaId) {
   if (typeof STORY_ACT_STRUCTURE === 'undefined') return [];
   if (!sagaDef(sagaId)) return STORY_ACT_STRUCTURE;
@@ -115,7 +105,7 @@ function sagaActView(sagaId) {
     const named = overrides[act.id] ? `Act X — ${overrides[act.id]}` : act.label;
     view.push({
       id: act.id,
-      // Strip the authored "Act VII — " prefix; the saga renumbers below.
+      // Strip the authored "Act VII " prefix. The saga renumbers below.
       label: _sagaRelabelAct(named, view.length + 1),
       color: act.color,
       arcs,
@@ -127,7 +117,7 @@ function sagaActView(sagaId) {
 
 const _SAGA_ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 
-// "Act VIII — True Form" + 2  ->  "Act II — True Form"
+// "Act VIII: True Form" + 2  ->  "Act II: True Form"
 function _sagaRelabelAct(label, n) {
   const roman = _SAGA_ROMAN[n - 1] || String(n);
   const m = String(label || '').match(/^Act\s+[IVXLC]+\s*[—–-]\s*(.+)$/);
@@ -139,18 +129,15 @@ function activeSagaActView() {
   return sagaIsFullBuild() ? STORY_ACT_STRUCTURE : sagaActView(ACTIVE_SAGA);
 }
 
-// Chapter indices the current build presents, as a flat count. Used by the
-// progress bar so "12/70" means 12 of THIS game, not 12 of 184.
+// Chapter indices the active build presents, as a flat count. The progress bar uses it, so 12/70 means
+// 12 of this game, not 12 of 184.
 function activeSagaChapterCount() {
   const [a, b] = activeSagaRange();
   return Math.max(0, b - a + 1);
 }
 
-// Clamp a chapter index into the active saga. Used by the level select so a save
-// pointing outside this build (a fresh save's chapter 0 on a Saga III build, or a
-// carried save pointing past the end) still resolves to a playable chapter. The
-// saved value is never mutated — a build switch must not corrupt the other build's
-// progress.
+// Clamp a chapter index into the active saga, so a save outside this build still resolves to a playable
+// chapter. The saved value is never mutated, so a build switch can't corrupt the other build's progress.
 function sagaClampChapter(idx) {
   if (sagaIsFullBuild()) return idx;
   const [lo, hi] = activeSagaRange();
@@ -166,19 +153,16 @@ function sagaArcInActive(arc) {
   return arc.chapterRange[0] >= lo && arc.chapterRange[1] <= hi;
 }
 
-// The first arc of the active saga — always unlocked, the way the story's first
-// arc is on a full build. Without this a saga build is unplayable: its opening
-// arc's predecessor sits in the previous saga and can never be completed.
+// First arc of the active saga is always unlocked. Its predecessor is in the previous saga and would
+// never be completed here.
 function sagaFirstArc() {
   const view = activeSagaActView();
   return (view[0] && view[0].arcs && view[0].arcs[0]) || null;
 }
 
-// ── Carry-forward ─────────────────────────────────────────────────────────────
-// Which EARLIER sagas this save shows as complete. Carry-forward is
-// acknowledgment only — it is never a requirement and never gates content, so
-// nothing in the unlock path may read this. A player starting here cold must
-// lose nothing but the recognition.
+// Carry-forward
+// Earlier sagas shown as complete. Acknowledgment only: never a requirement, never gates content,
+// so nothing in the unlock path may read this.
 function sagaCarryForward(defeated) {
   const out = [];
   if (!Array.isArray(defeated) || !defeated.length) return out;
@@ -195,16 +179,13 @@ function sagaCarryForward(defeated) {
   return out;
 }
 
-// Per-saga power baseline. Every saga starts its own ramp at 1.0 by default —
-// the God of War reset, where a returning protagonist is re-established rather
-// than resumed at endgame strength. Give a saga its own `powerBaseline` to
-// change that; the ramp itself is +0.02 per cleared chapter, capped at 3.0.
+// Per-saga power baseline. Each saga ramps from 1.0 (a returning protagonist is re-established, not
+// resumed at endgame strength). Set powerBaseline per saga to change it. Ramp: +0.02 per cleared chapter, cap 3.0.
 function activeSagaPowerBaseline() {
   const def = sagaDef(ACTIVE_SAGA);
   return (def && typeof def.powerBaseline === 'number') ? def.powerBaseline : 1.0;
 }
 
-// smb-story-engine-events.js runs its power-level restore at load, BEFORE this
-// file exists, so it falls back to the whole-story count. Re-run it now that the
-// saga scope is resolvable.
+// engine-events.js restores power at load, before this file exists, so it used the whole-story count.
+// Re-run it here, now that the saga scope resolves.
 if (typeof _storyRecomputePowerLevel === 'function') _storyRecomputePowerLevel();

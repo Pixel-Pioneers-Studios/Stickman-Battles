@@ -1,17 +1,6 @@
 'use strict';
-// js/story/levels/ch88.js — Chapter 88 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 88 — A World That Never Stopped Fighting (escape, run right)
-// The front lines, collapsing. "A shelling wave demolishing everything from
-// behind." You run across no-man's land and through three trench lines cut
-// into it — sixty pixels deep, duckboards on the floor, sandbag lips and
-// wire on the parapets, a step out on each side. Behind the escape wall the
-// ground is cratered and burning; just ahead of it, shells are landing (the
-// flashes walk forward with the wall). Shattered watchtowers and a siege
-// ladder thrown against a stretch of wall are the high routes. The far side
-// of the front — where the ground is still unbroken — is the goal.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch88.js: Chapter 88 map (escape run, three trench lines). See smb-story-levels.js.
+// The escape wall chases you right. Watchtowers and a siege ladder are the high routes.
 (function () {
   const TRENCH = [[900, 1200], [2000, 2250], [3000, 3300]];
   const DEEP = 500;
@@ -43,7 +32,7 @@
   }
 
   function back(v) {
-    // Behind the wall: cratered, burning ground; ahead of it, shells landing
+    // Cratered ground behind the wall, shelling ahead
     const wx = (typeof escapeWallX !== 'undefined') ? escapeWallX : -200;
     for (let k = Math.max(0, Math.floor((v.x - 100) / 180)); k * 180 < Math.min(wx, v.x + v.w + 100); k++) {
       const cx = k * 180 + _slHash(k + 880) * 80;
@@ -61,7 +50,7 @@
       ctx.fillStyle = g; ctx.fillRect(sx - 100, 330, 200, 200);
       ctx.restore();
     }
-    // Watchtowers and a siege ladder (the high routes)
+    // Watchtowers and siege ladder
     for (let i = 0; i < HIGH.length; i++) {
       const [x, y, w] = HIGH[i];
       if (!_slVisible(v, x - 20, x + w + 20)) continue;
@@ -72,7 +61,7 @@
       ctx.fillStyle = '#5a3e26'; ctx.fillRect(-w / 2, -4, w, 8);
       ctx.restore();
     }
-    // A stretch of wall with a siege ladder thrown against it, by the second watch post
+    // Siege ladder against the wall, by the second watch post
     if (_slVisible(v, 1380, 1720)) {
       _slBrick(1400, 300, 60, 140, '#5a4a3a');
       ctx.strokeStyle = '#4a3420'; ctx.lineWidth = 3;
@@ -81,7 +70,7 @@
     }
     for (const sx of [1250, 2400, 3450]) if (_slVisible(v, sx, sx + 100)) _slStakes(sx, 440, 90);
     for (const [cx, w] of [[500, 60], [1700, 70], [2800, 60], [3900, 80]]) if (_slVisible(v, cx - w, cx + w)) _slCrater(cx, 440, w);
-    // The far side of the front: unbroken ground, a banner nobody has torn down
+    // Goal side: unbroken ground
     if (_slVisible(v, GOAL - 200, GOAL + 400)) {
       _slBanner(GOAL + 80, 440, 170, '#5a4a14', 8);
       ctx.fillStyle = '#4a6a34'; for (let k = 0; k < 30; k++) ctx.fillRect(GOAL - 100 + k * 16, 432 - _slHash(k + 881) * 6, 3, 8);
@@ -90,7 +79,7 @@
 
   function surface(v, a, ph) {
     if (ph === 'back') {
-      // The trench's far wall: earth and revetting planks, not sky
+      // Trench far wall
       for (const [x0, x1] of TRENCH) {
         if (!_slVisible(v, x0, x1)) continue;
         ctx.fillStyle = '#3a2a1c'; ctx.fillRect(x0, 438, x1 - x0, DEEP - 438);
@@ -101,7 +90,8 @@
     if (ph !== 'front') return;
     for (const [x0, x1] of TRENCH) {
       if (!_slVisible(v, x0 - 60, x1 + 60)) continue;
-      // Revetted trench walls, duckboards, sandbag lips, wire on the parapet
+      // Trench walls and parapet
+
       ctx.fillStyle = '#4a3420'; ctx.fillRect(x0, 440, 6, DEEP - 440); ctx.fillRect(x1 - 6, 440, 6, DEEP - 440);
       ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 1;
       for (let y = 446; y < DEEP; y += 10) { ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x0 + 6, y); ctx.moveTo(x1 - 6, y); ctx.lineTo(x1, y); ctx.stroke(); }

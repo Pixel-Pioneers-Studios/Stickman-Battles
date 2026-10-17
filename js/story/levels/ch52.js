@@ -1,20 +1,11 @@
 'use strict';
-// js/story/levels/ch52.js — Chapter 52 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch52.js: chapter 52 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 52 — Rogue Faction (walk → duel vs two Preserved)
-// The neutral dimension's outer perimeter, where the grey ground frays into
-// the worlds the Preserved live in. "Not destroyed — integrated. They had
-// built a life in there." Every few hundred pixels the paper-grey plain gives
-// way to a patch of somewhere else, each patch tinted its own sky: a
-// farmhouse yard, a terrace of terracotta roofs, a market awning, an orchard
-// — homes from different dimensions grafted side by side. The roofs and
-// porches are the climbs. At the midpoint the Preserved have planted their
-// banner: "WE EXIST." The cache shafts are wells in their yards.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch 52: walk, then duel two Preserved. Patches of absorbed worlds break up the
+// grey plain. Roofs and porches are the climbs, cache shafts are wells.
 (function () {
   const G = 440, CAMP = 3000;
-  // Patches of absorbed worlds: [x0, x1, sky tint, kind]
+  // Patches: [x0, x1, sky tint, kind]
   const PATCHES = [[300, 900, 'rgba(255,200,130,0.16)', 'farm'], [1050, 1550, 'rgba(255,150,120,0.14)', 'terrace'],
                    [2150, 2600, 'rgba(140,220,170,0.14)', 'orchard'], [3450, 4000, 'rgba(160,190,255,0.16)', 'market'],
                    [4950, 5550, 'rgba(255,220,160,0.16)', 'farm']];
@@ -31,7 +22,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#9a9a9e');
-    // Far off: the edge of the neutral plain, worlds showing through it
     _slParallax(v, 0.1, (l, r) => {
       for (let i = Math.floor(l / 240) - 1; i * 240 < r + 240; i++) {
         const x = i * 240 + _slHash(i + 52) * 100, w = 80 + _slHash(i + 53) * 80;
@@ -42,7 +32,6 @@
   }
 
   function patch(x0, x1, tint, kind) {
-    // A window of another world's sky, frayed at the edges into the grey
     const g = ctx.createLinearGradient(x0, 0, x1, 0);
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.15, tint); g.addColorStop(0.85, tint); g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g; ctx.fillRect(x0, 40, x1 - x0, G - 40);
@@ -65,18 +54,15 @@
 
   function back(v) {
     for (const [x0, x1, tint, kind] of PATCHES) if (_slVisible(v, x0, x1)) patch(x0, x1, tint, kind);
-    // Climbable roofs and porches over the patches
     for (const [x, y, w] of ROOFS) {
       if (!_slVisible(v, x - 10, x + w + 10)) continue;
       ctx.fillStyle = '#6a4a3a'; ctx.fillRect(x, y, w, 9);
       ctx.fillStyle = '#4a3428'; ctx.fillRect(x + 6, y + 9, 8, G - y - 9); ctx.fillRect(x + w - 14, y + 9, 8, G - y - 9);
     }
-    // Wells over the cache shafts
     for (const wx of WELLS) if (_slVisible(v, wx - 80, wx + 80)) {
       ctx.fillStyle = '#8a8378'; ctx.fillRect(wx - 62, G - 26, 14, 26); ctx.fillRect(wx + 48, G - 26, 14, 26);
       ctx.fillStyle = '#5a4a3a'; ctx.fillRect(wx - 58, G - 70, 4, 44); ctx.fillRect(wx + 54, G - 70, 4, 44); ctx.fillRect(wx - 60, G - 72, 120, 5);
     }
-    // The Preserved's camp and banner
     if (_slVisible(v, CAMP - 500, CAMP + 500)) {
       for (const sx of [CAMP - 330, CAMP + 230]) { ctx.fillStyle = '#7a6a5a'; ctx.fillRect(sx, 360, 100, 10); ctx.fillStyle = '#5a4a3a'; ctx.fillRect(sx + 40, 370, 20, G - 370); }
       ctx.fillStyle = '#4a3a2c'; ctx.fillRect(CAMP - 4, G - 260, 8, 260);

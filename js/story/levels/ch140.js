@@ -1,17 +1,6 @@
 'use strict';
-// js/story/levels/ch140.js — Chapter 140 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 140 — The Cost (defense, 4 waves)
-// The Gate Approach: the Creator's gate terminal (the nexus, x=450), the last
-// unlock point, standing in front of the gate itself — a door of white light
-// as tall as the domain, still sealed. While you hold, the rift entity is
-// transmitting the closure sequence into the fragment: a thread of light
-// runs from the terminal up into the gate, and the gate's seal shows the
-// transmission as a ring filling segment by segment, one per wave held.
-// Gate constructs come in from the domain on both sides. Two white plinths
-// and a lattice bridge between them are the ledges.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch140.js: Chapter 140 map (4-wave defense at the gate). See smb-story-levels.js.
+// The gate seal fills one segment per wave held. Plinths and the lattice bridge are the ledges.
 (function () {
   const G = 440, NX = 450;
   const LEDGES = [[100, 340, 140], [660, 340, 140], [340, 240, 220]];
@@ -24,7 +13,7 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#080012');
-    // The gate: a door of white light as tall as the domain, sealed
+    // Sealed gate
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createLinearGradient(NX - 160, 0, NX + 160, 0);
     g.addColorStop(0, 'rgba(230,220,255,0)'); g.addColorStop(0.5, 'rgba(245,240,255,0.5)'); g.addColorStop(1, 'rgba(230,220,255,0)');
@@ -35,13 +24,14 @@
   function back(v) {
     const s = (typeof storeSurvivalState !== 'undefined') ? storeSurvivalState : null;
     const n = s ? Math.min(s.totalWaves || 4, s.wave) : 0, total = (s && s.totalWaves) || 4;
-    // The seal: a ring filling one segment per wave held
+    // Seal ring, one segment per wave
     const cy = 140;
     for (let k = 0; k < total; k++) {
       ctx.strokeStyle = k < n ? '#f0e8ff' : 'rgba(120,100,200,0.5)'; ctx.lineWidth = 8;
       ctx.beginPath(); ctx.arc(NX, cy, 54, -Math.PI / 2 + k * (Math.PI * 2 / total) + 0.08, -Math.PI / 2 + (k + 1) * (Math.PI * 2 / total) - 0.08); ctx.stroke();
     }
-    // The transmission thread from the terminal up into the gate
+    // Transmission thread to the gate
+
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = `rgba(200,180,255,${0.4 + 0.3 * Math.sin(frameCount * 0.2)})`; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(NX, G - 60); ctx.lineTo(NX, cy + 54); ctx.stroke(); ctx.restore();

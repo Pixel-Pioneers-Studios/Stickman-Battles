@@ -1,24 +1,10 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// ABSOLUTE AXIOM — THE MULTIVERSE FIGHT
-//
-// The standalone Absolute Axiom fight crosses four locations, one per HP band.
-// Each location changes how the fight plays, not just how it looks:
-//   100–75%  BROKEN BRANCH     — street slabs collapse, building debris falls
-//    75–50%  NAMELESS WORLD    — low gravity, telegraphed meteor strikes
-//    50–25%  DEAD UNIVERSE     — darkness; the last stars collapse into black holes
-//    25–0%   BETWEEN BRANCHES  — no ground, drifting islands, ring-outs hurt both
-// The Dimension Punch is the transition: the world freezes and a full-frame
-// cutscene follows the player's real fighter across the universe, smashing
-// through asteroids and a planet, until it crashes down in the next location.
-//
-// Hazards hit AA too (credited to the player), so luring him under debris,
-// into a meteor or a collapsed star is real damage.
-//
-// Story mode (ch 167/169) is untouched — it keeps the original single arena.
-// Depends on: smb-absolute-axiom.js (AbsoluteAxiom), smb-data-arenas.js (ARENAS).
-// Hooks: AbsoluteAxiom.update/draw/_pickSpecial, gameLoop (flight takeover,
-// world draw, screen overlay).
-// ═══════════════════════════════════════════════════════════════════════════
+// absolute axiom: the multiverse fight. Four locations, one per HP band.
+// Each location changes the rules, not just the look. The Dimension Punch is the
+// transition: a full-frame flight across the universe into the next location.
+// Hazards hit AA too (credited to the player). Story mode (ch 167/169) keeps the
+// original single arena.
+// Depends on: smb-absolute-axiom.js (AbsoluteAxiom), smb-data-arenas.js (arenas).
+// Hooks: AbsoluteAxiom.update/draw/_pickSpecial, gameLoop (flight takeover, world draw, overlay).
 
 const AA_WORLDS = [
   {
@@ -55,16 +41,14 @@ const AA_WORLDS = [
   },
 ];
 
-// ── Arenas ────────────────────────────────────────────────────────────────────
-// Registered here (not in smb-data-arenas.js) so the whole fight lives in one
-// file. Never randomized: randomizeArenaLayout() has no base layout for them.
+// Arenas. Registered here so the whole fight lives in one file. Never randomized.
 ARENAS.aa_branch = {
   name: 'Broken Branch',
   sky: ['#1a0a10', '#4a1a14', '#7a3418'],
   groundColor: '#1c1618', platColor: '#3a3236', platEdge: '#ff7a3a',
   hasLava: false, deathY: 640, isBossArena: true, isAAWorld: true,
   platforms: [
-    { x: 270, y: 460, w: 360, h: 60, isFloor: true },   // centre street — never collapses
+    { x: 270, y: 460, w: 360, h: 60, isFloor: true },   // centre street: never collapses
     { x: -60, y: 460, w: 330, h: 60, _aaSlab: true },    // left street slab
     { x: 630, y: 460, w: 330, h: 60, _aaSlab: true },    // right street slab
     { x: 70,  y: 300, w: 150, h: 16 },                   // left rooftop
@@ -111,7 +95,7 @@ ARENAS.aa_between = {
   hasLava: false, deathY: 900, isBossArena: true, isAAWorld: true,
   noGroundFill: true,
   platforms: [
-    { x: 340, y: 400, w: 220, h: 22, isFloor: true },   // anchor island — never drifts
+    { x: 340, y: 400, w: 220, h: 22, isFloor: true },   // anchor island: never drifts
     { x: 60,  y: 320, w: 150, h: 16, _aaDrift: { ax: 55, ay: 22, sp: 0.007, ph: 0.0 } },
     { x: 690, y: 320, w: 150, h: 16, _aaDrift: { ax: 55, ay: 22, sp: 0.007, ph: 2.1 } },
     { x: 190, y: 205, w: 120, h: 14, _aaDrift: { ax: 40, ay: 30, sp: 0.009, ph: 1.0 } },
@@ -123,7 +107,7 @@ for (const _w of AA_WORLDS) {
   for (const pl of ARENAS[_w.key].platforms) { pl._bx = pl.x; pl._by = pl.y; }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Helpers
 function _aaMvHero() {
   if (typeof players === 'undefined') return null;
   return players.find(p => p && !p.isRemote && !p.isAI && p.health > 0) || players[0] || null;
@@ -172,9 +156,7 @@ function _aaMvRand(seed) {
   return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
 // Controller
-// ══════════════════════════════════════════════════════════════════════════════
 const AAMultiverse = {
   idx: -1,          // index into AA_WORLDS of the current location, -1 = not started
   trans: null,      // { to, stage:'wait'|'windup'|'arrive', t }
@@ -249,7 +231,7 @@ const AAMultiverse = {
     return fav[Math.floor(Math.random() * fav.length)];
   },
 
-  // ── Transition: wait → windup → (flight) → arrive ──────────────────────────
+  // Transition: wait → windup → (flight) → arrive
   _tickTrans(aa) {
     const tr = this.trans;
     const hero = _aaMvHero();
@@ -334,7 +316,7 @@ const AAMultiverse = {
     if (!tr || !aa) { this.trans = null; return; }
     this._enterWorld(tr.to, true);
 
-    // Cleared on arrival: AA's summons and everything in flight belong to the old place.
+    // Cleared on arrival: AA's summons and projectiles belong to the old place.
     if (typeof projectiles !== 'undefined') projectiles = [];
     if (typeof minions !== 'undefined') minions = minions.filter(m => m === aa || m.isAAPortalAlly);
     this._clearBossFx(aa);
@@ -385,7 +367,7 @@ const AAMultiverse = {
     };
   },
 
-  // ── Per-location rules ─────────────────────────────────────────────────────
+  // Per-location rules
   _tickRules(aa) {
     const hz = this.hz; if (!hz) return;
     hz.t++;
@@ -409,8 +391,8 @@ const AAMultiverse = {
     if (k === 'aa_between') this._rulesBetween(aa, hz, hero);
   },
 
-  // AbsoluteAxiom._aaFallRecover() calls this when he starts flying back from a
-  // fall. Between branches, being knocked off right after a hit still costs him.
+  // Called by AbsoluteAxiom._aaFallRecover() when he starts flying back. Between
+  // branches, a knock-off right after a hit still costs him.
   onBossFall(aa) {
     if (!this.inWorld() || aa !== this._aa) return;
     if (AA_WORLDS[this.idx].key !== 'aa_between' || frameCount - this._lastHitF >= 50) return;
@@ -557,7 +539,7 @@ const AAMultiverse = {
       }
       pl.x = nx; pl.y = ny;
     }
-    // Ring-out: falling out of the space between branches (either direction —
+    // Ring-out: falling out of the space between branches (either direction:
     // Dimension Shattering flips gravity) drops you back in from above, hurt.
     for (const f of _aaMvFighters()) {
       const out = f.y > GAME_H + 30 || f.y < -260;
@@ -574,9 +556,7 @@ const AAMultiverse = {
     for (let i = hz.rifts.length - 1; i >= 0; i--) if (--hz.rifts[i].t <= 0) hz.rifts.splice(i, 1);
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Drawing — world space (called after minions draw)
-  // ══════════════════════════════════════════════════════════════════════════
+  // Drawing: world space (called after minions draw)
   drawWorld() {
     if (!this.enabled() || !this._aa) return;
     const tr = this.trans;
@@ -702,7 +682,7 @@ const AAMultiverse = {
     ctx.restore();
   },
 
-  // ── Screen-space overlay: darkness (dead universe) + location title card ─────
+  // Screen-space overlay: darkness (dead universe) + location title card
   drawOverlay(scX, scY, camX, camY) {
     if (!this.enabled() || !this._aa) return;
     const W = canvas.width, H = canvas.height;
@@ -755,11 +735,8 @@ const AAMultiverse = {
     }
   },
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // The flight — a full-frame cutscene that follows the player's real body.
-  // gameLoop calls flightFrame() before any simulation; while it returns true
-  // nothing else runs or draws that frame.
-  // ══════════════════════════════════════════════════════════════════════════
+  // The flight: a full-frame cutscene following the player's real body. gameLoop
+  // calls flightFrame() first; while it returns true nothing else runs or draws.
   _makeFlight(toIdx, hero, aa) {
     const R = _aaMvRand(0xA5A5 + toIdx * 7919 + (frameCount | 0));
     const DUR = 400;
@@ -800,7 +777,7 @@ const AAMultiverse = {
   flightFrame() {
     const F = this.flight;
     if (!F) return false;
-    // Orphan guard: the match ended or AA is gone — drop the cutscene.
+    // Orphan guard: the match ended or AA is gone: drop the cutscene.
     if (!gameRunning || !this._aa || this._aa.health <= 0 || !F.hero) { this.flight = null; this.trans = null; return false; }
     F.t++;
     this._drawFlight(F);
@@ -966,7 +943,6 @@ const AAMultiverse = {
       ctx.restore();
     }
 
-    // Shards
     for (let i = F.shards.length - 1; i >= 0; i--) {
       const s = F.shards[i];
       s.x += s.vx - v * 0.25; s.y += s.vy; s.rot += 0.1; s.life--;
@@ -990,7 +966,7 @@ const AAMultiverse = {
       ctx.globalAlpha = 1;
     }
 
-    // Trail, then the player — the real fighter, tumbling.
+    // Trail, then the player: the real fighter, tumbling.
     {
       const len = Math.min(320, 40 + v * 6);
       const tg = ctx.createLinearGradient(px - len, py, px, py);
@@ -1010,7 +986,6 @@ const AAMultiverse = {
       p._finPoseState = savedPose; p.invincible = savedInv;
     }
 
-    // Titles
     ctx.textAlign = 'center';
     if (t < 80) {
       const a = t < 10 ? t / 10 : t > 60 ? (80 - t) / 20 : 1;
@@ -1038,9 +1013,7 @@ const AAMultiverse = {
   },
 };
 
-// ══════════════════════════════════════════════════════════════════════════════
 // Arena backdrops (dispatched from drawBackground for any isAAWorld arena)
-// ══════════════════════════════════════════════════════════════════════════════
 function drawAAWorldArena() {
   if (!currentArena || !currentArena.isAAWorld) return;
   const k = currentArenaKey, f = typeof frameCount !== 'undefined' ? frameCount : 0;
@@ -1070,7 +1043,6 @@ function drawAAWorldArena() {
       for (let wy = 460 - (sheared ? cut : bh) + 10; wy < 450; wy += 18)
         for (let wx = bx + 6; wx < bx + bw - 6; wx += 12) if (R() < 0.35) ctx.fillRect(wx, wy, 5, 7);
     }
-    // Fires on the street
     for (let i = 0; i < 5; i++) {
       const x = 80 + i * 180 + R() * 40;
       const g = ctx.createRadialGradient(x, 460, 0, x, 460, 60);
@@ -1092,7 +1064,6 @@ function drawAAWorldArena() {
       ctx.fillStyle = 'rgba(255,240,200,0.8)';
       ctx.beginPath(); ctx.arc(60 + i * 140 + R() * 40, 30 + R() * 80, 2, 0, Math.PI * 2); ctx.fill();
     }
-    // Mesas
     ctx.fillStyle = '#16302c';
     ctx.beginPath(); ctx.moveTo(-60, 470);
     for (let x = -60; x <= 960; x += 60) ctx.lineTo(x, 400 - R() * 90);

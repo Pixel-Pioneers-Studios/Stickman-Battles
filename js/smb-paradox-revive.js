@@ -1,10 +1,7 @@
 'use strict';
-// smb-paradox-revive.js — spawnParadox, removeParadox, triggerParadoxRevive, drawParadoxRevive, damage lock, empowerment, foreshadow
-// Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
+// Paradox spawn, remove, revive and draw, plus the TF damage lock, empowerment and foreshadowing.
+// Depends on smb-globals.js and smb-paradox-class.js.
 
-// ============================================================
-// SPAWN / REMOVE helpers
-// ============================================================
 function spawnParadox(x, y) {
   paradoxEntity = new Paradox(x, y);
 }
@@ -13,18 +10,15 @@ function removeParadox() {
   if (paradoxEntity) paradoxEntity.done = true;
 }
 
-// ============================================================
-// PARADOX REVIVE  — replaces triggerFakeDeath visually
-// ============================================================
+// Revive replaces the old triggerFakeDeath visuals.
 function triggerParadoxRevive(player) {
   if (fakeDeath.triggered) return;
-  fakeDeath.triggered = true; // block re-trigger (shared flag with old system)
+  fakeDeath.triggered = true; // block re-trigger
 
   paradoxReviveActive = true;
   paradoxReviveTimer  = 0;
   paradoxRevivePlayer = player;
 
-  // Standard tumble physics so player reacts visually
   player.invincible   = 9999;
   player.ragdollTimer = 80;
   player.ragdollSpin  = (Math.random() > 0.5 ? 1 : -1) * (0.18 + Math.random() * 0.14);
@@ -98,7 +92,6 @@ function updateParadoxRevive() {
     paradoxReviveActive = false;
   }
 
-  // Keep Paradox entity alive and updated
   if (paradoxEntity) paradoxEntity.update();
 }
 
@@ -114,7 +107,6 @@ function drawParadoxRevive() {
   ctx.fillRect(0, 0, GAME_W, GAME_H);
   ctx.restore();
 
-  // "DEFEATED" text
   if (t > 40) {
     const a = Math.min(1, (t - 40) / 30);
     ctx.save();
@@ -128,10 +120,8 @@ function drawParadoxRevive() {
     ctx.restore();
   }
 
-  // Paradox entity (draws in world space, over dark overlay)
   if (paradoxEntity && t >= 60) paradoxEntity.draw();
 
-  // "PARADOX" label above entity
   if (t >= 70 && t < 205 && paradoxEntity) {
     const la = Math.min(1, (t - 70) / 20) * (t > 185 ? Math.max(0, (205 - t) / 20) : 1);
     ctx.save();
@@ -145,7 +135,6 @@ function drawParadoxRevive() {
     ctx.restore();
   }
 
-  // Horizontal CRT scan-line distortion
   if (t >= 80 && t < 220) {
     const da = 0.05 + Math.abs(Math.sin(t * 0.15)) * 0.04;
     ctx.save();
@@ -156,9 +145,7 @@ function drawParadoxRevive() {
   }
 }
 
-// ============================================================
-// UPDATE / DRAW — standalone (called each frame when no revive)
-// ============================================================
+// Standalone update and draw, used when no revive is running.
 function updateParadox() {
   if (paradoxEntity) {
     paradoxEntity.update();
@@ -170,9 +157,7 @@ function drawParadox() {
   if (paradoxEntity) paradoxEntity.draw();
 }
 
-// ============================================================
-// TRUEFORM DAMAGE LOCK + PARADOX EMPOWERMENT
-// ============================================================
+// TF damage lock and Paradox empowerment.
 function startTFDamageLock() {
   tfDamageLocked    = true;
   tfDamageLockTimer = 480; // 8 seconds then auto-empower
@@ -185,10 +170,8 @@ function activateParadoxEmpowerment(hero) {
   tfEmpowerTimer     = TF_EMPOWER_DURATION;
 
   if (hero) {
-    // Speed boost
     if (!hero._preEmpowerSpeed) hero._preEmpowerSpeed = hero.speed;
     hero.speed = (hero._preEmpowerSpeed || 3.2) * 1.4;
-    // Damage boost
     if (hero._preEmpowerDmgMult === undefined) hero._preEmpowerDmgMult = hero.dmgMult !== undefined ? hero.dmgMult : 1.0;
     hero.dmgMult = hero._preEmpowerDmgMult * 1.6;
   }
@@ -212,7 +195,6 @@ function activateParadoxEmpowerment(hero) {
 }
 
 function updateParadoxEmpowerment() {
-  // Count down damage lock → auto-activate empowerment
   if (tfDamageLocked && tfDamageLockTimer > 0) {
     tfDamageLockTimer--;
     if (tfDamageLockTimer <= 0) {
@@ -221,7 +203,6 @@ function updateParadoxEmpowerment() {
     }
   }
 
-  // Count down empowerment duration
   if (tfParadoxEmpowered && tfEmpowerTimer > 0) {
     tfEmpowerTimer--;
     if (tfEmpowerTimer <= 0) {
@@ -243,7 +224,6 @@ function drawParadoxEmpowerment() {
   const fadeA = Math.min(1, tfEmpowerTimer / 120);
   const pulse = 0.4 + Math.sin(frameCount * 0.12) * 0.3;
 
-  // Aura ring
   ctx.save();
   ctx.globalAlpha = fadeA * pulse * 0.55;
   ctx.strokeStyle = '#00ffff';
@@ -255,7 +235,6 @@ function drawParadoxEmpowerment() {
   ctx.stroke();
   ctx.restore();
 
-  // Floating "EMPOWERED" label that fades at end
   if (tfEmpowerTimer < 120) {
     const la = Math.min(1, tfEmpowerTimer / 60) * 0.88;
     ctx.save();
@@ -270,9 +249,7 @@ function drawParadoxEmpowerment() {
   }
 }
 
-// ============================================================
-// BOSS FIGHT FORESHADOWING
-// ============================================================
+// Boss-fight foreshadowing.
 function updateBossParadoxForeshadow() {
   if (gameMode !== 'boss' || !gameRunning || gameFrozen) return;
   const fs = bossParadoxForeshadow;
@@ -304,17 +281,13 @@ function drawBossParadoxForeshadow() {
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  // Subtle dark overlay to sell the vision
   ctx.fillStyle = '#000d1a';
   ctx.fillRect(0, 0, GAME_W, GAME_H);
   ctx.globalAlpha = alpha * 1.0;
 
-  // TrueForm silhouette — left background
   _drawForeshadowSilhouette(195, GAME_H - 155, '#111111', '#ffffff', 1.25, true);
-  // Paradox silhouette — right background
   _drawForeshadowSilhouette(610, GAME_H - 148, '#000000', '#00ffff', 1.0, false);
 
-  // Energy clash line between them
   ctx.strokeStyle = '#00ffff';
   ctx.lineWidth   = 1.8;
   ctx.shadowColor = '#00ffff';
@@ -372,16 +345,12 @@ function triggerBossParadoxPunch() {
 }
 
 
-// ============================================================
-// PARADOX MANIFESTATION — Absolute Axiom fight ally (story)
-// Projected by Kael's fragment; fueled by Paradox's remaining energy.
-// The fragment is the projector, Paradox's energy is the fuel:
-//  - every action burns energy; damage taken burns energy instead of form
-//  - holding the projection occupies a slice of the player's output
-//    (attacker._pdxManifestHold → ×0.85 in dealDamage)
-//  - at zero energy the manifestation collapses; it never respawns
+// Paradox manifestation: an Absolute Axiom fight ally (story).
+// Kael's fragment projects it, and Paradox's remaining energy fuels it.
+// Damage burns energy, not form. Holding the projection costs the player's output.
+//   (attacker._pdxManifestHold, x0.85 in dealDamage)
+// At zero energy it collapses and never respawns.
 // Spawned from _startGameCore when the story chapter sets paradoxManifest.
-// ============================================================
 class ParadoxManifestation extends Fighter {
   constructor(x, y, energyMax) {
     super(x, y, '#aa66ff', 'sword',
@@ -392,7 +361,7 @@ class ParadoxManifestation extends Fighter {
     this.isAlly    = true;
     this.isParadoxManifest = true;
     this.w = 32; this.h = 62;
-    this.health = 20000; this.maxHealth = 20000; // damage is converted to energy drain, never death
+    this.health = 20000; this.maxHealth = 20000; // damage drains energy, never kills
     this.lives = 1;
     this.kbResist = 0.6;
     this.playerNum = 97;
@@ -411,7 +380,6 @@ class ParadoxManifestation extends Fighter {
     this._lastHealth = this.health;
     this._collapsed  = false;
     this._blastRings = [];
-    // Occupy a slice of the player's fragment output while the projection holds
     const p1 = (typeof players !== 'undefined' && Array.isArray(players)) ? players[0] : null;
     if (p1) p1._pdxManifestHold = true;
   }
@@ -419,7 +387,7 @@ class ParadoxManifestation extends Fighter {
   respawn()       { this.health = 0; }
   useSuper()      {}
   activateSuper() {}
-  checkPlatform() {} // the manifestation flies — phases through surfaces
+  checkPlatform() {} // flies, phases through surfaces
 
   _frac() { return Math.max(0, this.energy / this.energyMax); }
 
@@ -444,14 +412,12 @@ class ParadoxManifestation extends Fighter {
     if (this.health <= 0) { this.collapse(); return; }
     if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
 
-    // Damage taken burns energy instead of form
     if (this.health < this._lastHealth) {
       this.energy -= (this._lastHealth - this.health) * 0.003;
       this.health = this.maxHealth;
     }
     this._lastHealth = this.health;
 
-    // Passive projection cost — spending something just by standing there
     this.energy -= 0.002;
     if (this.energy <= 0) { this.collapse(); return; }
 
@@ -461,7 +427,6 @@ class ParadoxManifestation extends Fighter {
     if (this._attackCd  > 0) this._attackCd--;
     if (this._specialCd > 0) this._specialCd--;
 
-    // Trail
     this._trailTimer++;
     if (this._trailTimer >= 5) {
       this._trailTimer = 0;
@@ -469,7 +434,6 @@ class ParadoxManifestation extends Fighter {
       if (this._trailPts.length > 12) this._trailPts.pop();
     }
 
-    // Interference rings (special)
     for (let i = this._blastRings.length - 1; i >= 0; i--) {
       const ring = this._blastRings[i];
       ring.r    += 8;
@@ -484,7 +448,6 @@ class ParadoxManifestation extends Fighter {
       if (ring.alpha <= 0) this._blastRings.splice(i, 1);
     }
 
-    // Acquire Absolute Axiom
     if (!this._aaTarget || this._aaTarget.health <= 0) {
       this._aaTarget = (typeof minions !== 'undefined' && Array.isArray(minions))
         ? minions.find(m => m.isAbsoluteAxiom && m.health > 0) || null : null;
@@ -500,7 +463,6 @@ class ParadoxManifestation extends Fighter {
     const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
     const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
 
-    // Hover orbit around the boss
     const orbitM = Math.min(1, toDist / 140);
     const hoverX = this._aaTarget.cx() + Math.sin(this._hoverTime * 0.52) * 66 * orbitM;
     const hoverY = (this._aaTarget.y + this._aaTarget.h / 2) - 85 + Math.sin(this._hoverTime * 0.76) * 16 * orbitM;
@@ -519,7 +481,6 @@ class ParadoxManifestation extends Fighter {
     this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
     this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
 
-    // Melee strike — costs energy (the fuel is Paradox's own)
     if (toDist < 130 && this._attackCd <= 0 && typeof dealDamage === 'function') {
       dealDamage(this, this._aaTarget, 12, 6);
       this.energy   -= 0.3;
@@ -527,7 +488,6 @@ class ParadoxManifestation extends Fighter {
       if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h / 2, '#bb77ff', 8);
     }
 
-    // Special: interference burst — expensive, big radiation deposit
     if (this._specialCd <= 0 && this.energy > 15) {
       this._blastRings.push({ r: 0, maxR: 190, alpha: 1.0, _hit: false });
       this.energy    -= 2;
@@ -542,7 +502,7 @@ class ParadoxManifestation extends Fighter {
     if (typeof ctx === 'undefined') return;
 
     const frac  = this._frac();
-    const vis   = 0.30 + 0.70 * frac; // the manifestation thins as it spends itself
+    const vis   = 0.30 + 0.70 * frac; // thins as energy runs out
     const cx    = this.cx();
     const headY = this.y + 11;
     const cy    = this.y + this.h * 0.44;
@@ -551,7 +511,6 @@ class ParadoxManifestation extends Fighter {
     ctx.save();
     ctx.globalAlpha = vis;
 
-    // Interference rings
     for (const ring of this._blastRings) {
       ctx.beginPath();
       ctx.arc(cx, cy, ring.r, 0, Math.PI * 2);
@@ -560,7 +519,6 @@ class ParadoxManifestation extends Fighter {
       ctx.stroke();
     }
 
-    // Movement trail
     for (let i = 0; i < this._trailPts.length; i++) {
       const tp = this._trailPts[i];
       const a  = ((this._trailPts.length - i) / this._trailPts.length) * 0.24 * vis;
@@ -570,7 +528,6 @@ class ParadoxManifestation extends Fighter {
       ctx.fill();
     }
 
-    // Outer aura
     const farR = 70 + Math.sin(this._auraPhase * 0.4) * 9;
     const aG = ctx.createRadialGradient(cx, cy, 0, cx, cy, farR);
     aG.addColorStop(0, `rgba(150,60,255,${0.13 * vis})`);
@@ -578,7 +535,6 @@ class ParadoxManifestation extends Fighter {
     ctx.fillStyle = aG;
     ctx.beginPath(); ctx.arc(cx, cy, farR, 0, Math.PI * 2); ctx.fill();
 
-    // Wings — a single translucent pair; less substantial than Paradox in life
     ctx.fillStyle   = `rgba(140,70,240,${0.5 * vis})`;
     ctx.strokeStyle = `rgba(190,130,255,${0.45 * vis})`;
     ctx.lineWidth   = 0.8;
@@ -591,7 +547,6 @@ class ParadoxManifestation extends Fighter {
       ctx.fill(); ctx.stroke();
     }
 
-    // Body — glowing purple stickman, translucent at the edges
     ctx.strokeStyle = '#aa66ff';
     ctx.lineWidth   = 4.5;
     ctx.shadowColor = 'rgba(160,80,255,0.9)';
@@ -616,7 +571,6 @@ class ParadoxManifestation extends Fighter {
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
 
-    // Energy bar — what remains of the fuel
     const bw = 36, bh = 3;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(cx - bw / 2, this.y - 10, bw, bh);

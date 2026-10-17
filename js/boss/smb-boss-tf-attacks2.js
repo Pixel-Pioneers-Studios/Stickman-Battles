@@ -1,11 +1,10 @@
 'use strict';
-// smb-boss-tf-attacks2.js — updateTFPendingAttacks, drawBossWarnings, resetBossWarnings
-// Depends on: smb-globals.js, smb-boss-tf-attacks1.js
-// Must load AFTER smb-boss-tf-attacks1.js, BEFORE smb-boss-tf-visuals1.js
+// smb-boss-tf-attacks2.js: updateTFPendingAttacks, drawBossWarnings, resetBossWarnings
+// Depends on: smb-globals.js, smb-boss-tf-attacks1.js (load after it, before smb-boss-tf-visuals1.js)
 
 function updateTFPendingAttacks() {
   if (!gameRunning) return;
-  if (gameFrozen || activeCinematic) return; // never fire deferred attacks during cinematics
+  if (gameFrozen || activeCinematic) return; // no deferred attacks during cinematics
   const tf = players.find(p => p.isTrueForm);
 
   for (let i = tfAttackRetryQueue.length - 1; i >= 0; i--) {
@@ -55,19 +54,19 @@ function updateTFPendingAttacks() {
       if (tf._tfAttackState.phase === 'recovery') {
         tf._finishAttackState();
       } else if (tf._tfAttackState.phase === 'start' && tf._tfAttackState.locked) {
-        // Telegraph window expired — release the lock so follow-up moves can fire
+        // Telegraph expired, release the lock so follow-ups can fire
         tf._tfAttackState.locked = false;
       }
     }
   }
 
-  // ── Tick bossWarnings (so telegraph circles disappear) ────
+  // Tick bossWarnings so telegraph circles disappear
   for (let i = bossWarnings.length - 1; i >= 0; i--) {
     bossWarnings[i].timer--;
     if (bossWarnings[i].timer <= 0) bossWarnings.splice(i, 1);
   }
 
-  // ── Stagger ────────────────────────────────────────────────
+  // Stagger
   const dmgThisFrame = (tf._prevHealth || tf.health) - tf.health;
   if (dmgThisFrame > 0) {
     bossStaggerDmg   += dmgThisFrame;
@@ -95,7 +94,7 @@ function updateTFPendingAttacks() {
     }
   }
 
-  // ── Desperation mode ──────────────────────────────────────
+  // Desperation mode
   if (!bossDesperationMode && tf.health / tf.maxHealth < 0.25) {
     bossDesperationMode  = true;
     bossDesperationFlash = 90;
@@ -106,7 +105,7 @@ function updateTFPendingAttacks() {
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.8);
   }
 
-  // ── Pending Reality Slash ─────────────────────────────────
+  // Pending Reality Slash
   if (tf._pendingSlash) {
     tf._pendingSlash.timer--;
     if (tf._pendingSlash.timer <= 0) {
@@ -140,7 +139,7 @@ function updateTFPendingAttacks() {
     }
   }
 
-  // ── Pending Teleport Combo ─────────────────────────────────
+  // Pending Teleport Combo
   if (tf._pendingTeleportCombo) {
     const tc = tf._pendingTeleportCombo;
     tc.timer--;
@@ -163,9 +162,8 @@ function updateTFPendingAttacks() {
         spawnParticles(tf.cx(), tf.cy(), '#000000', 18);
         spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
         screenShake = Math.max(screenShake, 14);
-        // Deal damage
         dealDamage(tf, tgt, 14, 8);
-        // Brief invincibility so we don't get counter-hit during combo
+        // Brief invincibility so the combo can't be counter-hit
         tf.invincible = Math.max(tf.invincible, 12);
       }
       tc.hits--;
@@ -188,12 +186,12 @@ function updateTFPendingAttacks() {
     }
   }
 
-  // ── Pending Gravity Crush ──────────────────────────────────
+  // Pending Gravity Crush
   if (tf._pendingGravityCrush) {
     const gc = tf._pendingGravityCrush;
     gc.timer--;
     // During pull phase, drag all players toward arena center each frame
-    const pullStrength = 0.55 * (1 - gc.timer / 60); // increases as timer counts down
+    const pullStrength = 0.55 * (1 - gc.timer / 60); // grows as the timer counts down
     for (const p of players) {
       if (p.isBoss || p.health <= 0) continue;
       const pdx = GAME_W / 2 - p.cx();
@@ -202,7 +200,7 @@ function updateTFPendingAttacks() {
       p.vy += Math.sign(pdy) * pullStrength * 0.5;
     }
     if (gc.timer <= 0) {
-      // DETONATE — massive outward blast
+      // Detonate: massive outward blast
       spawnParticles(GAME_W / 2, GAME_H / 2, '#8800ff', 55);
       spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 35);
       spawnParticles(GAME_W / 2, GAME_H / 2, '#ff00aa', 20);
@@ -210,7 +208,6 @@ function updateTFPendingAttacks() {
       if (typeof cinScreenFlash !== 'undefined') {
         cinScreenFlash = { color: '#8800ff', alpha: 0.45, timer: 12, maxTimer: 12 };
       }
-      // Blast rings
       if (typeof phaseTransitionRings !== 'undefined') {
         for (let ri = 0; ri < 5; ri++) {
           phaseTransitionRings.push({
@@ -236,12 +233,11 @@ function updateTFPendingAttacks() {
     }
   }
 
-  // ── Pending Collapse Strike ────────────────────────────────
+  // Pending Collapse Strike
   if (tf._pendingCollapseStrike) {
     tf._pendingCollapseStrike.timer--;
     if (tf._pendingCollapseStrike.timer <= 0) {
       const csTgt = tf._pendingCollapseStrike.target;
-      // Teleport boss behind target
       if (csTgt && csTgt.health > 0) {
         const csDir = (csTgt.facing || 1);
         const landed = _bossTeleportActor(tf, csTgt.cx() - csDir * 55, csTgt.y, { preferRaised: true, sideBias: -csDir });
@@ -251,13 +247,12 @@ function updateTFPendingAttacks() {
           return;
         }
         tf._setAttackPhase('active', 5, true);
-        // Restore slowmo
         if (hitSlowTimer <= 0) slowMotion = 1.0;
         screenShake = Math.max(screenShake, 26);
         spawnParticles(tf.cx(), tf.cy(), '#ffffff', 28);
         spawnParticles(tf.cx(), tf.cy(), '#aaddff', 18);
         spawnParticles(tf.cx(), tf.cy(), '#000000', 14);
-        // Heavy strike — 55 damage + strong knockback, always guaranteed via dealDamage fallback
+        // Heavy strike: 55 damage + strong knockback, always guaranteed via dealDamage fallback
         const oldDmg = tf.weapon.damage;
         const oldKb  = tf.weapon.kb;
         tf.weapon.damage = 55;
@@ -265,11 +260,12 @@ function updateTFPendingAttacks() {
         if (tf.cooldown <= 0) {
           tf.attack(csTgt);
         } else {
-          // Cooldown not ready — fire damage directly so the cinematic never whiffs
+          // Cooldown not ready: fire damage directly so the cinematic never whiffs
           dealDamage(tf, csTgt, 55, 16);
           csTgt.vx += (csTgt.cx() > tf.cx() ? 1 : -1) * 16;
           csTgt.vy  = Math.min(csTgt.vy, -10);
-          tf.cooldown = 12; // brief cooldown so back-to-back calls don't double-hit
+          tf.cooldown = 12; // short cooldown so back-to-back calls don't double-hit
+
         }
         tf.weapon.damage = oldDmg;
         tf.weapon.kb     = oldKb;
@@ -279,7 +275,7 @@ function updateTFPendingAttacks() {
     }
   }
 
-  // ── Pending Shockwave (ground) ─────────────────────────────
+  // Pending Shockwave (ground)
   if (tf._pendingShockwave) {
     tf._pendingShockwave.timer--;
     if (tf._pendingShockwave.timer <= 0) {

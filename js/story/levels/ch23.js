@@ -1,15 +1,8 @@
 'use strict';
-// js/story/levels/ch23.js — Chapter 23 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch23.js: chapter 23 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 23 — Static from the Core (defense)
-// "The Creator's frequency is broadcasting through the relay. Hold it open
-// long enough for Veran to trace the source." A single-screen signal relay in
-// the red static of the network: the relay (the nexus, x=450) sits on its
-// plinth in the middle; core probes pour out of two static rifts at the left
-// and right walls. Two tiers of gantries on each side let the defender cut
-// them off high or low; the dish array overhead shows the trace progress.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch 23: defense. Relay (nexus) at x=450, probes come in from both walls.
+// Gantries on each side let the player cut them off high or low.
 (function () {
   const G = 440, NX = 450;
   const SIDES = [[70, 340, 150], [680, 340, 150], [150, 240, 120], [630, 240, 120], [380, 170, 140]];
@@ -23,7 +16,6 @@
   function backdrop(v) {
     _slSkyAbove(v, '#0e0405');
     _slParallax(v, 0.05, (l, r) => {
-      // Static: scrolling scanlines and noise
       for (let y = -200; y < 520; y += 6) {
         ctx.fillStyle = `rgba(255,60,80,${0.03 + 0.03 * _slHash(y + (frameCount >> 2))})`;
         ctx.fillRect(l - 20, y, r - l + 40, 2);
@@ -36,13 +28,11 @@
   }
 
   function back(v) {
-    // Ruined relay hall walls
     ctx.fillStyle = '#1c0a0e'; ctx.fillRect(-60, -200, 1020, G + 200);
     for (let px = 0; px < 900; px += 150) {
       ctx.fillStyle = '#2a1016'; ctx.fillRect(px, -200, 24, G + 200);
       ctx.fillStyle = 'rgba(255,90,110,0.06)'; ctx.fillRect(px + 24, -200, 2, G + 200);
     }
-    // The two static rifts the probes come through
     for (const rx of [30, 870]) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const g = ctx.createRadialGradient(rx, G - 90, 6, rx, G - 90, 130);
@@ -54,7 +44,6 @@
       ctx.strokeStyle = `rgba(255,${120 + 80 * _slHash(frameCount >> 2)},140,0.9)`; ctx.lineWidth = 2; ctx.stroke();
       for (let k = 0; k < 6; k++) { ctx.fillStyle = 'rgba(255,200,210,0.6)'; ctx.fillRect(rx - 26 + _slHash(k + frameCount) * 52, G - 170 + _slHash(k * 3 + frameCount) * 160, 6, 1.5); }
     }
-    // Gantries
     for (const [x, y, w] of SIDES) {
       ctx.fillStyle = '#3a1a20'; ctx.fillRect(x, y, w, 8);
       ctx.strokeStyle = '#3a1a20'; ctx.lineWidth = 1.5;
@@ -62,7 +51,7 @@
       for (let rx = x; rx <= x + w; rx += 15) { ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(rx, y - 20); ctx.stroke(); }
       ctx.fillStyle = '#24101a'; ctx.fillRect(x + w / 2 - 5, y + 8, 10, G - y - 8);
     }
-    // Dish array overhead, aimed at the Core — trace progress lights it
+    // Dish array. Trace progress lights the beam.
     const ws = (typeof storeSurvivalState !== 'undefined' && storeSurvivalState) ? storeSurvivalState : null;
     const prog = ws && ws.totalWaves ? Math.min(1, (ws.wave || 0) / ws.totalWaves) : 0;
     for (const [dx, f] of [[300, 1], [600, -1]]) {
@@ -74,7 +63,6 @@
     ctx.beginPath(); ctx.moveTo(NX, G - 90); ctx.lineTo(NX, -200); ctx.stroke();
     ctx.restore();
     ctx.fillStyle = '#88f0dc'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.fillText('TRACE ' + Math.round(prog * 100) + '%', NX, 40);
-    // The relay plinth the nexus crystal sits on
     ctx.fillStyle = '#2a1016'; ctx.fillRect(NX - 46, G - 40, 92, 40);
     ctx.fillStyle = '#3a1a20'; ctx.fillRect(NX - 54, G - 46, 108, 8);
     _slConduit(NX - 300, NX - 54, G - 20, 350, 5); _slConduit(NX + 54, NX + 300, G - 20, 350, 5);

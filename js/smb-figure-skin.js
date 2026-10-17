@@ -1,52 +1,12 @@
 'use strict';
-/*
- * smb-figure-skin.js — the MATERIAL layer for the player figure.
- *
- * This file knows nothing about poses, states, IK or timing. Fighter.draw()
- * solves every joint exactly as it always has and hands the positions here; the
- * pose math is tuned and load-bearing (melee reach derives from FIG_ARM_LEN,
- * weapons anchor to the solved hand) and must not be touched to change how the
- * body LOOKS.
- *
- * ── THE ONE IDEA IN THIS FILE ─────────────────────────────────────────────
- * A body is ONE shape, not a pile of parts.
- *
- * The first version of this file painted each part — head, neck, torso, four
- * limbs, hands, feet — as its own closed shape with its own outline and its own
- * light and shadow. That is structurally a set of components bolted together,
- * and it read exactly like that: a robot assembled from pieces. No amount of
- * softening the seams fixes it, because the seams ARE two separately outlined,
- * separately lit shapes meeting.
- *
- * So nothing here paints a part. Callers ACCUMULATE geometry into one Path2D
- * and `paint()` renders that whole path in a single pass:
- *
- *   1. stroke the compound path at DOUBLE rim width
- *   2. fill the union on top — this buries every interior seam stroke outright,
- *      plus the inner half of the outer stroke, leaving a clean single-width
- *      outline around the silhouette and nothing at all inside it
- *   3. clip to that same path and wrap ONE light gradient across the whole body
- *
- * Step 2 is the trick that makes this work with no offscreen canvas. It is the
- * same union-fill insight the clouds and treeline in smb-drawing-arenas.js
- * needed: overlapping shapes filled individually always show each shape.
- *
- * Only TWO silhouettes are drawn per fighter — the far-side arm and leg, then
- * everything else — because a body with no depth cue at all is a blob. One
- * shadowed mass emerging from behind one lit mass reads as a person.
- *
- * ── COLOUR ────────────────────────────────────────────────────────────────
- * A single hue shifted only in VALUE is how you paint plastic and metal. Real
- * surfaces shift TEMPERATURE with light: the lit side moves warm, the shadow
- * moves cool AND gains saturation. That split does as much work here as the
- * geometry does, and its absence was the other half of the machined look.
- *
- * Load order: after smb-palette.js (colour primitives), before smb-fighter.js.
- */
+// smb-figure-skin.js: material layer for the player figure. No pose or timing logic here.
+// Fighter.draw() solves the joints and passes positions in. Don't change the pose math to change the look.
+// Each body is one shape: parts accumulate into one Path2D, and paint() strokes, fills and lights it in one pass.
+// Colour: the lit side shifts warm, the shadow shifts cool and saturated.
+// Load order: after smb-palette.js, before smb-fighter.js.
 
 const FigureSkin = (function () {
 
-  // ── Colour ────────────────────────────────────────────────────────────────
 
   function _hslArr(h, s, l) {
     const f = (n) => {
@@ -62,7 +22,7 @@ const FigureSkin = (function () {
                               Math.round(a[2] + (c[2] - a[2]) * t)];
   const _rgba = (a, al) => `rgba(${a[0]},${a[1]},${a[2]},${al})`;
 
-  /** Rotate a hue toward a target the SHORT way round the wheel. */
+  // Rotate a hue the short way round the wheel.
   function _toward(h, target, amt) {
     let d = target - h;
     if (d >  0.5) d -= 1;
@@ -84,29 +44,19 @@ const FigureSkin = (function () {
 
     const c = SMBPal.hex2rgb(key);
     const [h, s0, l0] = SMBPal.rgb2hsl(c[0], c[1], c[2]);
-    // Enough chroma left to read as a material rather than a moulded toy. The
-    // grounded look comes from the value structure and the temperature split
-    // below, NOT from draining the colour — an evenly lit desaturated form is
-    // precisely what plastic looks like.
+    // Keep some chroma: flat grey reads as plastic. Value and the temperature split do the grounding.
     const s = Math.min(0.70, s0 * 0.88);
     const l = Math.max(0.30, Math.min(0.54, l0 * 0.82));
 
     const base = _hslArr(h, s, l);
-    // Temperature is applied by MIXING toward a light colour, not by rotating
-    // the hue far around the wheel. Rotating a cyan 0.22 toward orange takes it
-    // through GREEN and the fighter turns sickly; a real warm light on a cool
-    // surface adds red and yellow, it does not re-hue the object. Small rotation
-    // for the shift in character, RGB mix for the actual warmth.
-    // Kept close to base: a highlight that travels a long way in value washes
-    // the identity colour out of the top half of the figure, and team read at a
-    // glance matters more than showing off the ramp.
+    // Temperature is a mix toward a light colour, not a hue rotation (rotating cyan toward orange passes through green).
+    // Keep highlights close to base, so the team colour reads at a glance.
     const lite = _mix(_hslArr(_toward(h, WARM, 0.07), s * 0.92, Math.min(0.70, l + 0.15)),
                       SUNLIGHT, 0.20);
     const dark = _mix(_hslArr(_toward(h, COOL, 0.10), Math.min(0.85, s * 1.25), Math.max(0.14, l * 0.52)),
                       SKYSHADE, 0.24);
     const rim  = _mix(_hslArr(h, Math.min(0.70, s * 1.20), 0.17), SKYSHADE, 0.30);
-    // The far side is the SAME material sitting in shadow — one step cooler and
-    // darker, never a second substance.
+    // Far side: same material in shadow, one step cooler and darker.
     const far    = _mix(_hslArr(h, Math.min(0.75, s * 1.10), Math.max(0.18, l * 0.70)), SKYSHADE, 0.22);
     const farRim = _mix(_hslArr(h, Math.min(0.70, s * 1.15), 0.135), SKYSHADE, 0.30);
 
@@ -114,8 +64,7 @@ const FigureSkin = (function () {
       base: _css(base), far: _css(far),
       rim:  _css(rim),  farRim: _css(farRim),
       accent: key,
-      // Opaque ramp stops, pre-built — these would otherwise be re-strung on
-      // every fighter on every frame.
+      // Opaque ramp stops, built once. Rebuilding them per fighter per frame is waste.
       lite:    _css(lite),
       liteMid: _css(_mix(lite, base, 0.55)),
       darkMid: _css(_mix(base, dark, 0.55)),
@@ -130,7 +79,6 @@ const FigureSkin = (function () {
     return p;
   }
 
-  // ── Quality ───────────────────────────────────────────────────────────────
   let _crowd = 0;
   function quality() {
     if (typeof settings !== 'undefined' && settings.animQuality === 'classic') return 0;
@@ -139,28 +87,12 @@ const FigureSkin = (function () {
   }
   function setCrowd(n) { _crowd = n | 0; }
 
-  // ── Geometry accumulation ─────────────────────────────────────────────────
-  // Everything below ADDS to a builder. None of it paints. Bounds are tracked
-  // so paint() can lay one gradient across the whole figure instead of one per
-  // part — that is what makes the light read as a single source falling on a
-  // single object, rather than a separate studio setup for every limb.
+  // Builders add geometry and never paint. Bounds are tracked so paint() can use one gradient for the whole figure.
 
   function begin() {
-    // `parts` holds each closed shape on its own, `p` is all of them combined
-    // for stroking, and `d` is the subset needing an internal form shadow.
-    //
-    // Why parts are kept separately — this cost an hour, so: a compound path
-    // filled with 'nonzero' is NOT a union. Subpaths that wind in opposite
-    // directions CANCEL where they overlap and punch a hole clean through the
-    // figure. And winding is not something you can eyeball: a ribbon winds one
-    // way, `arc`/`ellipse` at default anticlockwise wind the other, and a
-    // bezier whose coordinates are multiplied by `facing` REVERSES when the
-    // fighter turns around. The symptom was a hole at the neck that read as a
-    // second little face on the chest, and only when facing one way.
-    //
-    // Painting each part with the same OPAQUE world-space gradient sidesteps
-    // winding entirely: overlaps overpaint to the identical colour, so the
-    // result is a true union with no seam and no orientation bugs.
+    // parts: each closed shape. p: all combined, for stroking. d: parts that need a form shadow.
+    // Never fill a compound path with 'nonzero': opposite-winding subpaths cancel and punch holes.
+    // The same opaque world-space gradient on every part makes overlaps overpaint identically, so no seams.
     return { parts: [], p: new Path2D(), d: new Path2D(), hasD: false,
              x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   }
@@ -172,15 +104,7 @@ const FigureSkin = (function () {
     if (y + r > b.y1) b.y1 = y + r;
   }
 
-  /**
-   * A limb or torso: a variable-width ribbon through `pts`.
-   *
-   * Width is geometry here, not `lineWidth`. A stroked polyline is the same
-   * width end to end, and a limb that does not taper from shoulder to wrist is
-   * the single most "programmer art" thing about a stick figure. The flanks run
-   * as quadratics through the midpoints so a bend curves rather than creasing —
-   * a hard crease at every joint is a hinge, and hinges are robots.
-   */
+  // Limb or torso: variable-width ribbon through pts. Constant width reads as programmer art. Quadratic flanks curve at joints.
   function segment(b, pts, ws, detail) {
     const n = pts.length, P = new Path2D();
     const L = [], R = [];
@@ -195,7 +119,7 @@ const FigureSkin = (function () {
       R.push(pts[i].x - nx * w, pts[i].y - ny * w);
       _bound(b, pts[i].x, pts[i].y, ws[i]);
     }
-    // Trace one flank. `rev` walks it backwards, so the same code serves both
+    // Trace one flank. rev walks it backwards, for both the closed outline and the open shadow edges.
     // the closed silhouette and the open form-shadow edges.
     const _flank = (T, A, rev) => {
       if (rev) {
@@ -212,9 +136,7 @@ const FigureSkin = (function () {
         if (n > 1) T.lineTo(A[(n - 1) * 2], A[(n - 1) * 2 + 1]);
       }
     };
-    // Rounded ends are traced INTO the outline rather than added as separate
-    // circles — one closed subpath per limb, so a limb can never punch a hole
-    // in itself and the cap can never show as a bulge at a joint.
+    // Rounded ends are traced into the outline, not added as circles, so a limb can't punch a hole or bulge at a joint.
     const _capAng = (i, j) => Math.atan2(pts[i].y - pts[j].y, pts[i].x - pts[j].x);
     const aEnd = _capAng(n - 1, n - 2), aStart = _capAng(0, 1);
 
@@ -226,11 +148,8 @@ const FigureSkin = (function () {
     P.closePath();
     _add(b, P);
 
-    // Form shadow: the two long flanks as OPEN subpaths.
-    //
-    // Never the closed outline — closing it strokes a line straight across the
-    // shoulder and the wrist, and end caps stroke as rings sitting mid-chest.
-    // Only the long edges are real form.
+    // Form shadow: the two long flanks as open subpaths.
+    // Never the closed outline: closing it strokes across the shoulder and wrist, and end caps show as rings.
     if (detail) {
       const D = b.d;
       D.moveTo(L[0], L[1]); _flank(D, L, false);
@@ -239,20 +158,16 @@ const FigureSkin = (function () {
     }
   }
 
-  /**
-   * Head — a skull, not a ball. Broad cranium narrowing to a chin on the facing
-   * side. A symmetrical oval has no front and no back, so it reads as a helmet.
-   */
+  // Head: a skull, not a ball. A symmetrical oval reads as a helmet.
   function head(b, x, y, r, f) {
     const P = new Path2D();
-    // A clean circle keeps the in-game model in the same hand-drawn stickman
-    // language as the menu art and the requested reference image.
+    // Round head: matches the menu art's hand-drawn stickman language.
     P.ellipse(x, y, r * 1.02, r * 1.02, 0, 0, Math.PI * 2);
     _add(b, P);
     _bound(b, x, y, r * 1.05);
   }
 
-  /** Fist — so an arm ends in a hand rather than a rounded stump. */
+  // Fist, so an arm ends in a hand rather than a stump.
   function hand(b, x, y, ang, f, scale) {
     const s = scale || 1, P = new Path2D();
     const rx = 3.5 * s, ry = 3.0 * s;
@@ -261,10 +176,7 @@ const FigureSkin = (function () {
     _bound(b, x, y, rx);
   }
 
-  /**
-   * Boot. Feet are what make a figure read as standing ON something rather than
-   * hovering above it; the original rig ended both legs in a round line cap.
-   */
+  // Feet make a figure read as standing on something. Round caps hover.
   function foot(b, x, y, legAng, f) {
     const roll = Math.max(-0.55, Math.min(0.55, (legAng - Math.PI * 0.5) * 0.55));
     const co = Math.cos(roll), si = Math.sin(roll), P = new Path2D();
@@ -281,20 +193,11 @@ const FigureSkin = (function () {
     _bound(b, x, y, 8);
   }
 
-  // paint() and face() draw to the game canvas unless handed another 2D
-  // context (the menu's fighter previews pass their own).
+  // paint() and face() draw to the game canvas unless given another 2D context.
   function _mainCtx() { return ctx; }
 
-  // ── The single paint ──────────────────────────────────────────────────────
 
-  /**
-   * Render an accumulated body as ONE continuous form.
-   *
-   * @param b    builder from begin()
-   * @param p    palette from pal()
-   * @param far  true for the back-side limbs: shadowed, weaker outline
-   * @param alpha  whole-form opacity (a fading corpse); default 1
-   */
+  // Render an accumulated body as one continuous form. far: shadowed back-side limbs, weaker outline. alpha: whole-form opacity.
   function paint(b, p, far, g, alpha) {
     if (!b.parts.length) return;
     const ctx = g || _mainCtx();
@@ -302,12 +205,9 @@ const FigureSkin = (function () {
     ctx.lineJoin = 'round';
     ctx.lineCap  = 'round';
 
-    // 1 — outline at DOUBLE width. Every interior seam gets stroked too; the
-    //     fills in step 2 bury all of them, and half of this one, leaving a
-    //     single clean line around the silhouette and nothing inside it.
+    // 1: outline at double width. Interior seams get stroked too, and step 2 buries them.
     // The far-side limb is a shadowed part of the same fighter, not a ghost.
-    // Keeping it nearly opaque prevents legs from disappearing into arena art
-    // at store-cover scale and preserves a readable silhouette in-game.
+    // Nearly opaque, so legs don't vanish into arena art at store-cover scale.
     const _A = alpha === undefined ? 1 : alpha;
     ctx.globalAlpha = (far ? 0.86 : 0.94) * _A;
     ctx.strokeStyle = p.accent;
@@ -315,19 +215,9 @@ const FigureSkin = (function () {
     ctx.stroke(b.p);
     ctx.globalAlpha = _A;
 
-    // 2 — A restrained, mostly-flat fill. The fighters are graphic stickmen,
-    //     not hard-surface robots: one readable color per silhouette keeps the
-    //     face, pose, and weapon doing the storytelling.
-    //
-    //     Opaque is the important word. Every part is filled with the same
-    //     world-space gradient, so a pixel gets the same colour no matter which
-    //     part covers it — overlaps overpaint identically and vanish. That is a
-    //     true union with no seams, and unlike fill(compound,'nonzero') it
-    //     cannot be broken by a subpath that happens to wind the other way.
-    //
-    //     Laying the light across the WHOLE figure rather than per part is also
-    //     what makes it read as one object under one sun, instead of as a set
-    //     of separately lit components.
+    // 2: restrained, mostly flat fill. One colour per silhouette keeps the focus on face, pose and weapon.
+    // Opaque matters: every part gets the same world-space gradient, so overlaps match and vanish.
+    // One light across the whole figure reads as one object under one sun.
     const style = far ? 'rgba(3, 5, 18, 0.90)' : 'rgba(3, 5, 18, 0.80)';
     ctx.fillStyle = style;
     for (const q2 of b.parts) ctx.fill(q2);
@@ -335,16 +225,8 @@ const FigureSkin = (function () {
     ctx.restore();
   }
 
-  // ── Face ──────────────────────────────────────────────────────────────────
 
-  /**
-   * HUMAN EYES ARE DARK. At this size a real eye is a small dark mark with one
-   * speck of catchlight — light going IN. An eye that EMITS reads as a machine
-   * or a corpse, every time. There is no glow anywhere on this face.
-   *
-   * Expression is carried by eye openness and brow angle, the two things a face
-   * actually uses, rather than by recolouring or by drawing a mouth.
-   */
+  // Human eyes are dark: a small dark mark with one speck of catchlight. A glowing eye reads as a machine or a corpse.
   function face(p, x, y, r, f, o, g) {
     const ctx = g || _mainCtx();
     o = o || {};
@@ -368,8 +250,7 @@ const FigureSkin = (function () {
     ctx.save();
 
     if (quality() >= 2) {
-      // A small, dark socket gives the face depth without making a bright band
-      // across the head. The old bright smudge read as a visor at small sizes.
+      // Small dark socket for depth, without a bright band across the head.
       ctx.globalAlpha = 0.18 * _A;
       ctx.fillStyle = p.eye;
       ctx.beginPath();
@@ -378,7 +259,7 @@ const FigureSkin = (function () {
     }
 
     if (open > 0.06) {
-      // Dark eyes with tiny catchlights read as eyes instead of glowing slots.
+      // Dark eyes with small catchlights.
       ctx.fillStyle = p.eye;
       ctx.globalAlpha = 0.92 * _A;
       ctx.beginPath();
@@ -409,11 +290,9 @@ const FigureSkin = (function () {
       ctx.stroke();
     }
 
-    // No brows: drawn in the outline colour they read as a stray stripe across
-    // the head, not as a feature. Expression is carried by eye openness alone.
+    // No brows: in the outline colour they read as a stripe across the head.
 
-    // A mouth only when the face is doing something, and always an open shape.
-    // A drawn line curves into a smiley or a frown, and neither belongs here.
+    // Mouth only when the face is doing something, always an open shape.
     if (hurt || o.attacking) {
       ctx.globalAlpha = 0.55 * _A;
       ctx.fillStyle = p.eye;
@@ -426,7 +305,7 @@ const FigureSkin = (function () {
     ctx.restore();
   }
 
-  /** Contact shadow. Most of why a figure looks attached to the arena. */
+  // Contact shadow: most of why a figure looks attached to the arena.
   function groundShadow(x, groundY, w, strength) {
     if (quality() < 2) return;
     ctx.save();

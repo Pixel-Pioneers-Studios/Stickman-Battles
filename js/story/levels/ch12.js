@@ -1,14 +1,8 @@
 'use strict';
-// js/story/levels/ch12.js — Chapter 12 map. See smb-story-levels.js for the contract.
+// Chapter 12 map (walk, then duel vs a Rift Collector). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 12 — What Veran Knew (walk → duel vs a Rift Collector)
-// The deep station, where Veran explains the rift entity. Server stacks, her
-// control deck with holographic maps of every dimension she has charted, the
-// containment cells, an observation window over the burning city — and the
-// portal ring at the midpoint: "As if on cue, a portal opened behind you."
-// The far end is where she sends you next: the primary fracture, torn open.
-// ═════════════════════════════════════════════════════════════════════════════
+// What Veran Knew: the deep station. Server stacks, her control deck, the containment
+// cells, and the portal ring at the midpoint. The far end is the primary fracture.
 (function () {
   const G = 440;
   const SERVERS = [[300, 120], [440, 120], [580, 120]];
@@ -38,7 +32,6 @@
 
   function back(v, a) {
     const x0 = Math.max(-200, v.x - 40), x1 = Math.min(6200, v.x + v.w + 40);
-    // Station shell
     ctx.fillStyle = '#181a22'; ctx.fillRect(x0, G - 560, x1 - x0, 560);
     for (let px = Math.floor(x0 / 200) * 200; px < x1; px += 200) {
       ctx.fillStyle = '#20232d'; ctx.fillRect(px, G - 560, 26, 560);
@@ -46,7 +39,6 @@
     }
     _slConduit(x0, x1, G - 500, 200, 9);
     _slConduit(x0, x1, G - 470, 280, 6);
-    // ── Server stacks
     if (_slVisible(v, 260, 740)) for (const [x, w] of SERVERS) {
       ctx.fillStyle = '#20232a'; ctx.fillRect(x, G - 150, w, 150);
       ctx.fillStyle = '#2a2e36'; ctx.fillRect(x, G - 150, w, 6);
@@ -55,7 +47,6 @@
         for (let k = 0; k < 6; k++) { const on = _slHash(k + ry + x + (frameCount >> 4)) < 0.6; ctx.fillStyle = on ? (k % 3 ? '#5affc8' : '#ffb04a') : '#1e3a30'; ctx.fillRect(x + 10 + k * 8, ry + 3, 3, 3); }
       }
     }
-    // ── Control deck: holo maps of the dimensions Veran has charted
     if (_slVisible(v, 800, 1650)) {
       for (const [x, y, w] of DECK_STAIRS) { ctx.fillStyle = '#2a2e38'; ctx.fillRect(x, y, w, G - y); }
       const D = DECK;
@@ -65,7 +56,6 @@
       ctx.beginPath(); ctx.moveTo(D.x, D.y - 24); ctx.lineTo(D.x + D.w, D.y - 24); ctx.stroke();
       for (let k = D.x; k <= D.x + D.w; k += 24) { ctx.beginPath(); ctx.moveTo(k, D.y); ctx.lineTo(k, D.y - 24); ctx.stroke(); }
       for (const px of [D.x + 40, D.x + D.w - 50]) { ctx.fillStyle = '#20232d'; ctx.fillRect(px, D.y + 14, 14, G - D.y - 14); }
-      // Wall of holograms above the deck — each labelled with a world
       const MAPS = [['HOME', 200], ['FRACTURE NET', 270], ['MIRROR', 300], ['VOID', 330], ['CORE', 20]];
       MAPS.forEach(([name, hue], i) => {
         const hx = D.x + 20 + i * 100;
@@ -76,11 +66,10 @@
       ctx.fillStyle = '#3a2e2a'; ctx.fillRect(D.x + 220, D.y - 40, 30, 6); ctx.fillRect(D.x + 232, D.y - 34, 6, 34); ctx.fillRect(D.x + 244, D.y - 70, 6, 36);
       ctx.fillStyle = '#e8e2d8'; ctx.fillRect(D.x + 300, D.y - 12, 8, 12);
       _slSmoke(D.x + 304, D.y - 12, 30, false, 4);
-      // Console bank below
       ctx.fillStyle = '#2a2e36'; ctx.fillRect(1500, G - 70, 120, 70);
       _slHolo(1506, G - 64, 108, 30, 160);
     }
-    // ── Containment cells (one holds a collector husk)
+    // Containment cells; one holds a collector husk
     if (_slVisible(v, CELLS.x - 20, CELLS.x + CELLS.w + 20)) {
       const C = CELLS;
       ctx.fillStyle = '#20232a'; ctx.fillRect(C.x, G - 160, C.w, 160);
@@ -100,7 +89,7 @@
         ctx.fillStyle = '#9ad8f0'; ctx.font = '7px monospace'; ctx.textAlign = 'center'; ctx.fillText('CELL ' + (k + 1), cx + 45, G - 146);
       }
     }
-    // ── The portal ring (the collector comes through here)
+    // The portal ring (the collector comes through here)
     if (_slVisible(v, RING_X - 320, RING_X + 320)) {
       ctx.fillStyle = '#2a2e38';
       ctx.beginPath(); ctx.arc(RING_X, G - 200, 190, 0, Math.PI * 2); ctx.arc(RING_X, G - 200, 160, 0, Math.PI * 2, true); ctx.fill();
@@ -112,7 +101,6 @@
       ctx.fillStyle = '#2a2e38'; ctx.fillRect(RING_X - 120, G - 40, 240, 40);
       _slPortal(RING_X, G - 200, 100, 280, 0);
     }
-    // ── Observation window over the burning city, gantries in front of it
     if (_slVisible(v, WINDOW.x, WINDOW.x + WINDOW.w)) {
       const W = WINDOW;
       ctx.fillStyle = '#2a1008'; ctx.fillRect(W.x, G - 420, W.w, 330);
@@ -135,7 +123,6 @@
         ctx.fillStyle = '#20232d'; ctx.fillRect(x + w / 2 - 5, y + 8, 10, G - y - 8);
       }
     }
-    // ── Lift up to the fracture mouth
     if (_slVisible(v, 4860, 6200)) {
       const lf = _slPlat(a, 'lift');
       ctx.fillStyle = '#2a2e38'; ctx.fillRect(LIFT.x - 10, G - 300, 8, 300); ctx.fillRect(LIFT.x + LIFT.w + 2, G - 300, 8, 300);
@@ -144,7 +131,7 @@
         ctx.fillStyle = '#d0a020'; for (let k = 0; k < lf.w; k += 18) ctx.fillRect(lf.x + k, lf.y, 9, 3);
       }
       ctx.fillStyle = '#3a3f4c'; ctx.fillRect(5020, G - 240, 200, 10);
-      // The primary fracture: Veran's next destination, held open by clamps
+      // The primary fracture, Veran's next stop
       const p = 0.75 + 0.25 * Math.sin(frameCount * 0.05);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const fg = ctx.createRadialGradient(FRACTURE_X, G - 200, 10, FRACTURE_X, G - 200, 260);

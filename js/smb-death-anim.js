@@ -1,19 +1,8 @@
 'use strict';
-// smb-death-anim.js — authored death & knockout (Phase 1 of docs/animation-quality-plan.md)
-//
-// Replaces "spawn a collapsed pose AND a verlet skeleton on top of it" with a
-// three-beat authored performance that only THEN hands off to physics:
-//
-//   impact  → hard hold on the hit pose, flash, camera punch
-//   stagger → a step in the knockback direction, torso folds, head lags
-//   fall    → arc about the pelvis, limbs trail, squash + dust on contact
-//   settle  → hand off to the angle-constrained verlet corpse, from where the
-//             animation left it rather than teleporting into a curl
-//
-// Depends on: smb-anim-core.js (animEase, animHold, animDust, animArc),
-//             smb-verlet.js (VerletRagdoll, PlayerRagdoll), smb-globals.js.
-// Every external call is guarded — this file must never be able to break a death.
-// ============================================================
+// smb-death-anim.js: authored death and knockout. Beats: impact, stagger, fall, then settle.
+// Settle hands off to the verlet corpse from where the animation left it, not from a curl.
+// Depends on: smb-anim-core.js, smb-verlet.js, smb-globals.js.
+// Every external call is guarded. This file must never break a death.
 
 const DEATH_BEATS = { impact: 6, stagger: 20, fall: 22 }; // frames per beat
 
@@ -24,9 +13,9 @@ const DeathAnim = {
   /** Dropped weapons / props left behind by deaths. */
   _props: [],
 
-  // ── Entry point ───────────────────────────────────────────────────────────
+  // Entry point
   /**
-   * Begin an authored death for `f`. Safe to call more than once — a fighter
+   * Begin an authored death for `f`. Safe to call more than once: a fighter
    * already dying is ignored. `opts.verlet` false suppresses the corpse handoff
    * (used where the caller keeps the body around, e.g. Fracture branch rulers).
    */
@@ -54,8 +43,7 @@ const DeathAnim = {
     f._death = rec;
     DeathAnim._active.push(rec);
 
-    // Keep the spring stiff through the authored beats so the fighter actually
-    // holds the poses we give it. PlayerRagdoll.collapse() would go limp here.
+    // Keep the spring stiff through the authored beats, or the poses won't hold.
     if (typeof PlayerRagdoll !== 'undefined') {
       const rd = PlayerRagdoll.createRagdoll(f);
       rd.collapsed  = false;
@@ -71,7 +59,7 @@ const DeathAnim = {
   /** True while `f`'s body is being drawn by an authored beat. */
   isAnimating(f) { return !!(f && f._death && !f._death.hidden); },
 
-  /** Clear a fighter's death state — called from respawn paths. */
+  /** Clear a fighter's death state: called from respawn paths. */
   clear(f) {
     if (!f) return;
     if (f._death) {
@@ -82,7 +70,7 @@ const DeathAnim = {
     f._hideWeapon = false;
   },
 
-  // ── Per-frame ─────────────────────────────────────────────────────────────
+  // Per-frame
   update() {
     for (let i = DeathAnim._active.length - 1; i >= 0; i--) {
       const rec = DeathAnim._active[i];
@@ -144,15 +132,15 @@ const DeathAnim = {
     }
   },
 
-  // ── Internals ─────────────────────────────────────────────────────────────
+  // Internals
 
   /**
    * Pick the death from context so no two read the same.
-   *   executeDeath — finisher kill; the finisher owns the presentation
-   *   voidDeath    — killed by the Boss / TrueForm; dissolve rather than fall
-   *   blastDeath   — splash / explosive; arms up, backwards arc
-   *   launchDeath  — heavy knockback; spin and travel
-   *   crumple      — chip damage; knees first, slow fold
+   *   executeDeath: finisher kill; the finisher owns the presentation
+   *   voidDeath   : killed by the Boss / TrueForm; dissolve rather than fall
+   *   blastDeath  : splash / explosive; arms up, backwards arc
+   *   launchDeath : heavy knockback; spin and travel
+   *   crumple     : chip damage; knees first, slow fold
    */
   _pickKind(f, hit, kb) {
     if (hit && hit.finisher) return 'executeDeath';
@@ -194,13 +182,13 @@ const DeathAnim = {
       if (typeof spawnParticles === 'function') {
         spawnParticles(f.cx(), f.cy(), f.color || '#ffffff', rec.kind === 'crumple' ? 10 : 20);
       }
-      // Freeze the body on the impact frame — the hold has to be visible.
+      // Freeze on the impact frame so the hold is visible.
       f.vx = 0; f.vy = 0;
       rec.pose = DeathAnim._impactPose(rec);
       f._death.pose = rec.pose;
 
     } else if (beat === 'stagger') {
-      // The body finally accepts the hit: it takes a step, then gives way.
+      // The body takes the hit: a step, then it gives way.
       const k = rec.kind;
       f.ragdollTimer = 0;             // the authored beat owns rotation, not the spin
       f.ragdollAngle = 0;
@@ -220,7 +208,7 @@ const DeathAnim = {
       }
 
     } else if (beat === 'fall') {
-      // Free rotation about the pelvis, limbs trailing on drag.
+      // Free rotation about the pelvis, limbs trailing.
       const spinBase = rec.kind === 'launchDeath' ? 0.13
                      : rec.kind === 'blastDeath'  ? 0.09
                      : rec.kind === 'crumple'     ? 0.035 : 0.05;
@@ -238,7 +226,7 @@ const DeathAnim = {
     rec.t++;
 
     if (rec.beat === 'impact') {
-      // Nothing moves. That is the point of the beat.
+      // Nothing moves on purpose.
       f.vx = 0; f.vy = 0;
       rec.pose = DeathAnim._impactPose(rec);
       f._death.pose = rec.pose;
@@ -255,7 +243,7 @@ const DeathAnim = {
                                       DeathAnim._staggerPose(rec), e, rec, u);
       f._death.pose = rec.pose;
       if (rec.kind === 'voidDeath') DeathAnim._voidMotes(rec, 2);
-      // Scuff at the feet while the step is being taken
+      // Feet scuff during the step
       if (f.onGround && rec.t % 4 === 0 && typeof animScuff === 'function') {
         animScuff(f.cx(), f.y + f.h, rec.dir, 3);
       }
@@ -271,7 +259,7 @@ const DeathAnim = {
       f._death.pose = rec.pose;
       if (rec.kind === 'voidDeath') DeathAnim._voidMotes(rec, 3);
 
-      // Ground contact: squash, dust, and a small bounce for fast arrivals.
+      // Ground contact: squash, dust, and a small bounce on fast arrivals.
       if (!rec.landed && (f.onGround || f.y + f.h >= rec.floorY - 1)) {
         rec.landed = true;
         const impact = Math.min(1, Math.abs(f.vy) / 14);
@@ -292,11 +280,10 @@ const DeathAnim = {
     if (rec.beat === 'settle') { rec.beat = 'done'; }
   },
 
-  // ── Poses ─────────────────────────────────────────────────────────────────
-  // All angles are the six scalars PlayerRagdoll drives: rArm/lArm/rLeg/lLeg
-  // (absolute limb angles) plus head and torso lean.
+  // Poses
+  // Absolute angles for the six scalars PlayerRagdoll drives: limbs, head and torso lean.
 
-  /** Beat 1 — the body has not caught up with the hit yet. Directional. */
+  /** Beat 1: the body has not caught up with the hit yet. Directional. */
   _impactPose(rec) {
     const P = Math.PI, d = rec.dir, s = rec.startPose;
     const k = rec.kind;
@@ -306,27 +293,27 @@ const DeathAnim = {
                head: -0.30 * d, torso: -0.28 * d };
     }
     if (k === 'crumple') {
-      // Nothing dramatic — the body just stops answering
+      // The body just stops answering
       return { rArm: s.rArm * 0.6 + P * 0.62 * 0.4, lArm: s.lArm * 0.6 + P * 0.38 * 0.4,
                rLeg: P * 0.56, lLeg: P * 0.44, head: 0.16, torso: 0.10 };
     }
     if (k === 'voidDeath') {
-      // Held up by something that isn't gravity
+      // Held up by something other than gravity
       return { rArm: P * 0.96, lArm: P * 0.04, rLeg: P * 0.58, lLeg: P * 0.42,
                head: -0.22, torso: -0.05 };
     }
-    // launchDeath / executeDeath — folded over the hit point, head snapped back
+    // launchDeath / executeDeath: folded over the hit point, head snapped back
     return { rArm: P * 0.86 + 0.25 * d, lArm: P * 0.14 + 0.25 * d,
              rLeg: P * 0.62, lLeg: P * 0.38,
              head: -0.42 * d, torso: -0.22 * d };
   },
 
-  /** Beat 2 — a step is taken, the torso folds, the head lags behind (overlap). */
+  /** Beat 2: a step is taken, the torso folds, the head lags behind (overlap). */
   _staggerPose(rec) {
     const P = Math.PI, d = rec.dir;
     const k = rec.kind;
     if (k === 'crumple') {
-      // Knees first, slow fold — the legs give out before the arms do
+      // Knees first, slow fold: the legs give out before the arms do
       return { rArm: P * 0.70, lArm: P * 0.30, rLeg: P * 0.34, lLeg: P * 0.66,
                head: 0.34, torso: 0.58 };
     }
@@ -338,13 +325,13 @@ const DeathAnim = {
       return { rArm: P * 1.10, lArm: -P * 0.10, rLeg: P * 0.52, lLeg: P * 0.48,
                head: -0.40, torso: -0.14 };
     }
-    // Reaching — not curling. The arm trails the direction of travel.
+    // Reaching, not curling. The arm trails the direction of travel.
     return { rArm: P * 1.02 + 0.30 * d, lArm: P * 0.06 + 0.30 * d,
              rLeg: P * 0.40, lLeg: P * 0.72,
              head: -0.55 * d, torso: -0.62 * d };
   },
 
-  /** Beat 3 — everything trails on drag as the body rotates about the pelvis. */
+  /** Beat 3: everything trails on drag as the body rotates about the pelvis. */
   _fallPose(rec) {
     const P = Math.PI, d = rec.dir;
     if (rec.kind === 'crumple') {
@@ -356,7 +343,7 @@ const DeathAnim = {
                head: -0.55, torso: -0.20 };
     }
     if (rec.kind === 'blastDeath') {
-      // Blown off the feet — flat on the back, arms still thrown out
+      // Blown off the feet, flat on the back
       return { rArm: P * 1.40, lArm: -P * 0.40, rLeg: P * 0.92, lLeg: P * 0.08,
                head: -0.70 * d, torso: -1.45 * d };
     }
@@ -367,7 +354,7 @@ const DeathAnim = {
 
   /**
    * Blend two poses. The head and off-hand lag the torso by a fraction of the
-   * beat (overlap / drag) — free follow-through for one extra lerp each.
+   * beat (overlap / drag): free follow-through for one extra lerp each.
    */
   _blendPose(a, b, e, rec, u) {
     const lag = Math.max(0, e - 0.22);   // ~3 frames of drag on the trailing parts
@@ -414,16 +401,15 @@ const DeathAnim = {
   },
 
   /**
-   * Beat 4 — hand off to the angle-constrained verlet corpse. The ragdoll is
-   * built from the fighter's CURRENT position and velocity, so the body settles
+   * Beat 4: hand off to the angle-constrained verlet corpse. The ragdoll is
+   * built from the fighter's current position and velocity, so the body settles
    * from where the animation left it instead of teleporting to a curl.
    */
   _handoff(rec) {
     const f = rec.f;
     rec.hidden = true;
     if (!rec.verlet || typeof VerletRagdoll === 'undefined') {
-      // No corpse requested (or unavailable): fall back to the old collapsed pose
-      // so the body still reads as dead rather than disappearing.
+      // No corpse available: use the collapsed pose so the body still reads as dead.
       rec.hidden = false;
       if (typeof PlayerRagdoll !== 'undefined') PlayerRagdoll.collapse(f);
       f._death.pose = null;
@@ -433,11 +419,8 @@ const DeathAnim = {
       const vr = new VerletRagdoll(f);
       vr.floorY = rec.floorY;
       if (typeof Corpse !== 'undefined') Corpse.dress(vr, f);
-      // The constructor lays the rig out standing. Left alone the corpse lands on
-      // its feet in a crouch — the animation's fold would be thrown away at the
-      // exact moment physics takes over. Rotate the whole rig by the angle the
-      // body actually reached, about the pelvis, and give the upper body a shove
-      // so it topples instead of balancing.
+      // The rig is built standing, so without this the corpse lands crouched and
+      // the fold is lost. Rotate it by the angle reached and nudge the torso so it topples.
       const fold = (f._rd ? f._rd.torso.angle : 0) + (f.ragdollAngle || 0);
       if (fold && typeof VerletAngleConstraint !== 'undefined') {
         const pivot = { x: (vr.lHip.x + vr.rHip.x) / 2, y: (vr.lHip.y + vr.rHip.y) / 2 };
@@ -450,7 +433,8 @@ const DeathAnim = {
       rec.hidden = false;   // never leave an invisible body behind
       if (typeof PlayerRagdoll !== 'undefined') PlayerRagdoll.collapse(f);
     }
-    // Leave the spring state limp for whenever the fighter is drawn again.
+    // Leave the spring limp for the next time the fighter is drawn.
+
     if (typeof PlayerRagdoll !== 'undefined') PlayerRagdoll.collapse(f);
   },
 };

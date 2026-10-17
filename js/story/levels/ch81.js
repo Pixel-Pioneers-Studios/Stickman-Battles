@@ -1,19 +1,7 @@
 'use strict';
-// js/story/levels/ch81.js — Chapter 81 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch81.js: chapter 81 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 81 — What Was Before (puzzle, 3 memory locks)
-// The Last Threshold before the Creator's domain: a gold walkway in the void
-// with the Fallen God's final understanding sealed into three memory locks,
-// each a shrine standing under one panel of a mural. Unlit, the panels are
-// outlines; each lock lights its panel. The first shows what was before the
-// walls — worlds overlapping, bleeding into each other. The second, the one
-// failure that taught it why — a world coming apart where it touched another.
-// The third, the walls — every world held in its own ring. Lock 1 sits on a
-// low dais, lock 2 on a raised pedestal, lock 3 on a stepped plinth (their
-// heights match puzzleSwitchDefs). Floating stair fragments are the climbs.
-// The Separation Seal at the end is a gold disc, half dark and half light.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch81 (What Was Before): puzzle with 3 memory locks. Lock heights match puzzleSwitchDefs.
 (function () {
   const G = 440, SEAL = 2900;
   const LOCKS = [[600, 385], [1400, 350], [2500, 370]];

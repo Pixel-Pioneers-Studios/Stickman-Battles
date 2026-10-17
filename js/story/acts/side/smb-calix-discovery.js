@@ -1,6 +1,5 @@
-// smb-calix-discovery.js — Calix arc (chapters 63–65)
-// Loads after smb-lab-infiltration.js (ch. 62), before smb-act5-arc-damnation.js (ch. 66).
-// Introduces Calix: dual-fragment bearer found in a sealed section of the abandoned lab.
+// Calix arc (chapters 63 to 65). Loads after smb-lab-infiltration.js and before
+// smb-act5-arc-damnation.js. Introduces Calix, a dual-fragment bearer found in a sealed lab section.
 
 STORY_CHAPTER_REGISTRY.push(
   {
@@ -155,7 +154,7 @@ STORY_CHAPTER_REGISTRY.push(
     armor: ['helmet'],
     arena: 'storyLab',
     walkFight: true, worldLength: 3000,
-    playerLives: 2,   // saga finale — its hardest fight, two expert enemies
+    playerLives: 2,   // saga finale, the hardest fight: two expert enemies
     tokenReward: 80, blueprintDrop: null,
     onComplete() {
       if (typeof setStoryFlag === 'function') {
@@ -168,9 +167,8 @@ STORY_CHAPTER_REGISTRY.push(
         fireLoreMoment('domain_seam_mechanics');
       }
     },
-    // Shown INSTEAD of postText when this chapter ends the active saga (a Saga I
-    // build). On the full game this chapter is a transition into the Damnation
-    // Loop and the normal postText runs, so the combined story is unchanged.
+    // Shown instead of postText when this chapter ends the active saga. In the full game
+    // it leads into the Damnation Loop, so the normal postText runs.
     sagaFinaleText: 'It took eleven minutes. Calix walked you through it in order — intake, the columns, the rig, the data core last — because they knew the order, because they had been moved through it in that order. Nothing about it was dramatic. It was a room with equipment in it, and then it was a room. You came out into open air with the facility going dark behind you, one wing at a time. Ninety-four people were made collectable before they were collected. Not out here. In there — in rooms with intake protocols and stasis columns and eighteen months of structured trials, run by people who wrote all of it down. That machinery does not exist any more. The war does. Axiom does. The fracture system is still turning somewhere above all of this and you have not touched it, and you know you have not touched it. But the thing that turned people into something that could be taken — the process, the rooms, the paperwork — is ash, and it is ash because you went back for it instead of walking out. Calix stood beside you and counted the wings going dark. "Nineteen names in that terminal," they said. "Seventeen cells." They did not explain the gap. They did not need to. Somewhere in Axiom\'s records there is an entry for a ninety-fifth bearer, and beside it: retrieval pending. It will stay pending. Not because you are stronger than him. You are not, and you know exactly how much you are not. Because the room he meant to do it in is gone, and you are the one who burned it. You are not the ninety-fifth of anything. "So," Calix said. "Where are you going?" You told them. "Right," they said. "I\'m coming."',
     postText: '"When a domain\'s architect dies, the domain persists," Calix said. "Not forever. But long enough. It runs on the residual structural will of whoever built it." They checked the corridor. Clear. "The seam is where two of those architectures press together. Most bearers hit one and both sides read them as foreign matter — conflicting intrusion signals. But the fragment reads as structurally similar to domain architecture. Both sides recognize it. You move through." They paused. "That\'s why Axiom built the fragment system the way he did. Not just a key. A passport — something both sides of any seam accept as compatible structure." They looked at their hands for a moment. At the two signatures still arguing. "I know because the lab tested it on me. With both of mine. Twice." Then you went back for the trial wing. It took eleven minutes — intake, the columns, the rig, the data core last, in the order Calix knew by heart because they had been moved through it in that order. The facility went dark behind you one wing at a time. "Nineteen names in that terminal," Calix said, watching it go. "Seventeen cells. That gap is the whole story of this place." They turned away first. "So. Where are you going?" You told them. "Right," they said. "I\'m coming."',
   },

@@ -1,6 +1,6 @@
 'use strict';
 
-// smb-supabase.js — Supabase auth + cloud save bridge
+// smb-supabase.js, Supabase auth + cloud save bridge
 //
 // Loaded before smb-accounts.js / smb-save.js so the rest of the game can
 // query auth state and queue syncs without knowing about Supabase internals.
@@ -57,8 +57,7 @@ const SupabaseBridge = (() => {
   function _updateMenuButton() {
     const btn = document.getElementById('accountsSavesBtn') || document.getElementById('cloudAuthBtn');
     if (!btn) return;
-    // Rebuild rather than setting textContent — that would wipe the inline
-    // SVG icon that lives inside this button.
+    // Rebuild rather than setting textContent, which would wipe the inline SVG icon.
     const icon = typeof smbIcon === 'function' ? smbIcon('user') : '';
     // Label lives in .nav-label so the home corner cluster can render icon-only.
     btn.innerHTML = icon + '<span class="nav-label"> ' + _menuButtonLabel()
@@ -211,11 +210,8 @@ const SupabaseBridge = (() => {
     return res;
   }
 
-  // ── Username auth ───────────────────────────────────────────────────────────
-  // Players sign in with a plain username. Supabase Auth still keys on email, so
-  // a username is stored in user_metadata and mapped onto a stable synthetic
-  // address. Anything containing '@' is treated as a real email and passed
-  // through untouched, so existing email accounts keep working unchanged.
+  // Usernames map onto a synthetic email under the domain above. Anything with '@' is a real
+  // email and passes through, so existing email accounts keep working.
 
   function _usernameDomain() {
     return String(_cfg().usernameDomain || 'players.stickmanevolution.net').replace(/^@/, '');
@@ -282,9 +278,8 @@ const SupabaseBridge = (() => {
       return res;
     }
 
-    // No session came back, which means the project has email confirmation on.
-    // A synthetic address can never be confirmed, so try signing straight in and
-    // surface an actionable message if that is genuinely the blocker.
+    // No session back means email confirmation is on. A synthetic address can't be confirmed,
+    // so try signing in directly and show an actionable message if that is the blocker.
     const direct = await signIn(email, password);
     if (direct && !direct.error) {
       await reconcileActiveSave();

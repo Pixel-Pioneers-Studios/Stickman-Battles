@@ -1,18 +1,11 @@
 'use strict';
-// js/story/levels/ch26.js — Chapter 26 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch26.js: chapter 26 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 26 — The Gate (walk → duel vs the Fragment Guardian)
-// "The rift entity felt you coming. It sent its best." The approach to the
-// Fracture Core is a processional: a causeway lined with the statues of
-// bearers the Guardian consumed, past broken stands where the rift entity's
-// Collectors watch, into the gate court where the Guardian holds the threshold.
-// "She stays behind. You walk in alone." Veran stops at the last brazier; the
-// gate itself — two vast doors with a seam of white light — closes the run.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 26: the gate (walk, then duel the Fragment Guardian). A causeway of
+// bearer statues leads to the gate court. Veran stops at the last brazier.
 (function () {
   const G = 440;
-  // Clear of the generated chest-perch climbs at x≈1705-1945 and 4585-4825.
+  // Clear of the generated chest-perch climbs at x 1705-1945 and 4585-4825.
   const STANDS = [[700, 3, 140], [1250, 4, 150], [4100, 4, 150], [4900, 3, 140]];
   const PLINTHS = [];
   for (let x = 260; x < 5400; x += 260) {
@@ -27,7 +20,7 @@
     const P = [];
     for (const [x, tiers, w] of STANDS) for (let t = 0; t < tiers; t++) _slLedge(P, x + t * 40, G - 60 - t * 60, w - t * 40);
     for (const px of PLINTHS) _slLedge(P, px - 26, G - 70, 52);
-    _slLedge(P, 2620, G - 150, 120); _slLedge(P, 3260, G - 150, 120);   // gate-court balconies
+    _slLedge(P, 2620, G - 150, 120); _slLedge(P, 3260, G - 150, 120);
     return P;
   }
 
@@ -39,7 +32,7 @@
       ctx.fillStyle = g; ctx.fillRect(l - 20, -300, r - l + 40, 900);
     });
     _slParallax(v, 0.22, (l, r) => {
-      // The Fracture Core itself, a vast cracked sphere beyond the gate
+      // The Fracture Core: a cracked sphere beyond the gate
       const cx = l + 1400, cy = 60;
       ctx.fillStyle = '#2a1414'; ctx.beginPath(); ctx.arc(cx, cy, 300, 0, Math.PI * 2); ctx.fill();
       for (let k = 0; k < 7; k++) _slSkyCrack(_slJag(cx - 200 + k * 60, cy - 250, cx - 180 + k * 70, cy + 250, 8, 18, k * 9), 0.35);
@@ -61,14 +54,14 @@
     ctx.fillRect(x - 6, G - 140, 12, 40); ctx.fillRect(x - 6, G - 100, 5, 26); ctx.fillRect(x + 1, G - 100, 5, 26);
     ctx.save(); ctx.translate(x, G - 134); ctx.rotate(pose === 0 ? -0.6 : pose === 1 ? 0.4 : -1.2);
     ctx.fillRect(0, -2, 26, 4); ctx.fillStyle = '#8a7c70'; ctx.fillRect(22, -12, 3, 40); ctx.restore();
-    // Cracked: the bearer's fragment was torn out
+    // Cracked: the fragment was torn out
     ctx.strokeStyle = '#1a0e0c'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x - 2, G - 132); ctx.lineTo(x + 3, G - 120); ctx.lineTo(x - 1, G - 110); ctx.stroke();
     ctx.fillStyle = 'rgba(255,200,140,0.5)'; ctx.font = '7px Georgia'; ctx.textAlign = 'center'; ctx.fillText(['XIV', 'XXII', 'IX', 'XXXI', 'VII', 'XL'][seed % 6], x, G - 40);
   }
 
   function back(v) {
     for (const px of PLINTHS) if (_slVisible(v, px - 40, px + 40)) _statue(px, Math.floor(px / 260));
-    // Stands: stepped stone, cloaked Collector watchers seated on them
+    // Stands: stepped stone with Collector watchers
     for (const [x, tiers, w] of STANDS) {
       if (!_slVisible(v, x - 20, x + w + 20)) continue;
       for (let t = 0; t < tiers; t++) {
@@ -79,7 +72,7 @@
       ctx.fillStyle = '#140a14'; ctx.beginPath(); ctx.moveTo(wx - 12, wy); ctx.lineTo(wx, wy - 46); ctx.lineTo(wx + 12, wy); ctx.fill();
       ctx.fillStyle = '#ff4466'; ctx.fillRect(wx - 3, wy - 34, 2, 2); ctx.fillRect(wx + 1, wy - 34, 2, 2);
     }
-    // Gate court: banners, balconies, the threshold mosaic
+    // Gate court: banners, balconies, threshold mosaic
     if (_slVisible(v, 2560, 3440)) {
       for (const [bx, bw] of [[2620, 120], [3260, 120]]) {
         ctx.fillStyle = '#4a3a32'; ctx.fillRect(bx, G - 150, bw, 12); ctx.fillRect(bx + 20, G - 138, 14, 138); ctx.fillRect(bx + bw - 34, G - 138, 14, 138);
@@ -87,7 +80,7 @@
         ctx.fillStyle = '#d8b070'; ctx.beginPath(); ctx.arc(bx + 60, G - 100, 10, 0, Math.PI * 2); ctx.fill();
       }
     }
-    // Veran's stopping point: the last brazier before the gate
+    // Veran stops at the last brazier before the gate
     if (_slVisible(v, GATE - 400, GATE + 300)) {
       const bx = GATE - 300;
       ctx.fillStyle = '#3a2e28'; ctx.fillRect(bx - 10, G - 70, 20, 70); ctx.fillRect(bx - 22, G - 76, 44, 10);

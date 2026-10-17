@@ -1,18 +1,8 @@
 'use strict';
-// js/story/levels/ch146.js — Chapter 146 map. See smb-story-levels.js for the contract.
+// Chapter 146 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 146 — What It Built Here (scavenge, 4 echoes)
-// Cosmic Axiom's domain, where "the absorbed fragment energies of every
-// bearer who came before" are kept: ninety-four small lights set into the
-// black ground and hanging in the air along the whole level, each a
-// slightly different colour, each with a number — 1 to 94 — in faint light
-// beside it. The echoes you collect stand with their own: the first
-// bearer's echo by light number 1 at the entry; the forty-seventh's mark, a
-// scratch cut into a dark shard by hand; a choice not made, two paths of
-// light leading off the ground that both stop short; what remained, on a
-// shard above the last light, 94. Dark shards are the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 146, What It Built Here (scavenge, 4 echoes). Dark shards are the climbs.
+// Numbered lights 1 to 94 mark each absorbed bearer.
 (function () {
   const G = 440;
   const MARK = [1150, 370, 110], FORK = 2000, LAST = [2745, 375, 110];

@@ -1,18 +1,8 @@
 'use strict';
-// js/story/levels/ch97.js — Chapter 97 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch97.js: Chapter 97 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 97 — Shadow Warden (walk → duel vs the Shadow Warden, 1 life)
-// The inner Court, where the Warden "had never been found". The walls are
-// lined with masks — rows of pale blank faces in niches, every one turned
-// slightly away from you, and the ones nearest you turn further. The floor
-// is black glass that reflects nothing. At the midpoint the Warden's ground:
-// a ring of tall mirrors standing in a circle, each showing only darkness —
-// except that, for a moment, one of them shows a figure that isn't there.
-// Past it, the way out of the realm, where a thin vertical line of daylight
-// has opened (the realm giving you up). Mask niches stacked into ledges are
-// the climbs; the cache shafts are cracks in the glass floor.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 97: walk, then a duel with the Shadow Warden (1 life).
+// Mask niches stacked into ledges are the climbs. Cache shafts are cracks in the glass floor.
 (function () {
   const G = 440, RING = 3000, OUT = 5650;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2220, 350, 100], [2350, 270, 110],
@@ -20,8 +10,8 @@
   const MIRRORS = [-320, -220, -120, 120, 220, 320];
   const CRACKS = [1800, 4680];
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+  // Optional loot (see _slStashPlats in smb-story-levels.js): a hidden cache one jump off
+  // the route, and a better one held by an optional elite.
   const STASH = [
     { id: 'a', x: 2050, y: 250, w: 140, steps: [[1980, 345, 90]] },
     { id: 'b', x: 4270, y: 250, w: 190, steps: [[4200, 345, 90]], gx: 60, guard: { name: 'Court Shade', weaponKey: 'spear', classKey: 'warrior', health: 165, color: '#6a6a8a' } },
@@ -38,7 +28,7 @@
   function backdrop(v) {
     _slSkyAbove(v, '#030305');
     ctx.fillStyle = '#09090d'; ctx.fillRect(v.x - 10, 40, v.w + 20, G - 40);
-    // The masks, turned away; nearer ones turn further
+    // Masks, turned away from the player.
     const p1 = (typeof players !== 'undefined' && players[0]) || null;
     for (let c = Math.floor(v.x / 70) - 1; c * 70 < v.x + v.w + 70; c++) for (let r = 0; r < 4; r++) {
       const x = c * 70 + 35, y = 90 + r * 70;
@@ -58,7 +48,7 @@
       ctx.fillStyle = 'rgba(170,160,220,0.4)'; ctx.fillRect(x, y, w, 1.5);
       for (let k = 0; k < Math.floor(w / 36); k++) { ctx.fillStyle = '#b8b4c8'; ctx.beginPath(); ctx.ellipse(x + 18 + k * 36, y + 24, 8, 11, 0, 0, Math.PI * 2); ctx.fill(); }
     }
-    // The ring of mirrors showing only darkness — mostly
+    // Ring of mirrors, mostly dark.
     if (_slVisible(v, RING - 420, RING + 420)) {
       const flash = Math.floor(frameCount / 200) % MIRRORS.length, on = (frameCount % 200) < 14;
       MIRRORS.forEach((dx, i) => {
@@ -73,7 +63,7 @@
       });
       for (const x of [RING - 340, RING + 240]) { ctx.fillStyle = '#121218'; ctx.fillRect(x, 360, 100, G - 360); ctx.fillStyle = 'rgba(170,160,220,0.4)'; ctx.fillRect(x, 360, 100, 1.5); }
     }
-    // The way out: a line of daylight opening in the dark
+    // Exit: a line of daylight.
     if (_slVisible(v, OUT - 200, OUT + 200)) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const g = ctx.createLinearGradient(OUT - 30, 0, OUT + 30, 0);
@@ -81,7 +71,7 @@
       ctx.fillStyle = g; ctx.fillRect(OUT - 30, 60, 60, G - 60);
       ctx.restore();
     }
-    // Cracks in the glass floor over the cache shafts
+    // Cracks over the cache shafts.
     for (const cx of CRACKS) {
       if (!_slVisible(v, cx - 120, cx + 120)) continue;
       ctx.strokeStyle = 'rgba(170,160,220,0.4)'; ctx.lineWidth = 1;

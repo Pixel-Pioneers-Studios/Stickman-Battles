@@ -1,5 +1,5 @@
 'use strict';
-// smb-god-cinematics.js — God fight cinematics: dialogue threshold + 1000 HP Kernel-merge finale
+// smb-god-cinematics.js: God fight cinematics: dialogue threshold + 1000 HP Kernel-merge finale
 // Depends on: smb-globals.js, smb-combat.js, smb-particles-core.js, smb-god.js
 // Load after: smb-god.js   Load before: smb-loop-core.js
 
@@ -12,7 +12,6 @@ function resetGodCinematicFlags() {
   _god1000CinFired     = false;
 }
 
-// ── Threshold triggers (called from God.update) ────────────────────────────
 function _tryFireGodDialogueCin(god) {
   if (_godDialogueCinFired || god.health > god.maxHealth * 0.5) return;
   _godDialogueCinFired = true;
@@ -24,7 +23,6 @@ function _tryFireGod1000Cin(god) {
   _startGod1000Cin(god);
 }
 
-// ── Dialogue lines (50 k threshold) ────────────────────────────────────────
 const _GOD_DIALOGUE = [
   { speaker: 'YOU',  text: 'Who are you? What ARE you?' },
   { speaker: 'GOD',  text: 'I am the System. The substrate beneath every dimension.' },
@@ -46,7 +44,6 @@ const _GOD_DIALOGUE = [
   { speaker: 'GOD',  text: 'For whatever that is worth — I hope you are ready.' },
 ];
 
-// ── Sentinel that blocks input while cinematic plays ───────────────────────
 function _makeGodCinSentinel() {
   return { _isGodCin: true, update() {}, draw() {}, skip() { _endGodCin(); } };
 }
@@ -56,7 +53,6 @@ function _endGodCin() {
   if (typeof isCinematic !== 'undefined') isCinematic = false;
 }
 
-// ── Start: dialogue cinematic ──────────────────────────────────────────────
 function _startGodDialogueCin(god) {
   godCinematicScene = {
     type: 'dialogue', god,
@@ -67,7 +63,6 @@ function _startGodDialogueCin(god) {
   if (typeof isCinematic !== 'undefined') isCinematic = true;
 }
 
-// ── Start: 1000 HP Kernel-merge finale ────────────────────────────────────
 function _startGod1000Cin(god) {
   const p1 = Array.isArray(players) ? players[0] : null;
   god.health = 0; // lock combat
@@ -83,7 +78,6 @@ function _startGod1000Cin(god) {
     godX: god.cx(), godY: god.y + god.h * 0.44,
     godAlpha: 1, godDroopAngle: 0,
 
-    // Kernel
     kernelX:    god.cx(),
     kernelY:    god.y + (god.h * 0.38),  // chest position
     kernelR:    6,
@@ -93,23 +87,18 @@ function _startGod1000Cin(god) {
     kernelImpacted: false,
     kernelTrail: [],
 
-    // Pre-impact: falling dot from top
     impactDotY:  0,
     impactDotR:  2,
     impactBrightness: 0,
 
-    // Impact
     shockRings: [],
     dustParts:  [],
 
-    // Merge rise
     risingAlpha: 0,
     wingsSpread: 0,  // 0→1 wings unfurl
 
-    // Title card
     titleAlpha: 0,
 
-    // Axiom speaks
     axiomLines: [
       { text: 'The Kernel... it chose me.', color: '#ff6600' },
       { text: 'Everything I was. Everything God tried to contain.', color: '#ff4400' },
@@ -125,7 +114,6 @@ function _startGod1000Cin(god) {
   if (typeof isCinematic !== 'undefined') isCinematic = true;
 }
 
-// ── Main update ────────────────────────────────────────────────────────────
 function updateGodCinematic() {
   const sc = godCinematicScene;
   if (!sc) return;
@@ -158,14 +146,12 @@ function _updateGodFinale(sc) {
   const t  = sc.phaseTimer;
   const GH = sc.GH;
 
-  // ── godStagger: God shudders, Kernel glows brighter ──────────────────────
   if (sc.phase === 'godStagger') {
     sc.godDroopAngle = Math.sin(t * 0.4) * 0.08 * Math.min(1, t / 20);
     sc.kernelR = 6 + Math.sin(t * 0.5) * 2;
     if (t >= 50) _gfPhase(sc, 'kernelEject');
   }
 
-  // ── kernelEject: Kernel pushes slowly out of chest ───────────────────────
   else if (sc.phase === 'kernelEject') {
     const chestY = sc.godY - 10;
     sc.kernelY  += (chestY - 30 - sc.kernelY) * 0.08;
@@ -177,7 +163,6 @@ function _updateGodFinale(sc) {
     }
   }
 
-  // ── kernelLaunch: Kernel rockets straight up, off screen ─────────────────
   else if (sc.phase === 'kernelLaunch') {
     if (t === 1) {
       sc.kernelVy = -28;
@@ -189,7 +174,6 @@ function _updateGodFinale(sc) {
     sc.kernelR     *= 0.96; // shrinks as it flies away
     sc.kernelAlpha  = Math.max(0, 1 - t / 22);
 
-    // leave flame trail
     sc.kernelTrail.push({ x: sc.kernelX, y: sc.kernelY, r: sc.kernelR * 1.4, life: 18 });
     for (let i = sc.kernelTrail.length - 1; i >= 0; i--) {
       sc.kernelTrail[i].life--;
@@ -199,7 +183,6 @@ function _updateGodFinale(sc) {
     if (t >= 22) _gfPhase(sc, 'godCollapse');
   }
 
-  // ── godCollapse: God's form dims and crumples ─────────────────────────────
   else if (sc.phase === 'godCollapse') {
     sc.godAlpha     = Math.max(0, 1 - t / 55);
     sc.godDroopAngle = Math.min(1.2, t * 0.04);
@@ -207,12 +190,10 @@ function _updateGodFinale(sc) {
     if (t >= 70) _gfPhase(sc, 'preImpact');
   }
 
-  // ── preImpact: dark stillness, tiny light appears at top and falls ────────
   else if (sc.phase === 'preImpact') {
     sc.godAlpha    = 0;
     sc.kernelAlpha = 0;
 
-    // Tiny dot descends from top, accelerating
     if (t > 20) {
       sc.impactDotY  += (1 + (t - 20) * 0.12);
       sc.impactDotR   = 2 + (t - 20) * 0.18;
@@ -225,7 +206,6 @@ function _updateGodFinale(sc) {
     }
   }
 
-  // ── kernelImpact: SLAM ────────────────────────────────────────────────────
   else if (sc.phase === 'kernelImpact') {
     if (t === 1) {
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 45);
@@ -233,11 +213,9 @@ function _updateGodFinale(sc) {
         CinFX.flash('#ffffff', 0.95, 18);
         CinFX.flash('#ff8800', 0.5,  28);
       }
-      // Spawn shockwave rings
       for (let i = 0; i < 4; i++) {
         sc.shockRings.push({ r: 0, maxR: 80 + i * 60, alpha: 0.9 - i * 0.15, color: i < 2 ? '#ffcc00' : '#ff6600' });
       }
-      // Dust particles
       for (let i = 0; i < 28; i++) {
         const ang = Math.random() * Math.PI * 2;
         const spd = 4 + Math.random() * 10;
@@ -249,7 +227,6 @@ function _updateGodFinale(sc) {
       }
     }
 
-    // Expand rings
     for (const ring of sc.shockRings) {
       ring.r     += (ring.maxR - ring.r) * 0.14;
       ring.alpha  = Math.max(0, ring.alpha - 0.025);
@@ -263,11 +240,9 @@ function _updateGodFinale(sc) {
     if (t >= 55) _gfPhase(sc, 'mergeRise');
   }
 
-  // ── mergeRise: Absolute Axiom emerges from the impact ────────────────────
   else if (sc.phase === 'mergeRise') {
     sc.risingAlpha = Math.min(1, t / 35);
     sc.wingsSpread = Math.min(1, t / 60);
-    // Dust settles
     for (const d of sc.dustParts) {
       d.x += d.vx; d.y += d.vy;
       d.vx *= 0.88; d.vy = d.vy * 0.88 + 0.25;
@@ -276,13 +251,11 @@ function _updateGodFinale(sc) {
     if (t >= 90) _gfPhase(sc, 'titleCard');
   }
 
-  // ── titleCard: "ABSOLUTE AXIOM" ───────────────────────────────────────────
   else if (sc.phase === 'titleCard') {
     sc.titleAlpha = t < 25 ? t / 25 : t < 80 ? 1 : Math.max(0, 1 - (t - 80) / 22);
     if (t >= 110) _gfPhase(sc, 'finalAxiomSpeaks');
   }
 
-  // ── finalAxiomSpeaks ──────────────────────────────────────────────────────
   else if (sc.phase === 'finalAxiomSpeaks') {
     sc.axiomAlpha = Math.min(1, sc.axiomAlpha + 0.055);
     sc.axiomLineTimer++;
@@ -297,11 +270,9 @@ function _updateGodFinale(sc) {
     }
   }
 
-  // ── fadeToFight ───────────────────────────────────────────────────────────
   else if (sc.phase === 'fadeToFight') {
     sc.fadeAlpha = Math.min(1, sc.fadeAlpha + 0.032);
     if (sc.fadeAlpha >= 1) {
-      // Spawn Absolute Axiom at God's position
       if (typeof AbsoluteAxiom !== 'undefined' && Array.isArray(minions)) {
         const aa    = new AbsoluteAxiom(sc.godX - 16, sc.godY - 31);
         aa._teamId  = 50;
@@ -310,7 +281,6 @@ function _updateGodFinale(sc) {
         // Activate Reinforced God Slayer for the lead player
         if (typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
       }
-      // Remove God's corpse
       if (Array.isArray(minions)) {
         const gi = minions.findIndex(m => m === sc.god);
         if (gi !== -1) minions.splice(gi, 1);
@@ -320,7 +290,6 @@ function _updateGodFinale(sc) {
   }
 }
 
-// ── Main draw ─────────────────────────────────────────────────────────────
 function drawGodCinematic() {
   const sc = godCinematicScene;
   if (!sc) return;
@@ -336,7 +305,6 @@ function drawGodCinematic() {
   ctx.restore();
 }
 
-// ── Draw: dialogue ────────────────────────────────────────────────────────
 function _drawGodDialogue(sc, cw, ch, scX, scY, sc_) {
   _drawLetterbox(sc.barH * scY, cw, ch, 0.65);
   const line = _GOD_DIALOGUE[sc.lineIdx];
@@ -346,11 +314,9 @@ function _drawGodDialogue(sc, cw, ch, scX, scY, sc_) {
   _drawSpeakerBox(line.text, line.speaker, col, sc.alpha, !isGod, cw, ch, sc_);
 }
 
-// ── Draw: finale ──────────────────────────────────────────────────────────
 function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
   const GH = sc.GH || 520;
 
-  // ── Dark overlay during preImpact/collapse for drama ─────────────────────
   if (['godCollapse','preImpact'].includes(sc.phase)) {
     const darkA = sc.phase === 'preImpact' ? 0.72 : Math.min(0.72, sc.phaseTimer / 55 * 0.72);
     ctx.globalAlpha = darkA;
@@ -359,10 +325,8 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.globalAlpha = 1;
   }
 
-  // Letterbox
   _drawLetterbox(sc.barH * scY, cw, ch, 0.75);
 
-  // ── God stickman (stagger → collapse → gone) ──────────────────────────────
   if (sc.godAlpha > 0.02) {
     ctx.save();
     ctx.translate(sc.godX * scX, sc.godY * scY);
@@ -371,7 +335,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.restore();
   }
 
-  // ── Kernel orb trail (during launch) ─────────────────────────────────────
   for (const tp of sc.kernelTrail) {
     const fa = (tp.life / 18) * 0.7;
     ctx.globalAlpha = fa;
@@ -383,7 +346,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
   }
   ctx.globalAlpha = 1;
 
-  // ── Kernel orb ────────────────────────────────────────────────────────────
   if (sc.kernelAlpha > 0 && sc.kernelR > 0.5) {
     const kx = sc.kernelX * scX, ky = sc.kernelY * scY;
     const kr = sc.kernelR * sc_;
@@ -406,7 +368,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.globalAlpha = 1;
   }
 
-  // ── Pre-impact: descending Kernel dot ─────────────────────────────────────
   if (sc.phase === 'preImpact' && sc.impactDotY > 0) {
     const dx = sc.godX * scX, dy = sc.impactDotY * scY;
     const dr = sc.impactDotR * sc_;
@@ -422,7 +383,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.beginPath(); ctx.arc(dx, dy, dr, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
-    // Meteor tail
     const tailLen = Math.min(sc.impactDotY, 80) * scY;
     const mGrd = ctx.createLinearGradient(dx, dy - tailLen, dx, dy);
     mGrd.addColorStop(0, 'rgba(255,100,0,0)');
@@ -432,7 +392,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.beginPath(); ctx.moveTo(dx, dy - tailLen); ctx.lineTo(dx, dy); ctx.stroke();
   }
 
-  // ── Shockwave rings (impact + after) ─────────────────────────────────────
   if (['kernelImpact','mergeRise'].includes(sc.phase)) {
     for (const ring of sc.shockRings) {
       if (ring.alpha <= 0) continue;
@@ -445,7 +404,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
       ctx.stroke();
       ctx.shadowBlur = 0;
     }
-    // Dust
     for (const d of sc.dustParts) {
       ctx.globalAlpha = d.life * 0.65;
       ctx.fillStyle   = '#e8e0c8';
@@ -454,12 +412,10 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.globalAlpha = 1;
   }
 
-  // ── Merge rise: Absolute Axiom silhouette emerging ────────────────────────
   if (sc.phase === 'mergeRise' && sc.risingAlpha > 0) {
     const rx = sc.godX * scX, ry = sc.godY * scY;
     const ws = sc.wingsSpread;
 
-    // Rising ember glow beneath
     ctx.globalAlpha = sc.risingAlpha * 0.5;
     const rGrd = ctx.createRadialGradient(rx, ry, 0, rx, ry, 70 * sc_);
     rGrd.addColorStop(0,   'rgba(255,100,0,0.6)');
@@ -468,13 +424,11 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.fillStyle = rGrd;
     ctx.beginPath(); ctx.arc(rx, ry, 70 * sc_, 0, Math.PI * 2); ctx.fill();
 
-    // Silhouette of Absolute Axiom
     ctx.globalAlpha = sc.risingAlpha * 0.88;
     _drawAAsilhouette(rx, ry, ws, sc_);
     ctx.globalAlpha = 1;
   }
 
-  // ── Title card: ABSOLUTE AXIOM ────────────────────────────────────────────
   if (sc.titleAlpha > 0) {
     ctx.globalAlpha = sc.titleAlpha * 0.8;
     ctx.fillStyle   = 'rgba(0,0,0,0.7)';
@@ -491,13 +445,11 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.fillText('God. Architect. Kernel. One.', cw / 2, ch * 0.53);
   }
 
-  // ── Axiom speaks ──────────────────────────────────────────────────────────
   if (sc.phase === 'finalAxiomSpeaks' && sc.axiomAlpha > 0 && sc.axiomLineIdx < sc.axiomLines.length) {
     const line = sc.axiomLines[sc.axiomLineIdx];
     _drawSpeakerBox(line.text, 'ABSOLUTE AXIOM', line.color, sc.axiomAlpha, false, cw, ch, sc_);
   }
 
-  // ── Fade to black ──────────────────────────────────────────────────────────
   if (sc.fadeAlpha > 0) {
     ctx.globalAlpha = sc.fadeAlpha;
     ctx.fillStyle   = '#000000';
@@ -506,7 +458,6 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
   }
 }
 
-// ── Draw helpers ──────────────────────────────────────────────────────────
 function _drawLetterbox(barH, cw, ch, alpha) {
   ctx.globalAlpha = alpha;
   ctx.fillStyle   = '#000000';
@@ -562,7 +513,6 @@ function _drawAAsilhouette(cx, cy, spread, sc_) {
   ctx.lineWidth   = 4.5 * sc_;
   ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 22;
   ctx.lineCap = 'round';
-  // Body
   ctx.beginPath(); ctx.arc(cx, cy - s * 2.4, s * 0.55, 0, Math.PI * 2);
   ctx.fillStyle = '#cc2200'; ctx.fill();
   ctx.beginPath(); ctx.moveTo(cx, cy - s * 1.85); ctx.lineTo(cx, cy + s * 0.35); ctx.stroke();
@@ -571,13 +521,11 @@ function _drawAAsilhouette(cx, cy, spread, sc_) {
   ctx.moveTo(cx, cy + s * 0.35); ctx.lineTo(cx - s * 0.7, cy + s * 1.7);
   ctx.moveTo(cx, cy + s * 0.35); ctx.lineTo(cx + s * 0.7, cy + s * 1.7);
   ctx.stroke();
-  // Kernel in chest
   const kx = cx, ky = cy - s * 0.8;
   ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 16;
   ctx.fillStyle   = '#ffcc00';
   ctx.globalAlpha *= 0.9;
   ctx.beginPath(); ctx.arc(kx, ky, s * 0.4, 0, Math.PI * 2); ctx.fill();
-  // Wings unfurling (spread 0→1)
   if (spread > 0) {
     const wSpan = spread * 80 * sc_;
     ctx.globalAlpha = spread * 0.8;

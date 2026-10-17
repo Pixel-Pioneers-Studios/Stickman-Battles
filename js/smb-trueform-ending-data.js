@@ -1,28 +1,15 @@
 'use strict';
-// smb-trueform-ending-data.js — TFEnding state vars, matrix rain, spline, helpers, startTFEnding entry
+// smb-trueform-ending-data.js. TFEnding state vars, matrix rain, spline, helpers, startTFEnding entry
 // Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js
 
 'use strict';
 
-// ============================================================
-// TRUEFORM ENDING CINEMATIC  v2  (meta-breaking sequence)
-// ============================================================
-// Phase sequence:
-//   realization  — boss immune at 10%; "0" damage pops; inner dialogue
-//   punch        — boss monologue + devastating hit; hero ragdolls
-//   launch       — hero flies across multi-dimension panels
-//   coderealm    — abstract void; 5 interactive reality rifts to seal
-//   return       — hero falls back through dimensional tear
-//   finisher     — 3-hit Varek QTE beatdown
-//   aura         — black aura absorbed into hero
-//   powers       — ability unlock overlay
-//   fall         — hero drops through floor
-//   fadeout      — black fade → endGame()
-// ============================================================
+// TrueForm ending cinematic (v2). Phases: realization, punch, launch, coderealm, return, finisher, aura,
+// powers, fall, fadeout. Fadeout calls endGame().
 
 // tfEndingScene is declared in smb-globals.js
 
-// ── Matrix rain ──────────────────────────────────────────────────────────────
+// Matrix rain.
 const _TFE_CHARS = 'ΨΦΛΣΩαβγδεθλμπφψ∞∑∏∫∂√±÷×≠≈≡∈∉⊂⊃⊆⊇∪∩∀∃∄¬→←↑↓↔⟨⟩⌊⌋⌈⌉'.split('');
 let _tfeRainCols = [];
 const _TFE_RAIN_COLORS = ['#cc88ff','#aa66ff','#8844cc','#bbddff','#ffffff'];
@@ -42,7 +29,7 @@ function _tfeInitRain() {
   }
 }
 
-// ── Dimension panels for launch sequence ─────────────────────────────────────
+// Dimension panels for the launch sequence.
 const _TFE_BG_PANELS = [
   { sky: ['#0a0020','#1a0040','#0a0020'], ground: '#1a0033', plat: '#3a0066', label: 'DIMENSION Ψ-7'  },
   { sky: ['#001a10','#003320','#001a10'], ground: '#002a18', plat: '#004430', label: 'DIMENSION Λ-3'  },
@@ -53,7 +40,7 @@ const _TFE_BG_PANELS = [
   { sky: ['#000000','#000000','#000000'], ground: '#0a0a0a', plat: '#1a1a1a', label: 'THE VOID'        },
 ];
 
-// ── Catmull-Rom spline ────────────────────────────────────────────────────────
+// Catmull-Rom spline.
 function _tfeSpline(pts, t) {
   const n = pts.length - 1;
   const seg = Math.min(Math.floor(t * n), n - 1);
@@ -67,14 +54,13 @@ function _tfeSpline(pts, t) {
   return { x: cr(p0.x,p1.x,p2.x,p3.x,lt), y: cr(p0.y,p1.y,p2.y,p3.y,lt) };
 }
 
-// ── Aura particle pool ────────────────────────────────────────────────────────
+// Aura particle pool.
 let _tfeAuraParticles = [];
 
-// ── "Zero pop" damage texts for realization phase ────────────────────────────
-// Each: { x, y, vy, alpha, timer }
+// Zero-pop damage texts for realization. Each: { x, y, vy, alpha, timer }
 let _tfeZeroPops = [];
 
-// ── Code nodes for coderealm ──────────────────────────────────────────────────
+// Code nodes for coderealm.
 function _tfeCreateNodes() {
   const positions = [
     { x: GAME_W * 0.15, y: GAME_H * 0.4  },
@@ -94,7 +80,7 @@ function _tfeCreateNodes() {
   }));
 }
 
-// ── Edge-detect attack key helper ─────────────────────────────────────────────
+// Edge-detect attack key helper.
 let _tfeAtkWas = false;
 function _tfeAtkJust() {
   const hero = tfEndingScene && tfEndingScene.hero;
@@ -117,7 +103,7 @@ function _tfeFinAtkJust() {
   return just;
 }
 
-// ── QTE prompt messages ────────────────────────────────────────────────────────
+// QTE prompt messages.
 const _TFE_QTE_PROMPTS = [
   '[ ATTACK — STRIKE BACK ]',
   '[ ATTACK — FINISH IT ]',
@@ -125,8 +111,7 @@ const _TFE_QTE_PROMPTS = [
 ];
 const _TFE_QTE_FLASH_COLORS = ['#ff4400','#ff0088','#ffffff'];
 
-// ── Main launch spline points ──────────────────────────────────────────────────
-// Hero is blasted RIGHT by the boss punch — straight rightward arc
+// Launch spline points. The punch blasts the hero right, so the arc goes right.
 function _tfeLaunchPts(hero, boss) {
   // Direction: boss is usually left of hero, punches right.
   // If boss is to the right, flip direction.
@@ -143,12 +128,11 @@ function _tfeLaunchPts(hero, boss) {
   ];
 }
 
-// ── Entry point ───────────────────────────────────────────────────────────────
-// isIntro=true: fires as opening sequence; resumes gameplay after code realm instead of endGame
+// Entry point. isIntro=true runs as the opening and resumes gameplay after the code realm, not endGame.
 function startTFEnding(boss, isIntro) {
   const hero = players.find(p => !p.isBoss);
   if (!hero) { endGame(); return; }
-  // Callers pass players.find(p => p.isBoss), which can be undefined — a throw
+  // Callers pass players.find(p => p.isBoss), which can be undefined, a throw
   // here would fire inside a scene tick and leave gameFrozen stuck forever.
   if (!boss) { endGame(); return; }
 

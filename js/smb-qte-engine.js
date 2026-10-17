@@ -1,8 +1,7 @@
 'use strict';
-// smb-qte-engine.js — QTE stage tickers, prompt advancement, round failure/reset, hit/miss, outro, _endQTE, visual helpers
+// smb-qte-engine.js: QTE stage tickers, prompt advancement, round failure/reset, hit/miss, outro, _endQTE, visual helpers
 // Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js
 
-// ── Build prompt queue ────────────────────────────────────────────────────────
 function _buildPromptQueue(count, def) {
   const queue = [];
   for (let i = 0; i < count; i++) {
@@ -27,18 +26,15 @@ function _buildPromptQueue(count, def) {
   return queue;
 }
 
-// ── Stage tickers ─────────────────────────────────────────────────────────────
 
 function _tickQTEIntro() {
   const s = QTE_STATE;
   s.introTimer++;
 
-  // Escalate visuals
   _qteScanAlpha  = Math.min(0.45, s.introTimer / 80 * 0.45);
   _qteVoidAlpha  = Math.min(0.55 * s.def.bgIntensity, s.introTimer / 80 * 0.55 * s.def.bgIntensity);
   _qteCloneAlpha = Math.min(0.6, s.introTimer / 80 * 0.6);
 
-  // Warp grid activation
   for (const node of _qteWarpGrid) {
     node.wobble = (node.wobble || 0) + 0.04;
     node.x = node.bx + Math.sin(node.wobble + node.phase) * 8 * s.def.bgIntensity;
@@ -58,12 +54,10 @@ function _tickQTEPrompts() {
   const s   = QTE_STATE;
   const def = s.def;
 
-  // Maintain visual chaos
   _qteScanAlpha  = 0.35 + s.chaosLevel * 0.25;
   _qteVoidAlpha  = 0.4  + s.chaosLevel * 0.3;
   _qteCloneAlpha = 0.4  + s.chaosLevel * 0.3;
 
-  // Warp grid
   for (const node of _qteWarpGrid) {
     node.wobble = (node.wobble || 0) + 0.06 + s.chaosLevel * 0.04;
     node.x = node.bx + Math.sin(node.wobble + node.phase) * (10 + s.chaosLevel * 18) * def.bgIntensity;
@@ -72,7 +66,6 @@ function _tickQTEPrompts() {
 
   _qteFlashAlpha = Math.max(0, _qteFlashAlpha - 0.05);
 
-  // Tick active prompts
   let allResolved = true;
   for (const prompt of s.prompts) {
     if (prompt.hit || prompt.missed) continue;
@@ -86,16 +79,14 @@ function _tickQTEPrompts() {
       prompt._badPosFrames = 0;
     }
 
-    // Pulse radius on the bubble
     prompt.pulseT = (prompt.pulseT || 0) + 0.18;
 
-    // Check expiry
     if (prompt.timer >= prompt.maxTimer) {
       prompt.missed = true;
       s.failCount++;
       s.failedThisRound = true;
       _onPromptFail(prompt);
-      // In simultaneous mode — don't immediately restart, let others resolve
+      // In simultaneous mode: don't immediately restart, let others resolve
     } else {
       // Check key press (rising-edge: key is down AND was not down last frame)
       const keyDown = keysDown.has(prompt.key);
@@ -108,22 +99,18 @@ function _tickQTEPrompts() {
     }
   }
 
-  // All prompts in current batch resolved?
   if (allResolved || s.prompts.every(p => p.hit || p.missed)) {
     const anyMissed = s.prompts.some(p => p.missed);
     if (anyMissed && !def.simultaneous) {
-      // Sequential fail: reset the queue but escalate chaos
       _resetQTERound();
       return;
     }
-    // Simultaneous: partial misses are punished per-prompt in _onPromptFail and
-    // play continues — but ALL prompts missed (player did nothing) must never
-    // fall through to the success outro.
+    // Simultaneous: misses are punished per prompt. Only an all-miss must not reach the
+    // success outro.
     if (def.simultaneous && s.prompts.length > 0 && s.prompts.every(p => p.missed)) {
       _resetQTERound();
       return;
     }
-    // Advance to next batch or finish
     _advancePrompts();
   }
 }
@@ -139,7 +126,6 @@ function _tickQTEOutroSuccess() {
   _qteShakeExtra  = Math.max(0, _qteShakeExtra - 1);
   screenShake     = Math.max(screenShake, _qteShakeExtra);
 
-  // Warp grid settle
   for (const node of _qteWarpGrid) {
     node.x += (node.bx - node.x) * 0.12;
     node.y += (node.by - node.y) * 0.12;
@@ -161,13 +147,11 @@ function _tickQTEOutroFail() {
   }
 }
 
-// ── Prompt advancement ────────────────────────────────────────────────────────
 
 function _advancePrompts() {
   const s   = QTE_STATE;
   const def = s.def;
 
-  // All prompts done?
   if (s.promptIdx >= s.promptQueue.length) {
     _beginOutroSuccess();
     return;
@@ -176,7 +160,6 @@ function _advancePrompts() {
   s.prompts = [];
 
   if (def.simultaneous) {
-    // Launch simultaneousCount prompts at once
     const batchSize = def.simultaneousCount || 3;
     for (let b = 0; b < batchSize && s.promptIdx < s.promptQueue.length; b++, s.promptIdx++) {
       const p = s.promptQueue[s.promptIdx];
@@ -184,7 +167,6 @@ function _advancePrompts() {
       s.prompts.push(p);
     }
   } else {
-    // One prompt at a time
     const p = s.promptQueue[s.promptIdx++];
     _assignPromptPosition(p, 0, 1, s);
     s.prompts.push(p);
@@ -212,29 +194,25 @@ function _assignPromptPosition(prompt, slot, total, s) {
     prompt.x = anchor.x + (offsets[slot] || 0);
     prompt.y = anchor.y + (slot % 2 === 0 ? -28 : 28);
   } else {
-    // Single prompt: near the player focus point.
     prompt.x = anchor.x + (Math.random() - 0.5) * 96;
     prompt.y = anchor.y + (Math.random() - 0.5) * 56;
   }
   _qteEnsureReachable(prompt, slot, total, s);
   prompt.timer    = 0;
-  prompt._wasDown = false; // always reset so any press — held OR new — registers immediately
+  prompt._wasDown = false; // any press, held or new, registers
 }
 
-// ── Round failure/reset ───────────────────────────────────────────────────────
 
 function _resetQTERound() {
   const s = QTE_STATE;
   s.totalAttempts++;
   s.chaosLevel = Math.min(1, s.chaosLevel + 0.22);
 
-  // Escalate visual chaos
   _qteFlashColor = '#ff0044';
   _qteFlashAlpha = 0.70;
   _qteShakeExtra = 22 + s.chaosLevel * 20;
   screenShake = Math.max(screenShake, _qteShakeExtra);
 
-  // Damage player (failDamage fraction of max HP)
   const p1 = s.playerRef;
   if (p1 && p1.health > 0) {
     const dmg = Math.round(p1.maxHealth * s.def.failDamage * (1 + s.chaosLevel * 0.5));
@@ -253,11 +231,9 @@ function _resetQTERound() {
     }
   }
 
-  // Spawn fail particles at centre
   _spawnQTEBurst(canvas.width / 2, canvas.height / 2, 30, '#ff0044');
   _spawnQTERipple(canvas.width / 2, canvas.height / 2, '#ff0044');
 
-  // Combo text
   _qteComboText = {
     text:  'SEQUENCE FAILED',
     timer: 60,
@@ -274,39 +250,32 @@ function _resetQTERound() {
       remaining[i].isMirrored  = false;
       remaining[i].displayKey  = remaining[i].key;
       remaining[i].displayLabel= remaining[i].label;
-      remaining[i].maxTimer    = 80; // extra time
+      remaining[i].maxTimer    = 80;
     }
   }
 
-  // Rebuild remaining prompts into the queue (restart from current idx)
   s.promptIdx = 0;
   s.failCount = 0;
   s.failedThisRound = false;
   s.prompts   = [];
 
-  // Short pause then continue
   QTE_STATE.stage = 'outro_fail';
   QTE_STATE.outroTimer = 0;
 }
 
-// ── Prompt hit/miss events ────────────────────────────────────────────────────
 
 function _onPromptHit(prompt, s) {
-  // Cosmic flare particle burst at prompt position
   _spawnQTEBurst(prompt.x, prompt.y, 22, prompt.isMirrored ? '#00ffff' : '#ffcc00');
   _spawnQTERipple(prompt.x, prompt.y, '#ffcc00');
 
-  // Screen flash on phase 3/4
   if (s.def.id >= 3) {
     _qteFlashColor = '#ffcc00';
     _qteFlashAlpha = 0.25;
     screenShake = Math.max(screenShake, 6);
   }
 
-  // Timeline pulse
   _spawnTimelinePulse(prompt.x, prompt.y, s.def.id);
 
-  // Combo text
   const combos = ['NICE', 'GOOD', 'PERFECT', 'REALITY HELD', 'TIMELINE STABLE'];
   _qteComboText = {
     text:  combos[Math.min(s.completedCount - 1, combos.length - 1)],
@@ -331,19 +300,16 @@ function _onPromptFail(prompt) {
   }
 }
 
-// ── Outro success ─────────────────────────────────────────────────────────────
 
 function _beginOutroSuccess() {
   const s = QTE_STATE;
   s.stage      = 'outro_success';
   s.outroTimer = 0;
 
-  // Visual payoff
   _qteFlashColor = _phaseColor(s.phase);
   _qteFlashAlpha = 0.70;
   screenShake = Math.max(screenShake, 30);
 
-  // Massive particle burst
   _spawnQTEBurst(canvas.width / 2, canvas.height / 2, 60, _phaseColor(s.phase));
   _spawnQTEBurst(canvas.width / 2, canvas.height / 2, 40, '#ffffff');
   for (let i = 0; i < 6; i++) {
@@ -352,7 +318,6 @@ function _beginOutroSuccess() {
     _spawnQTERipple(rx, ry, _phaseColor(s.phase));
   }
 
-  // Combo headline
   const headlines = [
     '', // phase 0 unused
     'TIMELINE STABILIZED',
@@ -368,7 +333,6 @@ function _beginOutroSuccess() {
     color: _phaseColor(s.phase),
   };
 
-  // Dialogue
   const successLines = [
     '',
     '"...you broke the sequence."',
@@ -380,11 +344,10 @@ function _beginOutroSuccess() {
     showBossDialogue(successLines[s.phase] || '', 200);
   }
 
-  // Deal success bonus damage to boss
   const boss = s.bossRef;
   if (boss && boss.health > 0) {
     if (s.def.successBonus >= 9999) {
-      // Phase 4 kill — set health to 1 so boss death scene triggers naturally
+      // Phase 4: health 1 so the boss death scene triggers
       boss.health = 1;
       if (typeof dealDamage === 'function') dealDamage(s.playerRef, boss, 1, 0);
     } else {
@@ -392,11 +355,9 @@ function _beginOutroSuccess() {
     }
   }
 
-  // Reward player for successfully completing the QTE
   const p1 = s.playerRef;
   if (p1 && p1.health > 0) {
     if (s.phase <= 2) {
-      // Phases 1–2: heal 15% max HP + 1 life
       const _healAmt = Math.round(p1.maxHealth * 0.15);
       p1.health = Math.min(p1.maxHealth, p1.health + _healAmt);
       p1.lives = (p1.lives || 0) + 1;
@@ -406,7 +367,6 @@ function _beginOutroSuccess() {
         damageTexts.push(new DamageText(p1.cx(), p1.y - 50, '+1 LIFE', '#ffcc00'));
       }
     } else if (s.phase === 3) {
-      // Phase 3: heal 25% max HP + 1 life
       const _healAmt = Math.round(p1.maxHealth * 0.25);
       p1.health = Math.min(p1.maxHealth, p1.health + _healAmt);
       p1.lives = (p1.lives || 0) + 1;
@@ -416,7 +376,6 @@ function _beginOutroSuccess() {
         damageTexts.push(new DamageText(p1.cx(), p1.y - 50, '+1 LIFE', '#ffcc00'));
       }
     } else {
-      // Phase 4: full HP restore + extra life
       p1.health = p1.maxHealth;
       p1.lives  = (p1.lives || 0) + 1;
       if (typeof spawnParticles === 'function') {
@@ -428,26 +387,22 @@ function _beginOutroSuccess() {
     }
   }
 
-  // Phase-specific cinematic extras
   _phaseSuccessExtras(s);
 }
 
 function _phaseSuccessExtras(s) {
   switch (s.phase) {
     case 1:
-      // Mild gravity glitch clears
       if (typeof tfGravityInverted !== 'undefined' && tfGravityInverted) {
         tfGravityInverted = false;
         if (typeof showBossDialogue === 'function') showBossDialogue('"You broke the pull. Noted."', 100);
       }
       break;
     case 2:
-      // Clear all black holes
       if (typeof tfBlackHoles !== 'undefined') tfBlackHoles.length = 0;
       if (typeof setCameraDrama === 'function') setCameraDrama('wideshot', 80);
       break;
     case 3:
-      // Slow-mo moment
       slowMotion = 0.08;
       setTimeout(() => { if (typeof slowMotion !== 'undefined' && slowMotion < 0.5) slowMotion = 1.0; }, 1200);
       if (typeof setCameraDrama === 'function') {
@@ -456,14 +411,12 @@ function _phaseSuccessExtras(s) {
       }
       break;
     case 4:
-      // Final collapse cinematic — camera pulls out dramatically
       slowMotion = 0.05;
       if (typeof setCameraDrama === 'function') {
         setCameraDrama('wideshot', 120);
         setTimeout(() => { if (typeof setCameraDrama === 'function') setCameraDrama('focus', 90, s.bossRef, 1.6); }, 2000);
       }
       setTimeout(() => { if (typeof slowMotion !== 'undefined') slowMotion = 1.0; }, 3000);
-      // Massive shake sequence
       let _shakeSeq = 0;
       const _doShake = () => {
         if (_shakeSeq++ < 5 && typeof screenShake !== 'undefined') {
@@ -476,32 +429,28 @@ function _phaseSuccessExtras(s) {
   }
 }
 
-// ── End QTE ───────────────────────────────────────────────────────────────────
 
 function _endQTE(success) {
   if (!QTE_STATE) return;
   const phase = QTE_STATE.phase;
 
-  // Restore slowMotion (we froze it at 0.0 during the QTE) and release combat lock.
-  // Invalidate pending slowMotionFor timers (incl. the 99999ms QTE freeze) so a
-  // stale restore can't fire later into a cinematic's slow-mo.
+  // Restore slowMotion (frozen at 0 during the QTE) and release the combat lock.
+  // Clear pending slowMotionFor timers, or a stale restore lands in the next cinematic.
   if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
   if (typeof _slowMoInvalidate === 'function') _slowMoInvalidate();
   if (typeof clearCombatLock === 'function') clearCombatLock('qte');
 
-  // Fade out visuals
   _qteFlashAlpha  = 0;
   _qteScanAlpha   = 0;
   _qteVoidAlpha   = 0;
   _qteCloneAlpha  = 0;
   _qteShakeExtra  = 0;
 
-  // If failure outro just ended, either retry or end with heavy penalty
   if (!success) {
     const def = QTE_STATE.def;
     const p1  = QTE_STATE.playerRef;
 
-    // Check attempt limit — if reached, deal the penalty and exit for real
+        // Out of attempts: heavy penalty, exit for real
     if (def.maxAttempts && QTE_STATE.totalAttempts >= def.maxAttempts) {
       if (p1 && p1.health > 0) {
         const penaltyDmg = Math.round(p1.maxHealth * (def.penaltyDamage || 0.40));
@@ -529,7 +478,6 @@ function _endQTE(success) {
       return;
     }
 
-    // Attempts remain — rebuild and retry with escalated chaos
     QTE_STATE.stage        = 'prompts';
     QTE_STATE.outroTimer   = 0;
     QTE_STATE.failedThisRound = false;
@@ -537,24 +485,21 @@ function _endQTE(success) {
     QTE_STATE.promptQueue  = _buildPromptQueue(count, def);
     QTE_STATE.promptIdx    = 0;
     QTE_STATE.prompts      = [];
-    slowMotion = 0.0; // re-freeze
-    // Re-raise the combat lock — _endQTE cleared it above, and an unlocked boss
+    slowMotion = 0.0;
+    // Re-raise the combat lock: _endQTE cleared it above, and an unlocked boss
     // AI would act during the retried QTE.
     if (typeof setCombatLock === 'function') setCombatLock('qte');
     _advancePrompts();
     return;
   }
 
-  // Full success — clear
   QTE_STATE = null;
 }
 
-// ── Visual helpers ────────────────────────────────────────────────────────────
 
 function _tickQTEVisuals() {
   _qteFlashAlpha = Math.max(0, _qteFlashAlpha - 0.015);
 
-  // Apply extra shake to game
   if (_qteShakeExtra > 0.5 && typeof screenShake !== 'undefined') {
     screenShake = Math.max(screenShake, _qteShakeExtra * (0.6 + Math.sin(_qteTimeline * 0.3) * 0.4));
     _qteShakeExtra *= 0.96;
@@ -605,7 +550,7 @@ function _spawnQTEBurst(cx, cy, count, color) {
 }
 
 function _spawnTimelinePulse(cx, cy, phaseId) {
-  // A "timeline thread" — a line of particles shooting upward
+  // A "timeline thread": a line of particles shooting upward
   const color = _phaseColor(phaseId);
   for (let i = 0; i < 8; i++) {
     _qteParticles.push({
@@ -627,7 +572,6 @@ function _spawnQTERipple(cx, cy, color) {
   _qteRipples.push({ x: cx, y: cy, r: 4, alpha: 0.65, color, speed: 5 + Math.random() * 3 });
 }
 
-// ── Warp grid builder ─────────────────────────────────────────────────────────
 function _buildWarpGrid(cols, rows) {
   const nodes = [];
   const cw = canvas.width  || 900;
@@ -642,7 +586,6 @@ function _buildWarpGrid(cols, rows) {
   return nodes;
 }
 
-// ── Phase colour ─────────────────────────────────────────────────────────────
 function _phaseColor(phaseId) {
   return ['#ffffff', '#44aaff', '#aa44ff', '#ff4400', '#ff00ff'][phaseId] || '#ffffff';
 }

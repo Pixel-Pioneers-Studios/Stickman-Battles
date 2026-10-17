@@ -208,8 +208,8 @@ STORY_CHAPTER_REGISTRY.push(
       'Defeat it — if the concept means anything to you.',
     ],
     isSovereignFight: true,
-    arena: 'warpzone',
-    playerLives: 5,
+    arena: 'sovereign',   // standalone fight arena
+    playerLives: 10,   // same as the standalone fight
     tokenReward: 150,
     fightScript: [
       { frame: 60,  text: '\"You\'ve been profiled.\"',           color: '#cc44ff', timer: 180 },
@@ -254,6 +254,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Creator\'s construct falls. The system fractures. The Second Architect\'s voice through the fracture resonance: "Now — hold the rift open. Three seconds." You drive the fragment into the core. The rift tears open in both directions. The Architects seal it from outside. The rift entity speaks one last time, its voice dissolving into light: "Go home." Somewhere behind the fracture resonance, barely there: the Fourth Architect\'s voice. "You came back." And then — the light takes everything.',
   },
 
-  // ── True Form arc continues in smb-act5-arc1.js and smb-act5-arc2.js (ids 112–116) ──
+  // True Form arc continues in smb-act5-arc1.js and smb-act5-arc2.js (ids 112-116).
 
 );

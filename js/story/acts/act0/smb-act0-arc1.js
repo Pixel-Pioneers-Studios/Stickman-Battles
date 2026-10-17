@@ -159,8 +159,8 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Relay Components',
     preText: 'Veran needs relay components scattered across the rooftop. Collect all four before the patrol finds you.',
     scavengeItemDefs: [
-      // Placed on the authored rooftop map (js/story/levels/ch05.js): the mast
-      // platform, the greenhouse shelf, the billboard top, the water-tower tank.
+// On the authored rooftop map (ch05.js): mast platform, greenhouse shelf,
+// billboard top, water-tower tank.
       { wx: 1185, y: 86,  name: 'Signal Booster',   icon: '📡' },
       { wx: 1700, y: 366, name: 'Power Cell',        icon: '🔋' },
       { wx: 2300, y: 196, name: 'Fracture Antenna',  icon: '📡' },
@@ -182,6 +182,5 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'Components secured. Veran assembles the relay in seconds. "An older signature. Something that built the cage. Keep moving."',
   },
 
-  // ─────── Arc 0-1: City Collapse (ids 6-12) ──────────────────────
 
 );

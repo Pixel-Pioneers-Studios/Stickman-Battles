@@ -1,41 +1,28 @@
-// smb-pathfinding.js  v4 — predictive arc-based pathfinding
-// Loaded before smb-fighter.js so Fighter can call all pf* helpers.
+// smb-pathfinding.js: predictive arc-based pathfinding (v4).
+// Loaded before smb-fighter.js so Fighter can call the pf* helpers.
 
 'use strict';
 
-// ─────────────────────────────────────────────────────────────
-// Physics constants (must match Fighter.update())
-// ─────────────────────────────────────────────────────────────
+// Physics constants. Must match Fighter.update().
 const PF_GRAVITY  = 0.65;   // px / frame²
 const PF_JUMP_VY  = 20;     // |vy| on ground jump  (vy = -20)
 const PF_JUMP2_VY = 17;     // |vy| on double jump   (vy = -17)
+const PF_HOP_VY   = 11;     // |vy| on a short hop. A full jump overshoots narrow gaps.
 const PF_BOT_SPD  = 5.2;    // representative bot vx (hard difficulty)
 const PF_NODE_STEP = 220;   // spacing of interior graph nodes along a platform
 const PF_MAX_INNER = 40;    // hard cap on interior nodes per platform
 const PF_SIDE_OFF  = 70;    // stand-off from a destination platform's near edge
 const PF_HEADROOM  = 60;    // min clearance above a surface for it to be standable
 
-// ═════════════════════════════════════════════════════════════
-// ARC SIMULATION
-// ═════════════════════════════════════════════════════════════
+// Arc simulation
 
 /**
- * Simulate a jump parabola frame-by-frame.
- *
- * feetX, feetY  — launch position (bot horizontal center, bot feet Y)
- * vx            — horizontal speed (signed px/frame, constant throughout)
- * initVY        — initial vertical velocity (negative = upward)
- * arena         — currentArena object
- * useDouble     — fire a second jump at the apex of the first
- * skipPlatIdx   — platform index to skip for the first 8 frames (source platform)
- * maxFrames     — simulation limit (default 160)
- *
- * Returns:
- *   { landed, x, y, platIdx, frame, blocked, died, doubleUsed, arcPoints }
+ * Simulate a jump parabola frame by frame.
+ * skipPlatIdx: source platform, ignored for the first 8 frames.
+ * Returns { landed, x, y, platIdx, frame, blocked, died, doubleUsed, arcPoints }.
  */
-// The arena's real gravity and fall cap, as Fighter.update applies them. A
-// fixed 0.65 under-predicted every low-gravity jump by ~2x, so airborne
-// correction steered bots toward landings they then sailed past.
+// Use the arena's real gravity and fall cap, as Fighter.update applies them. A fixed
+// 0.65 under-predicted low-gravity jumps by ~2x.
 function pfArenaGravity(arena) {
   const base = arena.isLowGravity ? 0.28 : arena.isHeavyGravity ? 0.95 : arena.earthPhysics ? 0.88 : PF_GRAVITY;
   return base * ((arena.modifiers && arena.modifiers.gravityMult) || 1);
@@ -63,7 +50,7 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
   for (let f = 0; f < MAX; f++) {
     prevY = y;
 
-    // Fire double-jump near apex (vy crosses from negative to ≥ -1)
+    // Double jump near apex (vy crosses from negative to >= -1)
     if (useDouble && !firedDouble && vy >= -1) {
       vy = -PF_JUMP2_VY;
       firedDouble = true;
@@ -75,12 +62,12 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
 
     if (f % 4 === 0) arcPoints.push([x, y]);
 
-    // ── Landing check: feet crossing platform top while falling ──
+    // Landing: feet cross platform top while falling
     if (vy > 0) {
       for (let i = 0; i < pls.length; i++) {
         const pl = pls[i];
         if (pl.isFloorDisabled) continue;
-        if (i === skipPlatIdx && f < 8) continue; // ignore launch platform briefly
+        if (i === skipPlatIdx && f < 8) continue; // skip launch platform briefly
         // Must enter from above (prevY was above the surface)
         if (x > pl.x + 2 && x < pl.x + pl.w - 2 &&
             prevY <= pl.y + 2 && y >= pl.y) {
@@ -90,7 +77,7 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
       }
     }
 
-    // ── Obstacle check: upward arc passing through platform body ──
+    // Obstacle: upward arc through a platform body
     if (vy < 0) {
       for (let i = 0; i < pls.length; i++) {
         const pl = pls[i];
@@ -104,21 +91,16 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
       }
     }
 
-    // ── Death / lava ──────────────────────────────────────────
+    // Death / lava
     if (y >= dyY || y >= lavY) return { landed: false, died: true, frame: f, arcPoints };
   }
 
   return { landed: false, frame: MAX, arcPoints };
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfPredictLanding(bot)
-// Simulate bot's current velocity forward to find where it lands.
-// Returns arc result or null.
-// ─────────────────────────────────────────────────────────────
+// pfPredictLanding(bot): where the bot lands if it keeps its current velocity. Returns arc or null.
 function pfPredictLanding(bot) {
   if (!currentArena) return null;
-  // Find source platform index
   let srcIdx = -1;
   const pls = currentArena.platforms;
   for (let i = 0; i < pls.length; i++) {
@@ -135,20 +117,16 @@ function pfPredictLanding(bot) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfCheckJumpValid(bot, targetPlatIdx, useDouble)
-// Runtime check: will a jump from bot's current position land on
-// the specified platform?
-// ─────────────────────────────────────────────────────────────
-function pfCheckJumpValid(bot, targetPlatIdx, useDouble) {
+// pfCheckJumpValid(bot, targetPlatIdx, useDouble): will a jump from here land on targetPlatIdx?
+function pfCheckJumpValid(bot, targetPlatIdx, useDouble, jumpVY) {
   if (!currentArena || !bot.onGround) return false;
   const tPl = currentArena.platforms[targetPlatIdx];
   if (!tPl) return false;
 
   const tCX = tPl.x + tPl.w * 0.5;
-  const vx  = (tCX > bot.cx() ? 1 : -1) * Math.min(PF_BOT_SPD * 1.1, 13);
+  // A hop is flown at exactly PF_BOT_SPD (Fighter holds it), so check that arc.
+  const vx  = (tCX > bot.cx() ? 1 : -1) * (jumpVY ? PF_BOT_SPD : Math.min(PF_BOT_SPD * 1.1, 13));
 
-  // Find source platform
   let srcIdx = -1;
   for (let i = 0; i < currentArena.platforms.length; i++) {
     const pl = currentArena.platforms[i];
@@ -158,31 +136,26 @@ function pfCheckJumpValid(bot, targetPlatIdx, useDouble) {
     }
   }
 
-  const r = pfSimulateArc(bot.cx(), bot.y + bot.h, vx, -PF_JUMP_VY, currentArena, useDouble, srcIdx, 120);
+  const r = pfSimulateArc(bot.cx(), bot.y + bot.h, vx, -(jumpVY || PF_JUMP_VY), currentArena, useDouble, srcIdx, 120);
   return r.landed && r.platIdx === targetPlatIdx;
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfAirborneCorrect(bot, spd)
-// Called every AI tick when bot is airborne.
-// Predicts landing; corrects trajectory if unsafe.
-// Returns true if a correction was applied (caller skips movement).
-// Only fires when bot is actually falling (vy > 0) to avoid
-// interfering with intentional jump arcs.
-// ─────────────────────────────────────────────────────────────
+// pfAirborneCorrect(bot, spd): called each AI tick while airborne. If the predicted landing is
+// unsafe, steer the arc. Returns true if a correction was applied.
+// Only when falling (vy > 0), so deliberate jump arcs are left alone.
 function pfAirborneCorrect(bot, spd) {
   if (bot.onGround || bot.isBoss || !bot.isAI) return false;
   if (!currentArena) return false;
-  // Only correct when falling (vy > 0) — upward arc is deliberate
+  // Only correct when falling (vy > 0).
   if (bot.vy <= 0 && !bot._pfDoubleJumpPending) return false;
 
   const pred = pfPredictLanding(bot);
   if (!pred) return false;
 
-  // Safe landing → no intervention
+  // Safe landing: no intervention
   if (pred.landed) return false;
 
-  // ── Unsafe: try double-jump first ──────────────────────────
+  // Unsafe: try double jump first
   if (bot.canDoubleJump && bot.vy > -2) {
     const djPred = pfSimulateArc(
       bot.cx(), bot.y + bot.h,
@@ -197,7 +170,7 @@ function pfAirborneCorrect(bot, spd) {
     }
   }
 
-  // ── Try steering toward nearest safe node ──────────────────
+  // Steer toward nearest safe node
   const graph = currentPlatformGraph;
   const safe  = graph ? pfClosestSafeNode(graph, bot.cx(), bot.y) : null;
   if (safe) {
@@ -217,7 +190,7 @@ function pfAirborneCorrect(bot, spd) {
     }
   }
 
-  // ── Last resort: reverse horizontal direction ───────────────
+  // Last resort: reverse direction
   if (bot.vy > 2) {
     bot.vx *= -0.7;
     return true;
@@ -226,11 +199,7 @@ function pfAirborneCorrect(bot, spd) {
   return false;
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfVoidAhead(bot, dir)
-// Fast directional void scan (no arc simulation — O(n) scan).
-// Returns true if no safe platform exists below the look-ahead point.
-// ─────────────────────────────────────────────────────────────
+// pfVoidAhead(bot, dir): O(n) scan, no arc sim. True if no safe platform lies below the look-ahead point.
 function pfVoidAhead(bot, dir) {
   if (!currentArena) return false;
   const lookX = bot.cx() + dir * 52;
@@ -258,11 +227,7 @@ function pfVoidAhead(bot, dir) {
   return true;
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfDropSafe(bot, dir)
-// Runtime vertical scan: is there a safe platform below the
-// edge the bot is about to walk off?
-// ─────────────────────────────────────────────────────────────
+// pfDropSafe(bot, dir): is there a safe platform below the edge the bot is about to walk off?
 function pfDropSafe(bot, dir) {
   if (!currentArena) return false;
   const arena  = currentArena;
@@ -284,17 +249,14 @@ function pfDropSafe(bot, dir) {
   return false;
 }
 
-// ─────────────────────────────────────────────────────────────
 // Platform safety helpers
-// ─────────────────────────────────────────────────────────────
 function _pfPlatSafe(pl, arena) {
   if (!pl || pl.isFloorDisabled) return false;
   if (arena.hasLava && arena.lavaY && pl.y + (pl.h || 20) >= arena.lavaY) return false;
   return true;
 }
 
-// Safety weight 0–1 used to bias A* edge costs.
-// Wider platforms and those far from lava are preferred.
+// Safety weight 0-1 for A* edge costs. Wide platforms far from lava score higher.
 function _pfPlatWeight(pl, arena) {
   if (!_pfPlatSafe(pl, arena)) return 0;
   let w = 1.0;
@@ -304,9 +266,7 @@ function _pfPlatWeight(pl, arena) {
   return Math.max(0.1, w);
 }
 
-// ═════════════════════════════════════════════════════════════
-// GRAPH NODES + EDGES
-// ═════════════════════════════════════════════════════════════
+// Graph nodes and edges
 
 class PFNode {
   constructor(id, platIdx, x, y, role) {
@@ -318,9 +278,9 @@ class PFNode {
 class PlatformGraph {
   constructor() {
     this.nodes     = [];
-    this.edges     = new Map(); // nodeId → [{to, cost, action, meta}]
-    this.platNodes = [];        // platNodes[platIdx] = [leftId, …, rightId] | null
-    this.platMid   = [];        // platMid[platIdx]   = canonical mid node id
+    this.edges     = new Map(); // nodeId -> [{to, cost, action, meta}]
+    this.platNodes = [];        // platNodes[platIdx] = [leftId, ..., rightId] or null
+    this.platMid   = [];        // platMid[platIdx] = canonical mid node id
     this._nodeMap  = new Map();
   }
   _addNode(n) { this.nodes.push(n); this._nodeMap.set(n.id, n); }
@@ -332,25 +292,21 @@ class PlatformGraph {
   neighbors(id) { return this.edges.get(id) || []; }
 }
 
-// Is there room to stand at (x, surfY)? A platform's top surface is only
-// walkable if nothing else's underside is sitting on it. The exploration
-// worlds seal their tunnel layer with full-height rock fill whose top edge is
-// flush against the surface slab above, and those zero-clearance surfaces were
-// being handed to A* as walkable nodes — routing bots into solid stone.
+// Is there room to stand at (x, surfY)? Exploration worlds seal tunnels with rock fill flush
+// against the slab above. Zero-clearance surfaces routed bots into stone, so reject them.
 function _pfHeadroomFree(arena, platIdx, x, surfY) {
   for (let k = 0; k < arena.platforms.length; k++) {
     if (k === platIdx) continue;
     const pl = arena.platforms[k];
     if (!pl || pl.isFloorDisabled) continue;
     if (x <= pl.x || x >= pl.x + pl.w) continue;
-    const under = pl.y + (pl.h || 20);          // this platform's underside
+    const under = pl.y + (pl.h || 20);          // platform underside
     if (under <= surfY + 2 && under > surfY - PF_HEADROOM) return false;
   }
   return true;
 }
 
-// Nearest node on a given platform to an x position (platforms now carry a
-// variable number of nodes, so edge endpoints are looked up rather than indexed).
+// Nearest node on a platform to an x. Node count varies, so endpoints are looked up, not indexed.
 function _pfNearestNodeOnPlat(graph, platIdx, x) {
   const ids = graph.platNodes[platIdx];
   if (!ids || !ids.length) return null;
@@ -364,25 +320,16 @@ function _pfNearestNodeOnPlat(graph, platIdx, x) {
   return best;
 }
 
-// ─────────────────────────────────────────────────────────────
-// buildPlatformGraph(arena)
-// Arc-simulation-verified graph: every cross-platform edge is
-// only added when pfSimulateArc confirms the bot actually lands
-// on the intended destination.
-// ─────────────────────────────────────────────────────────────
+// buildPlatformGraph(arena): a cross-platform edge is added only if pfSimulateArc confirms the landing.
 function buildPlatformGraph(arena) {
   if (!arena || !arena.platforms || !arena.platforms.length) return null;
 
   const graph  = new PlatformGraph();
   let   nextId = 0;
 
-  // ── Step 1: nodes along each platform ────────────────────
-  // Three nodes per platform (left/center/right) is fine for a 900px arena but
-  // useless on the exploration worlds, whose floor and bedrock are single
-  // platforms thousands of pixels wide: a bot standing at x=1300 had its
-  // nearest node at the world centre, so pfClosestNode resolved it onto a
-  // platform it wasn't even on and A* found no path at all. Long platforms now
-  // carry interior nodes every PF_NODE_STEP px, capped so the build stays cheap.
+  // Step 1: nodes along each platform
+  // Long platforms (exploration floors, thousands of px) get interior nodes every PF_NODE_STEP px,
+  // capped. Three nodes per platform left bots with no nearby node to route from.
   for (let i = 0; i < arena.platforms.length; i++) {
     const pl = arena.platforms[i];
     if (!_pfPlatSafe(pl, arena)) { graph.platNodes.push(null); continue; }
@@ -407,16 +354,13 @@ function buildPlatformGraph(arena) {
       graph._addNode(n);
       ids.push(n.id); kept.push(xs[k]);
     }
-    // Entirely buried surface (rock fill under a slab) — not a place to route to.
+    // Buried surface (rock fill under a slab). Don't route to it.
     if (!ids.length) { graph.platNodes.push(null); continue; }
     graph.platNodes.push(ids);
-    // Mid node kept addressable: the cross-platform pass still wants one
-    // canonical "anywhere on this platform" endpoint for long-range routing.
+    // Canonical mid node: one 'anywhere on this platform' endpoint for long-range routing.
     graph.platMid[i] = ids[Math.floor(ids.length / 2)];
 
-    // Walk edges: adjacent samples, bidirectional. A chain (rather than the old
-    // all-pairs triangle) keeps edge count linear as node count grows and makes
-    // A*'s costs reflect real travel time along the platform.
+    // Adjacent samples, bidirectional. A chain keeps edge count linear and A* costs match travel time.
     for (let k = 0; k + 1 < ids.length; k++) {
       const w = Math.abs(kept[k + 1] - kept[k]) / PF_BOT_SPD;
       graph.addEdge(ids[k],     ids[k + 1], w, 'walk');
@@ -424,14 +368,9 @@ function buildPlatformGraph(arena) {
     }
   }
 
-  // ── Step 2: cross-platform edges via arc simulation ──────
-  // Every candidate launch point is still arc-verified — the change from the
-  // original pass is WHERE a bot is assumed to jump from. Launching only from
-  // A's outer edge is correct for small arenas but silently drops every link
-  // off a long platform: from the 6000px exploration bedrock the only launch
-  // points considered were x=2 and x=5998, so nothing reachable from the middle
-  // of the floor (a ledge, a structure, a vault's escape stub) was ever an
-  // edge. Each pair now also tries the point on A directly beside B.
+  // Step 2: cross-platform edges via arc simulation
+  // Every launch point is still arc-verified. Also try the point on A beside B, not just A's
+  // outer edge, or long platforms lose every link from their middle.
   for (let i = 0; i < arena.platforms.length; i++) {
     const nodesA = graph.platNodes[i];
     if (!nodesA) continue;
@@ -449,15 +388,11 @@ function buildPlatformGraph(arena) {
 
       const bCentX   = plB.x + plB.w * 0.5;
       const bIsRight = bCentX >= aCentX;
-      const launchY  = plA.y;   // bot feet at platform surface
+      const launchY  = plA.y;   // feet on platform surface
       const bWeight  = _pfPlatWeight(plB, arena);
       const dY       = plB.y - plA.y; // positive = B is lower
 
-      // Candidate launch points on A, best-first:
-      //  1. beside B — stand off B's near edge by PF_SIDE_OFF so the arc rises
-      //     alongside it and drifts on, rather than into its underside.
-      //  2. A's outer edge facing B (the original, and the only one that works
-      //     when A is short enough that its edge already is "beside B").
+      // Launch candidates on A, best first: beside B (PF_SIDE_OFF from its near edge), then A's outer edge.
       const nearEdgeX = bIsRight ? plB.x : plB.x + plB.w;
       const cands     = [
         Math.max(aMinX, Math.min(aMaxX, nearEdgeX + (bIsRight ? -PF_SIDE_OFF : PF_SIDE_OFF))),
@@ -466,27 +401,25 @@ function buildPlatformGraph(arena) {
 
       for (let c = 0; c < cands.length; c++) {
         const launchX = cands[c];
-        if (c > 0 && Math.abs(launchX - cands[0]) < 8) break; // same point — already tried
+        if (c > 0 && Math.abs(launchX - cands[0]) < 8) break; // same point: already tried
         const toB = bCentX - launchX;
         const vx  = (toB === 0 ? (bIsRight ? 1 : -1) : Math.sign(toB)) * PF_BOT_SPD;
 
-        let r, action = null, mult = 1;
+        let r, action = null, mult = 1, hopVY = 0;
         if (dY <= 0) {
-          // ── B is at same height or HIGHER — try jump, then doubleJump ──
-          r = pfSimulateArc(launchX, launchY, vx, -PF_JUMP_VY, arena, false, i);
-          if (r.landed && r.platIdx === j) { action = 'jump'; }
-          else {
-            r = pfSimulateArc(launchX, launchY, vx, -PF_JUMP_VY, arena, true, i);
-            // penalise double: harder to execute
-            if (r.landed && r.platIdx === j) { action = 'doubleJump'; mult = 1.35; }
-          }
+          // B is level or higher: jump, then double jump
+          // Level neighbours try the short hop first. The full arc carries ~300px and overshoots narrow gaps.
+          const lands = (vy0, dbl) => {
+            r = pfSimulateArc(launchX, launchY, vx, -vy0, arena, dbl, i);
+            return r.landed && r.platIdx === j;
+          };
+          if (dY === 0 && lands(PF_HOP_VY, false)) { action = 'jump'; hopVY = PF_HOP_VY; }
+          else if (lands(PF_JUMP_VY, false))       { action = 'jump'; }
+          // penalise double: harder to execute
+          else if (lands(PF_JUMP_VY, true))        { action = 'doubleJump'; mult = 1.35; }
         } else {
-          // ── B is LOWER — try drop (walk off edge, no initial upward vy) ──
-          // Only from A's own ledge, walking outward. Fighters cannot drop
-          // THROUGH a platform, but the arc sim skips the source platform for
-          // 8 frames and so happily "fell" through it from the beside-B
-          // candidate — an edge from the middle of A to a platform under A that
-          // no fighter could take, and a bot that stood on it forever.
+          // B is lower: drop off A's ledge, walking outward. Fighters can't fall through a platform,
+          // and the sim skips the source for 8 frames, so only ledge candidates are valid.
           const atEdge = (launchX === aMaxX && vx > 0) || (launchX === aMinX && vx < 0);
           if (!atEdge) continue;
           r = pfSimulateArc(launchX, launchY, vx, 0, arena, false, i);
@@ -499,12 +432,11 @@ function buildPlatformGraph(arena) {
         const fromNodeId = _pfNearestNodeOnPlat(graph, i, launchX);
         const toNodeId   = _pfNearestNodeOnPlat(graph, j, r.x);
         const midA       = graph.platMid[i];
-        graph.addEdge(fromNodeId, toNodeId, cost, action, { arcPts: r.arcPoints });
-        // Keep a link off A's canonical mid node so long-range routes that
-        // haven't reached the launch sample yet can still see the transition.
+        graph.addEdge(fromNodeId, toNodeId, cost, action, { arcPts: r.arcPoints, vy: hopVY });
+        // Keep a link off A's canonical mid node so long-range routes can see the transition.
         if (midA !== fromNodeId)
-          graph.addEdge(midA, toNodeId, cost * 1.05, action, { arcPts: r.arcPoints });
-        break; // this pair is linked; don't spend arcs on the other candidate
+          graph.addEdge(midA, toNodeId, cost * 1.05, action, { arcPts: r.arcPoints, vy: hopVY });
+        break; // linked, skip the other candidate
       }
     }
   }
@@ -512,9 +444,7 @@ function buildPlatformGraph(arena) {
   return graph;
 }
 
-// ═════════════════════════════════════════════════════════════
-// GLOBAL STATE + BUILD
-// ═════════════════════════════════════════════════════════════
+// Global state and build
 
 let currentPlatformGraph = null;
 
@@ -524,9 +454,7 @@ function buildGraphForCurrentArena() {
     : null;
 }
 
-// ═════════════════════════════════════════════════════════════
-// NODE LOOKUP
-// ═════════════════════════════════════════════════════════════
+// Node lookup
 
 function pfClosestNode(graph, x, y) {
   if (!graph || !graph.nodes.length) return null;
@@ -549,9 +477,7 @@ function pfClosestSafeNode(graph, x, y) {
   return best || pfClosestNode(graph, x, y);
 }
 
-// ═════════════════════════════════════════════════════════════
 // A*
-// ═════════════════════════════════════════════════════════════
 
 function pfAStar(graph, startId, goalId) {
   if (startId === goalId) return [{ nodeId: startId, action: 'walk' }];
@@ -581,7 +507,7 @@ function pfAStar(graph, startId, goalId) {
       while (c !== null) {
         const r = record.get(c) || open.get(c);
         if (!r) break;
-        path.unshift({ nodeId: c, action: r.action || 'walk' });
+        path.unshift({ nodeId: c, action: r.action || 'walk', vy: r.vy || 0 });
         c = r.parent;
       }
       return path;
@@ -597,32 +523,27 @@ function pfAStar(graph, startId, goalId) {
       const gNew = curData.g + edge.cost;
       const ex   = open.get(edge.to);
       if (!ex || gNew < ex.g)
-        open.set(edge.to, { g: gNew, f: gNew + h(edge.to), parent: curId, action: edge.action });
+        open.set(edge.to, { g: gNew, f: gNew + h(edge.to), parent: curId, action: edge.action, vy: edge.meta.vy });
     }
   }
   return null;
 }
 
-// ═════════════════════════════════════════════════════════════
-// MAIN WAYPOINT QUERY
-// ═════════════════════════════════════════════════════════════
+// Main waypoint query
 
 function pfGetNextWaypoint(bot, targetX, targetY) {
   const graph = currentPlatformGraph;
   if (!graph || !graph.nodes.length) return null;
 
-  // ── Path freshness ────────────────────────────────────────
+  // Path freshness
   bot._pfPathAge = (bot._pfPathAge || 0) + 1;
   const targetMoved = !bot._pfLastTargetX ||
     Math.abs(bot._pfLastTargetX - targetX) > 80 ||
     Math.abs((bot._pfLastTargetY || 0) - targetY) > 80;
 
   if (!bot._pfPath || bot._pfPathAge >= 18 || targetMoved) {
-    // Start from the platform under the bot's FEET when it is standing on one.
-    // Nearest-node-to-mid-body picked a node on the platform directly overhead
-    // whenever the nearest floor node was farther sideways than the ledge was
-    // high (floor nodes are 220px apart), so the path began "walk to the
-    // platform above you" and the bot jumped into its underside forever.
+    // Start from the platform under the feet when standing on one. The nearest node to mid-body
+    // could be on the platform overhead, and the bot would jump into its underside forever.
     let sNode = null;
     if (bot.onGround && currentArena && currentArena.platforms) {
       const _feet = bot.y + bot.h, _pls = currentArena.platforms;
@@ -650,17 +571,14 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
 
   if (!bot._pfPath || !bot._pfPath.length) return null;
 
-  // ── Advance node pointer ──────────────────────────────────
+  // Advance node pointer
   let idx = bot._pfNodeIdx || 0;
   while (idx < bot._pfPath.length) {
     const step = bot._pfPath[idx];
     const node = graph.getNode(step.nodeId);
     if (!node) { idx++; continue; }
-    // Node y is the platform SURFACE, so the bot's feet are what should be
-    // compared to it — not its mid-height. With mid-height the gap is always
-    // h/2, which for the current 84px fighter is 42 against a tolerance of 38:
-    // the pointer could never advance while grounded, so every bot walked to
-    // the first node of its path and stopped there.
+    // Compare node y (platform surface) to the feet, not mid-height. Mid-height never fell within
+    // tolerance, so bots walked to the first node and stopped.
     const dx = Math.abs(bot.cx()          - node.x);
     const dy = Math.abs((bot.y + bot.h)   - node.y);
     if (dx < 30 && dy < 38) { idx++; continue; }
@@ -673,7 +591,7 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
   const node = graph.getNode(step.nodeId);
   if (!node) return null;
 
-  // ── Runtime safety gates ──────────────────────────────────
+  // Runtime safety gates
 
   // Drop: re-verify destination platform is still safe
   if (step.action === 'drop') {
@@ -681,13 +599,8 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
     if (!plB || !_pfPlatSafe(plB, currentArena)) {
       forceRecalculatePath(bot); return null;
     }
-    // Arc re-check for the drop. A grounded bot is still ON the source
-    // platform, walking to its ledge, so the fall is simulated from that ledge
-    // the way the graph built it. Simulating from the bot's own feet with no
-    // skip landed straight back on the platform it was standing on, failed
-    // every time, threw the path away, and left the bot oscillating between the
-    // drop node and a direct walk at the target — no drop edge could ever be
-    // followed from the ground.
+    // Arc re-check for the drop, simulated from the source ledge as the graph built it.
+    // From the bot's feet every drop failed and the bot oscillated.
     const dropDir = node.x > bot.cx() ? 1 : -1;
     let _dx0 = bot.cx(), _dy0 = bot.y + bot.h, _skip = -1;
     if (bot.onGround && currentArena.platforms) {
@@ -708,18 +621,16 @@ function pfGetNextWaypoint(bot, targetX, targetY) {
   // Jump / doubleJump: arc validity check from current position (only when on ground)
   if ((step.action === 'jump' || step.action === 'doubleJump') && bot.onGround) {
     const useDouble = step.action === 'doubleJump';
-    if (!pfCheckJumpValid(bot, node.platIdx, useDouble)) {
-      // Platform may have moved (boss arena) or bot is misaligned — reroute
+    if (!pfCheckJumpValid(bot, node.platIdx, useDouble, step.vy)) {
+      // Platform moved (boss arena) or bot is misaligned. Reroute.
       forceRecalculatePath(bot); return null;
     }
   }
 
-  return { x: node.x, y: node.y, action: step.action, platIdx: node.platIdx };
+  return { x: node.x, y: node.y, action: step.action, platIdx: node.platIdx, vy: step.vy || 0 };
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfGetRecoveryWaypoint — nearest safe platform center
-// ─────────────────────────────────────────────────────────────
+// pfGetRecoveryWaypoint: nearest safe platform centre
 function pfGetRecoveryWaypoint(bot) {
   const graph = currentPlatformGraph;
   if (!graph) return null;
@@ -727,9 +638,7 @@ function pfGetRecoveryWaypoint(bot) {
   return safe ? { x: safe.x, y: safe.y, action: 'recover' } : null;
 }
 
-// ─────────────────────────────────────────────────────────────
-// pfCheckStuck — true if bot hasn't moved > 6px over 25 AI ticks
-// ─────────────────────────────────────────────────────────────
+// pfCheckStuck: true if bot hasn't moved more than 6px in 25 AI ticks
 function pfCheckStuck(bot) {
   bot._pfStuckHistory = bot._pfStuckHistory || [];
   bot._pfStuckHistory.push(bot.cx());
@@ -738,9 +647,7 @@ function pfCheckStuck(bot) {
   return Math.max(...bot._pfStuckHistory) - Math.min(...bot._pfStuckHistory) < 6;
 }
 
-// ─────────────────────────────────────────────────────────────
-// forceRecalculatePath
-// ─────────────────────────────────────────────────────────────
+// forceRecalculatePath: clear the path so the next query replans
 function forceRecalculatePath(bot) {
   if (!bot) return;
   bot._pfPath              = null;
@@ -752,9 +659,7 @@ function forceRecalculatePath(bot) {
     console.log('[PF] forceRecalculate →', bot.name || 'bot');
 }
 
-// ═════════════════════════════════════════════════════════════
-// DEBUG VISUALISATION
-// ═════════════════════════════════════════════════════════════
+// Debug drawing
 
 function visualizePlatformGraph() {
   const graph = currentPlatformGraph;
@@ -811,7 +716,7 @@ function showBotPath(bot) {
   ctx.restore();
 }
 
-// showProjectedLanding — draw bot's predicted arc and landing point
+// showProjectedLanding: draw bot's predicted arc and landing point
 function showProjectedLanding(bot) {
   if (!bot || typeof ctx === 'undefined' || !currentArena) return;
   const pred = pfPredictLanding(bot);
@@ -833,7 +738,7 @@ function showProjectedLanding(bot) {
   ctx.restore();
 }
 
-// highlightDoubleJumpEdges — show all doubleJump edges with diamond markers
+// highlightDoubleJumpEdges: draw double-jump edges with diamond markers
 function highlightDoubleJumpEdges() {
   const graph = currentPlatformGraph;
   if (!graph || typeof ctx === 'undefined') return;
@@ -859,7 +764,7 @@ function highlightDoubleJumpEdges() {
   ctx.restore();
 }
 
-// logUnsafeEdgeAttempts — console dump of the unsafe-edge log
+// logUnsafeEdgeAttempts: console dump of the unsafe-edge log
 const _pfUnsafeLog = [];
 function _pfLogUnsafe(bot, action, reason) {
   _pfUnsafeLog.push({ bot: bot.name || 'bot', action, reason, frame: typeof frameCount !== 'undefined' ? frameCount : 0 });

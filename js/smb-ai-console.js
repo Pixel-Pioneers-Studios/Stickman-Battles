@@ -1,15 +1,11 @@
 'use strict';
-// smb-ai-console.js — Ollama AI assistant for the in-game developer console
-// Depends on: smb-debug-console.js (must load after it)
-// Activate with: AI ON  |  Exit with: AI OFF
+// smb-ai-console.js: Ollama assistant for the developer console. Load after smb-debug-console.js.
+// AI ON to enable, AI OFF to exit.
 
-// ============================================================
-// STATE
-// ============================================================
 
 let _aiActive    = false;
 let _aiModel     = null;
-let _aiHistory   = [];  // conversation history sent to Ollama
+let _aiHistory   = [];  // sent to Ollama
 const _AI_URL    = 'http://localhost:11434';
 const _AI_TURNS  = 8;   // max turns kept in history
 
@@ -19,9 +15,6 @@ let _aiVoiceBusy      = false;  // true while an AI request is in-flight (voice)
 let _aiVoiceGen       = 0;      // incremented on voice off; stale responses check this
 let _aiVoiceAbortCtrl = null;   // AbortController for the current voice request
 
-// ============================================================
-// SYSTEM PROMPT
-// ============================================================
 
 const _AI_SYSTEM_PROMPT = `You are VECTOR — the embedded AI assistant for "Stickman Evolution" (codebase name: Stickman Battles / SMB).
 You serve two roles: (1) answer questions about the game's lore, systems, and structure, and (2) control the game by emitting <cmd>...</cmd> tags executed as console commands.
@@ -367,9 +360,6 @@ IMPORTANT RULES FOR COMMANDS:
 - Be specific: use exact weapon/class/arena key names (e.g. 'katana' not 'sword', 'megaknight' not 'knight').
 - When asked to list weapons, classes, or arenas, use the appropriate list command rather than reciting from memory.`;
 
-// ============================================================
-// OLLAMA HELPERS
-// ============================================================
 
 function _aiThinkingEl() {
   const log = document.getElementById('gameConsoleLog');
@@ -397,7 +387,6 @@ async function _aiSend(msg, signal) {
   const timeoutId   = setTimeout(() => timeoutCtrl.abort(new DOMException('signal timed out', 'TimeoutError')), 30000);
   let combined = timeoutCtrl.signal;
   if (signal) {
-    // Abort whichever fires first
     const ac = new AbortController();
     signal.addEventListener('abort', () => ac.abort(signal.reason), { once: true });
     timeoutCtrl.signal.addEventListener('abort', () => ac.abort(timeoutCtrl.signal.reason), { once: true });
@@ -424,7 +413,7 @@ async function _aiSend(msg, signal) {
   } catch (err) {
     clearTimeout(timeoutId);
     _aiHistory.pop();
-    // Suppress abort errors — caller decides whether to surface them
+    // Caller decides whether to show abort errors.
     if (err.name === 'AbortError' || err.name === 'TimeoutError') return null;
     return 'Error: ' + (err.message || String(err));
   }
@@ -437,7 +426,6 @@ function _aiContext() {
     if (typeof gameRunning !== 'undefined')                         parts.push('running=' + gameRunning);
     if (typeof currentArenaKey !== 'undefined' && currentArenaKey) parts.push('arena=' + currentArenaKey);
 
-    // Player details: HP, weapon, class, lives, godmode, superReady
     if (typeof players !== 'undefined' && Array.isArray(players)) {
       players.forEach((p, i) => {
         if (!p) return;
@@ -453,7 +441,6 @@ function _aiContext() {
       });
     }
 
-    // Boss / TrueForm state
     if (typeof players !== 'undefined') {
       const boss = players.find(p => p && (p.isBoss || p.isTrueForm));
       if (boss) {
@@ -463,12 +450,10 @@ function _aiContext() {
       }
     }
 
-    // Minion count
     if (typeof minions !== 'undefined' && minions.length) {
       parts.push('minions=' + minions.filter(m => m && m.health > 0).length + '/' + minions.length);
     }
 
-    // Story chapter
     if (typeof storyModeActive !== 'undefined' && storyModeActive) {
       if (typeof currentStoryChapter !== 'undefined' && currentStoryChapter != null) {
         const ch = typeof currentStoryChapter === 'object' ? currentStoryChapter : null;
@@ -476,11 +461,9 @@ function _aiContext() {
       }
     }
 
-    // Cinematic state
     if (typeof activeCinematic !== 'undefined' && activeCinematic) parts.push('cinematic=active');
     if (typeof isCinematic    !== 'undefined' && isCinematic)      parts.push('isCinematic=true');
 
-    // Slow motion / pause
     if (typeof slowMotion !== 'undefined' && slowMotion < 0.99)    parts.push('slowMo=' + slowMotion.toFixed(2));
     if (typeof gamePaused !== 'undefined' && gamePaused)            parts.push('paused=true');
 
@@ -496,7 +479,7 @@ function _aiExecChain(cmds, idx) {
 
   if (idx + 1 >= cmds.length) return;
 
-  // If this command starts a match, wait for gameRunning before continuing
+  // A command that starts a match: wait for gameRunning.
   const startsMatch = /^(startmatch|startboss)\b/i.test(c) || (/^eval\b/i.test(c) && /startGame\(\)/.test(c));
   if (startsMatch) {
     let attempts = 0;
@@ -515,7 +498,7 @@ function _aiExecChain(cmds, idx) {
 
 function _aiRender(reply, thinkingEl) {
   if (thinkingEl && thinkingEl.parentNode) thinkingEl.parentNode.removeChild(thinkingEl);
-  if (reply === null) return; // aborted — nothing to show
+  if (reply === null) return;  // aborted
 
   const cmdRe = /<cmd>([\s\S]*?)<\/cmd>/gi;
   const cmds  = [];
@@ -528,9 +511,6 @@ function _aiRender(reply, thinkingEl) {
   _aiExecChain(cmds, 0);
 }
 
-// ============================================================
-// VOICE MODE
-// ============================================================
 
 function _aiVoiceOn() {
   if (!_aiActive) { _consoleErr('Start VECTOR first (type VECTOR).'); return; }
@@ -554,17 +534,17 @@ function _aiVoiceOn() {
     const transcript = result[0].transcript.trim();
     if (!transcript) return;
 
-    // Allow saying "ai voice off" (or close variants) to stop voice mode
+    // 'ai voice off' or close variants stop voice mode
     if (/^(ai\s+)?voice\s+off$/i.test(transcript) || /^stop\s+(voice|listening)$/i.test(transcript)) {
       _aiVoiceOff();
       return;
     }
 
-    // Wake-word gate: only respond to speech that starts with "vector" (or "hey vector")
+    // Wake word: only commands starting with 'vector' count.
     const wakeMatch = transcript.match(/^(?:hey\s+)?vector[,.]?\s*/i);
-    if (!wakeMatch) return; // not addressed to VECTOR — ignore
+    if (!wakeMatch) return;  // not for VECTOR
     const command = transcript.slice(wakeMatch[0].length).trim();
-    if (!command) return; // just the wake word with nothing after it
+    if (!command) return;  // wake word only
 
     if (_aiVoiceBusy) {
       _consolePrint('[Voice] Still processing previous request — skipped: "' + command + '"', '#9966cc');
@@ -578,9 +558,8 @@ function _aiVoiceOn() {
     _aiSend(command, _aiVoiceAbortCtrl.signal).then(reply => {
       _aiVoiceBusy = false;
       _aiVoiceAbortCtrl = null;
-      if (_aiVoiceGen !== myGen) return; // voice was turned off — discard
+      if (_aiVoiceGen !== myGen) return; // voice was turned off, discard
       _aiRender(reply, thinkEl);
-      // Voice stays on — listening for next "Vector ..." command
     });
   };
 
@@ -590,7 +569,7 @@ function _aiVoiceOn() {
     if (e.error === 'not-allowed') { _aiVoiceOff(); return; }
   };
 
-  // Restart automatically when the browser ends the session (timeout, etc.)
+  // Browsers end recognition on their own, so restart it.
   _aiVoiceRecog.onend = function() {
     if (_aiVoiceActive) {
       try { _aiVoiceRecog.start(); } catch (_) {}
@@ -613,7 +592,7 @@ function _aiVoiceOn() {
 function _aiVoiceOff() {
   if (!_aiVoiceActive) { _consolePrint('[Voice] Voice mode is not active.', '#9966cc'); return; }
   _aiVoiceActive = false;
-  _aiVoiceGen++;           // invalidate any in-flight voice responses
+  _aiVoiceGen++;  // drop in-flight voice responses
   _aiVoiceBusy   = false;
   if (_aiVoiceAbortCtrl) {
     try { _aiVoiceAbortCtrl.abort(); } catch (_) {}
@@ -635,9 +614,6 @@ function _aiVoiceUpdateTitle() {
   }
 }
 
-// ============================================================
-// ACTIVATE / DEACTIVATE
-// ============================================================
 
 async function _aiOn() {
   if (typeof hasPermission === 'function' && !hasPermission('dev')) {
@@ -677,7 +653,6 @@ async function _aiOn() {
   _aiActive = true;
   _aiHistory = [];
 
-  // Visual theme
   const badge = document.getElementById('gameConsoleRoleBadge');
   const title = document.getElementById('gameConsoleTitle');
   if (badge) {
@@ -705,13 +680,10 @@ function _aiOff() {
   _aiModel   = null;
   _aiHistory = [];
   _consoleAppend('[AI]', 'AI mode off.', '#9966cc');
-  // Restore console chrome by re-running the open routine
   if (typeof openGameConsole === 'function') openGameConsole();
 }
 
-// ============================================================
-// PATCH gameConsoleRun — intercept input when AI mode is on
-// ============================================================
+// Intercepts input while AI mode is on (patches gameConsoleRun).
 
 (function () {
   const _origRun = window.gameConsoleRun;
@@ -723,7 +695,6 @@ function _aiOff() {
     const raw    = inp.value.trim();
     const cmdUp  = raw.toUpperCase().trim();
 
-    // Always let AI control commands through to _consoleExec
     if (cmdUp === 'VECTOR' || cmdUp === 'AI OFF' || cmdUp === 'AI STATUS' ||
         cmdUp.startsWith('AI MODEL ') || cmdUp.startsWith('AI MODEL') ||
         cmdUp === 'AI EXIT' || cmdUp === 'AI VOICE ON' || cmdUp === 'AI VOICE OFF' ||
@@ -737,7 +708,6 @@ function _aiOff() {
       return;
     }
 
-    // In AI mode: clear input and route to model
     if (!raw) return;
     inp.value = '';
     _consoleAppend('You', raw, '#ffffff');
@@ -746,9 +716,7 @@ function _aiOff() {
   };
 })();
 
-// ============================================================
-// PATCH _consoleExec — add AI ON / AI OFF / AI STATUS / AI MODEL
-// ============================================================
+// Adds AI ON/OFF/STATUS/MODEL to _consoleExec.
 
 (function () {
   const _origExec = window._consoleExec;
@@ -780,7 +748,6 @@ function _aiOff() {
     if (cmdUp === 'AI VOICE ON') { _aiVoiceOn(); return; }
     if (cmdUp === 'AI VOICE OFF') { _aiVoiceOff(); return; }
 
-    // Append AI commands to the HELP output
     if (cmdUp === 'HELP') {
       _origExec(raw);
       _consolePrint('── VECTOR (Ollama AI) ────────────────────────────────────', '#556688');

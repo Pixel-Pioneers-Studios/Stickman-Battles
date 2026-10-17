@@ -1,18 +1,8 @@
 'use strict';
-// js/story/levels/ch77.js — Chapter 77 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch77.js: chapter 77 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 77 — What Was Lost (scavenge, 4 shards)
-// Remnant space: what a dimension looks like after its wall fails. The ground
-// is islands torn out of one lost world — a city block with its lamp still
-// on, the ruin of a colonnaded hall, a stand of forest, more ruin — drifting
-// apart with short gaps between them. The colour is draining out of all of
-// it from the edges in: "it erases the idea that they were ever worth
-// protecting." Behind, the failed wall itself hangs in shards of gold-rimmed
-// glass. Shards sit where the world left them: the collapsed wall fragment
-// in the street, the dimension echo on a fallen wall block in the hall, the
-// trace among the trees, the residue on a toppled column drum.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch77 (What Was Lost): scavenge 4 shards across islands torn from a failed dimension.
+// Shards sit where the wall fragments land: street, hall, trees, column.
 (function () {
   const ISLES = [[0, 900, 440, 'city'], [960, 1500, 430, 'ruins'], [1540, 2270, 420, 'forest'], [2330, 2900, 435, 'ruins'], [2960, 3200, 440, 'void']];
   const BLOCKS = [[1050, 375, 100], [2550, 375, 110]];          // under the shards at 1100 / 2600

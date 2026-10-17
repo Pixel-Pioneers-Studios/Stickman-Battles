@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch69.js — Chapter 69 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch69.js: chapter 69 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 69 — What the Lab Taught (walk → duel vs two Lockdown Enforcers)
-// The exit corridor, back out through the facility during the lockdown sweep.
-// The walk passes the cell block again — the terminal said nineteen subjects,
-// the doors say seventeen; two numbers simply aren't there. "This place still
-// works": stasis columns hum behind a glass wall. At the midpoint the two
-// architectures of the facility meet — Axiom's concrete and the older
-// section's green enamel pressed together along a jagged seam that glows —
-// what Calix means by a seam, built into the walls. Past it, the stairwell
-// climbs toward the surface and daylight. Lockdown shutters (half-dropped)
-// are the climbs; the cache shafts are floor grates.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch69 (What the Lab Taught): walk, then duel two Lockdown Enforcers. Shutters are the climbs; cache shafts are floor grates.
 (function () {
   const G = 440, SEAM = 3000, EXIT = 5500;
   const SHUT = [[420, 350, 100], [540, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -44,7 +33,7 @@
       for (let b = 0; b < 5; b++) { ctx.fillStyle = '#5a5c60'; ctx.fillRect(cx - 30 + b * 14, G - 160, 3, 160); }
       ctx.fillStyle = '#d8b030'; ctx.font = '9px monospace'; ctx.textAlign = 'center'; ctx.fillText(String(CELL_NUMS[i]).padStart(2, '0'), cx, G - 176);
     }
-    // Stasis columns humming behind a glass wall — "this place still works"
+    // Stasis columns behind a glass wall
     if (_slVisible(v, SEAM + 500, SEAM + 1900)) {
       ctx.fillStyle = 'rgba(160,220,200,0.08)'; ctx.fillRect(SEAM + 500, 110, 1400, 330);
       for (let k = 0; k < 7; k++) {
@@ -54,7 +43,7 @@
       }
       ctx.strokeStyle = 'rgba(200,240,230,0.3)'; ctx.lineWidth = 3; ctx.strokeRect(SEAM + 500, 110, 1400, 330);
     }
-    // The seam: two architectures pressed together, glowing where they meet
+    // Seam where the two architectures meet
     if (_slVisible(v, SEAM - 400, SEAM + 400)) {
       const pts = _slJag(SEAM, 60, SEAM, G, 14, 26, 69);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';

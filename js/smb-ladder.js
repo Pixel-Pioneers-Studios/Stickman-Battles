@@ -1,19 +1,10 @@
 'use strict';
-// smb-ladder.js — Fight Ladder: a run of 1v1 bot fights that get harder rung by rung
-// -------------------------------------------------------
-// Each rung is a fixed opponent (weapon, class, difficulty, arena). A win pays
-// coins and unlocks the next rung; a loss offers a retry. Rung 0 doubles as the
-// first-run fight: smb-tutorial.js layers its control prompts over it.
-//
-// A ladder match never reaches endGame(): checkDeaths() hands the final KO to
-// ladderOnOut(), and the result card below replaces the game-over screen.
-//
-// Depends on: smb-globals.js, smb-menu-ui.js (selectMode, awardCoins),
-//             smb-menu-spawn.js (startGame)
-// Ticked by:  smb-loop-core.js  → updateLadder()
-// Hooked by:  smb-drawing-arenas.js checkDeaths() → ladderOnOut(p)
-//             smb-menu-startcore.js reads window._ladderNext for the match setup
-// -------------------------------------------------------
+// Fight Ladder: 1v1 bot fights, harder each rung. A win pays coins and unlocks
+// the next rung. Rung 0 is also the first-run fight (smb-tutorial.js adds prompts).
+// Ladder matches never reach endGame(): checkDeaths() calls ladderOnOut() and the
+// result card replaces the game-over screen.
+// Depends on: smb-globals.js, smb-menu-ui.js, smb-menu-spawn.js.
+// Ticked by smb-loop-core.js (updateLadder). smb-menu-startcore.js reads window._ladderNext.
 
 const LADDER_RUNGS = [
   { name: 'Sparring Partner', weapon: 'sword',  cls: 'none',      diff: 'easy',   arena: 'colosseum', lives: 2 },
@@ -37,7 +28,7 @@ let _ladderOver    = false; // the deciding KO has landed
 let _ladderWon     = false;
 let _ladderFirstRun = false; // the running match is the first-run fight
 let _ladderShownAt = 0;     // result card open time, for the input guard
-let _ladderWeekly  = false; // the running match is a Weekly Challenge stage (smb-weekly.js)
+let _ladderWeekly  = false; // Weekly Challenge stage (smb-weekly.js)
 let _ladderT0      = 0;     // fight start, for the weekly run clock
 
 /** Rungs beaten so far, 0 to LADDER_RUNGS.length. */
@@ -189,7 +180,6 @@ function _ladderFinish() {
   _showLadderResult(won, rung, coins, weekly);
 }
 
-// ── Result card ──────────────────────────────────────────────────────────────
 
 function _showLadderResult(won, rung, coins, weekly) {
   const el = document.getElementById('ladderResult');
@@ -257,9 +247,8 @@ function ladderToMenu() {
   if (typeof refreshHomeHub === 'function') refreshHomeHub();
 }
 
-// Enter continues, Escape goes to the menu. Space is deliberately not bound:
-// it is the attack key, and a player still mashing it through the KO would skip
-// the card. Input in the first half-second is ignored for the same reason.
+// Enter continues, Escape goes to the menu. Space is not bound: it is the attack key,
+// and mashing it through the KO would skip the card.
 window.addEventListener('keydown', function (e) {
   if (!_ladderResultOpen()) return;
   if (performance.now() - _ladderShownAt < 500) return;
@@ -267,12 +256,70 @@ window.addEventListener('keydown', function (e) {
   else if (e.key === 'Escape') { e.preventDefault(); ladderToMenu(); }
 });
 
-// ── Home hub card ────────────────────────────────────────────────────────────
+
+/** List every rung; the ones reached so far can be fought again. */
+function openLadderRungs() {
+  const el = document.getElementById('ladderRungs'), list = document.getElementById('ladderRungsList');
+  if (!el || !list) return;
+  const cleared = getLadderCleared();
+  list.textContent = '';
+  LADDER_RUNGS.forEach(function (def, i) {
+    const open = i <= cleared;
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'b b-secondary';
+    row.disabled = !open;
+    row.style.cssText = 'display:flex;justify-content:space-between;gap:12px;align-items:center;padding:9px 14px;text-align:left;' + (open ? '' : 'opacity:0.4;cursor:default;');
+    const name = document.createElement('span');
+    name.textContent = (i + 1) + '. ' + def.name;
+    const info = document.createElement('span');
+    info.style.cssText = 'color:var(--ui-muted);font-size:0.78rem;font-weight:600;';
+    info.textContent = (LADDER_DIFF_LABEL[def.diff] || def.diff) + ' · ' + _ladderWeaponName(def.weapon) + (i < cleared ? ' · beaten' : open ? '' : ' · locked');
+    row.appendChild(name); row.appendChild(info);
+    if (open) row.onclick = function () { closeLadderRungs(); startLadderRung(i); };
+    list.appendChild(row);
+  });
+  el.style.display = 'flex';
+}
+
+function closeLadderRungs() {
+  const el = document.getElementById('ladderRungs');
+  if (el) el.style.display = 'none';
+}
+
+window.addEventListener('keydown', function (e) {
+  const el = document.getElementById('ladderRungs');
+  if (e.key === 'Escape' && el && el.style.display !== 'none') { e.preventDefault(); closeLadderRungs(); }
+});
+
+
+/**
+ * Draw the hero card's numbered tile row: `cleared` tiles beaten, the next one
+ * lit, the rest chained. `onPick(i)` makes the reached tiles clickable.
+ */
+function hubRungTiles(total, cleared, onPick) {
+  const row = document.getElementById('hubRungs');
+  if (!row) return;
+  row.textContent = '';
+  for (let i = 0; i < total; i++) {
+    const open = i <= cleared;
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'hub-rung' + (i === cleared ? ' is-next' : open ? '' : ' is-locked') + (onPick ? '' : ' is-static');
+    t.textContent = String(i + 1);
+    t.disabled = !open || !onPick;
+    if (open && onPick) t.onclick = function () { onPick(i); };
+    row.appendChild(t);
+  }
+}
 
 /** Fill the ladder hero card on the home hub. Called from refreshHomeHub(). */
 function refreshLadderCard() {
   const titleEl = document.getElementById('hubLadderTitle');
   if (!titleEl) return;
+  // The list is the only way back to beaten rungs.
+  const rungsBtn = document.getElementById('hubLadderRungsBtn');
+  if (rungsBtn) rungsBtn.style.display = getLadderCleared() > 0 ? '' : 'none';
   // A beaten ladder has nothing left to show: the card becomes the Weekly Challenge.
   if (typeof WeeklyChallenge !== 'undefined' && WeeklyChallenge.unlocked()) { WeeklyChallenge.refreshCard(); return; }
   const n = getLadderProgress();
@@ -285,4 +332,5 @@ function refreshLadderCard() {
   if (barEl) barEl.style.width = Math.round((cleared / LADDER_RUNGS.length) * 100) + '%';
   const pctEl = document.getElementById('hubLadderCount');
   if (pctEl) pctEl.textContent = `${cleared} / ${LADDER_RUNGS.length}`;
+  hubRungTiles(LADDER_RUNGS.length, cleared, function (i) { startLadderRung(i); });
 }

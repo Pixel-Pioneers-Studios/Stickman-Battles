@@ -1,24 +1,16 @@
 'use strict';
-// smb-finisher-engine — Depends on: smb-finisher-helpers.js
+// smb-finisher-engine: Depends on: smb-finisher-helpers.js
 
 
-// ============================================================
-// FINISHER PICKER
-// ============================================================
 function _pickFinisher(attacker) {
-  // A classless entity (Sovereign) reaches an authored class finisher through
-  // `_finisherKey` — the same escape hatch DomainManager uses via `_domainKey`.
-  // CLASS_FINISHERS.nullblade was written for him and could never fire: the
-  // lookup below needs a charClass, and his is 'none', so both haW and haC
-  // missed and every one of his kills fell through without a finisher while
-  // the player got FIN_HEROS_TRIUMPH on all ten of theirs.
+  // Classless entities (Sovereign) reach class finishers via _finisherKey. Without it their kills got no finisher.
   const _fk = attacker._finisherKey;
   if (_fk && CLASS_FINISHERS[_fk]) return { key: 'class_' + _fk, def: CLASS_FINISHERS[_fk] };
 
   const wKey = attacker.weaponKey;
   const cKey = attacker.charClass;
   const haW  = !!(WEAPON_FINISHERS[wKey]);
-  // Class finisher only fires if the class has no locked weapon OR the attacker is still using it
+  // Class finisher only fires if the class has no locked weapon, or the attacker still uses it.
   const classLockedWeapon = cKey && typeof CLASSES !== 'undefined' && CLASSES[cKey] && CLASSES[cKey].weapon;
   const classWeaponMatch  = !classLockedWeapon || attacker.weaponKey === classLockedWeapon;
   const haC  = cKey && cKey !== 'none' && classWeaponMatch && !!(CLASS_FINISHERS[cKey]);
@@ -27,7 +19,7 @@ function _pickFinisher(attacker) {
   if ( haW && !haC) return { key: wKey,          def: WEAPON_FINISHERS[wKey] };
   if (!haW &&  haC) return { key: 'class_'+cKey, def: CLASS_FINISHERS[cKey]  };
 
-  // Both — weighted 50/50 with consecutive-skip bonus (+10% per skip, capped 10/90)
+  // Both: weighted 50/50 with consecutive-skip bonus (+10% per skip, capped 10/90)
   const wSkips = attacker._finSkipW || 0;
   const cSkips = attacker._finSkipC || 0;
   const wChance = Math.max(0.1, Math.min(0.9, 0.5 + (cSkips - wSkips) * 0.1));
@@ -42,28 +34,21 @@ function _pickFinisher(attacker) {
   }
 }
 
-// ── Per-character boss finisher pools ────────────────────────
 const _TF_KILL_POOL      = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_TF_ERASURE, FIN_TF_PHASE_SHIFT];
 const _CREATOR_KILL_POOL = [FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS, FIN_CR_CODE_DELETION];
 const _YETI_KILL_POOL    = [FIN_YETI_AVALANCHE, FIN_YETI_POLAR_SLAM, FIN_YETI_ICE_BURIAL];
 const _BEAST_KILL_POOL   = [FIN_BEAST_FERAL_TACKLE, FIN_BEAST_NATURE_DEVOUR, FIN_BEAST_SAVAGE_LAUNCH];
-// Legacy fallback
 const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS];
 
-// ============================================================
-// SHARED PRESENTATION LAYER
-// ============================================================
-// Every finisher def may opt into these; all fields are optional.
-//   def.face   — false to disable auto-facing, or (att,tgt,timer,data) => [attFacing, tgtFacing]
+//   def.face  : false to disable auto-facing, or (att,tgt,timer,data) => [attFacing, tgtFacing]
 //                (return null/undefined for either slot to fall back to the default)
-//   def.swing  — {at, dur} or an array of them: render-only weapon swing windows on the
+//   def.swing : {at, dur} or an array of them: render-only weapon swing windows on the
 //                attacker. Drives the real WEAPON_SWINGS grammar, so the weapon actually
 //                arcs (and leaves its swing-trail ribbon) instead of sitting in idle pose.
-//   def.impact — frame from which the target reads as hurt (grimace + hurt pose).
-//   def.approach — {at, dur, gap}: walk the attacker in to `gap` px from the target's
+//   def.impact: frame from which the target reads as hurt (grimace + hurt pose).
+//   def.approach: {at, dur, gap}: walk the attacker in to `gap` px from the target's
 //                near edge. For melee finishers whose choreography never closed the
 //                distance, so the killing blow swung through empty air.
-// ============================================================
 
 const FIN_ANTIC_FRAMES = 5;    // wind-up frames inserted before each def.swing
 const FIN_ANTIC_AMOUNT = 0.62; // radians of counter-motion at the peak
@@ -73,16 +58,12 @@ const FIN_HEAL = 25;             // paid to a non-boss attacker when the finishe
 const FIN_BRACE_FRAMES = 4;
 const FIN_HURT_FRAMES  = 10;
 const FIN_SQUASH_FRAMES = 7;
-// Limb smear during a finisher swing. Fighter.draw() only smears when the state
-// is 'attacking'/'ragdoll'/spinning, and _finApplyPose deliberately never writes
-// attackTimer (that would re-arm the melee hit-scan and let a finisher damage
-// bystanders) — so the biggest swing in the game was the one swing that never
-// trailed. These drive an opt-out smear over every def.swing window.
+// Limb smear for finisher swings. Fighter.draw() only smears in 'attacking'/'ragdoll', and finisher poses never set attackTimer
+// (that re-arms the melee hit-scan and lets a finisher hit bystanders). So these drive an opt-out smear over every def.swing.
 const FIN_SMEAR_SAMPLES = 5;
 const FIN_SMEAR_ALPHA   = 0.30;
 
-// Applied after def.update so it wins over the def's own positioning. Only for
-// defs that don't already lunge — never add this on top of an authored dash.
+// Runs after def.update. Skip defs that already lunge, or the two stack.
 function _finApplyApproach(att, tgt, def, timer, data) {
   const ap = def.approach;
   if (!ap) return;
@@ -92,7 +73,7 @@ function _finApplyApproach(att, tgt, def, timer, data) {
     const gap = (ap.gap === undefined) ? 28 : ap.gap;
     if (data._apFromX === undefined) data._apFromX = att.x;
     let to = dir > 0 ? tgt.x - att.w - gap : tgt.x + tgt.w + gap;
-    // Never walk backwards — if we already started inside that gap, stay put
+    // Never walk backwards: if we already started inside that gap, stay put
     if ((dir > 0 && to < data._apFromX) || (dir < 0 && to > data._apFromX)) to = data._apFromX;
     data._apToX = to;
   }
@@ -100,9 +81,7 @@ function _finApplyApproach(att, tgt, def, timer, data) {
   att.x = data._apFromX + (data._apToX - data._apFromX) * _finEaseOut(p);
 }
 
-// Fighters must always face each other. Without this the attacker keeps whatever
-// facing it had at kill time — commonly its back to the target, with the weapon
-// swinging out the wrong side and clipping through the victim.
+// Fighters must face each other, or the attacker swings its weapon out the wrong side through the victim.
 function _finApplyFacing(att, tgt, def, timer, data) {
   if (def.face === false) return;
   let fa = null, ft = null;
@@ -120,8 +99,7 @@ function _finApplyFacing(att, tgt, def, timer, data) {
   if (ft) tgt.facing = ft;
 }
 
-// Render-only swing pose. Never writes attackTimer — that would re-arm the melee
-// hit-scan in Fighter.update() and let a finisher damage bystanders.
+// Render-only swing pose. Never writes attackTimer, which would re-arm the melee hit-scan.
 function _finApplyPose(att, tgt, def, timer) {
   att._finPoseP = null;
   att._finAnticip = 0;
@@ -131,8 +109,7 @@ function _finApplyPose(att, tgt, def, timer) {
     for (const w of list) {
       const dur = w.dur || 12;
       if (timer >= w.at && timer < w.at + dur) { att._finPoseP = (timer - w.at) / dur; break; }
-      // swingPose() clamps progress to 0..1, so wind-up cannot be expressed
-      // through _finPoseP — it needs its own channel.
+      // swingPose() clamps to 0..1, so wind-up needs its own channel, not _finPoseP.
       const anT = (w.antic === undefined) ? FIN_ANTIC_FRAMES : w.antic;
       if (anT > 0 && timer >= w.at - anT && timer < w.at) {
         att._finPoseP   = 0;
@@ -147,13 +124,7 @@ function _finApplyPose(att, tgt, def, timer) {
   _finApplyDeform(att, tgt, def, timer);
 }
 
-// Which smear window, if any, covers this frame.
-//
-// Defaults to every def.swing window so all existing defs gain smear without
-// being edited — the same opt-out shape as def.holds defaulting from def.impact.
-// `def.smear` overrides: pass an array of {at, dur, samples, alpha} to place the
-// smear somewhere other than the swing, or `def.smear = false` to disable it for
-// a finisher whose presentation does not want trails (a slow crush, a hold).
+// Which smear window covers this frame. Defaults to every def.swing window.
 function _finSmearAt(def, timer) {
   if (def.smear === false) return null;
   const src = def.smear
@@ -171,9 +142,7 @@ function _finSmearAt(def, timer) {
   return null;
 }
 
-// Shape deformation across the beats. Fighter.draw() has fixed bone lengths for
-// every gameplay reason, so this is the only place the finisher rig is allowed
-// to stretch and compress.
+// Finisher-only shape stretch across beats. Fighter.draw() bone lengths are fixed for gameplay.
 function _finApplyDeform(att, tgt, def, timer) {
   att._finStretch = 1;
   att._finSquash  = null;
@@ -198,8 +167,7 @@ function _finApplyDeform(att, tgt, def, timer) {
   }
 }
 
-// Victim beat track. Without this the target's entire performance is a single
-// 'hurt' pose held from def.impact to the end of the sequence.
+// Victim beat track. Without it the victim holds one 'hurt' pose to the end.
 function _finVictimBeat(def, timer) {
   const imp = def.impact;
   if (!imp) return null;
@@ -209,8 +177,7 @@ function _finVictimBeat(def, timer) {
   return 'ragdoll';
 }
 
-// Impact freezes. Defaults to one hold on def.impact so every existing def gains
-// a beat without being edited; def.holds overrides.
+// Impact freeze, defaulting to def.impact. def.holds overrides.
 function _finApplyHolds(att, tgt, def, timer, data) {
   const list = def.holds || (def.impact ? [{ at: def.impact, frames: FIN_HOLD_FRAMES }] : null);
   if (!list) return;
@@ -242,24 +209,16 @@ function _finClearPose(f) {
   f._hideWeapon = false;
 }
 
-// ============================================================
-// TRIGGER
-// ============================================================
 function triggerFinisher(attacker, target) {
   if (!settings.finishers) return false;
   if (activeFinisher)      return false;
-  // Never start a finisher while a cinematic owns the stage: it would replace
-  // activeCinematic, orphan that cinematic's onEnd, and strand its combat lock.
+  // Not during a cinematic: it would replace activeCinematic and orphan its onEnd.
   if (typeof activeCinematic !== 'undefined' && activeCinematic) return false;
   if (typeof isCinematic !== 'undefined' && isCinematic) return false;
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode || window._pubHubActive) return false;
-  // Battle Royale: only finishers the local player lands or is hit by, and the
-  // world does NOT freeze — a frozen 100-player match with a closing storm got
-  // you killed for winning a fight. Instead the two fighters step out of the
-  // match: both are invulnerable, bots stop targeting them, and the rest of the
-  // field plays on. Nobody else's screen shows it.
+  // Battle Royale: only finishers the local player is in. The world doesn't freeze. The two fighters step out of the match (invulnerable, bots ignore them).
   const _world = gameMode === 'battleroyale';
   if (_world) {
     if (activeWorldFinisher) return false;
@@ -270,13 +229,11 @@ function triggerFinisher(attacker, target) {
   let def = null;
 
   if ((attacker.isYeti || attacker.isBeast) && !attacker.isBoss && !target.isBoss) {
-    // Yeti and ForestBeast are not isBoss, so they used to fall into the PvP
-    // branch and play their carried weapon's finisher (hammer / axe) — their
-    // own authored pools below were unreachable.
+    // Yeti and ForestBeast aren't isBoss, so they need their own pool check here.
     const _pool = attacker.isYeti ? _YETI_KILL_POOL : _BEAST_KILL_POOL;
     def = _pool[Math.floor(Math.random() * _pool.length)];
   } else if (attacker.isBoss && !target.isBoss) {
-    // Boss kills player — pick from character-specific pool
+    // Boss kills player: pick from character-specific pool
     let _pool;
     if (attacker.isTrueForm)           _pool = _TF_KILL_POOL;
     else if (attacker.isYeti)          _pool = _YETI_KILL_POOL;
@@ -301,12 +258,11 @@ function triggerFinisher(attacker, target) {
 
   if (!def) return false;
 
-  // Freeze target alive
   target.health    = 1;
   target.invincible = 9999;
   target.vx = 0; target.vy = 0;
   attacker.vx = 0; attacker.vy = 0;
-  // The freeze-alive lock is not real i-frames — don't render it as the blink flicker
+  // Freeze-alive is not i-frames, so don't render it as the blink.
   attacker._finNoBlink = true; target._finNoBlink = true;
   attacker._finPoseP = null;   target._finPoseP = null;
   attacker._finPoseState = null; target._finPoseState = null;
@@ -329,8 +285,7 @@ function triggerFinisher(attacker, target) {
       def.setup(attacker, target, data);
       if (_keep) _finRestoreTime(_keep);
     } catch (e) {
-      // Roll back the freeze-alive lock — otherwise the target is stuck at
-      // health=1/invincible=9999 with no finisher driving completion.
+      // Roll back the freeze lock, or the target stays at 1 HP and invincible.
       console.error('[finisher] setup threw — aborting finisher:', e);
       if (_keep) _finRestoreTime(_keep);
       attacker._finWorldLock = false; target._finWorldLock = false;
@@ -365,14 +320,14 @@ function triggerFinisher(attacker, target) {
   isCinematic = true;
   if (typeof setCombatLock === 'function') setCombatLock('finisher');
 
-  // Completely stop the game world — physics, particles, everything freezes
+  // Freeze the world: physics, particles, everything.
   slowMotion = 0;
 
   _finCountAchievement(attacker);
   return true;
 }
 
-// Achievement tracking — only credit the human player's finishers
+// Achievement tracking: only credit the human player's finishers
 function _finCountAchievement(attacker) {
   if (!attacker.isAI && !attacker.isBoss && typeof unlockAchievement === 'function') {
     _achStats.finisherCount = (_achStats.finisherCount || 0) + 1;
@@ -381,20 +336,16 @@ function _finCountAchievement(attacker) {
   }
 }
 
-// A world finisher must not touch the match clock: every def drives slowMotion
-// and hit-stop through CinCam for the frozen-stage version.
+// World finishers leave the match clock alone. Defs drive slowMotion and hit-stop via CinCam.
 function _finSaveTime() { return { sm: slowMotion, hs: hitStopFrames }; }
 function _finRestoreTime(k) { slowMotion = k.sm; hitStopFrames = k.hs; }
 
-// ============================================================
 // UPDATE (called each frame between player update + draw)
-// ============================================================
 function updateFinisher() {
   if (activeWorldFinisher) _finTickWorld(activeWorldFinisher);
   if (!activeFinisher) return;
   const { attacker, target, def, data } = activeFinisher;
 
-  // Keep target frozen
   target.invincible = Math.max(target.invincible, 2);
   // Keep attacker from drifting under gravity
   attacker.invincible = Math.max(attacker.invincible, 2);
@@ -404,12 +355,9 @@ function updateFinisher() {
     CinFX.motionTrailOn(attacker, def.accentColor || attacker.color || '#ffffff');
   }
 
-  // NOTE: no auto name card here. Every finisher def draws its own title via
-  // _finTitle() in its draw(), so slamming a CinFX.nameCard in as well put the
-  // finisher's name on screen twice, in two different styles, at the same time.
+// No auto name card: every def draws its own title via _finTitle().
 
-  // A throwing finisher must never stall the timer at slowMotion=0 forever —
-  // force-complete so the normal end path below restores camera/time/locks.
+// Force-complete if the timer stalls, so camera, time and locks get restored.
   if (def.update) {
     try {
       def.update(attacker, target, activeFinisher.timer, data);
@@ -428,10 +376,8 @@ function updateFinisher() {
   activeFinisher.timer++;
 
   if (activeFinisher.timer >= activeFinisher.totalDuration) {
-    // Clean up motion trail on attacker
     if (typeof CinFX !== 'undefined') CinFX.motionTrailOff(activeFinisher.attacker);
     _finClearPose(attacker); _finClearPose(target);
-    // Restore camera / time
     CinCam.restore();
     slowMotion = 1.0; // resume game world
     // End sentinel so processInput + AI come back
@@ -440,16 +386,10 @@ function updateFinisher() {
     }
     isCinematic = false;
     if (typeof clearCombatLock === 'function') clearCombatLock('finisher');
-    // Recovery i-frames for the attacker. A finisher locks you in place for its
-    // whole duration and hands control back mid-crowd; without this, a player who
-    // executes one enemy while swarmed eats free hits on the frame the lock ends
-    // and is punished for using the move. Short enough not to be an escape tool:
-    // it covers the hand-back, not a reposition.
+    // Recovery i-frames for the attacker. The finisher locks you in place, so a swarmed player would take free hits at the hand-back.
     if (attacker && attacker.health > 0) {
       attacker.invincible = Math.max(attacker.invincible || 0, FIN_RECOVER_IFRAMES);
-      // Finishing someone pays a heal, on completion only (an aborted setup pays
-      // nothing). Bosses don't collect, same as the super heal, and neither do
-      // story enemies: finishing the player is already their reward.
+      // Heal on completion only. Bosses and story enemies don't collect.
       const _storyFoe = typeof storyModeActive !== 'undefined' && storyModeActive &&
         attacker !== players[0] && !areAlliedEntities(attacker, players[0]);
       const _finHeal = (attacker.isBoss || _storyFoe) ? 0 : Math.min(FIN_HEAL, (attacker.maxHealth || 0) - attacker.health);
@@ -468,9 +408,7 @@ function updateFinisher() {
   }
 }
 
-// Battle Royale finisher tick. Same choreography as updateFinisher, but the
-// match clock, input and AI of everyone else are left alone; only the two
-// locked fighters are driven (Fighter.update skips them while _finWorldLock).
+// Battle Royale tick: same choreography as updateFinisher, but only the two locked fighters move.
 function _finTickWorld(fin) {
   const { attacker, target, def, data } = fin;
   const gone = f => !f || (players.indexOf(f) === -1 && (typeof minions === 'undefined' || minions.indexOf(f) === -1));
@@ -502,8 +440,7 @@ function _finEndWorld(fin, completed) {
   attacker._finWorldLock = false; target._finWorldLock = false;
   activeWorldFinisher = null;
   if (!completed) {
-    // Aborted (match ended, a fighter left the arrays): the target was only
-    // ever alive because of the lock, so let it die without a heal.
+    // Aborted: the target was only alive because of the lock, so let it die without a heal.
     target.health = 0; target.invincible = 0;
     return;
   }
@@ -520,15 +457,12 @@ function _finEndWorld(fin, completed) {
   }
   target.health = 0;
   target.invincible = 0;
-  // The killing blow went through dealDamage with the target held at 1 HP, so
-  // the elimination was never credited. The heal is already paid above.
+// Killing blow ran through dealDamage at 1 HP, so the elimination wasn't credited. The heal is paid above.
   target._brFinKill = true;
   if (typeof _brCreditElimination === 'function') _brCreditElimination(attacker, target);
 }
 
-// ============================================================
 // DRAW (called in screen-space after drawAchievementPopups)
-// ============================================================
 function drawFinisher(ctx) {
   if (activeWorldFinisher) _finDraw(ctx, activeWorldFinisher);
   if (activeFinisher) _finDraw(ctx, activeFinisher);

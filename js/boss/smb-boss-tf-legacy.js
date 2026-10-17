@@ -1,21 +1,13 @@
 'use strict';
-// smb-boss-tf-legacy.js — DELETED cinematic stubs (dead code kept for reference)
-// Depends on: smb-globals.js, smb-boss-phase-cin.js
-// Must load AFTER smb-boss-phase-cin.js, BEFORE smb-boss-tf-attacks1.js
+// Legacy cinematic stubs and triggerPhaseTransition.
+// Depends on smb-globals.js and smb-boss-phase-cin.js. Load after smb-boss-phase-cin.js, before smb-boss-tf-attacks1.js.
 //
-// !! CAUTION: Do NOT delete this file !!
-// triggerPhaseTransition is the canonical live version used by:
-//   smb-boss.js, smb-trueform.js, smb-enemies-core.js, smb-enemies-creatures.js
-// (The version in smb-boss-tf-attacks1.js overrides it at runtime — both are identical
-//  intentionally so neither must be removed alone.)
+// Do not delete. triggerPhaseTransition is live in smb-boss.js, smb-trueform.js,
+// smb-enemies-core.js and smb-enemies-creatures.js. The copy in smb-boss-tf-attacks1.js
+// overrides it at runtime. Both are identical, so removing either one alone breaks things.
 
-// ============================================================
-// MID-FIGHT CINEMATICS — see js/smc-cinematics.js for all 6 factory fns
-// ============================================================
-// _makeBossWarning75Cinematic, _makeBossRage40Cinematic, _makeBossDesp10Cinematic,
-// _makeTFEntryCinematic, _makeTFReality50Cinematic, _makeTFDesp15Cinematic
-// are all defined in smc-cinematics.js using the cinScript() API.
-/* DELETED OLD IMPLEMENTATIONS BELOW — kept as dead code marker only */
+// Mid-fight cinematic factories (_makeBossWarning75Cinematic and friends) use cinScript().
+/* Old implementations below. */
 function _DELETED_makeBossWarning75Cinematic(boss) {
   return {
     durationFrames: 180, // 3 s
@@ -74,12 +66,9 @@ function _DELETED_makeBossRage40Cinematic(boss) {
     _throwTarget: null,
     _phaseLabel: { text: '— ENOUGH. —', color: '#ff0044' },
     update(t) {
-      // Phase 1 (0–0.4s): freeze into the moment
-      // Phase 2 (0.4–1.1s): speed up so the throw VISUALLY travels across the screen
-      // Phase 3 (1.1–1.6s): freeze for impact / slam
-      // Phase 4 (1.6–3.5s): slow crawl for dialogue, then ramp back
+      // Freeze, speed up so the throw is visible, freeze on the slam, then crawl for dialogue.
       if      (t < 0.4)  slowMotion = Math.max(0.05, 1 - t * 2.4);   // ramp down to near-freeze
-      else if (t < 1.1)  slowMotion = Math.min(0.55, (t - 0.4) * 0.8); // ramp UP — throw is visible
+      else if (t < 1.1)  slowMotion = Math.min(0.55, (t - 0.4) * 0.8); // ramp UP, throw is visible
       else if (t < 1.6)  slowMotion = Math.max(0.05, 0.55 - (t - 1.1) * 1.1); // freeze for slam impact
       else if (t > 3.7)  slowMotion = Math.min(1.0, (t - 3.7) / 0.3);
       else               slowMotion = 0.06;                              // crawl for dialogue
@@ -87,7 +76,7 @@ function _DELETED_makeBossRage40Cinematic(boss) {
       cinematicCamOverride = t < 3.9;
       if (cinematicCamOverride && boss) {
         const trackTarget = this._throwTarget || players.find(p => !p.isBoss && p.health > 0);
-        // During throw (0.4–1.1s) follow the flying player; otherwise focus between boss & player
+        // Follow the flying player during the throw, otherwise frame boss and player.
         const focusX = (t >= 0.4 && t < 1.2 && trackTarget)
           ? trackTarget.cx()
           : trackTarget ? (boss.cx() + trackTarget.cx()) * 0.5 : boss.cx();
@@ -123,7 +112,7 @@ function _DELETED_makeBossRage40Cinematic(boss) {
         }
       }
 
-      // 1.1 s: boss slam hits the ground as player lands — shockwave
+      // 1.1 s: boss slam hits the ground as player lands, shockwave
       if (t >= 1.1 && !this._slamFired) {
         this._slamFired = true;
         if (boss) {
@@ -176,7 +165,7 @@ function _DELETED_makeBossDesp10Cinematic(boss) {
         cinematicFocusY = boss.cy();
       }
 
-      // 0.35 s: boss staggers visually — shake + rings
+      // 0.35 s: boss staggers visually, shake + rings
       if (t >= 0.35 && !this._staggerFired) {
         this._staggerFired = true;
         if (boss) {
@@ -219,9 +208,7 @@ function _DELETED_makeBossDesp10Cinematic(boss) {
   };
 }
 
-// ============================================================
-// MID-FIGHT CINEMATICS — True Form (entry, 50%, 15%)
-// ============================================================
+// MID-FIGHT CINEMATICS, True Form (entry, 50%, 15%)
 function _DELETED_makeTFEntryCinematic(tf) {
   return {
     durationFrames: 240, // 4 s
@@ -292,7 +279,7 @@ function _DELETED_makeTFReality50Cinematic(tf) {
         cinematicFocusY = GAME_H / 2;
       }
 
-      // 0.5 s: gravity reverses briefly — players float
+      // 0.5 s: gravity reverses briefly, players float
       if (t >= 0.5 && !this._gravFired) {
         this._gravFired = true;
         tfGravityInverted = true;
@@ -395,5 +382,4 @@ function _DELETED_makeTFDesp15Cinematic(tf) {
   };
 }
 
-// ============================================================
-// PHASE TRANSITION — triggers appropriate cinematic sequence
+// PHASE TRANSITION, triggers appropriate cinematic sequence

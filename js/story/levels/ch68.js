@@ -1,17 +1,6 @@
 'use strict';
-// js/story/levels/ch68.js — Chapter 68 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 68 — Awakening (walk → duel vs two Breach Response Units)
-// The stasis chamber in the sealed section. A long hall of preservation
-// columns, numbered S-01 to S-19: most stand dark and empty, a few still
-// glowing with fluid and nothing inside. At the midpoint is the column the
-// fluid has drained from — glass swung open, a pool on the floor where Calix
-// fell to their knees "coughing out preservation fluid." The breach alarm is
-// sounding: red strobes sweep the hall, and the response units come out of
-// the maintenance bays. Column caps and control galleries are the climbs; the
-// cache shafts are drain sumps.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch. 68 map: the stasis hall in the sealed section, breach alarm, two response units.
+// Layout contract: smb-story-levels.js.
 (function () {
   const G = 440, OPEN = 3000;
   const GAL = [[420, 350, 100], [540, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -47,7 +36,6 @@
       if (!_slVisible(v, c.x - 60, c.x + 60) || Math.abs(c.x - OPEN) < 200) continue;
       column(c.x, c.n, _slHash(c.n + 68) < 0.25 ? 'lit' : 'dark');
     }
-    // Control galleries
     for (const [x, y, w] of GAL) {
       if (!_slVisible(v, x - 10, x + w + 10)) continue;
       ctx.fillStyle = '#5a6a62'; ctx.fillRect(x, y, w, 9);
@@ -65,7 +53,6 @@
       ctx.fillStyle = '#ff4433'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillText('S-?? — BREACH', OPEN, 82);
       for (const sx of [OPEN - 340, OPEN + 240]) { ctx.fillStyle = '#5a6a62'; ctx.fillRect(sx, 360, 100, 9); ctx.fillStyle = '#2a3430'; ctx.fillRect(sx + 10, 369, 80, G - 369); }
     }
-    // Breach alarm: red strobes sweeping the hall
     const ph = frameCount * 0.06;
     for (let k = Math.floor(x0 / 600); k * 600 < x1; k++) {
       const sx = k * 600 + 150;

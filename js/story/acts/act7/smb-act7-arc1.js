@@ -1,5 +1,5 @@
 // Appends chapters for act7/smb-act7-arc1.js.
-// The Companion Arc, Part 2 — the descent to the substrate.
+// The Companion Arc, Part 2: the descent to the substrate.
 // Two bearers on the road: sparring, the fragment's true reach, the confession.
 // Sovereign's trail leads down. It is an invitation, and they know it.
 STORY_CHAPTER_REGISTRY.push(
@@ -24,7 +24,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"The strength is a side effect. Watch the fight at the speed',
       'the fragment watches it, and you will stop needing the strength."',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat. Staged from the same scene spec (see _playBranchAfterNarrative).
     afterNarrative: [
       'By the fourth day you took a round off him.',
       'He seemed genuinely pleased.',
@@ -48,7 +48,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The man you saved.',
       'The same man.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the sparring itself: win a round off him.
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): sparring, win a round off him.
     beat: {
       arena: 'void',
       opponentName: 'Axiom', opponentSuffix: '— sparring, diminished', opponentColor: '#bb99cc',
@@ -121,7 +121,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The architecture here had never collapsed',
       'because it had been made by someone who understood load.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat. Staged from the same scene spec (see _playBranchAfterNarrative).
     afterNarrative: [
       'Something noticed you had arrived.',
       '',
@@ -148,7 +148,8 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       '"And the trail leads exactly where I am least welcome."',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): walking into the braced domain; the constructs only stand where you are about to step.
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): constructs only stand where you are about to step.
+
     beat: {
       type: 'exploration', exploreMode: 'traversal',
       arena: 'god_domain', style: 'void', worldLength: 3600,

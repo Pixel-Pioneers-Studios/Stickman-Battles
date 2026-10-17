@@ -1,9 +1,7 @@
 'use strict';
-// smb-cinematics-boss-thresh.js — Boss mid-fight cinematics: 75%, 40%, 10% HP thresholds
+// smb-cinematics-boss-thresh.js. Boss mid-fight cinematics: 75%, 40%, 10% HP thresholds
 // Depends on: smb-cinematics-core.js (cinScript, CinFX, CinCam)
-// ============================================================
-// MID-FIGHT CINEMATICS — Creator Boss (75%, 40%, 10%)
-// ============================================================
+// Mid-fight cinematics for the creator boss at 75%, 40% and 10% HP.
 
 function _makeBossWarning75Cinematic(boss) {
   // Track whether the speed-line burst has fired (it should only render for ~0.4s)
@@ -134,7 +132,7 @@ function _makeBossRage40Cinematic(boss) {
           CinFX.particles(boss.cx(), boss.cy(), '#ff44ff', 18);
           CinFX.shake(24);
           CinFX.flash('#ff2200', 0.25, 8);
-          // Hurl player away — arc across the arena
+          // Hurl player away, arc across the arena
           const throwDir = facingRight ? 1 : -1;
           target.vx       = throwDir * 20;
           target.vy       = -13;
@@ -265,7 +263,7 @@ function _makeBossDesp10Cinematic(boss) {
     ],
 
     steps: [
-      // Boss staggers — visual jolt
+      // Boss staggers, visual jolt
       { at: 0.3,
         run({ boss }) {
           if (!boss) return;
@@ -315,7 +313,7 @@ function _makeBossDesp10Cinematic(boss) {
       if (typeof AniFX === 'undefined') return;
       const b = players ? players.find(p => p.isBoss && p.health > 0) : null;
 
-      // Unstable aura throughout — intensity increases with time
+      // Unstable aura throughout, intensity increases with time
       if (b) {
         const intensity = 0.5 + (t / 3.5) * 0.5;
         AniFX.aura(ctx, b, t, {

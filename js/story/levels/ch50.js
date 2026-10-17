@@ -1,17 +1,7 @@
 'use strict';
-// js/story/levels/ch50.js — Chapter 50 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch50.js: Chapter 50 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 50 — The Probe (walk → duel vs the Creator's Probe)
-// The neutral dimension's entry point, where the probe "materialized at the
-// perimeter. Smooth. Uniform. No face." The same paper-grey plain as the
-// assembly approach (chapter 49), here ringed by the boundary stones that
-// mark where the neutral ground begins. The probe measures: a calibration
-// grid is laid over the ground where it waits, and scan lines sweep the air.
-// "One of us fights it. Alone." The Architects watch from a low rise behind
-// the duel ground — four figures in their colours. The cache shafts are
-// survey bores in the plain.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 50: walk, then a duel with the Creator's Probe. Cache shafts are survey bores.
 (function () {
   const G = 440, DUEL = 3000;
   const STONES = [[420, 350, 100], [540, 270, 110], [1150, 340, 120], [1290, 260, 100], [2240, 350, 100], [2360, 270, 120],
@@ -39,19 +29,19 @@
   }
 
   function back(v, a) {
-    // Boundary stones: plain grey monoliths, the high route
+    // Boundary stones, the high route.
     for (const [x, y, w] of STONES) {
       if (!_slVisible(v, x - 20, x + w + 20)) continue;
       ctx.fillStyle = '#6a6a72'; ctx.fillRect(x + 8, y, w - 16, G - y);
       ctx.fillStyle = '#7e7e86'; ctx.fillRect(x, y, w, 8);
       ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x + 8, y + 8, 3, G - y - 8);
     }
-    // Survey bores over the cache shafts
+    // Survey bores over the cache shafts.
     for (const bx of BORES) if (_slVisible(v, bx - 80, bx + 80)) {
       ctx.fillStyle = '#5a5a62'; ctx.fillRect(bx - 60, G - 14, 12, 14); ctx.fillRect(bx + 48, G - 14, 12, 14);
       ctx.fillStyle = '#ffcc44'; ctx.fillRect(bx - 58, G - 18, 8, 4); ctx.fillRect(bx + 50, G - 18, 8, 4);
     }
-    // The calibration grid where the probe waits, scan lines sweeping
+    // Calibration grid where the probe waits, with scan lines.
     if (_slVisible(v, DUEL - 500, DUEL + 700)) {
       ctx.strokeStyle = 'rgba(80,90,120,0.35)'; ctx.lineWidth = 1;
       for (let gx = DUEL - 400; gx <= DUEL + 400; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, G - 300); ctx.lineTo(gx, G); ctx.stroke(); }
@@ -65,7 +55,7 @@
       ctx.fillStyle = 'rgba(60,70,100,0.6)'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
       ctx.fillText('SUBJECT: KAEL   SAMPLES ' + (frameCount % 9999), DUEL - 396, G - 306);
       ctx.fillStyle = '#6a6a72'; ctx.fillRect(DUEL - 360, 360, 90, G - 360); ctx.fillStyle = '#7e7e86'; ctx.fillRect(DUEL - 360, 360, 90, 6);
-      // The Architects' rise and the four who watch
+      // The Architects watching from the rise.
       ctx.fillStyle = '#74747c'; ctx.beginPath(); ctx.moveTo(RISE.x - 40, G); ctx.lineTo(RISE.x, RISE.y); ctx.lineTo(RISE.x + RISE.w, RISE.y); ctx.lineTo(RISE.x + RISE.w + 40, G); ctx.fill();
       ctx.fillStyle = '#8a8a92'; ctx.fillRect(RISE.x, RISE.y, RISE.w, 5);
       for (let k = 0; k < 4; k++) {

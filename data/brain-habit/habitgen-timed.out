@@ -1,0 +1,15 @@
+[Wed 23:02:17] generalist gen-timed: 3 h vs habits timed-masher,timed-blocker,none
+[Thu 02:17:12] generalist stopped (try 1, iter 12756 -> 13376): [brain] stopped at iteration 13376; saved to data/brain-habit/gen-timed/
+[Thu 02:50:07] gen-timed vs timed-masher wipe=0: {"hunterIter":13376,"targetIter":12756,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"timed-masher","wipe":0,"hunter":{"win":67.5,"taken":455,"lost":315,"habitFires":5780,"habitDealt":35870,"habitTaken":20049,"habitFiresLate":2017,"habitDealtLate":11039,"habitTakenLate":6058}}
+tools/brain/habitgen.sh: line 17: 99578 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Thu 02:51:07] gen-timed vs timed-masher wipe=60: {"hunterIter":13376,"targetIter":12756,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"timed-masher","wipe":60,"hunter":{"win":56.5,"taken":410,"lost":332,"habitFires":6085,"habitDealt":34889,"habitTaken":22970,"habitFiresLate":2282,"habitDealtLate":9505,"habitTakenLate":6772}}
+tools/brain/habitgen.sh: line 17: 99784 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Thu 02:52:08] gen-timed vs timed-blocker wipe=0: {"hunterIter":13376,"targetIter":12756,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"timed-blocker","wipe":0,"hunter":{"win":69.5,"taken":468,"lost":300,"habitFires":5536,"habitDealt":42609,"habitTaken":25918,"habitFiresLate":2301,"habitDealtLate":14253,"habitTakenLate":9525}}
+tools/brain/habitgen.sh: line 17: 99944 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Thu 02:53:06] gen-timed vs timed-blocker wipe=60: {"hunterIter":13376,"targetIter":12756,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"timed-blocker","wipe":60,"hunter":{"win":68,"taken":469,"lost":290,"habitFires":5235,"habitDealt":39670,"habitTaken":23656,"habitFiresLate":2247,"habitDealtLate":13262,"habitTakenLate":7226}}
+tools/brain/habitgen.sh: line 17:   201 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Thu 02:54:01] gen-timed vs none wipe=0: {"hunterIter":13376,"targetIter":12756,"eps":200,"seed":1,"se":3.5355339059327378,"habit":null,"wipe":0,"hunter":{"win":60,"taken":433,"lost":342,"habitFires":0,"habitDealt":0,"habitTaken":0,"habitFiresLate":0,"habitDealtLate":0,"habitTakenLate":0}}
+tools/brain/habitgen.sh: line 17:   394 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Thu 02:54:58] gen-timed vs none wipe=60: {"hunterIter":13376,"targetIter":12756,"eps":200,"seed":1,"se":3.5355339059327378,"habit":null,"wipe":60,"hunter":{"win":50,"taken":381,"lost":390,"habitFires":0,"habitDealt":0,"habitTaken":0,"habitFiresLate":0,"habitDealtLate":0,"habitTakenLate":0}}
+tools/brain/habitgen.sh: line 17:   599 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Thu 02:54:58] done

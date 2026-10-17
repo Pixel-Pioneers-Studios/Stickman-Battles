@@ -1,26 +1,8 @@
 'use strict';
-// smb-move-preview.js — Weapon / class move previews
-// -------------------------------------------------------
-// A small play button on every weapon and class card in the loadout screen
-// starts a preview: a real Training match (real moves, real move scenes, real
-// supers) where P1 is driven by a script instead of the keyboard, a caption
-// overlay says what each move is, and Back returns to the exact loadout
-// screen the player came from with their selections untouched.
-//
-// Weapon preview: that weapon, class None.
-// Class preview:  that class with its ideal weapon (CLASSES[k].weapon, or
-//                 MP_IDEAL_WEAPON for the any-weapon classes).
-//
-// Nothing here writes health. P1 only ever calls attack / ability / useSuper;
-// every point of damage goes through dealDamage() as in a normal match.
-//
-// Depends on: smb-globals.js, smb-data-weapons.js, smb-fighter.js,
-//             smb-move-scenes.js, smb-menu-ui.js (selectMode, _enterConfigView),
-//             smb-menu-select.js (showDesc, _syncSelCards),
-//             smb-menu-spawn.js (startGame), rendering/smb-drawing-arenas.js (backToMenu)
-// Ticked by:  smb-loop-core.js  → updateMovePreview()
-// Called by:  the preview buttons built in smb-menu-select.js _buildSelCardGrid
-// -------------------------------------------------------
+// Weapon and class move previews: a Training match where P1 is scripted, not keyboard driven.
+// Nothing here writes health. Every point of damage goes through dealDamage().
+// Depends on: smb-globals.js, smb-data-weapons.js, smb-fighter.js, smb-move-scenes.js, smb-menu-ui.js,
+// smb-menu-select.js, smb-menu-spawn.js, smb-drawing-arenas.js. Ticked by smb-loop-core.js (updateMovePreview).
 
 // Classes with no fixed weapon get the one that shows them best.
 const MP_IDEAL_WEAPON = { warrior: 'sword', berserker: 'axe', summoner: 'sword' };
@@ -38,16 +20,14 @@ const MP_CLASS_FALLBACK = {
   },
 };
 
-const MP_GAP_FAR = 300;   // walk-in / ranged spacing, px between centers
+const MP_GAP_FAR = 300;   // px between centers, walk-in and ranged
 const MP_GAP_NEAR = 150;  // melee Q / E spacing
 
-// Moves the default spacing leaves out of reach, keyed weaponKey:step.
-// gap is px between centers. The reasons, per move:
-//   short radius    spear Q (spikes at +-44), fists Q (95), frying pan Q / E (150, measured mid-hop),
-//                   flail E (75px orbit)
-//   needs contact   glass blade E (the wall bursts when touched), crossbow Q (wire spans 30..230 ahead)
-//   drops short     slingshot E (the boulder sinks below a far target and sails past)
-//   second input    bomb Q (stickies only go off on a held Q)
+// Moves the default spacing leaves out of reach, keyed weaponKey:step (gap in px between centers).
+// short radius: spear Q, fists Q, frying pan Q/E, flail E
+// needs contact: glass blade E, crossbow Q
+// drops short: slingshot E
+// second input: bomb Q (stickies only go off on a held Q)
 const MP_STAGE = {
   'spear:q':      { gap: 60 },
   'combat:q':     { gap: 70 },
@@ -60,7 +40,7 @@ const MP_STAGE = {
   'bomb:q':       { gap: 150, detonate: 30 },
 };
 
-let _mp = null;           // active preview state, or null
+let _mp = null;   // active preview state
 let _mpKeyHooked = false;
 
 function _mpClassInfo(key) {
@@ -86,7 +66,7 @@ function _mpWeaponForClass(key) {
   return MP_IDEAL_WEAPON[key] || 'sword';
 }
 
-// First sentence(s) of a desc's `how` that describe the plain attack.
+// Leading sentences of a desc's `how` that describe the plain attack.
 function _mpBasicHow(how) {
   if (!how) return '';
   const m = String(how).match(/Base[^.]*\./);
@@ -117,7 +97,6 @@ function _mpBuildSteps(type, key, weaponKey) {
   return steps;
 }
 
-// ── Start ────────────────────────────────────────────────────────────────────
 function startMovePreview(type, key) {
   if (_mp) return;
   if (typeof NetworkManager !== 'undefined' && NetworkManager.connected) {
@@ -153,7 +132,7 @@ function startMovePreview(type, key) {
       descTitle: (document.getElementById('p1DescTitle') || {}).textContent,
       descBody: (document.getElementById('p1DescBody') || {}).innerHTML,
     },
-    live: false,          // true once the match is running and P1 is scripted
+    live: false,
     t: 0, startedAt: Date.now(),
     steps: _mpBuildSteps(type, key, weaponKey),
     si: 0, ph: 'enter', pt: 0,
@@ -172,12 +151,12 @@ function startMovePreview(type, key) {
       e.stopImmediatePropagation();
       endMovePreview();
     }, true);
-    // Cleanup net for exits that bypass Back (pause → quit, etc.).
+    // Cleanup for exits that skip Back (pause menu quit, etc.)
     setInterval(_mpWatch, 250);
   }
 
   if (wOpt) { wSel.value = weaponKey; wSel.dataset.userPicked = 'true'; }
-  else wSel.value = 'random';  // not a pickable weapon: applyClass() hands the class its own fist
+  else wSel.value = 'random';  // not pickable, applyClass() gives the class its own fist
   cSel.value = classKey;
   gameMode = 'training';
   training2P = false;
@@ -185,7 +164,6 @@ function startMovePreview(type, key) {
   startGame(true);
 }
 
-// ── Lifecycle ────────────────────────────────────────────────────────────────
 function _mpRestoreSelects(s) {
   const wSel = document.getElementById('p1Weapon');
   const cSel = document.getElementById('p1Class');
@@ -242,8 +220,7 @@ function endMovePreview() {
   _mpRestoreMenu(s.saved);
 }
 
-// Watcher: detects the match starting (restores selects as soon as they have
-// been read) and any exit that did not go through endMovePreview().
+// Watcher: restores the selects once the match starts, and catches exits that skip endMovePreview().
 function _mpWatch() {
   if (!_mp) return;
   const running = gameRunning && !gameLoading && trainingMode &&
@@ -252,14 +229,13 @@ function _mpWatch() {
     if (running) {
       _mpGoLive();
     } else if (Date.now() - _mp.startedAt > 12000) {
-      // The match never started: put the menu back.
+      // Match never started: put the menu back
       const s = _mp.saved; _mp = null; _mpTeardownUI(); _mpRestoreMenu(s);
     }
     return;
   }
   if (!gameRunning) {
-    // Left through the pause menu (quit) or the match ended: menu is already
-    // showing the Training screen, so only the leftovers need to go.
+    // Quit via pause or match end: the menu already shows Training, so only leftovers go.
     const s = _mp.saved; _mp = null; _mpTeardownUI(); _mpRestoreMenu(s);
   }
 }
@@ -267,11 +243,11 @@ function _mpWatch() {
 function _mpGoLive() {
   const p = players[0];
   _mp.live = true;
-  // The selects have been read; hand them back right away.
+  // Selects are read, hand them back now.
   _mpRestoreSelects(_mp.saved);
   if (typeof ReplaySystem !== 'undefined' && ReplaySystem.discardRecording) ReplaySystem.discardRecording();
   p._mpControls = p.controls;
-  p.controls = {};            // keyboard matches nothing: the script drives P1
+  p.controls = {};   // script drives P1, not the keyboard
   p._mpOwned = true;
   p.isAI = false;
   p.lives = 999;
@@ -281,7 +257,6 @@ function _mpGoLive() {
   _mpBuildOverlay();
 }
 
-// ── Overlay ──────────────────────────────────────────────────────────────────
 function _mpEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 }
@@ -328,7 +303,6 @@ function _mpReplay() {
   _mp.si = 0; _mp.ph = 'enter'; _mp.pt = 0; _mp.swings = 0;
 }
 
-// ── Script driver ────────────────────────────────────────────────────────────
 function _mpFloorTop() {
   let top = null;
   const pls = (currentArena && currentArena.platforms) || [];
@@ -364,8 +338,7 @@ function _mpIdle(p, d) {
   return true;
 }
 
-// Spacing for a ranged weapon: far enough to read as ranged, but inside its
-// own reach (the flamethrower's stream dies at 180px).
+// Ranged spacing: far enough to read as ranged, inside its own reach (flamethrower stream dies at 180px).
 function _mpRangedGap(p) {
   const r = (p.weapon && p.weapon.range) || 300;
   return Math.max(140, Math.min(MP_GAP_FAR, Math.round(r * 0.75)));
@@ -393,19 +366,17 @@ function updateMovePreview() {
   const d = trainingDummies[0];
   if (!p || !d) return;
 
-  // Training panels stay hidden for the whole preview.
   const hud = document.getElementById('trainingHud');
   if (hud && hud.style.display !== 'none') hud.style.display = 'none';
   const ctl = document.getElementById('trainingControls');
   if (ctl && ctl.style.display !== 'none') ctl.style.display = 'none';
 
   _mp.t++; _mp.pt++;
-  // Hit tally: the dummy stamps the frame of every hit it takes.
+  // Hit tally. The dummy stamps each hit's frame.
   if (d._lastAttackerFrame != null && d._lastAttackerFrame !== _mp.lastHitFrame) {
     _mp.lastHitFrame = d._lastAttackerFrame;
     _mp.stats.hits++;
   }
-  // Never wander off the arena.
   if (p.y > GAME_H + 20 || p.x < -40 || p.x > GAME_W + 40) _mpPlace(p, d, MP_GAP_FAR);
 
   const st = _mp.steps[_mp.si];
@@ -419,7 +390,7 @@ function updateMovePreview() {
   }
 
   if (_mp.ph === 'enter') {
-    // Wait for everything to come to rest, then stage the move.
+    // Wait for rest, then stage the move.
     if (!_mpIdle(p, d) && _mp.pt < 240) return;
     if (d.invincible > 0 && _mp.pt < 240) return;
     const near = st.id !== 'basic' && st.id !== 'perk' && melee;
@@ -480,11 +451,10 @@ function updateMovePreview() {
   }
 
   if (_mp.ph === 'hold') {
-    // Long enough to read the caption: about 27 characters a second, 1.5s to 5s.
+    // Caption time: about 27 chars/sec, clamped to 1.5s-5s.
     if (_mp.pt > Math.max(90, Math.min(300, String(st.body || '').length * 2.2))) _mpNext();
   }
 }
 
-// The card grids are first built before this file loads, so rebuild them once
-// now that mpCanPreview() exists and the buttons can be attached.
+// Card grids were built before this file loaded. Rebuild them now that mpCanPreview() exists.
 if (typeof _initSelCardGrids === 'function') { try { _initSelCardGrids(); } catch (e) { /* menu not ready */ } }

@@ -1,17 +1,14 @@
 'use strict';
 
-// ============================================================
-// SOUND SYSTEM
-// ============================================================
 const SoundManager = (() => {
   let _ctx = null;
   let _vol = 0.35;
   let _muted = false;
-  let _silencedGain = undefined; // set by gameLoop for cosmic silence moments
+  let _silencedGain = undefined; // cosmic-silence gain, set by gameLoop
   let _cosmicSilenceTimer = 0;
-  // File-based audio: raw bytes fetched at load time, decoded to AudioBuffer on first play
-  const _rawBuffers = {};  // key → ArrayBuffer
-  const _buffers    = {};  // key → AudioBuffer (decoded, reusable)
+  // Raw bytes are fetched at load and decoded on first play.
+  const _rawBuffers = {};  // key -> ArrayBuffer
+  const _buffers    = {};  // key -> decoded AudioBuffer
   function _effectiveVol() {
     if (_silencedGain !== undefined) return _vol * _silencedGain;
     return _vol;
@@ -24,7 +21,7 @@ const SoundManager = (() => {
   let _brSndFrame = -1, _brSndCount = 0;
   function _play(fn) {
     if (_muted) return;
-    // BR mode: cap to 4 sounds per frame to prevent audio overload from 99 bots fighting
+    // BR: at most 4 sounds per frame, or 99 bots drown the mixer.
     if (typeof gameMode !== 'undefined' && gameMode === 'battleroyale') {
       var _cf = typeof frameCount !== 'undefined' ? frameCount : 0;
       if (_cf !== _brSndFrame) { _brSndFrame = _cf; _brSndCount = 0; }
@@ -55,13 +52,12 @@ const SoundManager = (() => {
     };
     if (_buffers[key]) { finish(_buffers[key]); return; }
     if (!_rawBuffers[key]) return;
-    // Decode on first play — slice so the ArrayBuffer stays intact for future calls
+    // slice() keeps the raw ArrayBuffer intact for later decodes.
     _getCtx().decodeAudioData(_rawBuffers[key].slice(0))
       .then(buf => { _buffers[key] = buf; finish(buf); })
       .catch(() => {});
   }
-  // Prefer the rendered pack once it has been fetched; keep a small Web Audio
-  // fallback so a missing or still-loading file can never mute gameplay.
+  // Prefer the rendered pack. The Web Audio fallback means a missing file never mutes gameplay.
   function _sample(key, vol, fallback, pitch = 1, pan = 0) {
     _play(c => {
       if (_buffers[key] || _rawBuffers[key]) {
@@ -72,8 +68,7 @@ const SoundManager = (() => {
       }
     });
   }
-  // Round-robin over a cue's variants so a string of the same event never
-  // plays the same sample twice running.
+  // Round-robin variants so one cue never repeats a sample back to back.
   const _rr = {};
   function _next(keys) {
     const i = (_rr[keys[0]] = ((_rr[keys[0]] || 0) + 1) % keys.length);
@@ -112,7 +107,7 @@ const SoundManager = (() => {
     setMuted(m) { _muted = m; },
     isMuted() { return _muted; },
     getVolume() { return _vol; },
-    // Cosmic silence API — set by smb-particles.js, ticked by smb-loop.js
+    // Cosmic silence API. Set by smb-particles.js, ticked by smb-loop.js.
     get _cosmicSilenceTimer() { return _cosmicSilenceTimer; },
     set _cosmicSilenceTimer(v) { _cosmicSilenceTimer = v; },
     get _silencedGain() { return _silencedGain; },
@@ -180,8 +175,7 @@ const SoundManager = (() => {
   if (localStorage.getItem('smc_sfxMute') === '1') SoundManager.setMuted(true);
 })();
 
-// Pre-fetch gameplay SFX. Decoding is lazy, so the browser does not need an
-// AudioContext unlocked by a user gesture during initial page load.
+// Fetch SFX bytes now. Decode lazily, since AudioContext needs a user gesture.
 const SFX_ASSET_PATHS = {
   swing: 'audio/sfx/swing.wav', hit: 'audio/sfx/hit.wav', heavyHit: 'audio/sfx/heavyHit.wav',
   hitBlunt: 'audio/sfx/hitBlunt.wav', hitPierce: 'audio/sfx/hitPierce.wav', hitSnap: 'audio/sfx/hitSnap.wav',
@@ -201,41 +195,34 @@ const SFX_ASSET_PATHS = {
 ].forEach(k => { SFX_ASSET_PATHS[k] = 'audio/sfx/' + k + '.wav'; });
 Object.entries(SFX_ASSET_PATHS).forEach(([key, url]) => SoundManager.loadAudio(key, url));
 
-// ============================================================
-// MUSIC MANAGER  (YouTube IFrame API — background music only)
-// YouTube IFrame API requires an HTTP/HTTPS origin to function.
-// When opened as a local file:// the origin is 'null' and postMessage
-// will fail. We detect this and return a silent no-op stub instead.
-// ============================================================
+// Background music via the YouTube IFrame API, which needs http(s).
+// Under file:// it fails, so a silent no-op stub is used instead.
 const MusicManager = (() => {
-  // Detect file:// context — YouTube API cannot work here
+  // YouTube API can't run under file://
   const _isLocal = (location.protocol === 'file:');
   const _isCrazyGames = /(^|\.)crazygames\.(com|co\.uk)$/i.test(location.hostname)
     || (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.environment === 'crazygames');
   if (_isLocal || _isCrazyGames) {
-    // External music is unavailable here, but the bundled local soundtrack
-    // below still works and is preferred for every game mode.
+    // No external music here (file:// or CrazyGames). Bundled tracks still play.
     console.info('[MusicManager] External music disabled; using bundled tracks.');
   }
 
   const BOSS_VID   = 'LsRdmuTmU4k';
   const NORMAL_VID = 'GO_ygNZbmqs';
-  const MUSIC_VOL  = 20; // 0-100, kept low so SFX are audible
-  const DUCK_VOL   = 0;  // volume while ducked (0 = silenced) (story voice-over / cinematic dialogue)
+  const MUSIC_VOL  = 20; // 0-100, kept low so SFX stay audible
+  const DUCK_VOL   = 0;  // ducked volume under voice-over
 
   let _bossPlayer   = null;
   let _normalPlayer = null;
-  let _ready        = false; // true once both players are created
+  let _ready        = false; // set once both players exist
   let _bossReady    = false;
   let _normalReady  = false;
   let _muted        = (localStorage.getItem('smc_musicMute') === '1');
   let _current      = null;  // 'boss' | 'normal' | null
-  let _ducked       = false; // true while a voice-over needs the floor
+  let _ducked       = false; // true during voice-over
   let _pendingTrack = null;  // track queued before API ready
 
-  // Local soundtrack pack. These files are intentionally preferred over the
-  // legacy YouTube fallback so the game has music offline and on restricted
-  // hosts. The normal slot is routed by game mode below.
+  // Local soundtrack, preferred over YouTube so music works offline and on locked-down hosts.
   const _localSources = {
   boss: 'audio/music/boss-threshold.mp3',
   story: 'audio/music/story-embers.mp3',
@@ -257,7 +244,7 @@ const MusicManager = (() => {
     _localAudio.volume = _localVolume();
     _localCurrent = track;
     const p = _localAudio.play();
-    if (p && p.catch) p.catch(() => {}); // browser gesture policy may defer first play
+    if (p && p.catch) p.catch(() => {}); // autoplay may be blocked until a gesture
     return true;
   }
 
@@ -278,8 +265,7 @@ const MusicManager = (() => {
   function _tryPlay(track) {
     if (!_ready) { _pendingTrack = track; return; }
     if (_muted)  return;
-    if (track === _current) return; // already playing
-    // Stop whichever is playing
+    if (track === _current) return;
     try { _bossPlayer.pauseVideo();   } catch(e) {}
     try { _normalPlayer.pauseVideo(); } catch(e) {}
     _current = track;
@@ -334,7 +320,7 @@ const MusicManager = (() => {
       if (m) { try { _bossPlayer.pauseVideo();   } catch(e) {} try { _normalPlayer.pauseVideo(); } catch(e) {} }
       else if (_current) { _applyVolume(); const t = _current; _current = null; _tryPlay(t); }
     },
-    // Duck the music under story voice-over / cinematic dialogue so the line is audible.
+    // Duck music under voice-over so the line is audible.
     setDucked(d) {
       d = !!d;
       if (d === _ducked) return;

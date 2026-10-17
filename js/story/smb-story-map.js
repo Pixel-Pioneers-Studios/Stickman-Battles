@@ -1,27 +1,12 @@
 'use strict';
-// smb-story-map.js — Story Mode as a map of the multiverse
-// -------------------------------------------------------
-// The chapter list, drawn as a star chart. Each world the story visits is one
-// body on the chart, in the order the story reaches it; selecting a world zooms
-// into it, where its chapters sit as stops along a path.
-//
-//   Star chart:  ← → (↑ ↓) pick a world · Enter or click zooms in
-//   World:       ← → pick a stop · Enter or Play starts it · Esc zooms out
-//
-// Spoiler rule: a world nobody has reached is a dark silhouette marked "???".
-// Its name, look and chapters stay hidden until one of its chapters unlocks.
-// Locked boss chapters keep the list's "??? Boss Encounter" mask.
-//
-// Grouping comes from each chapter's `world` string ("🌆 Home City — Alley"):
-// the part before " — " names the world, the part after names the location.
-// STORY_MAP_WORLDS maps those names onto map bodies; a world name it does not
-// know still gets a body, in a neutral style.
-//
-// Depends on: smb-story-config.js (_renderChapterList, _isArcUnlocked,
-//             STORY_ACT_STRUCTURE), smb-story-engine-flow.js (_beginChapter2),
-//             smb-story-engine-explore.js (storyChapterStarred)
-// Mounted by: _renderChapterList() when the map view is on (the default)
-// -------------------------------------------------------
+// Story Mode as a star chart. Each world the story visits is a body; selecting one zooms in to its chapters,
+// shown as stops on a path.
+// Star chart: arrows pick a world, Enter zooms in. World view: arrows pick a stop, Enter plays, Esc zooms out.
+// Unreached worlds are dark silhouettes marked "???" until a chapter unlocks them.
+// Grouping: a chapter's `world` string is world name, then location, split on U+2014. The world name comes first.
+// Unknown world names get a neutral body. STORY_MAP_WORLDS maps the known ones.
+// Depends on smb-story-config.js, smb-story-engine-flow.js and smb-story-engine-explore.js.
+// Mounted by _renderChapterList() in map view.
 
 // kind: how the body is drawn. c1/c2: lit and shadow colours. accent: rim/glow.
 const STORY_MAP_WORLDS = [
@@ -67,8 +52,9 @@ const StoryMap = (() => {
   let raf = 0, frame = 0;
   let stars = null, starsW = 0, starsH = 0;
   let hits = [];          // click targets rebuilt every frame: { x, y, r, act }
+  // Brush heading face of the menu skin (SMB.css --sh-font-head).
+  const HEAD = "'Potta One', 'Russo One', 'Segoe UI', sans-serif";
 
-  // ── Data ───────────────────────────────────────────────────────────────────
 
   function _baseName(world) {
     const w = String(world || '').replace(/^[^\w(]+/, '').trim();
@@ -131,8 +117,7 @@ const StoryMap = (() => {
         if (s.current) cur = true;
       }
       w.done = done; w.total = w.chapters.length; w.known = open; w.current = cur;
-      // A slow wave across the chart, so the route reads as a journey rather
-      // than a row of buttons.
+      // A slow wave across the chart, so the route reads as a journey and not a row of buttons.
       w.x = k * SPACING;
       w.y = Math.sin(k * 0.85) * 120 + ((k % 3) - 1) * 26;
     });
@@ -146,7 +131,6 @@ const StoryMap = (() => {
     return kn.length ? kn[kn.length - 1] : 0;
   }
 
-  // ── Mount / view preference ────────────────────────────────────────────────
 
   function enabled() {
     try { return localStorage.getItem(PREF_KEY) !== 'list'; } catch (e) { return true; }
@@ -199,7 +183,6 @@ const StoryMap = (() => {
     return !!(canvas && canvas.isConnected && m && m.style.display !== 'none');
   }
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
 
   function _selectWorld(dir) {
     const kn = _knownIdx();
@@ -216,8 +199,7 @@ const StoryMap = (() => {
   function _enterWorld() {
     const w = worlds[sel];
     if (!w || !w.known || mode !== 'galaxy') return;
-    // Start on the current chapter if it lives here, else the first unbeaten
-    // unlocked stop, else the first stop.
+    // Start on the current chapter if it's here, else the first unbeaten unlocked stop.
     let s = w.chapters.findIndex(i => _chState(i).current);
     if (s < 0) s = w.chapters.findIndex(i => { const st = _chState(i); return !st.done && !st.locked; });
     if (s < 0) s = 0;
@@ -256,8 +238,7 @@ const StoryMap = (() => {
     if (typeof SoundManager !== 'undefined' && SoundManager.menuMove) SoundManager.menuMove();
   }
 
-  // Keys only while the map is the thing on screen: the story modal is open in
-  // map view and nothing (difficulty picker, prologue, narrative) sits over it.
+  // Keys only work while the map is on screen, not under a difficulty picker or prologue.
   function _keysLive() {
     if (!_visible()) return false;
     if (typeof _narrativeActive !== 'undefined' && _narrativeActive) return false;
@@ -305,7 +286,6 @@ const StoryMap = (() => {
     canvas.style.cursor = hits.some(h => (x - h.x) ** 2 + (y - h.y) ** 2 <= h.r * h.r) ? 'pointer' : 'default';
   }
 
-  // ── Info bar (DOM, under the canvas) ───────────────────────────────────────
 
   function _stopTitle(i) {
     const ch = STORY_CHAPTERS2[i];
@@ -357,7 +337,6 @@ const StoryMap = (() => {
     infoEl.querySelector('.smi-go').onclick = _play;
   }
 
-  // ── Frame ──────────────────────────────────────────────────────────────────
 
   function _tick() {
     raf = 0;
@@ -386,8 +365,7 @@ const StoryMap = (() => {
 
     const w = worlds[sel];
     if (w) { camTX = w.x; camTY = w.y; }
-    // A zoom always centres on its world: a pan still in flight would otherwise
-    // dive into whatever world the camera happened to be passing.
+    // A zoom centres on its world, so a pan still in flight can't carry it past the wrong one.
     const k = (mode === 'zoomIn' || mode === 'zoomOut') ? 1 : 0.14;
     camX += (camTX - camX) * k;
     camY += (camTY - camY) * k;
@@ -411,8 +389,9 @@ const StoryMap = (() => {
 
   function _drawSky(ctx, cw, ch) {
     const g = ctx.createLinearGradient(0, 0, cw, ch);
-    g.addColorStop(0, '#05060f');
-    g.addColorStop(1, '#0b0718');
+    g.addColorStop(0, '#0A0714');
+    g.addColorStop(0.6, '#120B1E');
+    g.addColorStop(1, '#1E0F1C');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, cw, ch);
     if (!stars || starsW !== cw || starsH !== ch) {
@@ -459,14 +438,13 @@ const StoryMap = (() => {
     ctx.setLineDash([]);
 
     worlds.forEach((w, k) => {
-      // Bodies are drawn larger than their spacing implies: the chart is about
-      // the worlds, and the route between them only needs to read as a line.
+      // Bodies are drawn bigger than their spacing: the chart is about the worlds, the route is a line.
       const x = sx(w.x), y = sy(w.y), r = w.def.r * scale * 1.45;
       if (x < -r * 3 || x > cw + r * 3) return;
       const selected = k === sel;
       _drawBody(ctx, w, x, y, r, w.known);
       if (selected) {
-        ctx.strokeStyle = w.known ? w.def.accent : 'rgba(200,210,240,0.5)';
+        ctx.strokeStyle = w.known ? '#E2B255' : 'rgba(200,210,240,0.5)';
         ctx.lineWidth = 2 * scale;
         ctx.globalAlpha = alpha * (0.6 + 0.4 * Math.sin(frame * 0.08));
         ctx.beginPath(); ctx.arc(x, y, r + 10 * scale, 0, Math.PI * 2); ctx.stroke();
@@ -480,14 +458,18 @@ const StoryMap = (() => {
         ctx.moveTo(x, my + 7 * scale); ctx.lineTo(x - 6 * scale, my - 3 * scale); ctx.lineTo(x + 6 * scale, my - 3 * scale);
         ctx.closePath(); ctx.fill();
         ctx.textAlign = 'center';
-        ctx.font = `700 ${Math.round(10.5 * scale)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+        ctx.font = `italic ${Math.round(10 * scale)}px ${HEAD}`;
         ctx.fillStyle = '#ffb347';
         ctx.fillText('YOU ARE HERE', x, my - 8 * scale);
       }
       ctx.textAlign = 'center';
-      ctx.font = `${selected ? 700 : 600} ${Math.round(16 * scale)}px 'Rajdhani', 'Segoe UI', sans-serif`;
-      ctx.fillStyle = w.known ? (selected ? '#ffffff' : 'rgba(220,226,245,0.78)') : 'rgba(160,168,200,0.45)';
-      ctx.fillText(w.known ? w.def.name : '???', x, y + r + 22 * scale);
+      ctx.font = `italic ${Math.round(15 * scale)}px ${HEAD}`;
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = 4 * scale;
+      ctx.strokeStyle = 'rgba(7,6,12,0.9)';
+      ctx.strokeText(w.known ? w.def.name.toUpperCase() : '???', x, y + r + 22 * scale);
+      ctx.fillStyle = w.known ? (selected ? '#FFF6E0' : 'rgba(243,232,210,0.72)') : 'rgba(185,172,147,0.42)';
+      ctx.fillText(w.known ? w.def.name.toUpperCase() : '???', x, y + r + 22 * scale);
       if (w.known) {
         ctx.font = `600 ${Math.round(12.5 * scale)}px 'Rajdhani', 'Segoe UI', sans-serif`;
         ctx.fillStyle = w.done === w.total ? '#ffcf6a' : 'rgba(170,180,210,0.7)';
@@ -507,9 +489,8 @@ const StoryMap = (() => {
     ctx.restore();
   }
 
-  // Progress overview, pinned to the top of the star chart: chapters cleared, worlds
-  // reached, where the story stands now, and one segment per world (filled by how
-  // much of it is cleared, the current world marked). Segments jump to their world.
+  // Progress strip at the top of the star chart: chapters cleared, worlds reached, current world marked.
+  // Segments jump to their world.
   function _drawOverview(ctx, cw, ch) {
     if (!worlds.length) return;
     const u = Math.max(0.8, Math.min(cw / 1000, 1.6));
@@ -521,18 +502,18 @@ const StoryMap = (() => {
     const x0 = 22 * u, x1 = cw - 22 * u, y0 = 12 * u;
     const bh = 5 * u, ph = 56 * u;
     ctx.save();
-    ctx.fillStyle = 'rgba(6,8,16,0.66)';
-    ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 5 * u); ctx.fill();
-    ctx.strokeStyle = 'rgba(160,172,205,0.18)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 5 * u); ctx.stroke();
+    ctx.fillStyle = 'rgba(14,10,20,0.82)';
+    ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 2 * u); ctx.fill();
+    ctx.strokeStyle = 'rgba(140,94,31,0.9)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 2 * u); ctx.stroke();
     ctx.textBaseline = 'alphabetic';
-    ctx.font = `700 ${Math.round(12 * u)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+    ctx.font = `italic ${Math.round(11 * u)}px ${HEAD}`;
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(170,182,212,0.75)';
+    ctx.fillStyle = '#E2B255';
     ctx.fillText('STORY PROGRESS', x0, y0 + 8 * u);
     const lw = ctx.measureText('STORY PROGRESS  ').width;
     ctx.font = `600 ${Math.round(12 * u)}px 'Rajdhani', 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#e4e9f6';
+    ctx.fillStyle = '#F3E8D2';
     ctx.fillText(`${done} / ${total} chapters cleared  ·  ${reached} of ${worlds.length} worlds reached`, x0 + lw, y0 + 8 * u);
     ctx.textAlign = 'right';
     const here = curCh >= 0 ? `Now: Chapter ${curCh + 1}, ${STORY_CHAPTERS2[curCh].title}` : 'Every chapter cleared';
@@ -551,7 +532,7 @@ const StoryMap = (() => {
         ctx.fillRect(x, by, sw * (w.done / w.total), bh);
         ctx.globalAlpha = 1;
       }
-      if (k === sel) { ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(x - 0.5, by - 1.5, sw + 1, bh + 3); }
+      if (k === sel) { ctx.strokeStyle = '#FFE7A6'; ctx.lineWidth = 1; ctx.strokeRect(x - 0.5, by - 1.5, sw + 1, bh + 3); }
       if (w.current) {
         ctx.fillStyle = '#ffb347';
         const cx = x + sw / 2;
@@ -567,8 +548,7 @@ const StoryMap = (() => {
     ctx.restore();
   }
 
-  // The inside of a world: the body large on the left, its chapters as stops
-  // along a path to the right. Long worlds scroll to keep the selection in view.
+  // Inside a world: the body on the left, its chapters as stops on a path to the right. Long worlds scroll.
   function _drawWorld(ctx, cw, ch, w, alpha, interactive) {
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -578,11 +558,15 @@ const StoryMap = (() => {
     if (interactive) hits.push({ x: bx, y: by, r: R, act: _leaveWorld });
 
     ctx.textAlign = 'left';
-    ctx.font = `700 ${Math.round(Math.max(14, ch * 0.05))}px 'Rajdhani', 'Segoe UI', sans-serif`;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(w.def.name, Math.round(cw * 0.03), Math.round(ch * 0.10));
+    ctx.font = `italic ${Math.round(Math.max(14, Math.min(ch * 0.055, cw * 0.05)))}px ${HEAD}`;
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = Math.max(3, ch * 0.012);
+    ctx.strokeStyle = '#07060C';
+    ctx.strokeText(w.def.name.toUpperCase(), Math.round(cw * 0.03), Math.round(ch * 0.10));
+    ctx.fillStyle = '#F3E8D2';
+    ctx.fillText(w.def.name.toUpperCase(), Math.round(cw * 0.03), Math.round(ch * 0.10));
     ctx.font = `600 ${Math.round(Math.max(11, ch * 0.034))}px 'Rajdhani', 'Segoe UI', sans-serif`;
-    ctx.fillStyle = 'rgba(200,210,235,0.75)';
+    ctx.fillStyle = '#E2B255';
     ctx.fillText(`${w.done} of ${w.total} cleared`, Math.round(cw * 0.03), Math.round(ch * 0.10 + Math.max(16, ch * 0.055)));
 
     const n = w.chapters.length;
@@ -614,7 +598,7 @@ const StoryMap = (() => {
     ctx.setLineDash([]);
     ctx.globalAlpha = alpha;
 
-    const sr = Math.max(9, ch * 0.032);
+    const sr = Math.max(9, Math.min(ch * 0.037, step * 0.42));
     w.chapters.forEach((i, j) => {
       const { x, y } = pt(j);
       if (x < clipX - sr || x > cw + sr) return;
@@ -625,24 +609,46 @@ const StoryMap = (() => {
       const selected = j === stop;
 
       if (selected) {
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = '#FFE7A6';
         ctx.globalAlpha = alpha * (0.55 + 0.45 * Math.sin(frame * 0.12));
         ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(x, y, r + 7, 0, Math.PI * 2); ctx.stroke();
+        _tilePath(ctx, x, y, r + 7, boss); ctx.stroke();
         ctx.globalAlpha = alpha;
       }
-      ctx.beginPath();
-      if (boss) { ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
-      else ctx.arc(x, y, r, 0, Math.PI * 2);
-      if (st.done)         { ctx.fillStyle = w.def.accent; ctx.fill(); }
-      else if (st.locked)  { ctx.fillStyle = 'rgba(40,44,60,0.9)'; ctx.fill(); ctx.strokeStyle = 'rgba(140,150,180,0.35)'; ctx.lineWidth = 1.5; ctx.stroke(); }
-      else                 { ctx.fillStyle = 'rgba(10,12,22,0.9)'; ctx.fill(); ctx.strokeStyle = st.current ? '#ffb347' : w.def.accent; ctx.lineWidth = 2.5; ctx.stroke(); }
+      // Ink edge with a drop lip, then the tile face.
+      ctx.fillStyle = '#07060C';
+      _tilePath(ctx, x, y + r * 0.2, r + 2.5, boss); ctx.fill();
+      _tilePath(ctx, x, y, r + 2.5, boss); ctx.fill();
+      const tg = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
+      let edge, ink;
+      if (st.done)         { tg.addColorStop(0, '#FFE7A6'); tg.addColorStop(0.45, '#E2B255'); tg.addColorStop(1, '#A8731F'); edge = '#FFF0C2'; ink = '#07060C'; }
+      else if (st.locked)  { tg.addColorStop(0, '#241D2E'); tg.addColorStop(1, '#110D18'); edge = '#3A3046'; ink = 'rgba(185,172,147,0.45)'; }
+      else if (st.current) { tg.addColorStop(0, '#FF9A4A'); tg.addColorStop(0.45, '#F2762B'); tg.addColorStop(1, '#B8301F'); edge = '#FFD08A'; ink = '#ffffff'; }
+      else                 { tg.addColorStop(0, '#2A2136'); tg.addColorStop(1, '#15111D'); edge = '#E2B255'; ink = '#F3E8D2'; }
+      _tilePath(ctx, x, y, r, boss);
+      ctx.fillStyle = tg; ctx.fill();
+      ctx.strokeStyle = edge; ctx.lineWidth = 1.5; ctx.stroke();
+      if (st.current && !st.done) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(242,118,43,0.9)';
+        ctx.shadowBlur = r * (0.5 + 0.5 * Math.sin(frame * 0.1)) + 4;
+        ctx.stroke();
+        ctx.restore();
+      }
 
+      const chained = st.locked && !st.done;
+      if (chained) _chains(ctx, x, y, r, boss);
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `700 ${Math.round(r * 0.95)}px 'Rajdhani', 'Segoe UI', sans-serif`;
-      ctx.fillStyle = st.done ? '#10121c' : st.locked ? 'rgba(160,170,200,0.55)' : '#ffffff';
-      ctx.fillText(st.done ? '✓' : String(i + 1), x, y + 1);
+      ctx.font = `${Math.round(r * (i >= 99 ? 0.78 : 0.95))}px ${HEAD}`;
+      if (chained) {
+        // The number sits on top of the chains so a locked stop still says which chapter it is.
+        ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(3, r * 0.3); ctx.strokeStyle = '#07060C';
+        ctx.strokeText(String(i + 1), x, y + 1);
+        ink = 'rgba(243,232,210,0.82)';
+      }
+      ctx.fillStyle = ink;
+      ctx.fillText(String(i + 1), x, y + 1);
       ctx.textBaseline = 'alphabetic';
 
       if (typeof storyChapterStarred === 'function' && storyChapterStarred(i)) {
@@ -651,14 +657,21 @@ const StoryMap = (() => {
         ctx.fillText('★', x + r * 0.95, y - r * 0.8);
       }
       if (selected || n <= 8) {
-        ctx.font = `${selected ? 700 : 600} ${Math.round(Math.max(11, ch * 0.033))}px 'Rajdhani', 'Segoe UI', sans-serif`;
-        ctx.fillStyle = selected ? '#ffffff' : 'rgba(200,208,230,0.6)';
+        ctx.font = selected ? `italic ${Math.round(Math.max(11, ch * 0.034))}px ${HEAD}`
+                            : `600 ${Math.round(Math.max(11, ch * 0.033))}px 'Rajdhani', 'Segoe UI', sans-serif`;
+        ctx.fillStyle = selected ? '#FFF6E0' : 'rgba(243,232,210,0.55)';
         const label = _stopTitle(i);
-        // Alternate labels above and below the path so neighbours never collide;
-        // the selected stop always reads below, where the eye expects it.
-        const below = selected || j % 2 === 0;
+        // Labels alternate above and below the path so neighbours don't collide. The selected stop reads below.
+        let below = j % 2 === 0;
+        if (selected) {
+          // The next stop decides: it is the one a centred label runs into.
+          const q = j + 1 < n ? j + 1 : j - 1;
+          below = q < 0 || pt(q).y <= y;
+        }
         const ly = below ? y + r + Math.max(14, ch * 0.05) : y - r - Math.max(8, ch * 0.03);
-        ctx.fillText(label.length > 26 ? label.slice(0, 25) + '…' : label, x, ly);
+        const txt = label.length > 26 ? label.slice(0, 25) + '…' : label;
+        if (selected) { ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = '#07060C'; ctx.strokeText(txt, x, ly); }
+        ctx.fillText(txt, x, ly);
       }
       if (interactive) {
         hits.push({ x, y, r: r + 8, act: () => {
@@ -671,7 +684,33 @@ const StoryMap = (() => {
     ctx.restore();
   }
 
-  // ── World bodies ───────────────────────────────────────────────────────────
+  // A chapter stop: a square tile, or a diamond for a boss.
+  function _tilePath(ctx, x, y, r, boss) {
+    ctx.beginPath();
+    if (boss) { const d = r * 1.18; ctx.moveTo(x, y - d); ctx.lineTo(x + d, y); ctx.lineTo(x, y + d); ctx.lineTo(x - d, y); ctx.closePath(); }
+    else ctx.roundRect(x - r, y - r, r * 2, r * 2, Math.max(1.5, r * 0.12));
+  }
+
+  // Two crossed chains over a locked tile, clipped to its face.
+  function _chains(ctx, x, y, r, boss) {
+    ctx.save();
+    _tilePath(ctx, x, y, r, boss); ctx.clip();
+    const lw = Math.max(2.5, r * 0.26), link = Math.max(3, r * 0.3);
+    for (const sgn of [1, -1]) {
+      ctx.lineCap = 'butt';
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#07060C'; ctx.lineWidth = lw + 2;
+      ctx.beginPath(); ctx.moveTo(x - r * 1.3, y - r * 1.3 * sgn); ctx.lineTo(x + r * 1.3, y + r * 1.3 * sgn); ctx.stroke();
+      ctx.strokeStyle = '#8B8496'; ctx.lineWidth = lw;
+      ctx.setLineDash([link, link * 0.45]);
+      ctx.beginPath(); ctx.moveTo(x - r * 1.3, y - r * 1.3 * sgn); ctx.lineTo(x + r * 1.3, y + r * 1.3 * sgn); ctx.stroke();
+      ctx.strokeStyle = 'rgba(220,214,232,0.75)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - r * 1.3, y - r * 1.3 * sgn - lw * 0.3); ctx.lineTo(x + r * 1.3, y + r * 1.3 * sgn - lw * 0.3); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
 
   function _drawBody(ctx, w, x, y, r, known) {
     const d = w.def;

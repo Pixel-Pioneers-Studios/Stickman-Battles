@@ -1,20 +1,9 @@
 'use strict';
-// js/story/levels/ch78.js — Chapter 78 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch78.js: Chapter 78 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 78 — A Voice Between Worlds (stealth)
-// The seam between dimensions. The walls the Fallen God built stand edge-on
-// along the path as tall translucent membranes, each tinted by the world
-// behind it, a faint skyline or treeline showing through. The Fallen God's
-// observers hang over the path — golden lanterns with one eye — and each
-// one's light falls in a cone that is exactly its detection zone (detection
-// sits at guard y = 395). Every post has a high route: a drifting shard of
-// wall to step on, then a membrane's folded top edge, a rib running over the
-// zone clear of the light. The voice's source — the First Principle — is a
-// column of gold at the far end with the law turning around it in rings.
-// (First post moved to x=750, clear of the x=450 spawn edge — mirrored in
-// stealthGuardDefs and spawnEnemies.)
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 78: stealth. Each observer's light cone is its detection zone (guard y = 395).
+// Every post needs a high route. First post is at x=750, mirrored in stealthGuardDefs
+// and spawnEnemies.
 (function () {
   const G = 440, SOURCE = 3100;
   const POSTS = [[750, 95], [1300, 100], [2000, 90], [2800, 100]];
@@ -29,7 +18,7 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#06060c');
-    // Far membranes, stacked edge-on into the distance
+    // Far membranes, stacked into the distance.
     _slParallax(v, 0.1, (l, r) => {
       for (let i = Math.floor(l / 90) - 1; i * 90 < r + 90; i++) {
         const x = i * 90 + _slHash(i + 780) * 40, h = _slHash(i + 781) * 360;
@@ -43,7 +32,7 @@
     ctx.fillStyle = `hsla(${hue},45%,60%,0.10)`; ctx.fillRect(x - 70, 40, 140, G - 40);
     ctx.strokeStyle = `hsla(${hue},70%,75%,0.35)`; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.moveTo(x - 70, 40); ctx.lineTo(x - 70, G); ctx.moveTo(x + 70, 40); ctx.lineTo(x + 70, G); ctx.stroke();
-    // What shows through: a skyline or a treeline of the world behind it
+    // Skyline or treeline of the world behind each membrane.
     ctx.fillStyle = `hsla(${hue},30%,40%,0.25)`;
     for (let k = 0; k < 6; k++) {
       const bx = x - 64 + k * 22, bh = 40 + _slHash(hue + k) * 90;
@@ -54,7 +43,7 @@
 
   function observer(x, r) {
     const bob = Math.sin(frameCount * 0.03 + x) * 4, oy = 395 - r - 70 + bob;
-    // Its light falls exactly on the zone
+    // The light falls on the detection zone.
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const g = ctx.createRadialGradient(x, 395, 10, x, 395, r);
     g.addColorStop(0, 'rgba(255,210,110,0.16)'); g.addColorStop(1, 'rgba(255,200,100,0.02)');
@@ -72,12 +61,12 @@
     for (let i = 0; i < POSTS.length; i++) {
       const [x, r] = POSTS[i], R = ROUTES[i];
       if (!_slVisible(v, R.step[0] - 20, R.rib[0] + R.rib[2] + 20)) continue;
-      // The step: a drifting shard of wall
+      // Step: a drifting wall shard.
       const [sx, sy, sw] = R.step;
       ctx.fillStyle = 'rgba(200,190,160,0.5)';
       ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sw, sy); ctx.lineTo(sx + sw - 20, sy + 26); ctx.lineTo(sx + 30, sy + 34); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = 'rgba(255,210,120,0.6)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + sw, sy); ctx.stroke();
-      // The rib: a membrane folded over at the top, running across the zone
+      // Rib: a membrane folded over the top, clear of the light.
       const [rx, ry, rw] = R.rib;
       ctx.fillStyle = 'rgba(220,200,150,0.18)'; ctx.fillRect(rx, ry, rw, 30);
       ctx.fillStyle = '#c8b080'; ctx.fillRect(rx, ry, rw, 5);
@@ -85,7 +74,7 @@
       for (const ex of [rx + 6, rx + rw - 6]) { ctx.beginPath(); ctx.moveTo(ex, ry + 5); ctx.lineTo(ex, G); ctx.stroke(); }
       observer(x, r);
     }
-    // The First Principle: a column of gold, the law turning around it
+    // The First Principle: a gold column.
     if (_slVisible(v, SOURCE - 200, SOURCE + 200)) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const g = ctx.createLinearGradient(SOURCE - 50, 0, SOURCE + 50, 0);
@@ -108,7 +97,7 @@
       ctx.fillStyle = 'rgba(255,220,150,0.25)'; ctx.fillRect(x0, G - 12, x1 - x0, 1);
       return;
     }
-    // The seam's floor: a thin bright line with nothing under it but layered light
+    // Floor: a thin bright line over layered light.
     const g = ctx.createLinearGradient(0, G, 0, G + 260);
     g.addColorStop(0, '#1c1a28'); g.addColorStop(1, '#06060c');
     ctx.fillStyle = g; ctx.fillRect(x0, G, x1 - x0, 260);

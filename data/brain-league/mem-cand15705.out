@@ -1,0 +1,7 @@
+brain-hunter  on 59% 1.18 late 1.13  wipe1 54% 1.07 late 1.07
+brain-hunter2  on 55% 1.07 late 1.09  wipe1 54% 1.08 late 1.12
+brain-hunter3  on 59% 1.13 late 1.17  wipe1 49% 1.01 late 1.01
+brain-hunter4  on 50% 0.89 late 0.92  wipe1 40% 0.78 late 0.77
+switch      on 46% 0.98 late 0.98  wipe1 54% 1.07 late 1.08
+Checkpoint iteration 15705, 200 matches per style per arm, seed 1, top choice. Each arm: win%, dmg dealt/taken, same after the first 10 s.
+all styles  on 53.6%  wipe1 49.8%   (one style, one arm: +-3.5 pts worst case)

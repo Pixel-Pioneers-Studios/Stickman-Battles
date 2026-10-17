@@ -1,13 +1,10 @@
-// ============================================================
-// CHAOS MULTIPLAYER SYSTEM  —  smb-multiplayer-chaos.js
-// Dynamic events, mutations, item drops, kill streaks, spectator
-// Works in any game mode when chaosMode = true.
-// ============================================================
+// Chaos multiplayer: dynamic events, mutations, item drops, kill streaks, spectator cams.
+// Active when chaosMode is true, in any game mode.
 
-// ─── Global State ────────────────────────────────────────────
-let chaosMode        = false;   // enabled from menu toggle or console
+// Global state
+let chaosMode        = false;   // menu toggle or console
 let chaosModeStarted = false;   // true while game is running with chaos
-let chaosEventTimer  = 0;       // countdown to next chaos event (frames)
+let chaosEventTimer  = 0;       // frames until next chaos event
 let _chaosNextInterval = 1800;  // randomized interval, reset each event
 let activeChaosEvent = null;    // { id, timer, duration }
 let chaosKillTarget  = 15;      // kills to win in chaos mode (0 = use normal lives)
@@ -15,13 +12,11 @@ let chaosKillTarget  = 15;      // kills to win in chaos mode (0 = use normal li
 // Announcer text stack
 let _announcerQueue = []; // { text, subtext, color, timer, maxTimer, scaleY }
 
-// World-space item drops
 let chaosItemDrops = []; // { x, y, type, label, color, timer, bobPhase, vy, collected }
 
-// Spectator cameras for eliminated players
 let _spectatorCams = []; // { playerIdx, x, y, active }
 
-// ─── Chaos Event Definitions ─────────────────────────────────
+// Event definitions
 const CHAOS_EVENT_POOL = [
   {
     id: 'gravity_flip',
@@ -217,7 +212,6 @@ const CHAOS_EVENT_POOL = [
   },
 ];
 
-// ─── Player Chaos Effects ─────────────────────────────────────
 const _CHAOS_EFFECTS = {
   big:   { label: '⬆BIG',   onApply(p)  { p.drawScale = 2.2; },      onRemove(p) { if (p.drawScale === 2.2) p.drawScale = 1; } },
   tiny:  { label: '⬇TINY',  onApply(p)  { p.drawScale = 0.45; },     onRemove(p) { if (p.drawScale === 0.45) p.drawScale = 1; } },
@@ -245,7 +239,6 @@ function _tickChaosEffects() {
       state.timer--;
       if (state.timer <= 0) _removeChaosEffect(p, id);
     }
-    // Apply speed mutation every frame
     if (p._chaosSpeedMult && p._chaosSpeedMult !== 1 && Math.abs(p.vx) > 0.5) {
       const boost = (p._chaosSpeedMult - 1) * 2.5;
       p.vx += Math.sign(p.vx) * boost;
@@ -255,7 +248,6 @@ function _tickChaosEffects() {
   });
 }
 
-// ─── Announcer System ─────────────────────────────────────────
 function chaosAnnounce(text, subtext, color, duration) {
   _announcerQueue.push({
     text, subtext: subtext || '',
@@ -282,7 +274,6 @@ function _updateAnnouncer() {
 
 function _drawAnnouncer() {
   if (!_announcerQueue.length) return;
-  // Draw newest on top
   for (let i = Math.max(0, _announcerQueue.length - 2); i < _announcerQueue.length; i++) {
     const a = _announcerQueue[i];
     if (a.scaleY <= 0.01) continue;
@@ -295,7 +286,6 @@ function _drawAnnouncer() {
     ctx.globalAlpha = Math.min(1, a.scaleY);
     ctx.transform(1, 0, 0, a.scaleY, 0, cy * (1 - a.scaleY));
 
-    // Shadow / glow
     ctx.shadowColor = a.color;
     ctx.shadowBlur  = Math.round(28 * a.scaleY);
 
@@ -304,7 +294,6 @@ function _drawAnnouncer() {
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
 
-    // Drop shadow
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillText(a.text, cx + 2, cy + 2);
     ctx.fillStyle = a.color;
@@ -320,7 +309,6 @@ function _drawAnnouncer() {
   }
 }
 
-// ─── Kill Streak / Multi-Kill System ──────────────────────────
 const _MK_NAMES = [
   null, null,
   { text: 'DOUBLE KILL!',  color: '#ffdd00' },
@@ -365,7 +353,6 @@ function _tickMultiKillTimers() {
   });
 }
 
-// ─── Item Drop System ─────────────────────────────────────────
 const _ITEM_DROP_DEFS = {
   heal:         { label: '❤ HEAL',    color: '#ff4466' },
   shield_buff:  { label: '🛡 SHIELD', color: '#4488ff' },
@@ -451,7 +438,6 @@ function _collectItem(p, item) {
   }
 }
 
-// ─── Exploding Platform Tick ──────────────────────────────────
 function _tickExplodingPlatforms() {
   if (!currentArena) return;
   currentArena.platforms.forEach(pl => {
@@ -463,15 +449,12 @@ function _tickExplodingPlatforms() {
       spawnParticles(pl.x + pl.w / 2, pl.y, '#ff6600', 18);
       screenShake = Math.max(screenShake, 7);
       SoundManager.explosion && SoundManager.explosion();
-      // Re-enable after 4 seconds
       setTimeout(() => { pl.isFloorDisabled = false; }, 4000);
     }
   });
 }
 
-// ─── Chaos Event Timer & Dispatch ────────────────────────────
 function _triggerChaosEvent(id) {
-  // Clean up previous event
   if (activeChaosEvent) {
     const prev = CHAOS_EVENT_POOL.find(e => e.id === activeChaosEvent.id);
     if (prev?.onEnd) prev.onEnd();
@@ -488,13 +471,12 @@ function _triggerChaosEvent(id) {
   chaosAnnounce(def.name, def.subtext, def.color, 210);
   screenShake = Math.max(screenShake, 8);
 
-  // Host broadcasts event to guests
   if (typeof NetworkManager !== 'undefined' && NetworkManager.isConnected?.() && NetworkManager.isHost?.()) {
     NetworkManager.sendGameEvent('chaosEvent', { eventId: def.id });
   }
 }
 
-// Public — called from console or externally
+// Called from console or externally
 function triggerChaosEvent(id) { _triggerChaosEvent(id); }
 
 function _updateChaosEventTimer() {
@@ -518,14 +500,12 @@ function _updateChaosEventTimer() {
   }
 }
 
-// ─── Spectator Camera ────────────────────────────────────────
 function _updateSpectatorCams() {
   _spectatorCams.forEach(sc => {
     const p = players[sc.playerIdx];
     if (!p) return;
     sc.active = (p.health <= 0);
     if (!sc.active) return;
-    // Drift toward nearest living player
     const living = players.filter(q => q !== p && q.health > 0);
     if (living.length) {
       const nearest = living.reduce((a, b) =>
@@ -552,9 +532,10 @@ function _drawSpectatorLabel() {
   ctx.restore();
 }
 
-// ─── Score / Kill HUD ────────────────────────────────────────
 function _drawChaosScoreHUD() {
   if (!chaosKillTarget || players.length < 2) return;
+  // Minigames keep their own lives and goals, so no kill race there.
+  if (gameMode === 'minigames') return;
   const sc = canvas.width / 900;
   const cx = canvas.width / 2;
   const y  = Math.round(10 * sc);
@@ -584,7 +565,6 @@ function _drawChaosScoreHUD() {
   ctx.fillStyle = '#e8e8e8';
   ctx.fillText(scoreStr, cx, y + Math.round(4 * sc));
 
-  // Next-event countdown
   const secsLeft = Math.ceil(chaosEventTimer / 60);
   const evStr = activeChaosEvent
     ? `⚡ ${CHAOS_EVENT_POOL.find(e => e.id === activeChaosEvent.id)?.name || '?'} — ${Math.ceil(activeChaosEvent.timer / 60)}s left`
@@ -596,7 +576,6 @@ function _drawChaosScoreHUD() {
   ctx.restore();
 }
 
-// ─── Active Event Badge (bottom-left) ────────────────────────
 function _drawActiveEventBadge() {
   if (!activeChaosEvent) return;
   const def = CHAOS_EVENT_POOL.find(e => e.id === activeChaosEvent.id);
@@ -614,7 +593,6 @@ function _drawActiveEventBadge() {
   else ctx.rect(x, y, bw, bh);
   ctx.fill();
 
-  // Progress bar
   if (activeChaosEvent.duration > 0) {
     ctx.fillStyle = def.color;
     ctx.globalAlpha = 0.55;
@@ -632,7 +610,6 @@ function _drawActiveEventBadge() {
   ctx.restore();
 }
 
-// ─── Mutation Badges on Players ───────────────────────────────
 function _drawChaosEffectBadges() {
   if (!players) return;
   players.forEach(p => {
@@ -655,7 +632,6 @@ function _drawChaosEffectBadges() {
   });
 }
 
-// ─── Item Drop Draw (world space) ────────────────────────────
 function _drawItemDrops() {
   chaosItemDrops.forEach(item => {
     if (item.collected) return;
@@ -665,7 +641,6 @@ function _drawItemDrops() {
     ctx.save();
     ctx.globalAlpha = alpha;
 
-    // Glow halo
     const grd = ctx.createRadialGradient(item.x, item.y + bY, 0, item.x, item.y + bY, 22);
     grd.addColorStop(0,   item.color + 'bb');
     grd.addColorStop(1,   item.color + '00');
@@ -674,7 +649,6 @@ function _drawItemDrops() {
     ctx.arc(item.x, item.y + bY, 22, 0, Math.PI * 2);
     ctx.fill();
 
-    // Pill box
     const bw = 46, bh = 18;
     ctx.fillStyle   = 'rgba(0,0,0,0.68)';
     ctx.strokeStyle = item.color;
@@ -685,7 +659,6 @@ function _drawItemDrops() {
     ctx.fill();
     ctx.stroke();
 
-    // Label
     ctx.fillStyle    = item.color;
     ctx.font         = 'bold 7px Arial';
     ctx.textAlign    = 'center';
@@ -695,7 +668,6 @@ function _drawItemDrops() {
   });
 }
 
-// ─── Exploding Platform Visual ────────────────────────────────
 function drawChaosPlatformEffects() {
   if (!chaosModeStarted || !currentArena) return;
   currentArena.platforms.forEach(pl => {
@@ -715,7 +687,6 @@ function drawChaosPlatformEffects() {
   });
 }
 
-// ─── Main Update (call once per game frame) ───────────────────
 function updateChaosSystem() {
   if (!chaosModeStarted || !gameRunning) return;
   _updateChaosEventTimer();
@@ -726,7 +697,6 @@ function updateChaosSystem() {
   _tickMultiKillTimers();
   _updateSpectatorCams();
 
-  // Periodic random item drop (every ~18s)
   if (frameCount % 1080 === 0) {
     const types = Object.keys(_ITEM_DROP_DEFS);
     const t     = types[Math.floor(Math.random() * types.length)];
@@ -737,7 +707,6 @@ function updateChaosSystem() {
   }
 }
 
-// ─── Main Draw — screen space (call after ctx transform reset) ─
 function drawChaosOverlay() {
   if (!chaosModeStarted) return;
   _drawChaosScoreHUD();
@@ -746,7 +715,6 @@ function drawChaosOverlay() {
   _drawSpectatorLabel();
 }
 
-// ─── World-space Draw (call before transform reset) ───────────
 function drawChaosWorldSpace() {
   if (!chaosModeStarted) return;
   drawChaosPlatformEffects();
@@ -754,7 +722,6 @@ function drawChaosWorldSpace() {
   _drawChaosEffectBadges();
 }
 
-// ─── Initialization ───────────────────────────────────────────
 function initChaosMode() {
   chaosModeStarted   = true;
   chaosEventTimer    = 900 + Math.floor(Math.random() * 600); // 15–25s before first event
@@ -778,14 +745,12 @@ function cleanupChaosMode() {
   if (!chaosModeStarted) return;
   chaosModeStarted = false;
 
-  // End any active event cleanly
   if (activeChaosEvent) {
     const def = CHAOS_EVENT_POOL.find(e => e.id === activeChaosEvent.id);
     if (def?.onEnd) def.onEnd();
     activeChaosEvent = null;
   }
 
-  // Restore globals
   tfGravityInverted  = false;
   tfControlsInverted = false;
   slowMotion         = 1;
@@ -813,8 +778,7 @@ function cleanupChaosMode() {
   }
 }
 
-// ─── Console & Host Commands ──────────────────────────────────
-// Returns true if the command was handled, false if unrecognized.
+// Returns true if the command was handled.
 function handleChaosConsoleCmd(raw) {
   const parts = raw.trim().split(/\s+/);
   const cmd   = parts[0].toLowerCase();
@@ -832,7 +796,6 @@ function handleChaosConsoleCmd(raw) {
     if (sub === 'drop')  { spawnItemDrop(GAME_W / 2, 80, parts[2] || 'heal'); return true; }
     if (sub === 'reset') { cleanupChaosMode(); if (gameRunning) initChaosMode(); return true; }
     if (sub === 'list')  { console.log('[Chaos] Events:', CHAOS_EVENT_POOL.map(e => e.id).join(', ')); return true; }
-    // No sub → toggle
     chaosMode = !chaosMode;
     if (chaosMode && gameRunning && !chaosModeStarted) initChaosMode();
     else if (!chaosMode) cleanupChaosMode();
@@ -864,7 +827,6 @@ function handleChaosConsoleCmd(raw) {
   return false; // not handled
 }
 
-// ─── Network Sync Handler ────────────────────────────────────
 // Returns true if the event was a chaos event and was handled.
 function handleChaosNetworkEvent(msg) {
   if (msg.event === 'chaosEvent' && msg.data?.eventId) {

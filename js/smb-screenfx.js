@@ -1,21 +1,19 @@
 'use strict';
-// smb-screenfx.js — Anime-style post-processing screen effects
-// Depends on: smb-globals.js (canvas, ctx, camZoomCur, camXCur, camYCur,
-//             screenShake, hitStopFrames, players, GAME_W, GAME_H, gameRunning)
-// Hook: ScreenFX.postRender() called at end of gameLoop in smb-loop-core.js
+// Anime-style post-processing. Reads globals from smb-globals.js.
+// Hook: ScreenFX.postRender(), called at the end of gameLoop (smb-loop-core.js).
 
 const ScreenFX = (() => {
-  // ── State ─────────────────────────────────────────────────────────────────
-  let _caTimer     = 0;   // chromatic aberration frames remaining
-  let _caIntensity = 0;   // CA edge width driver
-  let _flashTimer  = 0;   // impact flash frames remaining
+  let _caTimer     = 0;   // chromatic aberration frames left
+  let _caIntensity = 0;   // CA edge width
+  let _flashTimer  = 0;   // impact flash frames left
   let _flashAlpha  = 0;   // flash peak alpha
-  let _ripples     = [];  // shockwave rings: { x, y, r, maxR, life, maxLife, color }
-  let _vigPulse    = 0;   // boss vignette pulse accumulator
-  let _prevHitStop = 0;   // detect hitStopFrames rising edge
-  let _prevShake   = 0;   // detect screenShake spike
+  let _flashColor  = '#ffffff';
+  let _ripples     = [];  // shockwave rings
+  let _vigPulse    = 0;   // boss vignette pulse
+  let _prevHitStop = 0;   // last frame's hitStopFrames, for rising-edge detect
+  const SFX_FLASH_HITSTOP = 11;  // hit-stop frames needed before the screen flashes
+  let _prevShake   = 0;
 
-  // ── Coordinate helper ──────────────────────────────────────────────────────
   function _worldToScreen(wx, wy) {
     const bX = canvas.width  / GAME_W;
     const bY = canvas.height / GAME_H;
@@ -28,15 +26,16 @@ const ScreenFX = (() => {
     };
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
   function triggerCA(intensity, frames) {
     _caIntensity = Math.max(_caIntensity, intensity || 7);
     _caTimer     = Math.max(_caTimer,     frames   || 10);
   }
 
-  function triggerFlash(alpha, frames) {
+  function triggerFlash(alpha, frames, color) {
+    if (typeof settings !== 'undefined' && settings && settings.phaseFlash === false) return;
     _flashAlpha = Math.max(_flashAlpha, alpha  || 0.40);
     _flashTimer = Math.max(_flashTimer, frames || 6);
+    _flashColor = color || '#ffffff';
   }
 
   function spawnRipple(wx, wy, color, maxR) {
@@ -44,7 +43,6 @@ const ScreenFX = (() => {
     _ripples.push({ x: wx, y: wy, r: 4, maxR: maxR || 90, life: 22, maxLife: 22, color: color || '#ffffff' });
   }
 
-  // ── Motion smear (world-space — drawn before screen-space overlays) ────────
   function _drawSmears() {
     if (!gameRunning || !players || !players.length) return;
     const bX = canvas.width  / GAME_W;
@@ -85,19 +83,19 @@ const ScreenFX = (() => {
     ctx.restore();
   }
 
-  // ── Main post-render hook — call once per frame at end of gameLoop ─────────
   function postRender() {
     if (!gameRunning) return;
 
     const cW = canvas.width;
     const cH = canvas.height;
 
-    // ── Auto-detect heavy hit (hitStopFrames rising edge) ────────────────────
     const hitNow = typeof hitStopFrames !== 'undefined' ? hitStopFrames : 0;
     if (hitNow > 0 && _prevHitStop === 0) {
       triggerCA(9, 14);
-      triggerFlash(0.36, 5);
       const atk = players && players.find(p => p.health > 0 && p.attackTimer > 0);
+      // Only the heaviest freezes light the screen, in the attacker's colour.
+      // White is kept for kills and finishers.
+      if (hitNow >= SFX_FLASH_HITSTOP) triggerFlash(0.22, 5, (atk && atk.color) || '#ffffff');
       if (atk) {
         const mx = atk.cx ? atk.cx() : atk.x;
         spawnRipple(mx, atk.y + (atk.h || 50) * 0.4, atk.color || '#ffffff', 100);
@@ -105,21 +103,17 @@ const ScreenFX = (() => {
     }
     _prevHitStop = hitNow;
 
-    // ── Auto-detect big shake spike ────────────────────────────────────────
     const shakeNow = typeof screenShake !== 'undefined' ? screenShake : 0;
     if (shakeNow > 18 && _prevShake <= 18) {
       triggerCA(Math.min(shakeNow * 0.50, 13), 9);
     }
     _prevShake = shakeNow;
 
-    // ── Motion smear pass (world-space) ───────────────────────────────────
     _drawSmears();
 
-    // ── Screen-space overlays ──────────────────────────────────────────────
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-    // Shockwave ripples
     for (const rip of _ripples) {
       rip.r   += (rip.maxR - rip.r) * 0.24;
       rip.life--;
@@ -137,7 +131,7 @@ const ScreenFX = (() => {
     _ripples    = _ripples.filter(r => r.life > 0);
     ctx.shadowBlur = 0;
 
-    // Boss vignette — pulsing colored edge during boss fight
+    // Boss vignette: pulsing edge
     const boss = players && players.find(p => (p.isBoss || p.isTrueForm) && p.health > 0);
     if (boss) {
       _vigPulse   += 0.025;
@@ -153,7 +147,7 @@ const ScreenFX = (() => {
       _vigPulse = 0;
     }
 
-    // Chromatic aberration — red/blue edge tint on heavy impacts
+    // Chromatic aberration: red/blue edge tint on heavy hits
     if (_caTimer > 0) {
       const t   = _caTimer / 14;
       const edW = Math.min(cW * 0.18, _caIntensity * 4.5 * t);
@@ -177,16 +171,15 @@ const ScreenFX = (() => {
       _caIntensity *= 0.87;
     }
 
-    // Impact flash — brief white overlay on heavy hits
+    // Impact flash
     if (_flashTimer > 0) {
       ctx.globalAlpha = (_flashTimer / 6) * _flashAlpha;
-      ctx.fillStyle   = '#ffffff';
+      ctx.fillStyle   = _flashColor;
       ctx.fillRect(0, 0, cW, cH);
       _flashTimer--;
       if (_flashTimer === 0) _flashAlpha = 0;
     }
 
-    // Reset state
     ctx.globalAlpha              = 1;
     ctx.shadowBlur               = 0;
     ctx.globalCompositeOperation = 'source-over';

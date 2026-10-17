@@ -1,10 +1,9 @@
 'use strict';
-// smb-god.js — God entity, encounter system, fake crash screen, Paradox ally
+// smb-god.js: God entity, encounter system, fake crash screen, Paradox ally.
+// Load after smb-enemies-class.js and before smb-menu-startcore.js.
 // Depends on: smb-globals.js, smb-fighter.js, smb-combat.js, smb-save.js
-// Load after: smb-enemies-class.js
-// Load before: smb-menu-startcore.js
 
-// ── Godslayer weapon (granted to player in Phase 2 encounter) ──────────────
+// Godslayer weapon (granted to player in Phase 2 encounter)
 window.GODSLAYER_WEAPON = {
   name: 'Godslayer',
   damage: 180,
@@ -26,7 +25,7 @@ window.GODSLAYER_WEAPON = {
   },
 };
 
-// ── Encounter state ────────────────────────────────────────────────────────
+// Encounter state
 const _GOD_ATTACK_RANGE   = 160;
 // Phase-2 God: holds off to one side and attacks only through telegraphed moves.
 const GOD_HOVER_SIDE      = 210;  // horizontal standoff from the target
@@ -37,37 +36,14 @@ const GOD_LANCE_LOCK      = 12;   // aim freezes this many frames before the das
 const GOD_LANCE_SPEED     = 24;
 const GOD_LANCE_FRAMES    = 18;
 const GOD_LANCE_DMG       = 60;
-const GOD_LANCE_RECOVER   = 55;   // 45 below 35% HP — the punish window
+const GOD_LANCE_RECOVER   = 55;   // 45 below 35% HP, the punish window
 const GOD_LANCE_CD        = 100;  // 70 below 35% HP
 const GOD_SMITE_WARN      = 36;
-let _godEncounterCooldown = 0;
 let _godWasAlive          = false;
-
-function _getGodEncounterChance() {
-  let denom = 1000000;
-  if (typeof sovereignBeaten !== 'undefined' && sovereignBeaten) denom = Math.min(denom, 10000);
-  if (typeof godEncountered  !== 'undefined' && godEncountered)  denom = Math.min(denom, 10000);
-  if (typeof godDefeated     !== 'undefined' && godDefeated)     denom = Math.min(denom, 5000);
-  return 1 / denom;
-}
 
 function _isGodPhase2() {
   return (typeof godEncountered !== 'undefined' && godEncountered) ||
          (typeof sovereignBeaten !== 'undefined' && sovereignBeaten);
-}
-
-function updateGodEncounterTick() {
-  if (typeof gameRunning === 'undefined' || !gameRunning) return;
-  if (typeof gameMode !== 'undefined' && gameMode === 'god') return;
-  if (typeof gameMode !== 'undefined' && (gameMode === 'boss' || gameMode === 'trueform')) return;
-  if ((typeof onlineMode !== 'undefined' && onlineMode) || window._pubHubActive) return;
-  if (_godEncounterCooldown > 0) { _godEncounterCooldown--; return; }
-  if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
-  if (typeof storyModeActive !== 'undefined' && storyModeActive) return;
-  if (Math.random() < _getGodEncounterChance()) {
-    _godEncounterCooldown = 600;
-    startGodEncounter();
-  }
 }
 
 function spawnGod(consoleSummoned) {
@@ -160,14 +136,12 @@ function _showGodChallengePrompt() {
   });
   document.getElementById('_godChallengeDecline').addEventListener('click', function () {
     _closePrompt();
-    _godEncounterCooldown = 300;
   });
 }
 
 function _checkGodDeath() {
-  // AbsoluteAxiom death hook must run BEFORE the god-mode gate — AA fights use
-  // gameMode 'absoluteaxiom', so behind the gate the defeat card/achievement
-  // could never fire.
+  // Run the AbsoluteAxiom death hook before the god-mode gate. AA fights use gameMode
+  // 'absoluteaxiom', so behind the gate the defeat card and achievement would never fire.
   if (typeof _checkAbsoluteAxiomDeathHook === 'function') _checkAbsoluteAxiomDeathHook();
   if (typeof gameMode === 'undefined' || gameMode !== 'god') return;
   if (!_godWasAlive) return;
@@ -190,14 +164,13 @@ function _onGodDefeated() {
     }
     if (typeof unlockAchievement === 'function') unlockAchievement('god_slayer');
   }
-  // Story God fight: complete the chapter via endGame (story2OnMatchEnd handles
-  // victory + postText). Runs regardless of the unlock flag so a replay still completes.
+  // Story God fight: finish via endGame. Runs even when already unlocked, so a replay completes.
   if (_storyGod) {
     setTimeout(() => { if (typeof endGame === 'function') endGame(); }, 900);
   }
 }
 
-// ── Fake crash screen ──────────────────────────────────────────────────────
+// Fake crash screen
 function _showGodFakeCrash() {
   if (typeof gameRunning !== 'undefined') gameRunning = false;
   if (document.getElementById('_godCrashOverlay')) return;
@@ -263,7 +236,7 @@ function _showGodFakeCrash() {
   });
 }
 
-// ── God entity ─────────────────────────────────────────────────────────────
+// God entity
 class God extends Fighter {
   constructor(x, y) {
     super(x, y, '#ffffff', 'sword',
@@ -283,7 +256,6 @@ class God extends Fighter {
     this._crashFired    = false;
     this._consoleSummoned = false;
 
-    // Continuous animation timers
     this._wingAngle  = 0;
     this._auraPhase  = 0;
     this._hoverTime  = 0;
@@ -291,24 +263,20 @@ class God extends Fighter {
     this._runeAngle  = 0;
     this._haloAngles = [0, Math.PI / 3, Math.PI * 2 / 3];
 
-    // Trail
     this._trailPoints = [];
     this._trailTimer  = 0;
 
-    // Flying state
     this._flyVy    = 0;
     this._smiteTimer = 0;
     this._smitePending = false;
     this._lance      = null; // { phase:'windup'|'dash'|'recover', t, dur, dx, dy, hit:Set }
     this._hoverSide  = Math.random() < 0.5 ? -1 : 1;
 
-    // Dash state
     this._dashCd     = 60;
     this._dashFrames = 0;
     this._dashVx     = 0;
     this._dashVy     = 0;
 
-    // Special attack state (Phase 2)
     this._specialCd     = 220;
     this._angelCooldown = 0;
     this._columns       = [];
@@ -337,7 +305,7 @@ class God extends Fighter {
   activateSuper()  {}
   checkPlatform()  {} // God phases through all surfaces
 
-  // ── Special attacks ────────────────────────────────────────────────────
+  // Special attacks
 
   _doAngelFleet(target) {
     if (!target || !Array.isArray(minions)) return;
@@ -399,7 +367,7 @@ class God extends Fighter {
     this._specialCd = hpFrac < 0.3 ? 170 : hpFrac < 0.6 ? 230 : 300;
   }
 
-  // ── Special effect logic ───────────────────────────────────────────────
+  // Special effect logic
 
   _godTargetPool() {
     const pool = [];
@@ -474,7 +442,7 @@ class God extends Fighter {
     }
   }
 
-  // ── Update (flying) ────────────────────────────────────────────────────
+  // Update (flying)
 
   update() {
     if (this.health <= 0) return;
@@ -504,7 +472,6 @@ class God extends Fighter {
       if (this._smiteTimer > 0) this._smiteTimer--;
     }
 
-    // Find nearest target across all entities, skipping godmode entities
     let target = null, minDist = Infinity;
     for (const p of this._godTargetPool()) {
       if (p === this || p.health <= 0 || p.godmode === true) continue;
@@ -528,7 +495,7 @@ class God extends Fighter {
     this.target = target;
     this.facing = Math.sign(target.cx() - this.cx()) || 1;
 
-    // AbsoluteAxiom manages its own locomotion and attacks — skip God's versions
+    // AbsoluteAxiom manages its own locomotion and attacks: skip God's versions
     if (this.isAbsoluteAxiom) {
       const _aaGH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
       const _aaGW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
@@ -592,7 +559,7 @@ class God extends Fighter {
         this._flyVy = this._dashVy;
       } else {
         this.vx     = (errX / flyDist) * spd;
-        this._flyVy = (errY / flyDist) * spd; // direct set — no accumulation drift
+        this._flyVy = (errY / flyDist) * spd; // set directly, no accumulation
       }
     }
 
@@ -600,7 +567,7 @@ class God extends Fighter {
     this.vy = this._flyVy - 0.65;
     super.update();
 
-    // Hard clamp — don't land on ground
+    // Hard clamp: don't land on ground
     const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
     const GW = typeof GAME_W !== 'undefined' ? GAME_W : 900;
     this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
@@ -619,11 +586,8 @@ class God extends Fighter {
 
     if (_p2 && this._specialCd <= 0 && !this._lance) this._pickAndFireSpecial(target);
 
-    // Cinematic HP thresholds (Phase 2, standalone encounter only).
-    // The story fight (ch.160) is excluded: its 1400 HP sits below both thresholds
-    // so the dialogue would fire on frame one over the chapter's own fightScript,
-    // and the Kernel-merge finale contradicts act-7 canon (Sovereign takes the
-    // Kernel from Axiom after the fight — see ch.160 postText).
+    // Cinematic HP thresholds (Phase 2, standalone encounter only). The story fight (ch.160)
+    // is excluded: its 1400 HP sits below both, so dialogue would fire on frame one.
     if (this._phase === 2 && !this._storyGod) {
       if (typeof _tryFireGodDialogueCin === 'function') _tryFireGodDialogueCin(this);
       if (typeof _tryFireGod1000Cin     === 'function') _tryFireGod1000Cin(this);
@@ -678,7 +642,7 @@ class God extends Fighter {
     }
   }
 
-  // ── Draw ───────────────────────────────────────────────────────────────
+  // Draw
 
   draw() {
     if (this.health <= 0) return;
@@ -690,14 +654,13 @@ class God extends Fighter {
     const t     = this._wingAngle;
     const p2    = this._phase === 2;
 
-    // Colour palette
     const mainCol   = p2 ? '#e0ccff' : '#ffffff';
     const glowCol   = p2 ? 'rgba(200,145,255,0.98)' : 'rgba(225,242,255,0.98)';
     const accentCol = p2 ? 'rgba(210,160,255,1)'     : 'rgba(255,242,100,1)';
 
     ctx.save();
 
-    // ── Movement trail ─────────────────────────────────────────────────
+    // Movement trail
     for (let i = 0; i < this._trailPoints.length; i++) {
       const tp = this._trailPoints[i];
       const a  = ((this._trailPoints.length - i) / this._trailPoints.length) * 0.22;
@@ -707,9 +670,8 @@ class God extends Fighter {
       ctx.fill();
     }
 
-    // Apex scale: every layer below is anchored to cx/cy with fixed offsets, so a
-    // uniform transform about the body centre scales the whole form together.
-    // (Trail above stays world-space — its points are historical positions.)
+    // Apex scale: layers are anchored to cx/cy, so one transform scales the whole form.
+    // The trail stays world-space (its points are historical positions).
     const _s = this._scale || 1;
     if (_s !== 1) {
       ctx.translate(cx, cy);
@@ -717,7 +679,7 @@ class God extends Fighter {
       ctx.translate(-cx, -cy);
     }
 
-    // ── Layer 1: Vast outer radiance ────────────────────────────────────
+    // Layer 1: Vast outer radiance
     const farR    = 95 + Math.sin(this._auraPhase * 0.38) * 10;
     const farGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, farR);
     farGrad.addColorStop(0, p2 ? 'rgba(170,90,255,0.09)' : 'rgba(255,252,200,0.11)');
@@ -727,7 +689,7 @@ class God extends Fighter {
     ctx.fillStyle = farGrad;
     ctx.fill();
 
-    // ── Layer 2: Divine star/cross geometry (slow rotation) ─────────────
+    // Layer 2: Divine star/cross geometry (slow rotation)
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(this._crossAngle);
@@ -754,7 +716,7 @@ class God extends Fighter {
     }
     ctx.restore();
 
-    // ── Layer 3: Gyroscopic halo rings (3 rings, different tilt axes) ───
+    // Layer 3: Gyroscopic halo rings (3 rings, different tilt axes)
     ctx.save();
     ctx.shadowColor = accentCol;
     ctx.shadowBlur  = 22;
@@ -781,7 +743,7 @@ class God extends Fighter {
     }
     ctx.restore();
 
-    // ── Layer 4: Four pairs of seraphic wings ────────────────────────────
+    // Layer 4: Four pairs of seraphic wings
     const wingFills = p2
       ? ['rgba(185,115,255,0.7)', 'rgba(155,85,240,0.48)', 'rgba(125,55,210,0.3)', 'rgba(100,35,185,0.18)']
       : ['rgba(245,250,255,0.78)', 'rgba(220,236,255,0.52)', 'rgba(195,220,255,0.32)', 'rgba(170,205,255,0.18)'];
@@ -801,7 +763,7 @@ class God extends Fighter {
       ctx.shadowBlur  = 8;
 
       for (const side of [-1, 1]) {
-        // Primary wing lobe — gradient-filled
+        // Primary wing lobe: gradient-filled
         const wGrad = ctx.createRadialGradient(
           cx + side * spread * 0.35, cy + yOff - wave * 0.6, 0,
           cx + side * spread * 0.55, cy + yOff - wave, spread * 0.7
@@ -837,7 +799,7 @@ class God extends Fighter {
           ctx.fill();
         }
 
-        // Feather quill strokes (no shadow — too fine to matter)
+        // Feather quill strokes (no shadow: too fine to matter)
         ctx.strokeStyle = p2 ? 'rgba(200,165,255,0.38)' : 'rgba(215,238,255,0.42)';
         ctx.lineWidth   = 0.55;
         ctx.shadowBlur  = 0;
@@ -858,7 +820,7 @@ class God extends Fighter {
       }
     }
 
-    // ── Layer 5: Flowing divine mantle ───────────────────────────────────
+    // Layer 5: Flowing divine mantle
     const mFlow = Math.sin(t * 0.38) * 16;
     const mDir  = -this.facing * 28;
     ctx.save();
@@ -879,7 +841,7 @@ class God extends Fighter {
     }
     ctx.restore();
 
-    // ── Layer 6: Body-close inner radiance ───────────────────────────────
+    // Layer 6: Body-close inner radiance
     const iR    = 30 + Math.sin(this._auraPhase * 1.1) * 4;
     const iGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, iR);
     iGrad.addColorStop(0, p2 ? 'rgba(210,158,255,0.28)' : 'rgba(255,255,225,0.32)');
@@ -889,7 +851,7 @@ class God extends Fighter {
     ctx.fillStyle = iGrad;
     ctx.fill();
 
-    // ── Layer 7: The stickman — buried in divinity ──────────────────────
+    // Layer 7: The stickman: buried in divinity
     // Lines are thick + extreme blur so they read as columns of light, not sticks
     ctx.strokeStyle = mainCol;
     ctx.lineWidth   = 5.5;
@@ -898,7 +860,6 @@ class God extends Fighter {
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
-    // Head
     ctx.beginPath();
     ctx.arc(cx, headY, 11, 0, Math.PI * 2);
     ctx.stroke();
@@ -913,27 +874,24 @@ class God extends Fighter {
     ctx.lineWidth   = 5.5;
     ctx.shadowBlur  = 28;
 
-    // Torso
     const torsoY = headY + 11;
     ctx.beginPath();
     ctx.moveTo(cx, torsoY);
     ctx.lineTo(cx, torsoY + 26);
     ctx.stroke();
 
-    // ── The Kernel — blazing orb lodged in the chest ────────────────────────
+    // The Kernel: blazing orb lodged in the chest
     if (this._phase === 2) {
       const kx = cx;
       const ky = torsoY + 13;
       const kPulse = 5.5 + Math.sin(this._auraPhase * 2.2) * 1.8;
       ctx.save();
-      // Outer glow
       const kGrd = ctx.createRadialGradient(kx, ky, 0, kx, ky, kPulse * 3.2);
       kGrd.addColorStop(0,   'rgba(255,220,60,0.82)');
       kGrd.addColorStop(0.45,'rgba(255,160,0,0.45)');
       kGrd.addColorStop(1,   'rgba(0,0,0,0)');
       ctx.fillStyle = kGrd;
       ctx.beginPath(); ctx.arc(kx, ky, kPulse * 3.2, 0, Math.PI * 2); ctx.fill();
-      // Core
       ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 16;
       ctx.fillStyle   = '#fff8c0';
       ctx.beginPath(); ctx.arc(kx, ky, kPulse, 0, Math.PI * 2); ctx.fill();
@@ -949,7 +907,7 @@ class God extends Fighter {
       ctx.restore();
     }
 
-    // Arms — outstretched like a cruciform figure, animated
+    // Arms: outstretched like a cruciform figure, animated
     const armY    = torsoY + 10;
     const armWave = Math.sin(t * 0.48) * 6;
     ctx.beginPath();
@@ -958,7 +916,7 @@ class God extends Fighter {
     ctx.lineTo(cx + 22, armY + 6 - armWave);
     ctx.stroke();
 
-    // Legs — slow glide motion
+    // Legs: slow glide motion
     const legY    = torsoY + 26;
     const legWave = Math.sin(t * 0.38) * 4;
     ctx.beginPath();
@@ -968,7 +926,7 @@ class God extends Fighter {
     ctx.lineTo(cx + 14, legY + 22 - legWave);
     ctx.stroke();
 
-    // ── Layer 8: Diamond-shard eyes ──────────────────────────────────────
+    // Layer 8: Diamond-shard eyes
     const eyeGlow  = p2 ? 'rgba(225,185,255,1)' : 'rgba(255,255,180,1)';
     const eyeFill  = p2 ? '#e8ccff' : '#ffffcc';
     const eyeF     = this.facing;
@@ -985,7 +943,7 @@ class God extends Fighter {
       ctx.restore();
     }
 
-    // ── Layer 9: Sunburst crown behind head ──────────────────────────────
+    // Layer 9: Sunburst crown behind head
     const BURST = 14;
     ctx.save();
     ctx.translate(cx, headY);
@@ -1007,7 +965,7 @@ class God extends Fighter {
     }
     ctx.restore();
 
-    // ── Layer 10: Lissajous-orbit runes ──────────────────────────────────
+    // Layer 10: Lissajous-orbit runes
     this._runeAngle += 0.016;
     const RUNE_N = p2 ? 14 : 10;
     ctx.save();
@@ -1038,10 +996,10 @@ class God extends Fighter {
 
     ctx.restore();
 
-    // ── Special effect overlays ──────────────────────────────────────────
+    // Special effect overlays
     this._drawSpecialEffects(cx, cy);
 
-    // ── Health bar (Phase 2) ─────────────────────────────────────────────
+    // Health bar (Phase 2)
     if (this._phase === 2 || this._consoleSummoned) {
       const barW = Math.round(82 * (this._scale || 1)), barH = 7;
       const bx   = cx - barW / 2;
@@ -1076,7 +1034,7 @@ class God extends Fighter {
     }
   }
 
-  // ── Draw active special effects ────────────────────────────────────────
+  // Draw active special effects
 
   _drawSpecialEffects(godCx, godCy) {
     if (typeof ctx === 'undefined') return;
@@ -1148,7 +1106,6 @@ class God extends Fighter {
         cGrad.addColorStop(1,   `rgba(255,200,0,${wA * 0.45})`);
         ctx.fillStyle = cGrad;
         ctx.fillRect(col.x - beamW / 2, 0, beamW, GH);
-        // Ground circle
         ctx.strokeStyle = `rgba(255,210,60,${0.42 + Math.sin(col.timer * 0.3) * 0.2})`;
         ctx.lineWidth   = 2.2;
         ctx.shadowColor = 'rgba(255,225,80,0.8)';
@@ -1219,7 +1176,7 @@ class God extends Fighter {
   }
 }
 
-// ── HolyAngel — summoned by God's Angel Fleet ─────────────────────────────
+// HolyAngel: summoned by God's Angel Fleet
 class HolyAngel extends Fighter {
   constructor(x, y) {
     super(x, y, '#ffffff', 'sword',
@@ -1310,7 +1267,6 @@ class HolyAngel extends Fighter {
     ctx.save();
     ctx.globalAlpha = fade;
 
-    // Mini aura
     const aG = ctx.createRadialGradient(cx, cy, 0, cx, cy, 26);
     aG.addColorStop(0, 'rgba(255,255,220,0.2)');
     aG.addColorStop(1, 'rgba(255,240,100,0)');
@@ -1337,7 +1293,6 @@ class HolyAngel extends Fighter {
       }
     }
 
-    // Stickman
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth   = 2.8;
     ctx.shadowColor = 'rgba(220,240,255,0.95)';
@@ -1355,7 +1310,6 @@ class HolyAngel extends Fighter {
     ctx.moveTo(cx, lY); ctx.lineTo(cx + 8, lY + 12);
     ctx.stroke();
 
-    // Mini halo
     ctx.strokeStyle = 'rgba(255,255,160,0.88)';
     ctx.lineWidth   = 1.4;
     ctx.shadowColor = 'rgba(255,255,80,1)';
@@ -1366,7 +1320,6 @@ class HolyAngel extends Fighter {
 
     ctx.restore();
 
-    // HP bar
     const pct = Math.max(0, this.health / this.maxHealth);
     const bw = 34, bh = 3;
     ctx.globalAlpha = fade * 0.82;
@@ -1378,7 +1331,7 @@ class HolyAngel extends Fighter {
   }
 }
 
-// ── GodParadoxAlly (Phase 2 helper — targets God only, flying blue fighter) ─
+// GodParadoxAlly (Phase 2 helper: targets God only, flying blue fighter)
 class GodParadoxAlly extends Fighter {
   constructor(x, y) {
     super(x, y, '#2288ff', 'sword',
@@ -1417,7 +1370,7 @@ class GodParadoxAlly extends Fighter {
   respawn()       { this.health = 0; }
   useSuper()      {}
   activateSuper() {}
-  checkPlatform() {} // Paradox flies — phase through surfaces
+  checkPlatform() {} // Paradox flies, phases through surfaces
 
   update() {
     if (this.health <= 0) return;
@@ -1430,7 +1383,6 @@ class GodParadoxAlly extends Fighter {
     if (this._specialCd > 0) this._specialCd--;
     if (this._dashCd    > 0) this._dashCd--;
 
-    // Trail
     this._trailTimer++;
     if (this._trailTimer >= 5) {
       this._trailTimer = 0;
@@ -1505,14 +1457,12 @@ class GodParadoxAlly extends Fighter {
     this.y = Math.max(8, Math.min(GH * 0.88 - this.h, this.y));
     this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
 
-    // Melee strike
     if (toDist < 130 && this._attackCd <= 0 && typeof dealDamage === 'function') {
       dealDamage(this, this._godTarget, 120 * this.dmgMult, 8 * this.kbBonus);
       this._attackCd = 50;
       if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h/2, '#55aaff', 8);
     }
 
-    // Special: dimensional blast
     if (this._specialCd <= 0) {
       this._blastRings.push({ r: 0, maxR: 200, alpha: 1.0, _hit: false });
       this._specialCd = 240;
@@ -1532,7 +1482,6 @@ class GodParadoxAlly extends Fighter {
 
     ctx.save();
 
-    // Movement trail
     for (let i = 0; i < this._trailPts.length; i++) {
       const tp = this._trailPts[i];
       const a  = ((this._trailPts.length - i) / this._trailPts.length) * 0.28;
@@ -1542,7 +1491,6 @@ class GodParadoxAlly extends Fighter {
       ctx.fill();
     }
 
-    // Outer aura
     const farR = 80 + Math.sin(this._auraPhase * 0.4) * 10;
     const aG   = ctx.createRadialGradient(cx, cy, 0, cx, cy, farR);
     aG.addColorStop(0, 'rgba(0,120,255,0.12)');
@@ -1588,7 +1536,7 @@ class GodParadoxAlly extends Fighter {
       }
     }
 
-    // Body — thick blue glowing stickman
+    // Body: thick blue glowing stickman
     ctx.strokeStyle = '#3399ff';
     ctx.lineWidth   = 5;
     ctx.shadowColor = 'rgba(30,130,255,0.95)';
@@ -1596,7 +1544,6 @@ class GodParadoxAlly extends Fighter {
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
-    // Head
     ctx.beginPath(); ctx.arc(cx, headY, 10, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 0.38;
     ctx.lineWidth   = 9;
@@ -1661,7 +1608,6 @@ class GodParadoxAlly extends Fighter {
 
     ctx.restore();
 
-    // Blast rings
     for (const ring of this._blastRings) {
       ctx.save();
       ctx.strokeStyle = `rgba(50,160,255,${ring.alpha * 0.7})`;
@@ -1675,7 +1621,6 @@ class GodParadoxAlly extends Fighter {
       ctx.restore();
     }
 
-    // Health bar
     const barW = 70, barH = 6, bx = cx - barW/2, by = this.y - 22;
     const pct  = Math.max(0, this.health / this.maxHealth);
     ctx.fillStyle = 'rgba(0,0,0,0.6)';

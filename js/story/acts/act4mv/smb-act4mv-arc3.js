@@ -1,8 +1,5 @@
 // Appends chapters for act4mv/smb-act4mv-arc3.js.
-// The Betrayal Arc (ids 109–113): The stranger is Axiom, disguised. He dismantles the player's
-// trust in Veran using real truths as scaffolding for a fabricated lie about the closure protocol.
-// The player kills Veran. Axiom confirms the deed and disappears before the player can question him.
-// The player enters the Creator's domain alone, carrying guilt and two unanswered questions.
+// Betrayal arc (ids 109-113): Axiom, disguised as a stranger, turns the player against Veran.
 STORY_CHAPTER_REGISTRY.push(
   {
     id: 123, title: 'The Watcher',
@@ -175,14 +172,14 @@ STORY_CHAPTER_REGISTRY.push(
       'You raised your weapon.',
     ],
     fightScript: [
-      { frame: 60,   text: 'Veran doesn\'t attack. She deflects. She\'s trying to reach you, not beat you.', color: '#4488dd', timer: 360 },
+      { frame: 60,   text: 'Veran doesn\'t attack. She deflects. She\'s trying to reach you, not beat you.', color: '#3ddc84', timer: 360 },
       { frame: 240,  text: '"Whatever they told you — this is what they wanted. Can you hear me? This is the plan."', color: '#5599ee', timer: 340 },
       { frame: 480,  text: '"Stop. STOP. You\'re making a mistake." Her voice has no anger. Just fear.', color: '#aaccff', timer: 320 },
       { frame: 700,  text: '"I know I lied to you. I know. But I was trying to get you out of this alive—"', color: '#88aadd', timer: 340 },
       { frame: 900,  text: 'She\'s not fighting back. She\'s protecting herself. There is a difference. There is.', color: '#ffffff', timer: 300 },
     ],
     preText: 'Veran — The Architect. She isn\'t trying to win. She\'s trying to reach you. 1 life.',
-    opponentName: 'Veran — The Architect', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#4488dd',
+    opponentName: 'Veran — The Architect', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#3ddc84',
     armor: ['helmet'],
     playerLives: 1,
     arena: 'grass',

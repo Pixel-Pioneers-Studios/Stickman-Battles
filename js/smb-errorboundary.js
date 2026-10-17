@@ -1,21 +1,9 @@
-// ============================================================
-// SMB ERROR BOUNDARY — smb-errorboundary.js
-// ============================================================
-// Classifies runtime errors as MINOR (game continues with a
-// warning toast) or MAJOR (hard crash overlay, must reset).
-//
-// Minor  — isolated rendering/particle/HUD failures that don't
-//          corrupt core state.  Game loop keeps running.
-// Major  — corrupted critical state (players, arena, loop) that
-//          would cause infinite crashing.  Loop is stopped.
-//
-// Escalation: 3+ minor errors from the same source within a
-// session automatically escalate to a major crash.
-// ============================================================
+// Runtime error boundary. Minor errors show a toast and the loop keeps running.
+// Major errors (corrupt players, arena or loop state) show the crash overlay and stop the loop.
+// Three minor errors from one source escalate to major.
 
 const ErrorBoundary = (() => {
-  // ── Error classification ──────────────────────────────────
-  // Keywords that flag a MAJOR crash regardless of origin.
+  // Messages matching these are always major.
   const MAJOR_PATTERNS = [
     /cannot read prop/i,
     /is not a function/i,
@@ -27,22 +15,19 @@ const ErrorBoundary = (() => {
     /out of memory/i,
   ];
 
-  // Source file fragments considered "cosmetic" — failures here
-  // are usually minor (don't break physics or win conditions).
+  // Cosmetic source files: failures here are usually minor.
   const MINOR_SOURCES = [
     'smb-particles', 'smb-drawing', 'smb-achievements',
     'smb-audio', 'smb-director', 'smb-debug',
     'smb-cinematics', 'smb-finishers',
   ];
 
-  // Crash counter: source → count
   const _errorCounts = {};
-  const ESCALATE_AFTER = 3; // minor errors from same source before escalation
+  const ESCALATE_AFTER = 3;
 
-  let _majorShown  = false; // only one hard crash overlay at a time
-  let _minorActive = false; // debounce minor toasts
+  let _majorShown  = false;
+  let _minorActive = false;
 
-  // ── DOM creation ─────────────────────────────────────────
   function _ensureStyles() {
     if (document.getElementById('_ebStyles')) return;
     const s = document.createElement('style');
@@ -77,7 +62,6 @@ const ErrorBoundary = (() => {
   function showMajor(msg, stack) {
     if (_majorShown) return;
     _majorShown = true;
-    // Stop the game loop immediately
     if (typeof gameRunning !== 'undefined') {
       try { gameRunning = false; } catch(e) {}
     }
@@ -136,7 +120,6 @@ const ErrorBoundary = (() => {
     if (_minorActive) return;
     _minorActive = true;
     _ensureStyles();
-    // Remove any existing toast
     document.getElementById('_ebMinorToast')?.remove();
     const toast = document.createElement('div');
     toast.id = '_ebMinorToast';
@@ -152,18 +135,14 @@ const ErrorBoundary = (() => {
     }, 5000);
   }
 
-  // ── Classification logic ──────────────────────────────────
   function classify(message, source, stack) {
-    // Always major if message matches a critical pattern
     for (const pat of MAJOR_PATTERNS) {
       if (pat.test(message)) return 'major';
     }
-    // Source-based: cosmetic files start as minor
     const srcStr = (source || '') + (stack || '');
     const isMinorSource = MINOR_SOURCES.some(s => srcStr.includes(s));
     if (!isMinorSource) return 'major';
 
-    // Escalate after repeated failures from same file
     const key = (source || 'unknown').split('/').pop().slice(0, 40);
     _errorCounts[key] = (_errorCounts[key] || 0) + 1;
     if (_errorCounts[key] >= ESCALATE_AFTER) return 'major';
@@ -171,7 +150,6 @@ const ErrorBoundary = (() => {
     return 'minor';
   }
 
-  // ── Public handle ─────────────────────────────────────────
   function handle(message, source, lineno, colno, errorObj) {
     // Ignore cross-origin errors we can't inspect
     if (!message || message === 'Script error.') return false;
@@ -182,11 +160,10 @@ const ErrorBoundary = (() => {
     } else {
       showMinor(message, source || '');
     }
-    // Return true to suppress the default browser error log for minor errors
+    // Return true to suppress the browser log for minor errors
     return level === 'minor';
   }
 
-  // ── Actions ───────────────────────────────────────────────
   function hardReset() {
     document.getElementById('_ebMajor')?.remove();
     _majorShown = false;
@@ -203,16 +180,13 @@ const ErrorBoundary = (() => {
     window.location.reload();
   }
 
-  // ── Helpers ───────────────────────────────────────────────
   function _escHtmlEB(s) {
     return String(s)
       .replace(/&/g,'&amp;').replace(/</g,'&lt;')
       .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Game-loop wrapper ─────────────────────────────────────
-  // Call this instead of raw requestAnimationFrame(gameLoop) to get
-  // per-frame error catching.  Replace gameLoop's own rAF calls.
+          // Use this instead of raw requestAnimationFrame(gameLoop) for per-frame error catching.
   function wrapLoop(loopFn) {
     function safeFrame(ts) {
       try {
@@ -223,11 +197,11 @@ const ErrorBoundary = (() => {
         const level = classify(msg, stack, stack);
         if (level === 'major') {
           showMajor(msg, stack);
-          // Don't reschedule — hard stop
+          // Hard stop, don't reschedule
           return;
         } else {
           showMinor(msg, '(game loop)');
-          // Minor: keep the loop alive, skip this frame
+          // Minor: keep the loop alive
           requestAnimationFrame(safeFrame);
         }
       }
@@ -238,9 +212,8 @@ const ErrorBoundary = (() => {
   return { handle, hardReset, reloadPage, showMajor, showMinor, wrapLoop, classify };
 })();
 
-// ── Global error hook ─────────────────────────────────────────
 window.onerror = function(message, source, lineno, colno, errorObj) {
-  // Don't double-handle errors that come from within the boundary itself
+  // Skip errors thrown by the boundary itself
   if (source && source.includes('smb-errorboundary')) return false;
   return ErrorBoundary.handle(message, source, lineno, colno, errorObj);
 };

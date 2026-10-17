@@ -1,15 +1,11 @@
 'use strict';
-// smb-finisher-moves-defs.js — one finisher per melee move scene (axe through
-// katana). Ranged and weapons-ext moves: smb-finisher-moves-defs2.js.
-// Runtime, staging and the def schema: smb-finisher-moves.js. Pose schema and
-// angle conventions: smb-move-scenes.js / smb-move-scenes-defs.js.
-//
-// Depends on: smb-finisher-moves.js (mfDefine, MF_PROTO), smb-move-scenes-defs.js
-//   (MS_STAND, MS_AIM, MS_IAI_HOLD, MS_IAI_CUT, MS_SHIELD_UP, MS_BROOM_SIT, MS_PI, MS_TAU).
-// ============================================================
+// smb-finisher-moves-defs.js: one finisher per melee move scene (axe through katana).
+// Ranged and weapons-ext moves are in smb-finisher-moves-defs2.js. Runtime: smb-finisher-moves.js.
+// Pose schema and angle conventions: smb-move-scenes.js, smb-move-scenes-defs.js.
+// Depends on smb-finisher-moves.js (mfDefine, MF_PROTO) and smb-move-scenes-defs.js (MS_*).
 
-// Bring them together for a melee finish. A long gap (a projectile kill) is
-// closed by the performer; a short one by the victim reeling in.
+// Bring them together for a melee finish. The performer closes long gaps,
+// the victim reels in short ones.
 function mfClose(s, gap, a, b) {
   if (s.vars._closeMe === undefined) s.vars._closeMe = s.v0x > gap + 70;
   if (s.vars._closeMe) { s.go('m', s.v0x - gap, 0, a, b, 'snap'); s.go('v', null, s.vfloor, a, b, 'out'); }
@@ -48,11 +44,8 @@ const MF_CHOPUP  = { r: -2.7, w: -3.0, l: -1.4, lean: -8, drop: 4, fr: 9, fl: -9
 const MF_AIRUP   = { air: true, lg: 1.2, lgl: 1.9, ls: 0.75, lsl: 0.8 };                               // tucked legs in the air
 const MF_FLAT    = { r: 0.02, rl: 1.12, w: -0.06, l: 2.4, lean: 10, drop: 6, fr: 18, fl: -11 };        // flat swing, follow-through
 
-// ═════════════════════════════════════════════════════════════════════════════
 // AXE
-// ═════════════════════════════════════════════════════════════════════════════
-// Rising Cleave carried through: the uppercut sends them up, the performer
-// follows them into the air and chops them back into the floor.
+// Rising Cleave: the uppercut launches them, the performer follows and chops them down.
 mfDefine('axe:q', {
   name: "HEADSMAN'S RISE", color: '#ff8a3d', len: 104,
   me: [
@@ -95,8 +88,7 @@ mfDefine('axe:q', {
   exit: [2, -3],
 });
 
-// Axe Throw: the axe is already in them. They stagger back with it buried,
-// the thrower walks in, takes hold of the haft and tears it out.
+// Axe Throw: the thrower walks in and tears the buried axe out.
 mfDefine('axe:e', {
   name: 'WOODSPLITTER', color: '#ff8a3d', len: 108,
   me: [
@@ -115,10 +107,8 @@ mfDefine('axe:e', {
     if (s.at(0)) { s.vpose('fold', { lean: 12 }); s.star(s.qx(), s.qy(), true); s.hold(6); s.shake(16); s.sfx('heavyHit'); }
     s.go('v', s.v0x + 26, s.vfloor, 0, 16, 'out');
     if (s.at(18)) s.vpose('kneel');
-    // Walk in.
     s.go('m', null, 0, 0, 10, 'out');
     s.go('m', s.v0x + 26 - 34, 0, 20, 50, 'io');
-    // Wrench it out: a rising tear, a full turn and down.
     if (s.at(56)) { s.sfx('swing'); s.parts(s.qx(), s.qy(), '#ff8a3d', 18); s.vpose('arch', { air: false, drop: 6 }); }
     if (s.at(62)) s.slash(16, -10, 56, 1.4, -2.2, { color: '#ffb070', w: 12 });
     if (s.at(71)) {
@@ -131,18 +121,14 @@ mfDefine('axe:e', {
     else s.camV(1.6);
   },
   draw(s, ctx) {
-    // The buried axe until it is pulled.
     if (s.t < 56) s.prop(s.qx() - s.f * 6, s.qy() - 2, -2.5 + Math.sin(s.t * 0.3) * 0.04 * Math.max(0, 1 - s.t / 20));
     if (s.vars.crack) mfCracks(ctx, s, s.qx(), 1 - (s.t - s.vars.crack) / 36, '#ffb070', 70);
   },
   exit: [1, -2],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SWORD
-// ═════════════════════════════════════════════════════════════════════════════
-// Blade Storm's eye: the spin pulls them into it, the four arcs orbit, and the
-// last whole-circle cut sends all four through them at once.
+// Blade Storm: the spin pulls them into the eye, four arcs orbit, one full-circle cut.
 mfDefine('sword:q', {
   name: "STORM'S EYE", color: '#88ccff', len: 100,
   me: [
@@ -156,7 +142,6 @@ mfDefine('sword:q', {
   ],
   tick(s) {
     if (s.at(0)) s.vpose('reel');
-    // Drawn into the eye, rising, turning.
     s.go('v', 40, -34, 4, 46, 'io');
     if (s.in(10, 60)) { s.vrot = Math.sin(s.t * 0.25) * 0.4; if (s.t % 2 === 0) s.vpose(s.t % 8 < 4 ? 'tumble' : 'reel'); }
     if (s.every(6, 10, 48)) { s.slash(0, -6, 70, 0, MS_TAU, { ry: 26, color: '#bfe6ff', w: 6, life: 8 }); s.sfx('swing'); }
@@ -170,7 +155,6 @@ mfDefine('sword:q', {
     s.camMid(s.t < 60 ? 1.25 + s.u(0, 60) * 0.3 : 1.5);
   },
   draw(s, ctx) {
-    // The four arcs riding the storm, closing in until the cut.
     if (s.t < 8 || s.t >= 62) return;
     const k = s.u(8, 60, 'in');
     const R = 110 - k * 70, cx = s.ax(), cy = s.ay() - 6;
@@ -190,8 +174,7 @@ mfDefine('sword:q', {
   exit: [6, -4],
 });
 
-// Air Slash taken skyward: three cuts carry them up, the performer goes with
-// them, an X cut at the top, and they land with their back to the fall.
+// Air Slash: three cuts lift them, an X at the top, then they fall back down.
 mfDefine('sword:e', {
   name: 'SKY SEVERANCE', color: '#88ccff', len: 104,
   me: [
@@ -219,13 +202,12 @@ mfDefine('sword:e', {
     s.go('m', s.vx - 40, -140, 8, 32, 'out');
     if (s.in(10, 40)) s.vpose(s.t % 8 < 4 ? 'lift' : 'tumble');
     if (s.at(40)) {
-      // The X.
       s.streak(s.qx() - 46, s.qy() - 46, s.qx() + 46, s.qy() + 46, '#ffffff', 18, 8);
       s.streak(s.qx() - 46, s.qy() + 46, s.qx() + 46, s.qy() - 46, '#ffffff', 18, 8);
       s.vpose('spread');
       s.kill({ color: '#88ccff' });
     }
-    // Passes through and drops behind them; they fall the other way.
+    // Pass through and drop behind them
     if (s.at(41)) s.vars.passX = s.vx + 56;
     if (s.t >= 41) s.go('m', s.vars.passX, 0, 41, 54, 'in');
     if (s.at(42)) s.aface = -s.f;
@@ -236,11 +218,8 @@ mfDefine('sword:e', {
   exit: [-2, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // HAMMER
-// ═════════════════════════════════════════════════════════════════════════════
-// Ground Shockwave twice over: the first slam throws them up off the cracked
-// floor, the second meets them on the way down.
+// Ground Shockwave: two slams. The first throws them up, the second meets them on the way down.
 mfDefine('hammer:q', {
   name: 'FAULT LINE', color: '#ffcc44', len: 104,
   me: [
@@ -277,7 +256,6 @@ mfDefine('hammer:q', {
     if (!s.vars.crack) return;
     const k = 1 - (s.t - s.vars.crack) / 70;
     if (k <= 0) return;
-    // The fault: one jagged split running out from the impact under them.
     ctx.save();
     ctx.globalAlpha = Math.min(1, k * 1.5);
     ctx.strokeStyle = '#ffe08a'; ctx.shadowColor = '#ffcc44'; ctx.shadowBlur = 16; ctx.lineWidth = 3;
@@ -291,8 +269,7 @@ mfDefine('hammer:q', {
   exit: [3, -1],
 });
 
-// Mjolnir: swung round on the hammer head, hoisted to the sky, the sky answers,
-// and the hammer brings them and the lightning down together.
+// Mjolnir: swing on the hammer head, hoist to the sky, then the hammer and lightning drop them.
 mfDefine('hammer:e', {
   name: 'STORMCALLER', color: '#ffcc44', len: 112,
   me: [
@@ -307,7 +284,6 @@ mfDefine('hammer:e', {
   tick(s) {
     if (s.at(0)) s.vpose('tumble');
     if (s.t < 44) {
-      // Riding the hammer head round a flattened orbit.
       const a = s.att._movePose ? s.att._movePose.r : 0;
       const k = s.u(0, 6, 'out');
       s.vx = s.v0x + (Math.cos(a) * 64 - s.v0x) * k;
@@ -315,7 +291,6 @@ mfDefine('hammer:e', {
       s.vrot = -a;
       if (s.every(12, 0, 40)) { s.sfx('swing'); s.slash(0, -10, 70, 0, MS_TAU, { ry: 24, color: '#ffe08a', w: 8, life: 10 }); }
     }
-    // Hoisted on the hammer head.
     s.go('v', 6, -96, 44, 52, 'out');
     if (s.at(44)) { s.vrot = 0; s.vpose('limp'); }
     if (s.in(50, 66) && s.t % 3 === 0) s.bolt(s.qx() + (Math.random() - 0.5) * 140, s.gy);
@@ -332,7 +307,6 @@ mfDefine('hammer:e', {
     else s.camV(1.45);
   },
   draw(s, ctx) {
-    // The storm gathering over the hoist.
     if (s.t >= 44 && s.t < 90) {
       const k = s.t < 64 ? s.u(44, 64) : 1 - s.u(64, 90);
       ctx.save();
@@ -346,11 +320,8 @@ mfDefine('hammer:e', {
   exit: [2, -2],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SPEAR
-// ═════════════════════════════════════════════════════════════════════════════
-// Ground Spike, a field of them: the spear goes into the floor and a row of
-// spikes runs out under them, the last one lifting them off the ground.
+// Ground Spike: spikes run out under them in a row, the last one lifts them.
 mfDefine('spear:q', {
   name: "IMPALER'S FIELD", color: '#aaaaff', len: 100,
   me: [
@@ -366,7 +337,6 @@ mfDefine('spear:q', {
     if (s.at(0)) s.vpose('reel');
     s.go('v', s.vars.dist, s.vfloor, 0, 10, 'out');
     if (s.at(22)) { s.ring(s.ax(), s.gy, 90, '#aaaaff', 14); s.shake(12); s.sfx('heavyHit'); s.hold(3); }
-    // Spikes run out one after another; the last is under them.
     for (let i = 0; i < 5; i++) if (s.at(26 + i * 5)) { s.shake(5 + i * 2); s.parts(s.wx(s.vars.dist * (i + 1) / 5), s.gy, '#aaaaff', 6); }
     if (s.at(46)) { s.vpose('skewer'); s.kill({ color: '#aaaaff', y: s.qy() + 10, hold: 10 }); }
     s.go('v', null, -86, 46, 52, 'snap');
@@ -394,8 +364,7 @@ mfDefine('spear:q', {
   exit: [0, 1],
 });
 
-// Lance Charge to the end of the line: run them down on the point, hoist them
-// overhead on the shaft, and drive spear and rider into the floor.
+// Lance Charge: run them down on the point, hoist them on the shaft, drive into the floor.
 mfDefine('spear:e', {
   name: 'LAST CHARGE', color: '#aaaaff', len: 108,
   me: [
@@ -424,7 +393,6 @@ mfDefine('spear:e', {
       if (s.t % 2 === 0) { s.parts(s.ax() - s.f * 14, s.gy - 4, '#aaaaff', 2); s.streak(s.ax() - s.f * 40, s.ay() + (s.t % 6) * 6 - 18, s.ax() - s.f * 120, s.ay() + (s.t % 6) * 6 - 18, '#c8c8ff', 6, 2); }
     }
     if (s.at(36)) { s.shake(10); s.sfx('clang'); }
-    // Hoisted overhead on the point.
     s.go('v', s.mx + 4, -100, 40, 50, 'out');
     if (s.at(48)) { s.vpose('limp'); s.vrot = 0.3; s.sfx('swing'); }
     s.go('v', s.mx - 30, -110, 62, 67, 'out');
@@ -442,11 +410,8 @@ mfDefine('spear:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SHIELD
-// ═════════════════════════════════════════════════════════════════════════════
-// Shield Bash to a standstill: pinned to the face of the shield, driven, and
-// finished with the rim brought down on them.
+// Shield Bash: pin them to the shield face, drive, finish with the rim.
 mfDefine('shield:q', {
   name: 'BULWARK CRUSH', color: '#88aaff', len: 100,
   me: [
@@ -462,7 +427,6 @@ mfDefine('shield:q', {
   tick(s) {
     if (s.at(0)) s.vpose('reel');
     mfClose(s, 36, 0, 4);
-    // Driven along on the shield face.
     s.go('m', s.mx + 70, 0, 6, 30, 'in');
     if (s.t >= 6 && s.t < 34) { s.vx = s.mx + 36; if (s.t % 3 === 0) s.parts(s.qx(), s.gy - 2, '#88aaff', 2); }
     if (s.every(8, 8, 32)) { s.shake(6); s.sfx('clang'); s.star(s.qx() - s.f * 10, s.qy(), false); }
@@ -479,8 +443,7 @@ mfDefine('shield:q', {
   exit: [1, 0],
 });
 
-// Fortress Charge, then the fortress falls: the rising bash sends them up,
-// the performer leaps after them, and the shield comes down like a wall.
+// Fortress Charge: the bash sends them up, the performer leaps after, the shield comes down.
 mfDefine('shield:e', {
   name: 'FORTRESS FALL', color: '#88aaff', len: 108,
   me: [
@@ -515,7 +478,6 @@ mfDefine('shield:e', {
     if (!s.vars.dome) return;
     const k = (s.t - s.vars.dome) / 30;
     if (k > 1) { mfCracks(ctx, s, s.qx(), 1 - (s.t - s.vars.crack) / 50, '#aaccff', 110); return; }
-    // A dome of force over the impact.
     ctx.save();
     ctx.globalAlpha = 1 - k;
     ctx.strokeStyle = '#cfe0ff'; ctx.lineWidth = 4; ctx.shadowColor = '#88aaff'; ctx.shadowBlur = 18;
@@ -526,11 +488,8 @@ mfDefine('shield:e', {
   exit: [1, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SCYTHE
-// ═════════════════════════════════════════════════════════════════════════════
-// Scythe Toss coming home: the blade circles back through them twice, lands in
-// the thrower's hand, and the cut it left only opens when it is caught.
+// Scythe Toss: the blade circles through them twice and returns to hand. The cut opens when caught.
 mfDefine('scythe:q', {
   name: "REAPER'S RETURN", color: '#aa44aa', len: 100,
   me: [
@@ -546,7 +505,6 @@ mfDefine('scythe:q', {
     if (s.at(0)) s.vpose('frozen');
     if (s.at(14) || s.at(30)) { s.star(s.qx(), s.qy(), false, '#ee88ee'); s.sfx('swing'); s.shake(6); }
     if (s.at(44)) { s.sfx('clang'); s.parts(s.ax() + s.f * 20, s.ay(), '#cc66cc', 10); }
-    // Caught; the cut opens.
     if (s.at(56)) {
       s.streak(s.qx() - 40, s.qy() - 30, s.qx() + 40, s.qy() + 30, '#ffffff', 22, 9);
       s.streak(s.qx() - 40, s.qy() + 24, s.qx() + 40, s.qy() - 24, '#ee88ee', 22, 7);
@@ -559,7 +517,6 @@ mfDefine('scythe:q', {
   },
   draw(s, ctx) {
     if (s.t >= 44) return;
-    // The blade on its loop: out past them, round, back through, home.
     const u = s.t / 44;
     const a = u * MS_TAU * 1.5;
     const cx = (s.ax() + s.qx()) / 2 + s.f * 30, rx = Math.abs(s.qx() - s.ax()) / 2 + 50;
@@ -573,8 +530,7 @@ mfDefine('scythe:q', {
   exit: [-1, 0],
 });
 
-// Soul Reap to the last drop: hooked and lifted on the blade, the soul is
-// drawn out of them into the scythe, and the empty body is let fall.
+// Soul Reap: the soul is drawn into the scythe and the empty body is let fall.
 mfDefine('scythe:e', {
   name: 'HARVEST', color: '#cc44cc', len: 116,
   me: [
@@ -590,7 +546,6 @@ mfDefine('scythe:e', {
   tick(s) {
     if (s.at(0)) s.vpose('reel');
     mfClose(s, 52, 0, 10);
-    // Lifted on the blade's hook.
     s.go('v', 50, -58, 14, 26, 'out');
     if (s.at(20)) { s.vpose('hang'); s.sfx('soulRip'); }
     if (s.in(26, 72)) {
@@ -607,7 +562,6 @@ mfDefine('scythe:e', {
     if (s.t < 26) s.camMid(1.3); else s.cam(1.5, (s.ax() + s.qx()) / 2, s.qy() - 10);
   },
   draw(s, ctx) {
-    // The soul: a pale copy of them drawn out, stretched toward the blade.
     if (s.t < 30 || s.t > 86) return;
     const k = s.u(30, 72, 'io'), fade = s.t > 72 ? 1 - s.u(72, 86) : 1;
     const bx = s.qx(), by = s.qy();
@@ -617,7 +571,6 @@ mfDefine('scythe:e', {
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = 0.55 * fade;
     ctx.strokeStyle = '#f0c0ff'; ctx.shadowColor = '#cc44cc'; ctx.shadowBlur = 20; ctx.lineWidth = 3;
-    // Head, body, a tether back to the body it came out of.
     ctx.beginPath(); ctx.arc(x, y - 18, 8, 0, MS_TAU); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x, y - 10); ctx.lineTo(x, y + 14);
     ctx.moveTo(x, y - 4); ctx.lineTo(x - s.f * 12, y - 12); ctx.moveTo(x, y - 4); ctx.lineTo(x + s.f * 12, y - 14);
@@ -630,10 +583,8 @@ mfDefine('scythe:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // FRYING PAN
-// ═════════════════════════════════════════════════════════════════════════════
-// Ground Pound from a great height, landed on them.
+// Ground Pound from above.
 mfDefine('fryingpan:q', {
   name: 'PANCAKE', color: '#ffdd66', len: 100,
   me: [
@@ -648,7 +599,6 @@ mfDefine('fryingpan:q', {
   tick(s) {
     if (s.at(0)) s.vpose('crumple');
     s.go('v', Math.max(30, Math.min(160, s.v0x)), s.vfloor, 0, 10, 'out');
-    // Up out of frame, over them, and down.
     s.go('m', s.vx - 6, -230, 12, 34, 'out');
     if (s.at(14)) { s.sfx('swing'); s.parts(s.ax(), s.gy, '#ffdd66', 10); }
     if (s.at(30)) { s.vpose('brace'); s.pop(s.qx(), s.qy() - 46, '!', '#ffffff'); }
@@ -666,7 +616,6 @@ mfDefine('fryingpan:q', {
   },
   draw(s, ctx) {
     if (s.t >= 30 && s.t < 46) {
-      // Its shadow growing over them.
       const k = s.u(30, 46, 'in');
       ctx.save(); ctx.globalAlpha = 0.25 + 0.4 * k; ctx.fillStyle = '#000000';
       ctx.beginPath(); ctx.ellipse(s.ax(), s.gy, 10 + 26 * k, 4 + 4 * k, 0, 0, MS_TAU); ctx.fill(); ctx.restore();
@@ -676,8 +625,7 @@ mfDefine('fryingpan:q', {
   exit: [0, 0],
 });
 
-// Grand Slam, sent all the way: BONK, the golfer's backswing, and a drive that
-// puts them out of the sky with a twinkle.
+// Grand Slam: BONK, a golf backswing, then a drive that knocks them out of the sky.
 mfDefine('fryingpan:e', {
   name: 'HOLE IN ONE', color: '#ffdd44', len: 116, noFloor: true,
   me: [
@@ -725,11 +673,8 @@ mfDefine('fryingpan:e', {
   exit: [2, -6],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // BROOMSTICK
-// ═════════════════════════════════════════════════════════════════════════════
-// Broom Ride with a passenger: scooped onto the bristles, a full loop in the
-// air, and dropped from the top of it.
+// Broom Ride: scoop onto the bristles, a full loop, drop from the top.
 mfDefine('broomstick:q', {
   name: 'JOYRIDE', color: '#cc9966', len: 112,
   me: [
@@ -750,7 +695,6 @@ mfDefine('broomstick:q', {
   tick(s) {
     if (s.at(0)) s.vpose('tumble');
     s.go('m', 20, -40, 0, 20, 'out');
-    // A vertical loop centred above the stage, passenger on the back of the broom.
     if (s.in(20, 72)) {
       const a = ((s.t - 20) / 52) * MS_TAU;
       s.mx = s.vars.cx * s.u(20, 30, 'out') + 20 + Math.sin(a) * 90;
@@ -775,8 +719,7 @@ mfDefine('broomstick:q', {
   exit: [1, 0],
 });
 
-// Tornado Spin grown into a twister: it pulls them in, spins them up the
-// column, and throws them out of the top.
+// Tornado Spin: pulls them into the column, spins them up it, throws them out the top.
 mfDefine('broomstick:e', {
   name: 'DUST DEVIL', color: '#cc9966', len: 108,
   me: [
@@ -787,7 +730,6 @@ mfDefine('broomstick:e', {
   ],
   tick(s) {
     if (s.at(0)) s.vpose('tumble');
-    // Into the column, then up it on a widening spiral.
     if (s.t < 70) {
       const k = s.u(0, 70, 'in');
       const a = s.t * (0.25 + k * 0.35);
@@ -818,10 +760,8 @@ mfDefine('broomstick:e', {
   exit: [5, -4],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // COMBAT (fists)
-// ═════════════════════════════════════════════════════════════════════════════
-// Roundhouse, slowed to a crawl at the moment of contact, then let go.
+// Roundhouse: slowed to a crawl on contact.
 mfDefine('combat:q', {
   name: 'LIGHTS OUT', color: '#ff4444', len: 100,
   me: [
@@ -841,7 +781,6 @@ mfDefine('combat:q', {
       s.vpose('arch', { air: false, drop: 4 });
       s.kill({ color: '#ff4444', y: s.qy() - 20, hold: 4, sfx: 'hitBlunt' });
     }
-    // Spun round where they stood, then down.
     if (s.in(32, 60)) s.vrot = (s.t - 32) * 0.35;
     if (s.at(60)) { s.vrot = 0; s.vpose('crumple'); }
     if (s.at(74)) { s.vpose('slump', { drop: 30, lean: 20, rot: 0.6 }); s.shake(8); s.parts(s.qx(), s.gy, '#ff8080', 8); }
@@ -850,8 +789,7 @@ mfDefine('combat:q', {
   exit: [0, 0],
 });
 
-// Combo Strike as a flurry: a storm of alternating fists, the uppercut that
-// lifts them, and an axe kick from above that ends it on the floor.
+// Combo Strike: alternating fists, an uppercut, then an axe kick to the floor.
 mfDefine('combat:e', {
   name: 'HUNDRED FISTS', color: '#ff4444', len: 112,
   me: [
@@ -867,7 +805,6 @@ mfDefine('combat:e', {
   ],
   poseMod(s, p) {
     if (s.t < 6 || s.t >= 48) return p;
-    // A jab every three frames, hands alternating.
     const i = Math.floor((s.t - 6) / 3), ph = ((s.t - 6) % 3) / 3;
     const out = ph < 0.4 ? msEase('snap', ph / 0.4) : 1 - (ph - 0.4) / 0.6;
     const lead = i % 2 === 0;
@@ -902,11 +839,8 @@ mfDefine('combat:e', {
   exit: [1, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // FLAIL
-// ═════════════════════════════════════════════════════════════════════════════
-// Chain Yank, wrapped: the chain coils round them, hauls them in, and the
-// ball comes down on them from overhead.
+// Chain Yank: the chain coils round them, hauls them in, and the ball comes down.
 mfDefine('flail:q', {
   name: 'CHAIN GANG', color: '#aaaaaa', len: 104,
   me: [
@@ -923,7 +857,6 @@ mfDefine('flail:q', {
   tick(s) {
     if (s.at(0)) { s.vpose('frozen', { r: 1.7, l: 1.45, rl: 0.6, ll: 0.6 }); s.sfx('clang'); }
     s.go('v', Math.max(120, Math.min(220, s.v0x)), s.vfloor, 0, 10, 'out');
-    // Two hauls on the chain.
     s.go('v', 90, s.vfloor, 18, 24, 'snap');
     s.go('v', 50, s.vfloor, 30, 36, 'snap');
     if (s.at(18) || s.at(30)) { s.shake(8); s.sfx('clang'); s.parts(s.qx(), s.gy, '#aaaaaa', 6); }
@@ -935,7 +868,6 @@ mfDefine('flail:q', {
     if (s.t < 40) s.camMid(1.25); else s.camMid(1.45);
   },
   draw(s, ctx) {
-    // The chain wrapped round them, running back to the handle.
     if (s.t < 40) {
       const hx = s.ax() + s.f * 16, hy = s.ay() - 4;
       ctx.save();
@@ -952,7 +884,7 @@ mfDefine('flail:q', {
   exit: [1, 0],
 });
 
-// The flail's whirl, swung like a wrecking ball through them.
+// Flail whirl: swung through them like a wrecking ball.
 mfDefine('flail:e', {
   name: 'WRECKING BALL', color: '#aaaaaa', len: 100,
   me: [
@@ -978,7 +910,6 @@ mfDefine('flail:e', {
   },
   draw(s, ctx) {
     if (s.t > 50) return;
-    // The ball's orbit, swelling as it spins up.
     const p = s.att._movePose; if (!p) return;
     const k = s.u(0, 40, 'in');
     const a = s.f > 0 ? p.w : MS_PI - p.w, R = 46 + k * 34;
@@ -992,11 +923,8 @@ mfDefine('flail:e', {
   exit: [8, -5],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // WHIP
-// ═════════════════════════════════════════════════════════════════════════════
-// Lasso to the last: yanked off their feet, swung overhead on the rope in a
-// full arc, and slammed down on the performer's other side.
+// Lasso: yank them off their feet, swing overhead, slam them down behind the performer.
 mfDefine('whip:q', {
   name: 'HOGTIED', color: '#cc8833', len: 108,
   me: [
@@ -1012,7 +940,6 @@ mfDefine('whip:q', {
     if (s.at(0)) s.vpose('reel', { lean: 8 });
     if (s.t < 10) s.go('v', Math.max(80, Math.min(220, s.v0x)), s.vfloor, 0, 10, 'out');
     if (s.at(10)) { s.sfx('hitSnap'); s.vpose('spread'); s.shake(8); }
-    // On the rope: off their feet, round over the top, down behind.
     if (s.t >= 10 && s.t < 58) {
       const p = s.att._movePose;
       const a = p ? p.w : -1.2;
@@ -1042,8 +969,7 @@ mfDefine('whip:q', {
   exit: [-1, 0],
 });
 
-// Serpent's Coil closes: the whip winds round them in a tightening helix and
-// the last crack is point-blank.
+// Serpent's Coil: the whip winds round them and the last crack is point-blank.
 mfDefine('whip:e', {
   name: "SERPENT'S BITE", color: '#ffcc55', len: 104,
   me: [
@@ -1072,7 +998,6 @@ mfDefine('whip:e', {
   },
   draw(s, ctx) {
     if (s.t < 4 || s.t > 58) return;
-    // A helix of whip round them, tightening.
     const k = s.u(4, 44, 'out');
     const x = s.qx(), y = s.qy(), R = 34 - k * 18;
     const hx = s.ax() + s.f * 14, hy = s.ay() - 6;
@@ -1089,12 +1014,8 @@ mfDefine('whip:e', {
   exit: [5, -2],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // KATANA
-// ═════════════════════════════════════════════════════════════════════════════
-// Iaijutsu, the one that counts: the performer is already past them. The blade
-// goes back into the sheath, slowly, and only when it clicks home does the cut
-// show.
+// Iaijutsu: the performer is already past them. The cut shows when the blade clicks home.
 mfDefine('katana:q', {
   name: 'ONE CUT', color: '#ccccff', len: 112,
   me: [
@@ -1105,8 +1026,8 @@ mfDefine('katana:q', {
     { t: 112, e: 'io', ...MS_STAND },
   ],
   start(s) {
-    // The scene's cut lands after the draw, so the performer is normally past
-    // them already, back turned. Otherwise go through them now.
+    // The scene cut lands after the draw, so the performer is usually past them already.
+    // Otherwise go through them now.
     s.vars.already = s.att.facing !== s.f;
     const room = s.span.open ? 1e9 : (s.f > 0 ? s.span.R - s.hx : s.hx - s.span.L) - 30;
     s.vars.past = s.vars.already ? 0 : Math.min(room, s.v0x + 70);
@@ -1132,7 +1053,6 @@ mfDefine('katana:q', {
   },
   draw(s, ctx) {
     if (s.t >= 64) return;
-    // A hairline on them that brightens as the blade goes home.
     const k = s.u(20, 64, 'in');
     ctx.save();
     ctx.globalAlpha = 0.15 + 0.6 * k;
@@ -1143,9 +1063,7 @@ mfDefine('katana:q', {
   exit: [0, 0],
 });
 
-// Shadow Step without end: the performer is everywhere round them at once,
-// a cut from every side, then back in front, the blade sheathed, and every
-// cut lands together.
+// Shadow Step: a cut from every side at once, then every cut lands together.
 mfDefine('katana:e', {
   name: 'THOUSAND STEPS', color: '#ffffff', len: 112,
   me: [
@@ -1162,7 +1080,6 @@ mfDefine('katana:e', {
   tick(s) {
     if (s.at(0)) s.vpose('frozen');
     s.go('v', Math.min(160, Math.max(60, s.v0x)), s.vfloor, 0, 6, 'out');
-    // Blinks: the performer is drawn at each spot as an afterimage only.
     if (s.every(4, 8, 48)) {
       const i = (s.t - 8) / 4, a = i * 2.39996;
       const r0 = 54;
@@ -1174,7 +1091,6 @@ mfDefine('katana:e', {
       s.parts(x, y, '#888899', 3);
     }
     if (s.in(8, 48)) s.vpose(s.t % 8 < 4 ? 'frozen' : 'reel');
-    // The performer between blinks is never where you look.
     if (s.in(8, 50)) { const i = Math.floor((s.t - 8) / 4); s.mx = s.vx + (i % 2 ? 60 : -60); s.aface = i % 2 ? -s.f : s.f; }
     if (s.at(50)) { s.mx = s.vx - 90; s.aface = s.f; }
     if (s.at(78)) {
@@ -1189,7 +1105,6 @@ mfDefine('katana:e', {
   },
   draw(s, ctx) {
     if (s.t < 8 || s.t >= 50) return;
-    // Afterimages of the last few blinks.
     ctx.save();
     ctx.globalAlpha = 0.18; ctx.fillStyle = '#ccccff';
     for (let j = 1; j <= 3; j++) {

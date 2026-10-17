@@ -46,6 +46,11 @@ const WPATCH  = args.wpatch ? JSON.parse(args.wpatch) : {};
 const ALL     = !!args.all;
 // --arena: flat (900px box, default), wide (2400px) or ledge. Ranged results swing with room.
 const ARENA   = String(args.arena || 'flat');
+// --only=key: just the pairings that include this entrant (a fast read on one kit).
+const ONLY    = args.only ? String(args.only) : '';
+// --meleebrain=key[,key]: these ranged weapons are driven by the MELEE bot AI
+// (walk in, hold attack) while still firing as themselves. --brain=fighter only.
+const MBRAIN  = args.meleebrain ? String(args.meleebrain) : '';
 const BASEPORT = parseInt(args.port, 10) || 8700;
 const LABEL   = String(args.label || `${MODE}-${BRAIN}`);
 const log = (...a) => console.log('[bal]', ...a);
@@ -90,7 +95,7 @@ async function worker() {
   await page.evaluate(() => { try { if (typeof backToHome === 'function') backToHome(); } catch (e) {} });
   await page.addScriptTag({ content: SIM });
 
-  const res = await page.evaluate((MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, args_all, ARENA) => {
+  const res = await page.evaluate((MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, args_all, ARENA, args_only, args_mbrain) => {
     // Apply candidate stats in-page only.
     for (const k of Object.keys(WPATCH)) if (WEAPONS[k]) Object.assign(WEAPONS[k], WPATCH[k]);
     const tbl = MODE === 'classes' ? CLASSES : WEAPONS;
@@ -112,7 +117,7 @@ async function worker() {
     // whatever action the owner last started, so a Q projectile landing after a
     // fresh swing reads as basic — close enough to rank the kits.
     const src = {};
-    const srow = k => src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0] });
+    const srow = k => src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0], land: [0, 0, 0] });
     const _dd = dealDamage;
     window.dealDamage = function (attacker, target) {
       const h0 = target ? target.health : 0;
@@ -122,6 +127,8 @@ async function worker() {
         if (d > 0) {
           const t = _moveTierOverride !== null ? (_moveTierOverride === 2 ? 2 : _moveTierOverride === 1 ? 1 : 0) : (attacker.superActive || attacker._attackKindTier === 2) ? 2 : attacker._attackKindTier === 1 ? 1 : 0;
           const s = srow(attacker.weaponKey); s.dmg[t] += d; s.hits[t]++;
+          // Landed casts: a cast counts once if any damage of its tier follows before the next cast.
+          if (attacker.__open && attacker.__open[t]) { attacker.__open[t] = false; s.land[t]++; }
           // Combos: _comboHitCount is 1 on an opener and counts up inside the 45-frame window.
           const cn = attacker._comboHitCount || 1, c = s.combo || (s.combo = { open: 0, len: [0, 0, 0, 0, 0, 0], dmg: 0, max: 0 });
           if (cn <= 1 || !attacker.__cAcc) { attacker.__cAcc = { n: 0, d: 0 }; c.open++; }
@@ -139,11 +146,34 @@ async function worker() {
         const fired = t === 0 ? (this.cooldown > cdA) : t === 1 ? (this.abilityCooldown > cdQ) : (this.superMeter < sm);
         if (fired && this.weaponKey && players.includes(this)) {
           const s = srow(this.weaponKey); s.casts[t]++;
+          (this.__open || (this.__open = [false, false, false]))[t] = true;
           // Horizontal gap to the target at each basic attack: where the kit is actually fought.
           if (t === 0 && this.target) { s.gap = (s.gap || 0) + Math.abs(this.target.cx() - this.cx()); s.near = (s.near || 0) + (Math.abs(this.target.cx() - this.cx()) < 120 ? 1 : 0); }
         }
         return r;
       };
+    }
+    for (const k of (args_mbrain ? args_mbrain.split(',') : [])) {
+      const real = WEAPONS[k]; if (!real) continue;
+      const mask = Object.create(real); mask.type = mask.weaponType = 'melee'; mask.range = 140;
+      // The AI sees a melee weapon; every action it takes fires the real one.
+      const _ai = Fighter.prototype.updateAI, _bt = window.botTacticsFrame, _rd = Fighter.prototype._meleeReachDist;
+      Fighter.prototype.updateAI = function () {
+        if (this.weapon !== real) return _ai.apply(this, arguments);
+        this.weapon = mask; try { return _ai.apply(this, arguments); } finally { if (this.weapon === mask) this.weapon = real; }
+      };
+      if (typeof _bt === 'function') window.botTacticsFrame = function (f) {
+        if (!f || f.weapon !== real) return _bt(f);
+        f.weapon = mask; try { return _bt(f); } finally { if (f.weapon === mask) f.weapon = real; }
+      };
+      Fighter.prototype._meleeReachDist = function () { return this.weapon === mask ? 140 : _rd.apply(this, arguments); };
+      for (const m of ['attack', 'ability', 'useSuper', 'activateSuper']) {
+        const _o = Fighter.prototype[m];
+        Fighter.prototype[m] = function () {
+          if (this.weapon !== mask) return _o.apply(this, arguments);
+          this.weapon = real; try { return _o.apply(this, arguments); } finally { if (this.weapon === real) this.weapon = mask; }
+        };
+      }
     }
     const ents = (MODE === 'weapons' || MODE === 'threat')
       ? WEAPON_KEYS.filter(k => args_all || (WEAPONS[k].type === 'melee' && WEAPONS[k].damage > 0))
@@ -161,6 +191,7 @@ async function worker() {
     const out = [];
     jobs.forEach(([a, b], idx) => {
       if (idx % of !== shard) return;
+      if (args_only && a !== args_only && b !== args_only) return;
       for (let m = 0; m < MATCHES; m++) {
         const A = asM(a), B = asM(b);
         const r = BalanceSim.runMatch(A.k, B.k, (Math.random() * 1e9) | 0,
@@ -173,7 +204,7 @@ async function worker() {
       }
     });
     return { ents, out, src };
-  }, MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, ALL, ARENA);
+  }, MODE, MATCHES, STOCKS, FRAMES, BRAIN, HOLD_C, HOLD_W, PATCH, WPATCH, shard, of, ALL, ARENA, ONLY, MBRAIN);
   res.pageErrors = [...new Set(errs)].slice(0, 5);
   process.stdout.write('RESULT ' + JSON.stringify(res) + '\n');
   await browser.close(); server.close();
@@ -187,7 +218,8 @@ async function main() {
   const parts = await Promise.all(Array.from({ length: JOBS }, (_, i) => new Promise(resolve => {
     const argv = [__filename, '--worker', `--shard=${i}`, `--of=${JOBS}`, `--wport=${BASEPORT + i}`,
       `--mode=${MODE}`, `--matches=${MATCHES}`, `--stocks=${STOCKS}`, `--frames=${FRAMES}`,
-      `--brain=${BRAIN}`, `--arena=${ARENA}`, ...(ALL ? ['--all'] : []), `--holdclass=${HOLD_C}`, `--hold=${HOLD_W}`, `--patch=${JSON.stringify(PATCH)}`, `--wpatch=${JSON.stringify(WPATCH)}`];
+      `--brain=${BRAIN}`, `--arena=${ARENA}`, ...(ALL ? ['--all'] : []), `--holdclass=${HOLD_C}`, `--hold=${HOLD_W}`, `--patch=${JSON.stringify(PATCH)}`, `--wpatch=${JSON.stringify(WPATCH)}`,
+      ...(ONLY ? [`--only=${ONLY}`] : []), ...(MBRAIN ? [`--meleebrain=${MBRAIN}`] : [])];
     const p = spawn('node', argv, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
     let buf = '', tail = '';
     p.stdout.on('data', d => { buf += d; });
@@ -249,8 +281,8 @@ async function main() {
   if (!lop.length) console.log('    none at 80%+');
   const src = {};
   for (const p of ok) for (const [k, v] of Object.entries(p.src || {})) {
-    const s = src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0] });
-    for (let t = 0; t < 3; t++) { s.dmg[t] += v.dmg[t]; s.hits[t] += v.hits[t]; s.casts[t] += v.casts[t]; }
+    const s = src[k] || (src[k] = { dmg: [0, 0, 0], hits: [0, 0, 0], casts: [0, 0, 0], land: [0, 0, 0] });
+    for (let t = 0; t < 3; t++) { s.dmg[t] += v.dmg[t]; s.hits[t] += v.hits[t]; s.casts[t] += v.casts[t]; s.land[t] += (v.land || [0, 0, 0])[t]; }
     s.gap = (s.gap || 0) + (v.gap || 0); s.near = (s.near || 0) + (v.near || 0);
     if (v.combo) {
       const c = s.combo || (s.combo = { open: 0, len: [0, 0, 0, 0, 0, 0], dmg: 0, max: 0 });

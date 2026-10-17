@@ -89,7 +89,7 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'A bounty hunter materialized in the debris field — hired to stop fragment bearers from reaching the Void. Eliminate them before they transmit your location.',
     targetName: 'Bounty Hunter',
     targetWeaponKey: 'sword',
-    targetClassKey: 'ninja',      // no 'assassin' class exists — it fell back to classless
+    targetClassKey: 'ninja',      // no 'assassin' class exists, so it fell back to classless
     targetAiDiff: 'hard',
     targetColor: '#aa6600',
     targetArmor: ['helmet'],
@@ -200,6 +200,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'Relay held. The Creator spoke directly to you. Veran has never seen it do that. You\'re something new in this system.',
   },
 
-  // ─────── Arc 1-1: The Core (ids 20-27) ──────────────────────────
+  // Arc 1-1: The Core (ids 20-27)
 
 );

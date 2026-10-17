@@ -1,15 +1,8 @@
 'use strict';
-// js/story/levels/ch06.js — Chapter 6 map. See smb-story-levels.js for the contract.
+// Chapter 6 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 6 — Ground Zero (walk → duel vs a two-fighter squad)
-// "In your city, right now, the portal fighters are burning everything. You
-// need to move through the chaos. Find the relay station." Down off the roofs
-// onto the avenue: police lines, a jackknifed trailer, smashed storefronts, the
-// subway entrance (first cache shaft), a fallen billboard up to the theatre
-// marquee, the fountain plaza the clearance squad sweeps, a fire truck's ladder,
-// the impact crater (second shaft), and the relay station gate.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 6, Ground Zero (walk, then duel a two-fighter squad). Down off the roofs onto the avenue,
+// past police lines and a jackknifed trailer, to the relay station gate.
 (function () {
   const G = 440;
   const COP      = { x: 330, w: 170 };
@@ -25,8 +18,8 @@
   const JERSEY   = [[5150, 90], [5300, 90]];
   const GATE     = 5600;
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+// Loot (see level.loot in smb-story-levels.js): a hidden cache off the route, and a better one
+// held by an optional elite.
   const STASH = [
     { id: 'a', x: 1220, y: 250, w: 140, steps: [[1150, 345, 90]] },
     { id: 'b', x: 4470, y: 250, w: 190, steps: [[4400, 345, 90]], gx: 60, guard: { name: 'Riot Remnant', weaponKey: 'spear', classKey: 'warden', health: 170, color: '#8a4a2a' } },
@@ -116,7 +109,7 @@
       ctx.fillStyle = '#d8d0c0'; ctx.font = 'bold 14px Georgia'; ctx.textAlign = 'center'; ctx.fillText('CITY HALL', 3000, G - 270);
       _slFire(2700, G - 240, 120, 1.2); _slSmoke(2760, G - 270, 320, true, 21);
     }
-    // ── Police line + cruiser, lights still going
+    // Police line + cruiser, lights still going
     if (_slVisible(v, 120, 700)) {
       _slCar(COP.x, G, COP.w, '#1e2230', {});
       ctx.fillStyle = '#e8e8ec'; ctx.fillRect(COP.x + 30, G - 26, COP.w - 60, 8);
@@ -136,7 +129,7 @@
       ctx.strokeStyle = '#e8c830'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(240, G - 30); ctx.quadraticCurveTo(400, G - 20, 560, G - 32); ctx.stroke();
     }
-    // ── Jackknifed trailer (solid; climb the cab)
+    // Jackknifed trailer (solid; climb the cab)
     if (_slVisible(v, TRAILER.x - 40, CAB.x + CAB.w + 60)) {
       const T = TRAILER;
       ctx.fillStyle = '#c8c4bc'; ctx.fillRect(T.x, G - T.h, T.w, T.h);
@@ -163,9 +156,9 @@
       ctx.fillStyle = '#2a1a1a'; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(0, 10 + k * 18, 5.5, 0, Math.PI * 2); ctx.fill(); }
       ctx.restore();
     }
-    // ── Subway entrance (dressed around the first shaft in surface())
+    // Subway entrance (dressed around the first shaft in surface())
     if (_slVisible(v, 1700, 1990)) { _slStreetLamp(1940, G, false); _slHydrant(1700, G); }
-    // ── Fallen billboard leaning from the building to the street → marquee
+    // Fallen billboard leaning from the building to the street → marquee
     if (_slVisible(v, 1990, 2600)) {
       ctx.save(); ctx.translate(2000, G); ctx.rotate(-0.58);
       ctx.fillStyle = '#16181c'; ctx.fillRect(0, -10, 330, 70);
@@ -185,7 +178,7 @@
       ctx.strokeStyle = '#2a1a20'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(M.x + 20, M.y); ctx.lineTo(M.x + 60, M.y - 60); ctx.moveTo(M.x + M.w - 20, M.y); ctx.lineTo(M.x + M.w - 60, M.y - 60); ctx.stroke();
     }
-    // ── Fountain plaza
+    // Fountain plaza
     if (_slVisible(v, FOUNTAIN - 200, FOUNTAIN + 200)) {
       ctx.fillStyle = '#8a8478'; ctx.fillRect(FOUNTAIN - 140, G - 30, 280, 30);
       ctx.fillStyle = '#5a7a8a'; ctx.fillRect(FOUNTAIN - 130, G - 26, 260, 8);
@@ -198,7 +191,7 @@
       }
       _slPortal(FOUNTAIN, G - 250, 30, 20, 3);
     }
-    // ── Burning city bus + fire truck ladder up to a building ledge
+    // Burning city bus + fire truck ladder up to a building ledge
     if (_slVisible(v, BUSX.x - 40, LEDGE.x + LEDGE.w + 40)) {
       const B = BUSX;
       ctx.fillStyle = '#2a6a8a'; ctx.fillRect(B.x, B.y, B.w, G - 20 - B.y);
@@ -228,7 +221,7 @@
         ctx.beginPath(); ctx.arc(4020 + t * 160, G - 70 - Math.sin(t * Math.PI) * 90, 2 + t * 3, 0, Math.PI * 2); ctx.fill();
       }
     }
-    // ── News van, jersey barriers, the relay station gate
+    // News van, jersey barriers, the relay station gate
     if (_slVisible(v, VAN.x - 40, GATE + 400)) {
       const V = VAN;
       ctx.fillStyle = '#e6e2d8'; ctx.fillRect(V.x, V.y, V.w, G - 20 - V.y);
@@ -266,7 +259,7 @@
     _slSurfaces(v, a, ph, ZONES);
     if (ph === 'front') return;
     const shafts = (a.undergroundRects || []).filter(q => q.kind === 'shaft');
-    // Shaft 1: subway entrance — railings, the globe lamps, the sign
+    // Shaft 1: subway entrance, railings, the globe lamps, the sign
     const s1 = shafts[0];
     if (s1 && _slVisible(v, s1.x - 60, s1.x + s1.w + 60)) {
       ctx.fillStyle = '#2a4a3a';

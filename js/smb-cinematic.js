@@ -1,24 +1,10 @@
 'use strict';
 
-// ============================================================
-// IMPACT CINEMATIC SYSTEM
-// ============================================================
-// Provides a frame-queued, multi-phase cinematic impact system
-// with time-scale ramping, screen shake, vignette, flash,
-// shockwaves, energy swirls, and camera drama.
-//
-// Public API:
-//   playCinematicAttack(config)       — main entry point
-//   playDominanceMoment(boss, target) — boss dominance helper
-//   applyScreenShake(intensity, dur)  — stackable shake
-//   CINEMATIC_PRESETS                 — preset configs
-//   updateCinematicSystem()           — called every gameLoop frame
-//   drawCinematicWorldEffects()       — world-space draw pass
-//   drawCinematicImpactEffects()      — screen-space draw pass
-// ============================================================
+// Frame-queued, multi-phase impact cinematics: time-scale ramp, shake, vignette, flash, shockwaves, swirls, camera drama.
+// Public: playCinematicAttack, playDominanceMoment, applyScreenShake, CINEMATIC_PRESETS,
+// updateCinematicSystem (per gameLoop frame), drawCinematicWorldEffects, drawCinematicImpactEffects.
 
 
-// ── Debug / control flags ────────────────────────────────────────────────────
 
 let cinematicsEnabled    = true;
 let _cinIntensityMult    = 1.0;
@@ -31,19 +17,16 @@ function setCinematicIntensity(val) {
 }
 
 
-// ── Time scale system ────────────────────────────────────────────────────────
-// Separate from hitSlowTimer — managed entirely by updateCinematicSystem().
+// Separate from hitSlowTimer. Only updateCinematicSystem() touches it.
 
 let _cinTSTarget      = 1.0;
 let _cinTSCurrent     = 1.0;
 let _cinTSLerpSpeed   = 0.10;
 
 
-// ── Stackable screen shake queue ────────────────────────────────────────────
 
 const _cinShakeQueue = [];
-// maxFrames stored alongside each entry for ratio calculation
-// Entry shape: { intensity, framesLeft, maxFrames }
+// maxFrames is stored per entry for the ratio. Entry: { intensity, framesLeft, maxFrames }
 
 function applyScreenShake(intensity, durationFrames) {
   _cinShakeQueue.push({
@@ -54,27 +37,23 @@ function applyScreenShake(intensity, durationFrames) {
 }
 
 
-// ── Vignette system ──────────────────────────────────────────────────────────
 
 let _cinVignetteAlpha  = 0;
 let _cinVignetteTarget = 0;
 let _cinVignetteColor  = '#000000';
 
 
-// ── Impact flash system ──────────────────────────────────────────────────────
 
 let _cinFlashAlpha = 0;
 let _cinFlashColor = '#ffffff';
 
 
-// ── Shockwave system (world-space) ───────────────────────────────────────────
-// Entry shape: { x, y, r, maxR, lineWidth, color, alpha, age, lifetime }
+// Shockwave entry: { x, y, r, maxR, lineWidth, color, alpha, age, lifetime }
 
 const _cinShockwaves = [];
 
 
-// ── Energy swirl (anticipation particles, world-space) ───────────────────────
-// Entry shape: { cx, cy, angle, radius, speed, color, alpha, shrinkRate, life, maxLife, px, py }
+// Swirl entry: { cx, cy, angle, radius, speed, color, alpha, shrinkRate, life, maxLife, px, py }
 
 const _cinEnergySwirls = [];
 
@@ -103,8 +82,7 @@ function _spawnEnergySwirl(cx, cy, color, count, intensity) {
 }
 
 
-// ── Camera cinematic overlay ─────────────────────────────────────────────────
-// These are READ by smb-loop.js each frame in the camera section.
+// Read by smb-loop.js each frame in the camera section.
 
 let _cinCamTarget    = null;  // entity with .cx()/.cy() — cinematic cam focus
 let _cinCamLerp      = 0.06;  // lerp speed toward target
@@ -115,8 +93,7 @@ let _cinCamOffXTgt   = 0;     // targets lerped toward
 let _cinCamOffYTgt   = 0;
 
 
-// ── Frame queue system ───────────────────────────────────────────────────────
-// Entry shape: { delay: N, fn: function }
+// Entry: { delay, fn }
 
 const _cinQueue = [];
 
@@ -125,7 +102,6 @@ function _cinSchedule(delayFrames, fn) {
 }
 
 
-// ── Preset configs ───────────────────────────────────────────────────────────
 
 const CINEMATIC_PRESETS = {
   LIGHT: {
@@ -188,7 +164,7 @@ const CINEMATIC_PRESETS = {
 };
 
 
-// ── Main pipeline — playCinematicAttack ──────────────────────────────────────
+// playCinematicAttack: the main pipeline.
 
 function playCinematicAttack({ attacker, target, attackName, intensity = 1.0, effectsConfig = {} }) {
   if (!cinematicsEnabled) return;
@@ -198,12 +174,11 @@ function playCinematicAttack({ attacker, target, attackName, intensity = 1.0, ef
 
   const anticipationLen = Math.round(lerp(14, 50, Math.min(eff, 1)));
 
-  // Capture impact position once (at schedule time) for aftermath use
+  // Capture the impact position at schedule time, for the aftermath.
   let _impactX = attacker ? attacker.cx() : GAME_W / 2;
   let _impactY = attacker ? attacker.cy() : GAME_H / 2;
 
-  // ─── PHASE 1: ANTICIPATION ─────────────────────────────────────────────
-  // Frame 0: time scale ramp down, camera toward attacker, vignette in
+  // Anticipation: time ramps down, camera moves to the attacker, vignette comes in.
   _cinSchedule(0, () => {
     _cinTSTarget    = lerp(0.88, 0.55, eff * 0.7);
     _cinTSLerpSpeed = 0.07;
@@ -227,9 +202,8 @@ function playCinematicAttack({ attacker, target, attackName, intensity = 1.0, ef
     });
   }
 
-  // ─── PHASE 2: IMPACT ───────────────────────────────────────────────────
   _cinSchedule(anticipationLen, () => {
-    // Resolve impact position at impact time (more accurate)
+    // Resolve the impact position at impact time, which is more accurate.
     _impactX = target ? target.cx() : (attacker ? attacker.cx() : GAME_W / 2);
     _impactY = target ? target.cy() : (attacker ? attacker.cy() : GAME_H / 2);
 
@@ -278,11 +252,10 @@ function playCinematicAttack({ attacker, target, attackName, intensity = 1.0, ef
     _cinVignetteTarget = 0;
   });
 
-  // ─── PHASE 3: AFTERMATH ────────────────────────────────────────────────
   const aftermathStart = anticipationLen + Math.round(lerp(5, 12, eff));
 
   _cinSchedule(aftermathStart, () => {
-    // Slow-mo ramp — dramatic aftermath
+    // Slow-mo ramp, dramatic aftermath
     _cinTSTarget    = lerp(0.70, 0.50, eff);
     _cinTSLerpSpeed = 0.05;
 
@@ -315,7 +288,6 @@ function playCinematicAttack({ attacker, target, attackName, intensity = 1.0, ef
 }
 
 
-// ── Dominance moment ─────────────────────────────────────────────────────────
 
 function playDominanceMoment(boss, target, config = {}) {
   const intensity  = config.intensity || 1.4;
@@ -342,7 +314,7 @@ function playDominanceMoment(boss, target, config = {}) {
 }
 
 
-// ── updateCinematicSystem — called every gameLoop frame ───────────────────────
+// Called every gameLoop frame.
 
 function updateCinematicSystem() {
 
@@ -420,11 +392,9 @@ function updateCinematicSystem() {
 }
 
 
-// ── drawCinematicWorldEffects — world-space draw ──────────────────────────────
-// Called during the world transform (after platforms, before fighters).
-// NOTE: smb-cinematics.js also exports drawCinematicWorldEffects for ground cracks.
-// We augment that file's function by drawing our own world-space effects after it.
-// This function is called as drawCinematicImpactWorldEffects() from smb-loop.js.
+// World-space impact effects. Drawn during the world transform, after platforms and before fighters.
+// Called as drawCinematicImpactWorldEffects() from smb-loop.js. smb-cinematics.js has its own
+// drawCinematicWorldEffects (ground cracks).
 
 function drawCinematicImpactWorldEffects() {
   // Draw shockwaves
@@ -459,8 +429,7 @@ function drawCinematicImpactWorldEffects() {
 }
 
 
-// ── drawCinematicImpactEffects — screen-space draw ───────────────────────────
-// Called after ctx.setTransform(1,0,0,1,0,0), before drawCinematicOverlay().
+// Screen-space impact effects, drawn after the transform reset and before drawCinematicOverlay().
 
 function drawCinematicImpactEffects() {
   const cw = canvas.width;
@@ -503,8 +472,7 @@ function _hexToRgba(hex, alpha) {
 }
 
 
-// ── Console command integration ───────────────────────────────────────────────
-// Patches _consoleExec (defined in smb-debug.js) to support "cin" commands.
+// Adds 'cin' commands to _consoleExec (defined in smb-debug.js).
 
 (function _patchConsoleForCin() {
   if (typeof _consoleExec !== 'function') {

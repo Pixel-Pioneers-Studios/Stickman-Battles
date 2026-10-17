@@ -1,46 +1,31 @@
-// ============================================================================
-// THE CIRCUIT — PLATE CONTROL
-// ----------------------------------------------------------------------------
-// Sovereign's arena is a void with one perforated plate laid across it. The voids
-// in that plate are permanent features of the substrate: Sovereign never opens one
-// and never closes one. He slides the entire plate, and the voids travel with it,
-// under whoever happens to be standing there.
+// The Circuit: plate control for Sovereign's arena.
+// The arena is a void with one perforated plate across it. The voids are permanent
+// parts of the substrate. Sovereign slides the whole plate, and the voids travel with
+// it. He positions the board and creates or destroys nothing (docs/canon.md).
 //
-// This is the mechanical form of what he is. God builds, the Void Mind erases,
-// Sovereign controls (docs/canon.md — SOVEREIGN, THE THIRD PRINCIPLE). He creates
-// nothing and destroys nothing here. He positions. The stage is not a hazard he
-// summons; it is a board he moves.
+// Contract with the engine:
+//   - smb-data-arenas.js is the authoring source (px / plateF / anchor). This file
+//     owns pl.x and pl.w each frame. Nothing else should move Circuit platforms.
+//   - Voids are gaps between real isFloor segments, so cliff detection, fall recovery
+//     and pathfinding read them for free. Do not merge the segments into one floor.
+//   - The two outer segments are anchors with pinned outer edges, so the kill boundary never moves.
 //
-// Contract with the rest of the engine:
-//   - The arena data in smb-data-arenas.js is the AUTHORING source (px / plateF /
-//     anchor). This file owns pl.x and pl.w every frame and writes them from the
-//     current offset. Nothing else should mutate Circuit platform positions.
-//   - Voids are gaps between real isFloor segments, so cliff detection, lethal-fall
-//     recovery and pathfinding read them for free. Do not collapse the segments back
-//     into one wide floor.
-//   - The two outer segments are ANCHORS whose outer edges are pinned. The stage's
-//     kill boundary never moves; only the voids do. Sovereign already wins edge
-//     conversion 4-0 and does not get to slide the killing lip at the player.
-//
-// Load order: after smb-data-arenas.js (needs ARENAS to exist for authoring fields),
-// before smb-loop-core.js (which drives update/draw). Runtime globals used —
-// currentArena, players, gameRunning, frameCount, ctx, lerp, clamp — are all
-// resolved lazily inside functions, never at load time.
-// ============================================================================
+// Loads after smb-data-arenas.js and before smb-loop-core.js. Globals (currentArena,
+// players, frameCount, ...) are resolved inside functions, never at load time.
 
 const CIRCUIT_TUNE = {
-  enabled:      true,  // master switch — off restores a static neutral plate
-  telegraph:     34,   // frames of warning before the plate commits to a slide
-  ease:        0.055,  // lerp rate once sliding (a full 130px throw takes ~1.2s)
-  minGapFrames: 150,   // cooldown after a slide settles, so it never feels strobed
-  minTravel:     34,   // ignore slide requests smaller than this — no twitching
-  autoDrift:  false,   // idle heartbeat — off: every slide must come from a read
+  enabled:      true,  // off restores a static neutral plate
+  telegraph:     34,   // frames of warning before a slide commits
+  ease:        0.055,  // lerp rate while sliding (a 130px throw takes ~1.2s)
+  minGapFrames: 150,   // cooldown after a slide, so slides do not strobe
+  minTravel:     34,   // smaller slide requests are ignored
+  autoDrift:  false,   // idle drift; off means every slide comes from a read
   driftGap:     420,   // frames between idle drifts
-  ownerSafe:   true,   // never park a void under Sovereign's own feet
+  ownerSafe:   true,   // never park a void under Sovereign's feet
 };
 
 const CircuitPlate = (function () {
-  const FLOOR_TOP = 460;   // plate surface y — all segments share it
+  const FLOOR_TOP = 460;   // plate surface y, shared by all segments
 
   let bound     = null;    // arena object this state was derived from
   let offset    = 0;       // current plate offset, px
@@ -63,9 +48,8 @@ const CircuitPlate = (function () {
     return (currentArena && currentArena.plateRange) || 130;
   }
 
-  // ── Geometry ──────────────────────────────────────────────────────────────
-  // Write pl.x / pl.w for a given offset. Anchors keep their outer edge pinned and
-  // change width; everything else translates by offset * plateF.
+  // Write pl.x and pl.w for an offset. Anchors keep their outer edge pinned and
+  // change width; everything else moves by offset * plateF.
   function apply(off) {
     const plats = currentArena.platforms;
     for (const pl of plats) {
@@ -84,7 +68,7 @@ const CircuitPlate = (function () {
     lastSpans = computeSpans();
   }
 
-  // Void spans = the gaps between consecutive live floor segments, left to right.
+  // Void spans: the gaps between consecutive floor segments, left to right.
   function computeSpans() {
     if (!active()) return [];
     const segs = currentArena.platforms
@@ -99,8 +83,8 @@ const CircuitPlate = (function () {
     return out;
   }
 
-  // Where the voids WOULD be at a hypothetical offset, without disturbing live
-  // geometry. Used for the telegraph and for owner-safety checks.
+  // Where the voids would be at a given offset, without touching live geometry.
+  // Used for the telegraph and owner-safety checks.
   function spansAt(off) {
     const plats = currentArena.platforms;
     const segs = [];
@@ -127,22 +111,18 @@ const CircuitPlate = (function () {
     return players.find(p => p && p.isSovereignMK2 && p.health > 0) || null;
   }
 
-  // He is never caught out by his own board. This is a fairness guard AND a canon
-  // one: the entity that positions does not get positioned. It also removes a whole
-  // class of pathfinding failure where the plate drops him mid-pursuit.
+  // Sovereign is never caught out by his own board. The positioner is not positioned.
+  // This also avoids pathfinding failures where the plate drops him mid-pursuit.
   function safeForOwner(off) {
     if (!CIRCUIT_TUNE.ownerSafe) return true;
     const s = sovereign();
     if (!s) return true;
 
-    // Which x does he need to be solid? Standing: where he is. Airborne: where he
-    // is going to come down. The airborne case is not optional — the first version
-    // of this guard only checked the grounded case, so a slide could legally park a
-    // void under his landing spot, and his recovery would then pogo him into the
-    // sky. He is the one who positions; he does not get positioned.
+    // Which x must be solid? Standing: where he is. Airborne: where he will land.
+    // Checking only the grounded case let a void park under his landing spot.
     let cx;
     if (s.onGround) {
-      if (Math.abs((s.y + s.h) - FLOOR_TOP) > 26) return true;  // up on a deck — unaffected
+      if (Math.abs((s.y + s.h) - FLOOR_TOP) > 26) return true;  // raised decks are unaffected
       cx = s.cx();
     } else {
       const framesToFloor = Math.min(60, Math.max(0, (FLOOR_TOP - (s.y + s.h)) / Math.max(0.8, s.vy || 0.8)));
@@ -155,16 +135,15 @@ const CircuitPlate = (function () {
     return true;
   }
 
-  // ── Public: request a slide ───────────────────────────────────────────────
-  // Returns true if the request was accepted. Rejected while a slide is already
-  // running, during cooldown, for trivial travel, or if it would drop Sovereign.
+  // Request a slide. Returns true if accepted. Rejected during a slide, cooldown,
+  // trivial travel, or when it would drop Sovereign.
   function requestSlide(want, why) {
     if (!active() || phase !== 'idle' || cooldown > 0) return false;
     const r = range();
     let t = Math.max(-r, Math.min(r, want));
     if (Math.abs(t - offset) < CIRCUIT_TUNE.minTravel) return false;
     if (!safeForOwner(t)) {
-      // Try the mirrored throw before giving up — usually still achieves the intent.
+      // Try the mirrored throw before giving up.
       const alt = Math.max(-r, Math.min(r, -t));
       if (Math.abs(alt - offset) < CIRCUIT_TUNE.minTravel || !safeForOwner(alt)) return false;
       t = alt;
@@ -177,11 +156,10 @@ const CircuitPlate = (function () {
     return true;
   }
 
-  // Convenience for callers that think in intent rather than in px: push the voids
-  // toward a world x. Sovereign's platform-denial will use this.
+  // Push the voids toward a world x. Sovereign's platform denial uses this.
   function slideVoidToward(worldX, why) {
     if (!active()) return false;
-    // Pick the offset that puts a void nearest the requested x.
+    // Pick the offset that puts a void nearest x.
     const r = range();
     let best = null, bestD = Infinity;
     for (let off = -r; off <= r; off += 10) {
@@ -201,7 +179,7 @@ const CircuitPlate = (function () {
     if (active()) apply(0);
   }
 
-  // ── Per-frame ─────────────────────────────────────────────────────────────
+  // Per-frame
   function update() {
     if (!active()) { bound = null; return; }
     if (bound !== currentArena) reset();
@@ -220,12 +198,8 @@ const CircuitPlate = (function () {
         cooldown = CIRCUIT_TUNE.minGapFrames;
       }
     } else if (CIRCUIT_TUNE.autoDrift && typeof gameRunning !== 'undefined' && gameRunning) {
-      // Scaffolding from before Sovereign drove the plate, kept behind a flag that
-      // now ships off. It was predicted to stop firing on its own once his
-      // platform-denial owned the plate; it did not, because his own cooldown is
-      // longer than driftGap, so the two simply alternated and most plate movement
-      // the player saw carried no read behind it. The arena then reads as a stage
-      // hazard instead of as him. Do not re-enable to make the stage "feel alive".
+      // Idle drift is off. It made plate movement look like a stage hazard, not a
+      // Sovereign read. Do not re-enable it to make the stage feel alive.
       driftTick++;
       if (driftTick >= CIRCUIT_TUNE.driftGap && cooldown <= 0) {
         driftTick = 0;
@@ -237,8 +211,7 @@ const CircuitPlate = (function () {
     apply(offset);
   }
 
-  // ── Background layer (drawn before platforms) ─────────────────────────────
-  // The void reads as void: a cold lattice receding into nothing under each gap.
+  // Background layer, drawn before platforms. Each gap shows a cold lattice receding into nothing.
   function draw() {
     if (!active() || typeof ctx === 'undefined') return;
     const f = (typeof frameCount === 'number') ? frameCount : 0;
@@ -252,7 +225,7 @@ const CircuitPlate = (function () {
       ctx.fillStyle = g;
       ctx.fillRect(sp.x, FLOOR_TOP - 4, sp.w, 154);
 
-      // Lattice rungs falling away — sells motion when the plate slides
+      // Lattice rungs fall away, which sells the motion when the plate slides
       ctx.strokeStyle = 'rgba(170,10,10,0.16)';
       ctx.lineWidth = 1;
       for (let i = 0; i < 5; i++) {
@@ -270,24 +243,21 @@ const CircuitPlate = (function () {
     ctx.restore();
   }
 
-  // ── Overlay layer (drawn after platforms) ─────────────────────────────────
-  // Two jobs: make the live void edges unmistakable, and telegraph where the voids
-  // are about to be. The telegraph is the whole fairness contract of this arena —
-  // the player must always be able to see a void coming and leave.
+  // Overlay layer, drawn after platforms. It marks live void edges and telegraphs
+  // upcoming voids. The player must always be able to see a void coming.
   function drawOverlay() {
     if (!active() || typeof ctx === 'undefined') return;
     const f = (typeof frameCount === 'number') ? frameCount : 0;
     ctx.save();
 
-    // Live void lips — a bright edge on the standable side of every gap.
+    // Live void lips: a bright edge on the standable side of each gap.
     for (const sp of lastSpans) {
       ctx.fillStyle = 'rgba(255,60,40,0.5)';
       ctx.fillRect(sp.x - 3, FLOOR_TOP, 3, 5);
       ctx.fillRect(sp.x + sp.w, FLOOR_TOP, 3, 5);
     }
 
-    // Telegraph — the spans that are about to become void, marked on the floor the
-    // player is currently standing on. Ramps in over the warning window.
+    // Telegraph: spans about to become void, marked on the floor. Ramps in over the warning.
     if (phase === 'telegraph') {
       const t     = 1 - (timer / Math.max(1, CIRCUIT_TUNE.telegraph)); // 0 → 1
       const pulse = 0.5 + 0.5 * Math.sin(f * 0.35);
@@ -296,7 +266,7 @@ const CircuitPlate = (function () {
         ctx.fillStyle = `rgba(220,20,20,${a.toFixed(3)})`;
         ctx.fillRect(sp.x, FLOOR_TOP, sp.w, 16);
 
-        // Hatching, so it is legible even for colour-blind players and at low alpha
+        // Hatching keeps it readable for colour-blind players and at low alpha
         ctx.strokeStyle = `rgba(255,140,110,${(0.25 + t * 0.4).toFixed(3)})`;
         ctx.lineWidth = 1.5;
         for (let hx = sp.x - 16; hx < sp.x + sp.w; hx += 12) {
@@ -306,7 +276,7 @@ const CircuitPlate = (function () {
           ctx.stroke();
         }
 
-        // Travel arrow — which way the plate is throwing
+        // Travel arrow: the direction the plate is moving
         const dir = Math.sign(target - offset) || 1;
         const midX = sp.x + sp.w / 2, midY = FLOOR_TOP - 12;
         ctx.strokeStyle = `rgba(255,90,60,${(0.4 + t * 0.5).toFixed(3)})`;
@@ -324,7 +294,7 @@ const CircuitPlate = (function () {
     ctx.restore();
   }
 
-  // ── Queries for AI / debug ────────────────────────────────────────────────
+  // Queries for AI and debug
   function isOverVoid(x, pad) {
     const p = pad || 0;
     for (const sp of lastSpans) if (x > sp.x - p && x < sp.x + sp.w + p) return true;

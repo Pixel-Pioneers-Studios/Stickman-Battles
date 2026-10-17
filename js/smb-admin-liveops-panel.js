@@ -1,16 +1,13 @@
 'use strict';
-// smb-admin-liveops-panel.js — Comprehensive Live-Service Admin Dashboard (F10)
-// Depends on: smb-globals.js, smb-state.js, smb-accounts.js,
-//             smb-admin-core.js, smb-admin-panels.js, smb-save.js, smb-liveops.js
-//
-// Open methods: F10 key | /admin console command | AdminDash.toggle()
-// Authorized accounts only — silently blocked for non-admins.
+// smb-admin-liveops-panel.js: live-service admin dashboard (F10).
+// Depends on smb-globals.js, smb-state.js, smb-accounts.js, smb-admin-core.js,
+// smb-admin-panels.js, smb-save.js, smb-liveops.js.
+// Opens via F10, /admin, or AdminDash.toggle(). Non-admins are silently blocked.
+
 
 (function () {
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // STATE
-  // ═══════════════════════════════════════════════════════════════════════════
 
   let _panelOpen  = false;
   let _activeTab  = 'dashboard';
@@ -30,9 +27,7 @@
     logs:      '📜 Logs',
   };
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // SERVER FETCH HELPERS
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _serverBase() {
     return (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url)
@@ -85,7 +80,7 @@
       }
       _pushLocalLog('LIVEOPS', 'Config updated: ' + JSON.stringify(delta));
     } else {
-      // Server unreachable — apply locally only
+      // Server unreachable: apply locally only
       if (typeof LiveOps !== 'undefined') LiveOps.apply(Object.assign({}, LiveOps.config, delta));
       _toast('Server offline — applied locally only', true);
     }
@@ -113,9 +108,7 @@
     _pushLocalLog('ANNOUNCE', message);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // LOCAL LOG
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _pushLocalLog(level, msg) {
     const entry = { ts: Date.now(), level, msg };
@@ -126,9 +119,7 @@
     if (_activeTab === 'logs') _refreshLogBox();
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // PLAYER ACTIONS (local save mutation + optional server broadcast)
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _resolveAccount(idOrName) {
     if (!window.AccountManager) return null;
@@ -243,9 +234,7 @@
     } catch (_) { return null; }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // UI HELPERS
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _esc(s) {
     return String(s)
@@ -292,9 +281,7 @@
     return '<div style="font-size:0.68rem;color:rgba(160,200,255,0.45);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;">' + label + '</div>';
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // PANEL SHELL (created once, reused)
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _getOrCreatePanel() {
     let panel = _el('adminLivePanel');
@@ -319,7 +306,6 @@
       'color:#c8d8ff',
     ].join(';');
 
-    // ── Header ────────────────────────────────────────────────────────────────
     const hdr = document.createElement('div');
     hdr.style.cssText = [
       'display:flex', 'align-items:center', 'justify-content:space-between',
@@ -345,7 +331,6 @@
     ].join('');
     panel.appendChild(hdr);
 
-    // ── Tab bar ───────────────────────────────────────────────────────────────
     const tabBar = document.createElement('div');
     tabBar.id = 'alpTabBar';
     tabBar.style.cssText = [
@@ -355,7 +340,6 @@
     ].join(';');
     panel.appendChild(tabBar);
 
-    // ── Command bar ───────────────────────────────────────────────────────────
     const cmdBar = document.createElement('div');
     cmdBar.style.cssText = [
       'display:flex', 'gap:6px', 'padding:6px 12px', 'flex-shrink:0',
@@ -376,7 +360,6 @@
       if (e.key === 'Enter') { e.preventDefault(); AdminDash.runCmd(); }
     });
 
-    // ── Body ──────────────────────────────────────────────────────────────────
     const body = document.createElement('div');
     body.id = 'alpBody';
     body.style.cssText = 'flex:1;overflow-y:auto;padding:16px;';
@@ -413,11 +396,8 @@
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // TAB RENDERERS
-  // ═══════════════════════════════════════════════════════════════════════════
 
-  // ── Dashboard ────────────────────────────────────────────────────────────────
   function _renderDashboard() {
     const cfg = (_serverState && _serverState.liveConfig) ||
                 (typeof LiveOps !== 'undefined' ? LiveOps.config : {});
@@ -448,7 +428,6 @@
     return [
       '<div style="display:flex;flex-direction:column;gap:14px;">',
 
-      // Stat cards
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;">',
         statCard('Online Players', 'alpStatOnline', online, '#44ff88'),
         statCard('Active Rooms',   'alpStatRooms',  rooms,  '#88aaff'),
@@ -460,13 +439,11 @@
         statCard('Maintenance',    'alpStatMaint',  (cfg.maintenance ? 'ON' : 'OFF'), cfg.maintenance ? '#ff5555' : '#44aa55'),
       '</div>',
 
-      // MOTD display
       '<div style="' + _sectionStyle() + '">',
         _secTitle('📢 Current MOTD'),
         '<div style="font-size:0.82rem;color:#ffddaa;">' + _esc(cfg.motd || '(none)') + '</div>',
       '</div>',
 
-      // Event status badges
       '<div style="' + _sectionStyle() + '">',
         _secTitle('🎯 Live Events & Status'),
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">',
@@ -513,7 +490,6 @@
     return s + 's';
   }
 
-  // ── LiveOps ──────────────────────────────────────────────────────────────────
   function _renderLiveOps() {
     const cfg = (_serverState && _serverState.liveConfig) ||
                 (typeof LiveOps !== 'undefined' ? LiveOps.config : {});
@@ -553,7 +529,6 @@
     return [
       '<div style="display:flex;flex-direction:column;gap:13px;">',
 
-      // ── Event toggles
       '<div style="' + _sectionStyle() + '">',
         _secTitle('🎛️ Live Events'),
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;">',
@@ -568,7 +543,6 @@
         '</div>',
       '</div>',
 
-      // ── Multiplier sliders
       '<div style="' + _sectionStyle() + '">',
         _secTitle('🎚️ Multipliers'),
         slider('💰 Coin Mult',      'alpSlCoin', cfg.coinMultiplier       || 1, 0.5, 5,   0.25, "AdminDash.setMultiplier('coin',this.value)"),
@@ -577,7 +551,6 @@
         slider('❤️ Enemy HP Mult',  'alpSlEHP',  bal.enemyHpMult          || 1, 0.1, 3,   0.1,  "AdminDash.setBalance('enemyHpMult',this.value)"),
       '</div>',
 
-      // ── Quick presets
       '<div style="' + _sectionStyle() + '">',
         _secTitle('⚡ Quick Presets'),
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">',
@@ -589,7 +562,6 @@
         '</div>',
       '</div>',
 
-      // ── MOTD editor
       '<div style="' + _sectionStyle() + '">',
         _secTitle('📢 Message of the Day'),
         '<div style="display:flex;gap:8px;">',
@@ -600,7 +572,6 @@
         '</div>',
       '</div>',
 
-      // ── Broadcast
       '<div style="' + _sectionStyle() + '">',
         _secTitle('📣 Broadcast Announcement'),
         '<div style="display:flex;gap:8px;">',
@@ -610,7 +581,6 @@
         '</div>',
       '</div>',
 
-      // ── Shop rotation
       '<div style="' + _sectionStyle() + '">',
         _secTitle('🏪 Shop Rotation (comma-separated cosmetic IDs)'),
         '<div style="display:flex;gap:8px;">',
@@ -625,7 +595,6 @@
     ].join('');
   }
 
-  // ── Players ──────────────────────────────────────────────────────────────────
   function _renderPlayers() {
     const allAccts = (window.AccountManager && AccountManager.getAllAccounts) ? AccountManager.getAllAccounts() : [];
     const activeId = (window.AccountManager && AccountManager.getActiveAccount) ? (AccountManager.getActiveAccount() || {}).id : '';
@@ -658,13 +627,11 @@
     return [
       '<div style="display:flex;flex-direction:column;gap:13px;">',
 
-      // Online peers
       '<div style="' + _sectionStyle() + '">',
         _secTitle('🟢 Online Peers (this session)'),
         rosterHtml,
       '</div>',
 
-      // Local account selector
       '<div style="' + _sectionStyle() + '">',
         _secTitle('👤 Local Account Actions'),
 
@@ -674,7 +641,6 @@
           '<button onclick="AdminDash.viewSnapshot()" style="' + _btnStyle('#88aaff', true) + '">👁 Snapshot</button>',
         '</div>',
 
-        // Coins
         '<div style="margin-bottom:10px;">',
           '<div style="font-size:0.68rem;color:rgba(255,220,60,0.45);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Coins ⬡</div>',
           '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">',
@@ -687,7 +653,6 @@
           '</div>',
         '</div>',
 
-        // Story
         '<div style="margin-bottom:10px;">',
           '<div style="font-size:0.68rem;color:rgba(100,180,255,0.45);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Story Progress</div>',
           '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">',
@@ -698,7 +663,6 @@
           '</div>',
         '</div>',
 
-        // Unlocks
         '<div style="margin-bottom:10px;">',
           '<div style="font-size:0.68rem;color:rgba(130,255,130,0.45);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Unlocks</div>',
           '<div style="display:flex;gap:6px;flex-wrap:wrap;">',
@@ -710,7 +674,6 @@
           '</div>',
         '</div>',
 
-        // Cosmetics
         '<div style="margin-bottom:10px;">',
           '<div style="font-size:0.68rem;color:rgba(200,150,255,0.45);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Cosmetics</div>',
           '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">',
@@ -731,7 +694,6 @@
 
       '</div>',
 
-      // Save snapshot viewer
       '<div id="alpSnapshotBox" style="display:none;' + _sectionStyle() + '">',
         _secTitle('🗄️ Save Snapshot'),
         '<pre id="alpSnapshotContent" style="font-size:0.68rem;color:#aabbd8;line-height:1.65;',
@@ -742,7 +704,6 @@
     ].join('');
   }
 
-  // ── Match Controls ───────────────────────────────────────────────────────────
   function _renderMatch() {
     return [
       '<div style="display:flex;flex-direction:column;gap:13px;">',
@@ -781,7 +742,6 @@
     ].join('');
   }
 
-  // ── Patch Controls ───────────────────────────────────────────────────────────
   function _renderPatch() {
     const cfg = (_serverState && _serverState.liveConfig) ||
                 (typeof LiveOps !== 'undefined' ? LiveOps.config : {});
@@ -830,7 +790,6 @@
     ].join('');
   }
 
-  // ── Logs ─────────────────────────────────────────────────────────────────────
   function _renderLogs() {
     return [
       '<div style="display:flex;flex-direction:column;gap:10px;">',
@@ -898,9 +857,7 @@
     box.scrollTop = box.scrollHeight;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // PANEL OPEN / CLOSE / RENDER
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _open() {
     if (!_adminPanelIsAllowed()) {
@@ -970,18 +927,14 @@
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // TOAST
-  // ═══════════════════════════════════════════════════════════════════════════
 
   function _toast(msg, isError) {
     if (typeof _adminToast === 'function') { _adminToast(msg, isError); return; }
     console.log('[AdminDash]', msg);
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ADMIN COMMAND ROUTER  (/command → dispatched from the command bar or console)
-  // ═══════════════════════════════════════════════════════════════════════════
+  // Command router: /command from the command bar or console
 
   function _findAccountByName(name) {
     if (!window.AccountManager) return null;
@@ -1012,7 +965,6 @@
 
     switch (cmd) {
 
-      // ── Moderation ──────────────────────────────────────────────────────────
       case 'ban': {
         const t = arg(0); if (!t) return true;
         if (typeof adminBanTarget === 'function') adminBanTarget(t, null, rest(1) || 'Banned by admin.', {});
@@ -1035,7 +987,6 @@
       case 'mute':   { _pushLocalLog('ADMIN', 'Muted (local): ' + arg(0)); _toast('Muted: ' + arg(0)); return true; }
       case 'unmute': { _pushLocalLog('ADMIN', 'Unmuted: ' + arg(0)); _toast('Unmuted: ' + arg(0)); return true; }
 
-      // ── Coins / XP ──────────────────────────────────────────────────────────
       case 'givecoins': {
         const acct = _findAccountByName(arg(0));
         if (!acct) { console.log('[Admin] User not found: ' + arg(0)); return true; }
@@ -1049,7 +1000,7 @@
         return true;
       }
       case 'givexp': {
-        // No separate XP system — convert to coins at 10:1
+        // No separate XP system: convert to coins at 10:1
         const acct = _findAccountByName(arg(0));
         if (!acct) { console.log('[Admin] User not found: ' + arg(0)); return true; }
         _grantCoins(acct.id, Math.floor(argN(1) / 10));
@@ -1057,7 +1008,6 @@
         return true;
       }
 
-      // ── Cosmetics ───────────────────────────────────────────────────────────
       case 'giveskin': {
         const acct = _findAccountByName(arg(0));
         if (!acct) { console.log('[Admin] User not found: ' + arg(0)); return true; }
@@ -1071,7 +1021,6 @@
         return true;
       }
 
-      // ── Story ───────────────────────────────────────────────────────────────
       case 'resetstory': {
         const acct = _findAccountByName(arg(0));
         if (!acct) { console.log('[Admin] User not found: ' + arg(0)); return true; }
@@ -1087,7 +1036,6 @@
         return true;
       }
 
-      // ── LiveOps toggles ─────────────────────────────────────────────────────
       case 'event': {
         const on = arg(1).toLowerCase() === 'on';
         const delta = { events: {} }; delta.events[arg(0)] = on;
@@ -1158,23 +1106,19 @@
         return true;
       }
 
-      // ── Match ───────────────────────────────────────────────────────────────
       case 'endmatches':
         AdminDash.endAllMatches();
         return true;
 
-      // ── Persistence ─────────────────────────────────────────────────────────
       case 'saveall':
         if (typeof saveGame === 'function') saveGame();
         _pushLocalLog('ADMIN', 'Manual save triggered');
         return true;
 
-      // ── Meta ────────────────────────────────────────────────────────────────
       case 'logs':
         _switchTab('logs'); _open();
         return true;
 
-      // ── SMB-specific ────────────────────────────────────────────────────────
       case 'unlocksovereign': {
         const acct = _findAccountByName(arg(0));
         if (!acct) { console.log('[Admin] User not found: ' + arg(0)); return true; }
@@ -1270,9 +1214,7 @@
     '  /helpadmin              This help text',
   ].join('\n');
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // PUBLIC API  (window.AdminDash)
-  // ═══════════════════════════════════════════════════════════════════════════
 
   window.AdminDash = {
     toggle: _toggle,
@@ -1545,13 +1487,11 @@
   // Expose command exec for other modules
   window._adminDashExec = _cmdExec;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CONSOLE HOOK  — intercepts /command in the game dev console
-  // ═══════════════════════════════════════════════════════════════════════════
+  // Console hook: /command in the game dev console
 
   window.addEventListener('load', function() {
-    // _consoleExec is a top-level function declaration in smb-debug-console.js,
-    // so it is available on window after that file executes.
+    // _consoleExec is a top-level function in smb-debug-console.js, so it is on window
+    // once that file has run.
     if (typeof window._consoleExec === 'function') {
       const _origExec = window._consoleExec;
       window._consoleExec = function(raw) {
@@ -1561,9 +1501,7 @@
     }
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // SOCKET LISTENERS — react to server-pushed events in real time
-  // ═══════════════════════════════════════════════════════════════════════════
+  // Socket listeners: server-pushed events
 
   window.addEventListener('load', function() {
     setTimeout(function() {
@@ -1610,9 +1548,7 @@
     }, 1200);
   });
 
-  // ═══════════════════════════════════════════════════════════════════════════
   // KEY + SECURITY LISTENERS
-  // ═══════════════════════════════════════════════════════════════════════════
 
   document.addEventListener('keydown', function(e) {
     // F10 = open/close admin dashboard

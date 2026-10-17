@@ -1,19 +1,7 @@
 'use strict';
-// js/story/levels/ch94.js — Chapter 94 map. See smb-story-levels.js for the contract.
+// Chapter 94 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 94 — Into the Dark (walk → duel vs two Shadow Prowlers)
-// The Shadow Realm's edge. "The light left first. Then the sound. Then any
-// reliable sense of where the ground was." The walk runs from the last of the
-// light into the dark: at the fracture the sky still holds a dusk glow; by
-// the midpoint it is gone, and the world is obsidian spires and dead trees
-// that only show where a thin pale rim catches them. Eyes open in the dark —
-// pairs of them, blinking out when you get close. The fragment pulses: a
-// faint ring goes out from where you stand every two seconds ("the fragment
-// can feel them before you can see them"). Shattered spires are the climbs;
-// the cache shafts are pits of deeper black with a violet edge.
-// (The realm's own fog closes in around you as you go.)
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 94, Into the Dark: walk, then duel two Shadow Prowlers.
 (function () {
   const G = 440, DUEL = 3000;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2360, 270, 110],
@@ -32,14 +20,12 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#030305');
-    // The last of the dusk, fading out across the first half of the walk
     const l = light(v.x + v.w / 2);
     if (l > 0) {
       const g = ctx.createLinearGradient(0, 200, 0, G);
       g.addColorStop(0, 'rgba(80,60,110,0)'); g.addColorStop(1, `rgba(120,80,140,${0.5 * l})`);
       ctx.fillStyle = g; ctx.fillRect(v.x - 10, 200, v.w + 20, G - 200);
     }
-    // Obsidian spires on the horizon, rim-lit
     _slParallax(v, 0.15, (lx, rx) => {
       for (let i = Math.floor(lx / 90) - 1; i * 90 < rx + 90; i++) {
         const x = i * 90 + _slHash(i + 940) * 40, h = 80 + _slHash(i + 941) * 200;
@@ -51,7 +37,6 @@
 
   function back(v) {
     const p1 = (typeof players !== 'undefined' && players[0]) || null;
-    // Eyes in the dark, closing when you come near
     for (let k = 0; k < 40; k++) {
       const ex = 200 + k * 145 + _slHash(k + 942) * 80, ey = 250 + _slHash(k + 943) * 150;
       if (!_slVisible(v, ex - 10, ex + 10)) continue;
@@ -69,7 +54,6 @@
       ctx.strokeStyle = 'rgba(160,150,210,0.25)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x + 4, G); ctx.lineTo(x + 10, G - 150); ctx.moveTo(x + 10, G - 130); ctx.lineTo(x + 52, G - 190); ctx.stroke();
     }
-    // Shattered spires (the climbs)
     for (const [x, y, w] of CLIMB) {
       if (!_slVisible(v, x - 20, x + w + 20)) continue;
       ctx.fillStyle = '#121218';
@@ -79,13 +63,11 @@
     if (_slVisible(v, DUEL - 420, DUEL + 420)) for (const x of [DUEL - 340, DUEL + 240]) {
       ctx.fillStyle = '#121218'; ctx.fillRect(x, 360, 100, G - 360); ctx.fillStyle = 'rgba(170,160,220,0.5)'; ctx.fillRect(x, 360, 100, 2);
     }
-    // Pits of deeper black over the cache shafts
     for (const px of PITS) {
       if (!_slVisible(v, px - 90, px + 90)) continue;
       ctx.strokeStyle = 'rgba(160,90,255,0.5)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(px - 46, G); ctx.lineTo(px - 46, G + 30); ctx.moveTo(px + 46, G); ctx.lineTo(px + 46, G + 30); ctx.stroke();
     }
-    // The fragment's pulse, out from where you stand
     if (p1) {
       const t = (frameCount % 120) / 120;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';

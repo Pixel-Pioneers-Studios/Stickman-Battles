@@ -1,6 +1,5 @@
-// smb-camera-trace.js — per-frame camera recorder for diagnosing camera bugs.
-// Ring buffer, so you start it, reproduce the problem, then read the report:
-// the last CAM_TRACE_LEN frames are always retained.
+// smb-camera-trace.js: per-frame camera recorder for diagnosing camera jolts.
+// Ring buffer: start it, reproduce the bug, then read the report. Keeps the last CAM_TRACE_LEN frames.
 //
 //   camTrace.arm()      record and auto-freeze on the first camera jolt (easiest)
 //   camTrace.start()    record continuously (buffer keeps only the last 15s)
@@ -38,8 +37,7 @@ var camTrace = (function () {
       pvy: p ? +(p.vy || 0).toFixed(2) : null,
       onGround: p ? !!p.onGround : null,
       snapCd: (typeof _camSnapCooldown !== 'undefined') ? _camSnapCooldown : -1,
-      // Every tracked entity, because the failsafe snaps toward the first
-      // off-screen one it finds — which is not necessarily the local player.
+      // Track every entity: the failsafe snaps to the first off-screen one, not necessarily the local player.
       ents: (function () {
         const all = [];
         try {
@@ -52,7 +50,7 @@ var camTrace = (function () {
     });
     if (buf.length > CAM_TRACE_LEN) buf.shift();
 
-    // Grace period: the camera legitimately settles hard in the first second of a match.
+    // Camera settles hard in the first second of a match, so skip it.
     if (armed && buf.length > 60) {
       const b = buf[buf.length - 1], a = buf[buf.length - 2];
       if (!caught) {
@@ -69,7 +67,7 @@ var camTrace = (function () {
     }
   }
 
-  // Wrapping the global keeps this file out of the camera's own logic.
+  // Wrapping the global keeps this file out of camera logic.
   const _orig = window.updateCamera;
   window.updateCamera = function () {
     const r = _orig.apply(this, arguments);
@@ -77,10 +75,8 @@ var camTrace = (function () {
     return r;
   };
 
-  // Reversals in the per-frame delta are the signature of jitter: a camera that
-  // is merely fast has a consistent sign, one that oscillates flips constantly.
-  // Axis is analysed independently because the vertical and horizontal paths in
-  // updateCamera() are governed by different thresholds and clamps.
+  // Jitter = sign reversals in the per-frame delta. Fast but steady motion keeps one sign.
+  // Axes are analysed separately: updateCamera() uses different thresholds per axis.
   function axis(rows, cur, tgt) {
     let maxStep = 0, sumStep = 0, reversals = 0, prevSign = 0;
     let snaps = 0, maxSnap = 0, frozen = 0, maxLag = 0;
@@ -115,8 +111,7 @@ var camTrace = (function () {
 
   function analyse(rows) {
     let zoomRev = 0, prevZSign = 0, maxZStep = 0, failsafes = 0, airFrames = 0;
-    // Entity extremes: the failsafe chases whoever leaves the view, so how far
-    // out of bounds anyone got is usually the whole explanation.
+    // Failsafe chases whoever leaves the view, so the max out-of-bounds distance explains most jolts.
     let eMinX = Infinity, eMaxX = -Infinity, eMinY = Infinity, eMaxY = -Infinity, maxSpread = 0;
     const modeChanges = [];
     for (let i = 1; i < rows.length; i++) {
@@ -164,8 +159,7 @@ var camTrace = (function () {
     };
   }
 
-  // Slide a window across the buffer and return the stretch with the most
-  // direction reversals — i.e. the worst-looking second of camera motion.
+  // Find the window with the most direction reversals (the worst second of motion).
   function worstWindow(win) {
     if (buf.length <= win) return { at: 0, rows: buf.slice() };
     let best = { score: -1, at: 0 };
@@ -180,8 +174,7 @@ var camTrace = (function () {
   return {
     start() { buf = []; marks = []; on = true; armed = false; return 'camTrace recording (ring of ' + CAM_TRACE_LEN + ' frames)'; },
     stop()  { on = false; armed = false; return 'camTrace stopped, ' + buf.length + ' frames held'; },
-    // Records, then freezes itself shortly after the first jolt it sees, so the
-    // event is still in the buffer when you get around to reading the report.
+    // Freezes shortly after the first jolt so the event stays in the buffer.
     arm(stepPx) {
       buf = []; marks = []; on = true; armed = true; caught = null;
       armStep = stepPx || 20;

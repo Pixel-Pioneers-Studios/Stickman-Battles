@@ -1,19 +1,7 @@
 'use strict';
-// js/story/levels/ch79.js — Chapter 79 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch79.js. Chapter 79 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 79 — The Architect Before the Architects (scavenge, 4 records)
-// The Fallen God's origin vault: one long hall of pale gold stone, older than
-// anything the Architects built, holding the records of the first law — the
-// walls between dimensions. Each record is kept where it belongs: the Law of
-// Separation on a lectern under the law itself, cut the height of the wall;
-// the First Wall Blueprint on its drafting table, the plan of concentric
-// walls pinned above it; the Creator's Tutelage on a plinth in front of a
-// relief of a tall figure guiding a smaller one's hand; the Fracture Proof
-// in a reliquary, a slab of crystal split clean through. Archive stacks
-// between them are the climbs. The vault door at the end has rolled aside;
-// it is sealing — its rim lights segment by segment as you collect.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 79, scavenge: four records in the Fallen God's origin vault. The vault door seals a segment per record taken.
 (function () {
   const G = 440, DOOR = 3300;
   const LECTERN = 500, TABLE = [1130, 360, 140], PLINTH = [1955, 400, 90], RELIQ = [2845, 370, 110];
@@ -90,7 +78,7 @@
       _slBookshelf(x, y, w, G - y, '#4a3e28');
       ctx.fillStyle = '#8a7a58'; ctx.fillRect(x - 3, y, w + 6, 7);
     }
-    // The vault door, rolled aside — its rim lights a segment per record taken
+    // The vault door, rolled aside, its rim lights a segment per record taken
     if (_slVisible(v, DOOR - 260, DOOR + 260)) {
       const n = collected();
       ctx.fillStyle = '#1a140a'; ctx.beginPath(); ctx.arc(DOOR, G - 140, 140, 0, Math.PI * 2); ctx.fill();

@@ -1,12 +1,8 @@
 'use strict';
-// smb-story-engine-frame.js — Per-frame: storyCheckEvents, onEnemyDeath, syncDistort, resetState, boundaries
+// smb-story-engine-frame.js: Per-frame: storyCheckEvents, onEnemyDeath, syncDistort, resetState, boundaries
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
-// ── storyCheckEvents: called each game frame from smc-loop.js ─────────────────
-/**
- * Polls per-frame game state and fires events when thresholds are crossed.
- * Call this from the main game loop AFTER physics/combat update.
- */
+// Polls per-frame state and fires events when thresholds are crossed. Call after physics/combat.
 function storyCheckEvents() {
   if (!storyModeActive || !gameRunning) return;
 
@@ -15,47 +11,42 @@ function storyCheckEvents() {
   const p1  = players && players[0];
   if (!p1) return;
 
-  // ── SURVIVAL_EVENT: player health drops below 20% ────────────────────────
   if (p1.health > 0 && p1.health / p1.maxHealth < 0.20) {
     triggerEvent('SURVIVAL_EVENT', { player: p1 });
   }
 
-  // ── REALITY_BREAK: chapters 8+ (fracture network) trigger ambient distortion
+  // REALITY_BREAK: chapters 8+ ambient distortion.
   if (chId >= 8 && !storyEventFired['REALITY_BREAK']) {
     triggerEvent('REALITY_BREAK', { chapterId: chId });
   }
 
-  // ── FIRST_KILL: track whether an enemy just died to p1 ───────────────────
-  // (This is called separately by checkDeaths() via storyOnEnemyDeath)
-  // Handled in storyOnEnemyDeath below.
+  // Called from checkDeaths() via storyOnEnemyDeath.
 
-  // ── ABILITY_UNLOCK: chapter 3 (Ground Zero), once the player uses Q ────────
   if (chId >= 3 && !storyEventFired['ABILITY_UNLOCK'] && !storyState.abilities.weaponAbility) {
-    if (p1.abilityCooldown > 0) {  // ability was just used (cooldown just started)
+    if (p1.abilityCooldown > 0) {
       triggerEvent('ABILITY_UNLOCK', { player: p1 });
     }
   }
 
-  // ── SUPER_UNLOCK: chapter 5 (Lava Crossing), when super meter first fires ─
+  // SUPER_UNLOCK: chapter 5 (Lava Crossing), on first super meter fire.
   if (chId >= 5 && !storyEventFired['SUPER_UNLOCK'] && !storyState.abilities.superMeter) {
     if (p1.superMeter >= (p1.maxSuperMeter || 100)) {
       triggerEvent('SUPER_UNLOCK', { player: p1 });
     }
   }
 
-  // ── Fallen warrior memory: rare ambient scene in late-game chapters ─────────
   // Fires once per fight (10% chance) when past chapter 60 to build TrueForm tension.
   if (chId >= 60 && !storyEventFired['FALLEN_WARRIOR'] && frameCount === 180) {
     if (Math.random() < 0.10) triggerScene('fallen_warrior_memory');
   }
 
-  // ── Axiom encounter (ch 63): keep Axiom invincible; force scripted defeat at 20s ──
+  // Axiom encounter (ch 63): invincible, then a scripted defeat at 20s.
   // Phase expansion reassigns ch.id; the original id lives in ch._origId.
   if (ch && (ch._origId !== undefined ? ch._origId : ch.id) === 63 && !ch.noFight) {
     const _axiom = players && players.find(p => p !== p1 && p.isBoss);
     if (_axiom && _axiom.health > 0) {
       _axiom.invincible = Math.max(_axiom.invincible || 0, 10);
-      _axiom.health     = _axiom.maxHealth; // instantly undo any damage — attacks visually connect but deal nothing
+      _axiom.health     = _axiom.maxHealth; // undo damage: hits connect visually but deal nothing
     }
     // Frame 1200 (~20s): Axiom ends the encounter with one scripted strike.
     // Use Axiom as attacker so the env-damage cap (14/frame) doesn't nerf the kill.
@@ -65,16 +56,13 @@ function storyCheckEvents() {
     }
   }
 
-  // ── Tick storyFreezeTimer ─────────────────────────────────────────────────
   if (storyFreezeTimer > 0) storyFreezeTimer--;
 
-  // ── Per-frame ability processing ─────────────────────────────────────────
   if (typeof storyTickAbilities === 'function') storyTickAbilities();
 
-  // ── Interlude walking chapter ─────────────────────────────────────────────
   if (typeof _interludeActive !== 'undefined' && _interludeActive) {
     if (typeof updateInterlude === 'function') updateInterlude();
-    // Completion → advance chapter (same path as exploration)
+    // Advance chapter, same path as exploration.
     if (typeof isInterludeComplete === 'function' && isInterludeComplete()) {
       if (typeof resetInterlude === 'function') resetInterlude();
       if (typeof story2OnMatchEnd === 'function') story2OnMatchEnd('win');
@@ -82,18 +70,13 @@ function storyCheckEvents() {
   }
 }
 
-/**
- * Called from checkDeaths() (smc-drawing.js) when an AI enemy dies.
- * Fires FIRST_KILL event and handles per-event unlock logic.
- */
+// Called from checkDeaths() (smc-drawing.js) when an AI enemy dies. Fires FIRST_KILL and per-event unlocks.
 function storyOnEnemyDeath(victim, killer) {
   if (!storyModeActive) return;
   // Only fire on p1 kills
   if (killer !== (players && players[0])) return;
   triggerEvent('FIRST_KILL', { victim, killer });
-  // berserker_blood2 kill stacks — merged here from smb-story-config.js, whose
-  // own storyOnEnemyDeath wrapper was silently overwritten by this later-loading
-  // declaration (making the ability dead code).
+  // berserker_blood2 kill stacks live here. The smb-story-config.js wrapper was overwritten by this later load.
   const _p1 = players[0];
   if (_p1 && _p1.story2Abilities && _p1.story2Abilities.has('berserker_blood2') &&
       typeof storyAbilityState !== 'undefined') {
@@ -102,13 +85,9 @@ function storyOnEnemyDeath(victim, killer) {
   }
 }
 
-// ── syncStoryDistortLevel: call after chapter advances ───────────────────────
 function syncStoryDistortLevel() {
   const id = storyState.chapter;
-  // Ch 0-7  : no distortion (home city, normal world)
-  // Ch 8-12 : fracture network — mild to moderate distortion
-  // Ch 13-22: multiversal core + architects — moderate to heavy
-  // Ch 23+  : unraveling / final — maximum distortion
+  // Ch 0-7: none. Ch 8-12: mild to moderate. Ch 13-22: moderate to heavy. Ch 23+: maximum.
   if (id < 8) {
     storyDistortLevel = 0;
   } else if (id < 13) {
@@ -120,34 +99,30 @@ function syncStoryDistortLevel() {
   }
 }
 
-// ── Per-fight state reset ──────────────────────────────────────────────────────
 // Call when a story fight starts (in _launchChapter2Fight) to clear per-fight flags
 function resetStoryEventState() {
   storyEventFired  = {};
   storyFreezeTimer = 0;
   _fallenWarrior   = null;
   syncStoryDistortLevel();
-  // Sync ability locks from the skill tree ONLY — abilities are never granted
-  // passively by chapter progress; the player must buy each node.
+  // Ability locks come from the skill tree only. Chapter progress never grants abilities.
   const sk = (typeof _story2 !== 'undefined' && _story2.skillTree) ? _story2.skillTree : {};
   storyState.abilities.doubleJump    = !!sk.doubleJump;
   storyState.abilities.weaponAbility = !!(sk.weaponAbility || sk.weaponAbilityOld);
   storyState.abilities.superMeter    = !!sk.superMeter;
 }
 
-// ── Story soft boundary / portal system ───────────────────────────────────────
 // Called every frame from gameLoop when storyModeActive.
-// If a player has crossed the soft boundary, teleport them back to the nearest
-// safe platform with a flash effect so it feels like a "reality enforcement" system.
+// Crossing the soft boundary teleports the player to a safe platform (with a flash effect).
 function storyUpdateBoundaries() {
   if (!storyModeActive || !gameRunning || !currentArena || gameMode === 'exploration') return;
-  // portalEdge: center portal (decorative in drawing, functional here) — teleport to far side of map
+  // portalEdge: center portal (decorative in drawing, functional here): teleport to far side of map
   if (currentArenaKey === 'portalEdge') {
     const cpx = GAME_W / 2, cpy = 260;
     for (const p of players) {
       if (!p || p.isBoss || p.health <= 0 || p._centerPortalCd > 0) continue;
       if (Math.abs(p.cx() - cpx) < 70 && Math.abs(p.cy() - cpy) < 130) {
-        // Teleport to a safe platform away from center, on the opposite half of the world
+        // Safe platform on the opposite half of the world.
         const halfW = (currentArena.mapRight || GAME_W) / 2;
         const pls = (currentArena.platforms || []).filter(pl =>
           !pl.isFloorDisabled && !pl.isFloor && pl.w > 40 &&
@@ -194,7 +169,6 @@ function storyUpdateBoundaries() {
         o.y + o.h > pl.y - 100 && o.y + o.h < pl.y && o.x < spawnX + 20 && o.x + o.w > spawnX - 20);
     });
     const pool = clear.length ? clear : (usable.length ? usable : pls);
-    // Pick closest to camera center
     let best = null;
     let bestScore = Infinity;
     for (const pl of pool) {
@@ -217,15 +191,13 @@ function storyUpdateBoundaries() {
     }
     p.vx = 0;
     p.vy = 0;
-    // Belt-and-braces: whichever path picked the spot, never place the player
-    // outside the boundary portals (floor data may extend past mapRight)
+    // Never place the player outside the boundary portals (floor data may extend past mapRight).
     if (currentArena.mapLeft  !== undefined) p.x = Math.max(p.x, currentArena.mapLeft + 60);
     if (currentArena.mapRight !== undefined) p.x = Math.min(p.x, currentArena.mapRight - 60 - p.w);
     p._storyBoundaryBreached = null;
     p._storyBottomBreached   = false;
     // Brief invincibility so the teleport can't be used to dodge attacks
     p.hurtTimer = Math.max(p.hurtTimer || 0, 25);
-    // Flash burst
     if (settings.particles) {
       spawnParticles(p.cx(), p.cy(), '#aa44ff', 18);
       spawnParticles(p.cx(), p.cy(), '#ffffff', 8);
@@ -234,18 +206,10 @@ function storyUpdateBoundaries() {
   }
 }
 
-// ── Wire resetStoryEventState into _launchChapter2Fight ────────────────────────
-// Monkey-patch: wrap the existing function so resetStoryEventState() is always called
 (function _patchLaunchChapter2Fight() {
-  // _launchChapter2Fight is defined earlier in this same file, so we can
-  // reference it after the file finishes loading. We do it lazily via a
-  // wrapper on the global that smc-menu.js actually calls: startGame().
-  // Instead, we add a hook point here that _launchChapter2Fight can call.
-  // The actual patch is below, applied after the function reference is stable.
 })();
 
-// Patch called from storyModeActive guard inside _startGameCore (smc-menu.js):
-// We expose a hook: before startGame(), call _onStoryFightStart() when in story mode.
+// Called from _startGameCore (smb-menu-startcore.js) in story mode, before startGame().
 function _onStoryFightStart() {
   resetStoryEventState();
   // Apply purchased story abilities to p1 once players[] is populated
@@ -268,7 +232,6 @@ function _onStoryFightStart() {
       _storyScaleEnemyUnit(enemy, _activeStory2Chapter ? _activeStory2Chapter.id : 1, {
         elite: !!(storyPendingPhaseConfig && (storyPendingPhaseConfig.type === 'elite_wave' || storyPendingPhaseConfig.type === 'mini_boss'))
       });
-      // Multiverse world fights: apply world modifier to enemies
       if (_activeStory2Chapter && _activeStory2Chapter.isMultiverseWorld && typeof MultiverseScalingSystem !== 'undefined') {
         const worldsCleared = typeof MultiverseManager !== 'undefined' ? MultiverseManager.getCompletedCount() : 0;
         MultiverseScalingSystem.applyWorldModifierToEnemy(enemy, _activeStory2Chapter.multiverseWorldId, worldsCleared);
@@ -283,7 +246,6 @@ function _onStoryFightStart() {
   }, 80);
 }
 
-// ── World distortion drawing helper ─────────────────────────────────────────
 // Called from smc-drawing.js each frame after the world is drawn, before HUD.
 // Draws scanline glitches and reality-tear effects based on storyDistortLevel.
 function drawStoryWorldDistortion(ctx, cw, ch_h) {
@@ -295,7 +257,6 @@ function drawStoryWorldDistortion(ctx, cw, ch_h) {
 
   const t = frameCount * 0.04;
 
-  // ── Scanline bands (mild at low levels, heavy at high) ───────────────────
   const bandCount = Math.floor(lvl * 8);
   for (let i = 0; i < bandCount; i++) {
     const yFrac = (Math.sin(t * 0.7 + i * 2.3) * 0.5 + 0.5);
@@ -314,7 +275,6 @@ function drawStoryWorldDistortion(ctx, cw, ch_h) {
     }
   }
 
-  // ── Reality tears (vertical purple cracks, ch 11+) ───────────────────────
   if (lvl > 0.4) {
     const tearCount = Math.floor((lvl - 0.4) / 0.12);
     ctx.globalAlpha = 0;
@@ -338,7 +298,6 @@ function drawStoryWorldDistortion(ctx, cw, ch_h) {
     ctx.shadowBlur = 0;
   }
 
-  // ── Full-screen vignette tint (deep purple at highest levels) ────────────
   if (lvl > 0.65) {
     const vAlpha = (lvl - 0.65) * 0.35;
     const vg = ctx.createRadialGradient(cw/2, ch_h/2, cw*0.1, cw/2, ch_h/2, cw*0.75);

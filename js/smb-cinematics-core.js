@@ -1,17 +1,14 @@
-// smb-cinematics-core.js — CinematicManager engine: CinFX, CinCam, cinScript(), CinTimeline, world effects
+// smb-cinematics-core.js: CinematicManager engine: CinFX, CinCam, cinScript(), CinTimeline, world effects
 // Depends on: smb-globals.js (ctx, GAME_W, GAME_H, activeCinematic, isCinematic, slowMotion)
 'use strict';
 
-// ============================================================
-// CINEMATIC SCRIPTING SYSTEM v2
-// ============================================================
-// Replaces hand-written update(t) monoliths with a declarative
-// step-based API. Fully compatible with existing startCinematic().
+// Declarative step-based cinematic API, replacing hand-written update(t) functions.
+// Fully compatible with startCinematic().
 //
 // QUICK USAGE:
 //   startCinematic(cinScript({
 //     duration: 4.0,
-//     label:    { text: '— TITLE —', color: '#ff0044' },
+//     label:    { text: '- TITLE -', color: '#ff0044' },
 //     slowMo:   [[0, 1.0], [0.3, 0.05], [3.7, 0.05], [4.0, 1.0]],
 //     cam: [
 //       [0,   { zoomTo: 1.7, focusOn: () => boss }],
@@ -23,13 +20,12 @@
 //       { at: 0.8, fx: { screenShake: 40, shockwave: { color: '#ff0044' } } },
 //     ]
 //   }));
-// ============================================================
 
 
-// ── World-space cinematic effects ─────────────────────────────────────────
-// cinGroundCracks and cinScreenFlash are declared in smc-globals.js
+// World-space cinematic effects
+// cinGroundCracks and cinScreenFlash are declared in smb-globals.js
 
-// Called from smc-loop.js in world-space draw pass (after platforms, before fighters)
+// Called from smb-loop-core.js, world-space pass after platforms, before fighters
 function drawCinematicWorldEffects() {
   for (let i = cinGroundCracks.length - 1; i >= 0; i--) {
     const c = cinGroundCracks[i];
@@ -48,7 +44,6 @@ function drawCinematicWorldEffects() {
     ctx.moveTo(0, 0);
     ctx.lineTo(c.length, 0);
     ctx.stroke();
-    // Branch cracks
     if (c.branches) {
       for (const b of c.branches) {
         ctx.globalAlpha = Math.max(0, fadeAlpha * 0.55);
@@ -63,7 +58,7 @@ function drawCinematicWorldEffects() {
   }
 }
 
-// ── CinFX — effect helper (call from step run() callbacks) ────────────────
+// CinFX: effect helpers, called from step run() callbacks
 const CinFX = {
 
   // Expanding ring shockwave (world-space)
@@ -99,6 +94,7 @@ const CinFX = {
 
   // Brief screen flash (drawn by drawCinematicOverlay in screen-space)
   flash(color = '#ffffff', alpha = 0.65, durationFrames = 14) {
+    if (typeof settings !== 'undefined' && settings && settings.phaseFlash === false) return;
     cinScreenFlash = { color, alpha, timer: durationFrames, maxTimer: durationFrames };
   },
 
@@ -139,12 +135,10 @@ const CinFX = {
   },
 };
 
-// ── CinCam — per-frame camera setter ──────────────────────────────────────
-// Call from within step run() callbacks or the cinScript update loop.
+// CinCam: per-frame camera setter, called from step run() or the cinScript update loop.
 const CinCam = {
 
-  // Point camera at a world-space coordinate with a zoom level.
-  // The existing smc-loop.js lerp (0.09 zoom, 0.07 pos) handles smoothing automatically.
+  // Point camera at a world coordinate with zoom. The loop lerps it smoothly.
   setFocus(x, y, zoom) {
     cinematicCamOverride = true;
     if (x    !== undefined) cinematicFocusX    = x;
@@ -178,8 +172,7 @@ const CinCam = {
     this.setFocus((a.cx() + b.cx()) * 0.5, (a.cy() + b.cy()) * 0.5, zoom);
   },
 
-  // ── Finisher-friendly aliases ──────────────────────────────────────────
-  // These match the CinCam API used by weapon/class finishers.
+  // Finisher-friendly aliases, same CinCam API as the weapon and class finishers.
 
   // Set zoom only (keep current focus position)
   zoomTo(zoom) {
@@ -227,7 +220,7 @@ const CinCam = {
 };
 
 
-// ── Keyframe interpolation helpers ────────────────────────────────────────
+// Keyframe interpolation helpers
 
 // Smooth-step easing (s-curve between 0 and 1)
 function _cinEase(t) { return t * t * (3 - 2 * t); }
@@ -301,8 +294,8 @@ function _cinSampleKeyframes(kf, t) {
 }
 
 // Camera keyframes: [[t, { zoomTo, focusOn, focusX, focusY }], ...]
-// focusOn: () => entity    — live entity tracking (re-evaluated each frame)
-// focusX/Y: number         — static world-space coordinate
+// focusOn: () => entity   : live entity tracking (re-evaluated each frame)
+// focusX/Y: number        : static world-space coordinate
 function _cinSampleCam(kf, t) {
   if (!kf || kf.length === 0) return null;
   if (t <= kf[0][0])              return kf[0][1];
@@ -364,7 +357,7 @@ function _cinApplyCamState(base, opts) {
 }
 
 
-// ── cinScript — main factory ───────────────────────────────────────────────
+// cinScript: main factory
 //
 // def = {
 //   duration:  Number,                                    // total seconds
@@ -379,8 +372,8 @@ function _cinApplyCamState(base, opts) {
 // step.fx: { screenShake, flash:{color,alpha,dur}, particles:{x,y,color,count},
 //            shockwave:{x,y,color,...}, groundCrack:{x,y,color,count} }
 //
-// ── Finisher timeline helpers ─────────────────────────────────────────────
-// Used by smc-finishers.js weapon/class finishers.
+// Finisher timeline helpers
+// Used by the finisher files (smb-finisher-*.js).
 
 function _makeTimeline(events) {
   // events: [{frame, fn}, ...]  sorted ascending by frame
@@ -405,7 +398,7 @@ function _makeFinisherSentinel() {
   };
 }
 
-// ── cinScript ─────────────────────────────────────────────────────────────
+// cinScript runtime
 
 function cinScript(def) {
   const stepsFired = new Array((def.steps || []).length).fill(false);
@@ -415,15 +408,15 @@ function cinScript(def) {
     _phaseLabel:    def.label || null,
 
     update(t) {
-      // ── 1. Slow motion ──────────────────────────────────────
+      // 1. Slow motion
       if (def.slowMo) {
         slowMotion = _cinSampleKeyframes(def.slowMo, t);
       }
 
-      // ── 1b. Figure performances (CinPerf; optional) ─────────
+      // 1b. Figure performances (CinPerf, optional)
       if (def.perf && typeof CinPerf !== 'undefined') CinPerf.run(this, t, def.perf);
 
-      // ── 2. Camera ───────────────────────────────────────────
+      // 2. Camera
       if (def.orbit && t >= (def.orbit.start || 0)) {
         const o     = def.orbit;
         const angle = (t - (o.start || 0)) * (o.speed || 0.8);
@@ -440,24 +433,20 @@ function cinScript(def) {
         }
       }
 
-      // ── 3. One-time steps ───────────────────────────────────
+      // 3. One-time steps
       const steps = def.steps || [];
       for (let i = 0; i < steps.length; i++) {
         const step = steps[i];
         if (stepsFired[i] || t < step.at) continue;
         stepsFired[i] = true;
 
-        // Live entity lookup at execution time
         const boss   = players ? players.find(p => p.isBoss && p.health > 0) : null;
         const target = players ? players.find(p => !p.isBoss && p.health > 0) : null;
 
-        // run callback
         if (step.run) step.run({ t, boss, target, CinCam, CinFX });
 
-        // dialogue shorthand
         if (step.dialogue) showBossDialogue(step.dialogue, step.dialogueDur || 180);
 
-        // inline fx shorthand
         if (step.fx) {
           const fx = step.fx;
           if (fx.screenShake)  CinFX.shake(fx.screenShake);
@@ -481,7 +470,7 @@ function cinScript(def) {
     },
 
     // Called every frame from drawCinematicOverlay() in screen-space.
-    // def.onDraw(ctx, t) — t in seconds, ctx is identity-transform canvas context.
+    // def.onDraw(ctx, t): t in seconds, ctx is identity-transform canvas context.
     draw(rctx, t) {
       if (typeof def.onDraw === 'function') def.onDraw(rctx, t);
     },
@@ -619,17 +608,11 @@ const CinTimeline = (function() {
   return { create };
 })();
 
-// ============================================================
-// CINEMATIC ENHANCEMENTS v1
-// Speed lines, motion trails, impact frames, name cards,
-// Dutch angle, directional shake, background contrast shifts.
-// All draw functions are called from smb-loop-core.js at the
-// appropriate world-space or screen-space insertion points.
-// ============================================================
+// Cinematic enhancements: speed lines, motion trails, impact frames, name cards,
+// Dutch angle, directional shake, contrast shifts. Draw calls sit in smb-loop-core.js.
 
-// ── Dutch angle: apply game world transform with optional tilt ────────────
-// Replaces raw ctx.setTransform() calls so a rotation can be baked in.
-// Called from smb-loop-core.js wherever the game matrix is set.
+// Dutch angle: world transform with optional tilt. Called from smb-loop-core.js wherever
+// the game matrix is set, so the rotation is baked into the transform.
 function _applyGameTransform(scX, scY, tx, ty) {
   const tilt = (typeof cinematicTiltAngle !== 'undefined') ? cinematicTiltAngle : 0;
   if (Math.abs(tilt) < 0.0001) {
@@ -650,11 +633,10 @@ function _applyGameTransform(scX, scY, tx, ty) {
   );
 }
 
-// ── CinFX additions ───────────────────────────────────────────────────────
+// CinFX additions
 
 // Radial or directional speed line burst (world-space).
-// opts: { count, maxLen, dur, spread, dir, cone }
-// dir = angle in radians for cone center; spread = cone width (default 2π = full circle)
+// opts: { count, maxLen, dur, spread, dir, cone }. dir and spread are radians.
 CinFX.speedLines = function(x, y, color, opts) {
   opts = opts || {};
   const count  = opts.count  || 26;
@@ -664,12 +646,11 @@ CinFX.speedLines = function(x, y, color, opts) {
   const dir    = opts.dir    || 0;
   const lines  = [];
   for (let i = 0; i < count; i++) {
-    // Even angular distribution with light jitter — random angles made full-circle
-    // bursts read as scribble crossing through the subject
+    // Even angles with light jitter. Random angles made full-circle bursts look like scribbles.
     const angle = dir + ((i + 0.5) / count - 0.5) * spread + (Math.random() - 0.5) * 0.12;
     lines.push({
       angle,
-      // Inner gap: lines start well away from the origin so they form a halo
+      // Start away from origin, forming a halo
       startFrac: 0.30 + Math.random() * 0.15,
       endFrac:   0.60 + Math.random() * 0.40,
       width:     0.7 + Math.random() * 1.8,
@@ -731,10 +712,9 @@ CinFX.motionTrailOff = function(entity) {
   }
 };
 
-// ── CinCam additions ──────────────────────────────────────────────────────
+// CinCam additions
 
-// Dutch angle: degrees (positive = clockwise tilt, negative = counter-clockwise).
-// The angle lerps smoothly via updateCinematicEnhancements().
+// Dutch angle in degrees (positive is clockwise). Lerped in updateCinematicEnhancements().
 CinCam.tilt = function(degrees) {
   cinematicTiltTarget = (degrees || 0) * (Math.PI / 180);
 };
@@ -756,28 +736,26 @@ CinCam.restore = function() {
   cinShakeDir = null;
 };
 
-// ── Per-frame update ──────────────────────────────────────────────────────
+// Per-frame update
 // Called once per frame from smb-loop-core.js (after updateCinematicSystem).
 
 function updateCinematicEnhancements() {
-  // Lerp Dutch angle toward its target
   if (Math.abs(cinematicTiltTarget - cinematicTiltAngle) > 0.0001) {
     cinematicTiltAngle += (cinematicTiltTarget - cinematicTiltAngle) * 0.14;
   } else {
     cinematicTiltAngle = cinematicTiltTarget;
   }
 
-  // Directional shake timer: tick unconditionally so it clears even if shake decays to 0
+  // Tick every frame so the shake timer clears even at 0 intensity.
   if (cinShakeDir && cinShakeDir.timer > 0) {
     cinShakeDir.timer--;
     if (cinShakeDir.timer <= 0) cinShakeDir = null;
   }
 
-  // Collect motion trail positions for all active trail entities
   for (let i = cinMotionTrails.length - 1; i >= 0; i--) {
     const t = cinMotionTrails[i];
     if (!t.enabled || !t.entity || t.entity.health <= 0) continue;
-    // A near-stationary entity would otherwise stack nine ghosts on one spot
+    // Skip stationary entities or the trail stacks ghosts on one spot.
     const last = t.positions[t.positions.length - 1];
     if (last && Math.hypot(t.entity.x - last.x, t.entity.y - last.y) < 4) continue;
     t.positions.push({ x: t.entity.x, y: t.entity.y });
@@ -785,7 +763,7 @@ function updateCinematicEnhancements() {
   }
 }
 
-// ── World-space draw: speed lines ────────────────────────────────────────
+// World-space draw: speed lines
 // Called from smb-loop-core.js after drawCinematicWorldEffects().
 
 function drawCinSpeedLines() {
@@ -797,7 +775,6 @@ function drawCinSpeedLines() {
     sl.timer--;
     if (sl.timer <= 0) { cinSpeedLines.splice(i, 1); continue; }
     const progress = 1 - sl.timer / sl.maxTimer;
-    // Fade: full opacity at start, gone at end
     const alpha = Math.max(0, (1 - progress) * 0.9);
     ctx.strokeStyle = sl.color;
     ctx.shadowColor = sl.color;
@@ -818,7 +795,7 @@ function drawCinSpeedLines() {
   ctx.restore();
 }
 
-// ── World-space draw: motion trails ──────────────────────────────────────
+// World-space draw: motion trails
 // Called from smb-loop-core.js before the players draw loop.
 
 function drawCinMotionTrails() {
@@ -849,7 +826,7 @@ function drawCinMotionTrails() {
   ctx.restore();
 }
 
-// ── World-space draw: background contrast shift ───────────────────────────
+// World-space draw: background contrast shift
 // Called from smb-loop-core.js immediately after drawBackground().
 
 function drawCinBgContrast() {
@@ -863,7 +840,7 @@ function drawCinBgContrast() {
   else if (t < 0.75) fade = 1.0;
   else               fade = (1.0 - t) / 0.25;
   ctx.save();
-  // Screen-space fill — Dutch angle tilt would leave uncovered corners if drawn in world space
+  // Screen-space fill: Dutch angle tilt would leave uncovered corners if drawn in world space
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = cinBgContrast.alpha * Math.max(0, fade);
   ctx.fillStyle   = cinBgContrast.color;
@@ -871,9 +848,8 @@ function drawCinBgContrast() {
   ctx.restore();
 }
 
-// ── World-space draw: impact frame (hard-cut white + silhouettes) ─────────
-// Called from smb-loop-core.js in the world-space pass (after bg, before platforms).
-// The hard-cut must happen before platforms so silhouettes show cleanly.
+// World-space draw: impact frame
+// Called from smb-loop-core.js before platforms so the silhouettes draw cleanly.
 
 function drawCinImpactFrame() {
   if (!cinImpactFrame) return;
@@ -883,16 +859,12 @@ function drawCinImpactFrame() {
   const progress = cinImpactFrame.timer / cinImpactFrame.maxTimer;
   const alpha    = progress > 0.5 ? 1.0 : (progress / 0.5);
   ctx.save();
-  // Screen-space fill — Dutch angle tilt would leave uncovered corners if drawn in world space.
-  // Silhouettes are re-mapped from world→canvas coords manually below.
+  // Screen-space fill, since Dutch tilt would leave uncovered corners.
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  // White (or custom) wash
   ctx.globalAlpha = Math.max(0, alpha);
   ctx.fillStyle   = cinImpactFrame.color;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  // Silhouettes: use the current game transform to convert world coords → canvas pixels
-  // (we read the matrix from the saved state via a temp canvas trick is complex;
-  //  instead we store the last-computed transform values as globals in smb-loop-core.js)
+  // Silhouettes: world to canvas via the transform stored in smb-loop-core.js.
   ctx.fillStyle  = '#0a0a0a';
   ctx.shadowBlur = 0;
   if (typeof camXCur !== 'undefined' && typeof camZoomCur !== 'undefined') {
@@ -911,7 +883,7 @@ function drawCinImpactFrame() {
   ctx.restore();
 }
 
-// ── Screen-space draw: move name card ────────────────────────────────────
+// Screen-space draw: move name card
 // Called from smb-loop-core.js in screen-space (after setTransform identity).
 
 function drawCinNameCard(cw, ch) {
@@ -949,20 +921,17 @@ function drawCinNameCard(cw, ch) {
   ctx.fillStyle = 'rgba(0,0,0,0.62)';
   ctx.fillRect(-pw / 2, -ph / 2 + 2, pw, ph);
 
-  // Accent bar — top
   ctx.fillStyle   = accent;
   ctx.shadowColor = accent;
   ctx.shadowBlur  = 14;
   ctx.fillRect(-pw / 2 + 10, -ph / 2 + 2, pw - 20, 2);
 
-  // Move name text
   ctx.font        = 'bold 20px Arial';
   ctx.fillStyle   = '#ffffff';
   ctx.shadowColor = accent;
   ctx.shadowBlur  = 20;
   ctx.fillText(text, 0, 6);
 
-  // Accent bar — bottom
   ctx.shadowBlur  = 10;
   ctx.fillStyle   = accent;
   ctx.fillRect(-pw / 2 + 10, ph / 2 - 2, pw - 20, 2);

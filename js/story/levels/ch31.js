@@ -1,15 +1,7 @@
 'use strict';
-// js/story/levels/ch31.js — Chapter 31 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch31.js: chapter 31 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 31 — Core Entry (walk → duel vs The Eye)
-// Starts in the Eye Antechamber, "a chamber of silence" — the stone benches
-// where Veran told you the truth (chapter 30's scene plays here). A causeway
-// of crystal pylons crosses the Core's open well; the Eye's iris — "a door
-// that tests who deserves to open it" — fills the midpoint, and its keeper
-// stands in front of it. Past the iris the corridor runs on into the rift's
-// light. One life: no falls anywhere on this map, only steps.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch31 (Core Entry): walk, then duel The Eye. One life, so no falls on this map, only steps.
 (function () {
   const G = 440, EYE = 3000;
   const FLOOR = [[0, 900, 440], [900, 1300, 420], [1300, 2200, 440], [2200, 2500, 420], [2500, 3500, 440], [3500, 3800, 460], [3800, 6000, 440]];

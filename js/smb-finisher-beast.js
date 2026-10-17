@@ -1,5 +1,5 @@
 'use strict';
-// smb-finisher-beast — Depends on: smb-finisher-helpers.js
+// smb-finisher-beast.js: forest beast finishers. Depends on smb-finisher-helpers.js.
 
 const FIN_BEAST_FERAL_TACKLE = {
   name: 'FERAL TACKLE',
@@ -81,10 +81,7 @@ const FIN_BEAST_FERAL_TACKLE = {
   }
 };
 
-// ============================================================
-// FOREST BEAST FINISHER 2: NATURE DEVOUR
-// Theme: vine-whip + drag into the earth — wild nature power
-// ============================================================
+// Forest Beast finisher 2: Nature Devour
 const FIN_BEAST_NATURE_DEVOUR = {
   name: 'NATURE DEVOUR',
   accentColor: 'rgba(40,160,40,1)',
@@ -169,10 +166,7 @@ const FIN_BEAST_NATURE_DEVOUR = {
   }
 };
 
-// ============================================================
-// FOREST BEAST FINISHER 3: SAVAGE LAUNCH
-// Theme: grab + spin + hurl across the entire arena
-// ============================================================
+// Forest Beast finisher 3: Savage Launch
 const FIN_BEAST_SAVAGE_LAUNCH = {
   name: 'SAVAGE LAUNCH',
   accentColor: 'rgba(160,230,60,1)',

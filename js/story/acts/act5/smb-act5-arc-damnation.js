@@ -4,19 +4,16 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 70, title: 'The Weight of What\'s Coming',
     world: '🕳️ The Void — Threshold',
-    // isBossFight spawns the Boss entity: visually massive and unmistakably not a scout.
-    // _launchChapter2FightImmediate detects _axiomTeaser and patches the entity post-start:
-    // Axiom colour (#cc44ff), all Boss cinematics suppressed, player lives reset to 1.
+    // Boss entity, patched to Axiom after start (see _launchChapter2FightImmediate).
+    // Axiom colour, Boss cinematics suppressed, lives reset to 1.
     isBossFight:  true,
     _axiomTeaser: true,
     opponentName: 'Axiom',
     playerLives:  1,
     arena:        'void',
-    // Saga II opens here. On a saga2 build this is the player's first chapter, so
-    // it has to establish Kael, the thing in his chest, the ninety-four and the
-    // scale of what he is walking towards — without recapping Saga I, and without
-    // making "fragment" or "fracture system" words you need a glossary for.
-    // Never plays on the combined build; see _isSagaOpener in smb-story-engine-flow.js.
+    // Saga II opener. Introduces Kael, the thing in his chest, and the scale of what
+    // he walks toward, without recapping Saga I. Not on the combined build (see
+    // _isSagaOpener in smb-story-engine-flow.js).
     sagaColdOpen: [
       'A year ago you were nobody.',
       '',

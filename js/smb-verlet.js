@@ -1,8 +1,6 @@
 'use strict';
-// smb-verlet.js — VerletPoint, VerletStick, VerletRagdoll, PlayerRagdoll classes
+// smb-verlet.js: VerletPoint, VerletStick, VerletRagdoll (death corpse), PlayerRagdoll (spring limbs).
 // Depends on: smb-globals.js
-// VERLET RAGDOLL — position-based dynamics for death animation
-// ============================================================
 
 class VerletPoint {
   constructor(x, y) {
@@ -10,7 +8,6 @@ class VerletPoint {
     this.ox = x; this.oy = y; // old position for Verlet
     this.pinned = false;
   }
-  // Verlet integration step
   integrate(gravity = 0.55) {
     if (this.pinned) return;
     const vx = (this.x - this.ox) * 0.98; // friction
@@ -19,7 +16,6 @@ class VerletPoint {
     this.x += vx;
     this.y += vy + gravity;
   }
-  // Apply impulse
   impulse(ix, iy) { this.ox -= ix; this.oy -= iy; }
 }
 
@@ -38,14 +34,9 @@ class VerletStick {
   }
 }
 
-// Joint angle limit. VerletStick only enforces distance, so a 17-stick rig with
-// no angle limits has nothing stopping a knee bending backwards through the hip —
-// seven solver iterations then compress it into a tangle. That is the "flops into
-// a ball" failure mode, and it is structural, not a tuning issue.
-//
-// The limit is on the MAGNITUDE of the bend at `pivot` (|angle(a) - angle(b)|),
-// which is handedness-agnostic: a corpse that tumbles over and mirrors itself is
-// still constrained. Straight = PI, folded = 0.
+// Joint angle limit. Without one, a 17-stick rig folds a knee back through the hip and the
+// solver tangles it into a ball. The limit is on |angle(a) - angle(b)| at the pivot, so a
+// mirrored corpse is still constrained. PI = straight, 0 = folded.
 class VerletAngleConstraint {
   constructor(a, pivot, b, minAng, maxAng, strength = 0.35) {
     this.a = a; this.pivot = pivot; this.b = b;
@@ -64,7 +55,7 @@ class VerletAngleConstraint {
     let want;
     if (mag < this.min) want = this.min;
     else if (mag > this.max) want = this.max;
-    else return;                       // inside the allowed cone — nothing to do
+    else return;                       // inside the allowed cone, nothing to do
     // Rotate the far point around the pivot by half the correction, and the near
     // point by the other half, so the joint doesn't drag the whole rig one way.
     const corr = (want - mag) * sign * this.strength;
@@ -89,7 +80,6 @@ class VerletRagdoll {
     const cx = f.cx(), cy = f.cy();
     const h = f.h;
 
-    // Joint positions relative to fighter center
     this.head     = new VerletPoint(cx, cy - h * 0.38);
     this.neck     = new VerletPoint(cx, cy - h * 0.25);
     this.lShoulder= new VerletPoint(cx - 12, cy - h * 0.18);
@@ -113,7 +103,7 @@ class VerletRagdoll {
       this.lKnee, this.rKnee, this.lFoot, this.rFoot,
     ];
 
-    // Sticks (bones) — each enforces a constant distance
+    // Sticks (bones): each enforces a constant distance
     this.sticks = [
       new VerletStick(this.head,     this.neck),       // spine-neck
       new VerletStick(this.neck,     this.lShoulder),
@@ -134,7 +124,7 @@ class VerletRagdoll {
       new VerletStick(this.neck,     this.rHip),       // diagonal stabilizer
     ];
 
-    // Joint angle limits — without these the rig tangles (see VerletAngleConstraint).
+    // Joint angle limits: without these the rig tangles (see VerletAngleConstraint).
     // PI = fully straight, 0 = folded shut.
     const P = Math.PI;
     this.angles = [
@@ -149,13 +139,11 @@ class VerletRagdoll {
       new VerletAngleConstraint(this.neck,  this.lHip,  this.rHip,  P * 0.28, P),  // spine ~±50deg
     ];
 
-    // Apply initial death impulse from the fighter's current velocity
     const ivx = (f.vx || 0) * 0.6;
     const ivy = (f.vy || 0) * 0.5 - 2;
     const spin = (f.ragdollSpin || 0) * 14;
     this.points.forEach(p => {
       p.impulse(-ivx + (Math.random() - 0.5) * 2, -ivy + (Math.random() - 0.5) * 2);
-      // Apply spin: offset from center causes rotation
       const rx = p.x - cx, ry = p.y - cy;
       p.impulse(-spin * ry * 0.012, spin * rx * 0.012);
     });
@@ -176,7 +164,6 @@ class VerletRagdoll {
     if (this.timer < 60) this.alpha = this.timer / 60;
     if (this.fig && typeof Corpse !== 'undefined') Corpse.update(this);
 
-    // Integrate all points
     this.points.forEach(p => p.integrate(0.55));
 
     // Constraint iterations (7 per frame prevents collapse)
@@ -188,17 +175,14 @@ class VerletRagdoll {
   }
 
   _groundCollide() {
-    // Use arena platforms for collision
     const plats = currentArena?.platforms || [];
     this.points.forEach(p => {
       const r = p.r || 0;   // the head rests on its rim, not its centre
-      // Arena floor fallback
       if (p.y > this.floorY - r) {
         p.y = this.floorY - r;
         p.oy = p.y + (p.y - p.oy) * 0.35; // bounce damp
         p.ox = p.ox + (p.x - p.ox) * 0.25; // floor friction
       }
-      // Screen sides
       if (p.x < 0)       { p.x = 0;       p.ox = p.x + (p.x - p.ox) * 0.4; }
       if (p.x > GAME_W)  { p.x = GAME_W;  p.ox = p.x + (p.x - p.ox) * 0.4; }
       // Platform surfaces (only top collision)
@@ -225,7 +209,7 @@ class VerletRagdoll {
     ctx.lineJoin = 'round';
 
     // Draw bones (sticks). The three diagonal stabilizers and the shoulder
-    // girdle are internal structure, not silhouette — skip them.
+    // girdle are internal structure, not silhouette: skip them.
     const hidden = this.sticks.slice(-3);
     for (const s of this.sticks) {
       if (hidden.includes(s)) continue;
@@ -253,7 +237,7 @@ class VerletRagdoll {
     ctx.arc(this.head.x, this.head.y, this.headR, 0, Math.PI * 2);
     ctx.fillStyle = this.color;
     ctx.fill();
-    // X eyes — reads as dead at a glance, and costs four lines
+    // X eyes: reads as dead at a glance, and costs four lines
     ctx.strokeStyle = 'rgba(0,0,0,0.75)';
     ctx.lineWidth   = 2;
     const _hr = this.headR * 0.34;
@@ -272,27 +256,11 @@ class VerletRagdoll {
   isDone() { return this.timer <= 0; }
 }
 
-// ============================================================
-// PLAYER RAGDOLL — per-limb spring-damper physics
-//
-// Each limb (rArm, lArm, rLeg, lLeg, head, torso) carries:
-//   angle (radians) — current draw angle
-//   vel   (rad/frame) — angular velocity
-//
-// Every frame: spring pulls angle toward naturalPose(state),
-// damping bleeds energy. Hit reactions apply impulses directly
-// to the affected limb + sympathetic limbs.
-//
-// API:
-//   PlayerRagdoll.createRagdoll(f)       — attach ragdoll to fighter
-//   PlayerRagdoll.updateLimbs(f)         — spring-step each frame
-//   PlayerRagdoll.applyHit(f, fx, fy, ix, iy) — directional hit impulse
-//   PlayerRagdoll.applyJump(f)           — jump kick impulse
-//   PlayerRagdoll.applyMovement(f)       — lean into movement
-//   PlayerRagdoll.collapse(f)            — knockout (max floppiness)
-//   PlayerRagdoll.standUp(f)             — respawn recovery ramp
-//   PlayerRagdoll.debugDraw(f, cx, sy, hy) — joint overlay (window.rdDebug=true)
-// ============================================================
+// PlayerRagdoll: per-limb spring-damper physics. Each frame, springs pull limb angles toward
+// naturalPose(state). Hits apply impulses to the struck limb and its neighbours.
+// API: createRagdoll(f), updateLimbs(f), applyHit(f, fx, fy, ix, iy), applyJump(f),
+//      applyMovement(f), collapse(f) (knockout), standUp(f) (respawn ramp),
+//      debugDraw(f, cx, sy, hy) (joint overlay when window.rdDebug is true)
 class PlayerRagdoll {
 
   /** Attach ragdoll state to a fighter (idempotent). */
@@ -306,7 +274,7 @@ class PlayerRagdoll {
       head:  { angle: 0,              vel: 0 },
       torso: { angle: 0,              vel: 0 },
       // State flags
-      collapsed:     false,   // knockout — near-zero stiffness
+      collapsed:     false,   // knockout, near-zero stiffness
       recovering:    false,   // slowly ramping stiffness back up
       recoveryTimer: 0,       // 0-90 frames
       // Physics constants (overridden by collapse/standUp)
@@ -350,9 +318,9 @@ class PlayerRagdoll {
     const pose = PlayerRagdoll._naturalPose(f);
     for (const limb of ['rArm', 'lArm', 'rLeg', 'lLeg', 'head', 'torso']) {
       const jt  = rd[limb];
-      jt.vel   += (pose[limb] - jt.angle) * k;   // spring force
-      jt.vel   *= d;                               // damping
-      jt.angle += jt.vel;                          // integrate
+      jt.vel   += (pose[limb] - jt.angle) * k;
+      jt.vel   *= d;
+      jt.angle += jt.vel;
     }
   }
 
@@ -435,7 +403,7 @@ class PlayerRagdoll {
             head: -0.08, torso: 0.06 * p };
     }
 
-    // Walking: discrete step phases (every 8 frames) — snappier, more deliberate stride
+    // Walking: discrete step phases (every 8 frames): snappier, more deliberate stride
     if (s === 'walking') {
       const _stepPhase = Math.floor(t / 8) % 4;
       const sw = Math.sin(_stepPhase * Math.PI / 2) * 0.62;
@@ -524,7 +492,7 @@ class PlayerRagdoll {
 
   // ---- State transitions ----
 
-  /** Knockout: all joint springs near-zero — fighter flops freely. */
+  /** Knockout: joint springs near zero, so the fighter flops. */
   static collapse(f) {
     const rd = PlayerRagdoll.createRagdoll(f);
     rd.collapsed     = true;
@@ -538,7 +506,7 @@ class PlayerRagdoll {
     }
   }
 
-  /** Recovery: ramp stiffness back up over 90 frames — fighter stands up. */
+  /** Recovery: ramp stiffness back up over 90 frames. */
   static standUp(f) {
     const rd = PlayerRagdoll.createRagdoll(f);
     rd.collapsed     = false;
@@ -589,24 +557,20 @@ class PlayerRagdoll {
       { j: rd.head,  x: cx, y: shoulderY - 14,         color: '#ffffff', label: 'H' },
     ];
     for (const jt of joints) {
-      // Arc showing angle range
       ctx.strokeStyle = jt.color;
       ctx.lineWidth   = 1.2;
       ctx.beginPath();
       ctx.arc(jt.x, jt.y, R, jt.j.angle - 0.38, jt.j.angle + 0.38);
       ctx.stroke();
-      // Velocity vector
       const vLen = Math.min(Math.abs(jt.j.vel) * 75, 15);
       ctx.beginPath();
       ctx.moveTo(jt.x, jt.y);
       ctx.lineTo(jt.x + Math.cos(jt.j.angle) * vLen, jt.y + Math.sin(jt.j.angle) * vLen);
       ctx.stroke();
-      // Label + angle value
       ctx.fillStyle = jt.color;
       ctx.font      = '7px monospace';
       ctx.fillText(`${jt.label}:${jt.j.angle.toFixed(1)}`, jt.x + 14, jt.y + 4);
     }
-    // State summary
     ctx.fillStyle = '#cccccc';
     ctx.font      = '8px monospace';
     ctx.fillText(

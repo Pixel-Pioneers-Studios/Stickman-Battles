@@ -1,31 +1,16 @@
 'use strict';
-// smb-fragment-manifest.js — Fragment weapon manifestation + sprint escalation.
+// Fragment weapon manifestation and sprint escalation. Depends on smb-combat.js (isHostileTarget),
+// loaded before smb-fighter.js.
 //
-// LORE (docs/canon.md, "THE MANIFESTED ARM"):
-// A bearer does not carry a weapon. Classes are the preserved fighting styles of
-// the 94 bearers the fragment killed before Kael, and the weapon is part of that
-// pattern — it crystallizes out of the fragment when a dead bearer's muscle
-// memory surfaces, and disperses when nothing needs killing. This is the literal
-// mechanic behind the Act 0 line: "Something in your hands knows what to do.
-// You don't." The hands are empty until they aren't.
-//
-// Kael is not the only bearer. Calix carries two (the lab anomaly), and Axiom
-// carried one before the void contact dissolved it into his Creator form. What
-// makes Kael distinct is integration — the fragment merged with him instead of
-// hollowing him, so the pattern answers instantly.
-//
-// The default below is Kael only, because he is who you control and the effect
-// should read as his signature rather than a global art style. Other bearers
-// opt in per-entity with `_forceFragmentBearer = true` when their scenes need it.
-//
-// Depends on: smb-combat.js (isHostileTarget). Loaded before smb-fighter.js.
+// The weapon crystallizes from the fragment when a threat is near and disperses when nothing
+// needs killing. Kael is the default bearer, so the effect reads as his signature. Other
+// bearers opt in with _forceFragmentBearer = true.
 
-// ── Tunables ────────────────────────────────────────────────────────────────
-var FRAG_THREAT_RANGE = 300;  // px — a hostile this close arms the fragment
+var FRAG_THREAT_RANGE = 300;  // px, a hostile this close arms the fragment
 var FRAG_HOLD_FRAMES  = 100;  // frames of no combat intent before it disperses
 var FRAG_IN_RATE      = 0.14; // manifest speed (~7 frames to full)
-var FRAG_OUT_RATE     = 0.045;// disperse speed (~22 frames — slower, reluctant)
-var FRAG_ATTACK_RATE  = 0.30; // swinging from empty hands — grows out mid-swing (~4 frames)
+var FRAG_OUT_RATE     = 0.045;// disperse speed (~22 frames, slower)
+var FRAG_ATTACK_RATE  = 0.30; // swinging from empty hands grows it out (~4 frames)
 
 var SPRINT_MIN_SPEED  = 2.2;  // |vx| that counts as running, not strolling
 var SPRINT_AFTER      = 38;   // frames of sustained running before the shift
@@ -36,8 +21,7 @@ function isFragmentBearer(p) {
   if (!p || p.isBoss || p.isMinion || p.isDummy) return false;
   if (p._forceFragmentBearer === true)  return true;   // story opt-in (Calix, Herald)
   if (p._forceFragmentBearer === false) return false;
-  // Default: the human-held fighter(s). The AI flag is `isAI` (set from the
-  // constructor's isAI param) — there is no `isBot` on Fighter.
+  // Default: the human-held fighter. Fighter has no isBot; the AI flag is isAI.
   return !p.isAI && !p.isRemote;
 }
 
@@ -47,8 +31,7 @@ function _fragCombatIntent(p) {
   if (p.shielding || p.hurtTimer > 0 || p.stunTimer > 0)         return true;
   if (p.spinning > 0 || p.superActive)                           return true;
   if (p.abilityCooldown > 0)                                     return true;
-  // A hostile inside threat range — this is what makes the weapon appear
-  // *before* the fight rather than as a consequence of it.
+  // A hostile in threat range arms the weapon before the fight, not as a result of it.
   var lists = [];
   try { if (typeof players  !== 'undefined' && players)  lists.push(players);  } catch (e) {}
   try { if (typeof minions  !== 'undefined' && minions)  lists.push(minions);  } catch (e) {}
@@ -70,7 +53,7 @@ function _fragCombatIntent(p) {
 function updateFragmentManifest(p) {
   if (!p) return;
 
-  // ── Sprint escalation (everyone, not just bearers) ────────────────────────
+  // Sprint escalation (everyone, not just bearers)
   if (p._runT === undefined)      p._runT = 0;
   if (p._sprintAmt === undefined) p._sprintAmt = 0;
   if (p._wallHitT > 0) p._wallHitT--;
@@ -82,8 +65,7 @@ function updateFragmentManifest(p) {
   } else if (p.onGround && p.state === 'walking' && fast) {
     p._runT++;
   } else if (!p.onGround && fast) {
-    // Airborne with speed maintained: a jump is part of the run, not a break in
-    // it. Hold the charge (and keep building slowly) so he lands still running.
+    // Airborne at speed still counts as running, so he lands still running.
     p._runT += 0.5;
   } else {
     p._runT = Math.max(0, p._runT - 4); // actually stopping drops you out fast
@@ -93,7 +75,7 @@ function updateFragmentManifest(p) {
   if (p._sprintAmt < 0.001) p._sprintAmt = 0;
   if (p._sprintAmt > 0.999) p._sprintAmt = 1;
 
-  // ── Fragment arm ──────────────────────────────────────────────────────────
+  // Fragment arm
   if (!isFragmentBearer(p)) { p._fragArm = 1; p._fragIdle = 0; return; }
   if (p._fragArm === undefined)  p._fragArm = 0;
   if (p._fragIdle === undefined) p._fragIdle = FRAG_HOLD_FRAMES;
@@ -102,15 +84,10 @@ function updateFragmentManifest(p) {
   if (_fragCombatIntent(p)) p._fragIdle = 0;
   else                      p._fragIdle++;
 
-  // Swinging from empty hands accelerates the growth instead of snapping to a
-  // value — the weapon visibly extrudes during the first frames of the swing.
+  // Swinging grows the weapon out fast, so it extrudes during the first swing frames.
   var rate = (p.attackTimer > 0) ? FRAG_ATTACK_RATE : FRAG_IN_RATE;
-  // Q and E run as MoveScenes with attackTimer zeroed, so they used to fall back
-  // to the slow idle rate: 5% of the weapon on frame 1, full only on frame 6,
-  // while scenes strike from frame 1 — the move landed from an empty fist. An
-  // ability or super start (ability()/activateSuper() stamp _attackStartFrame
-  // with their tier) arms the weapon in full on the press; the swing extrusion
-  // above stays for basic attacks.
+  // Q/E scenes zero attackTimer, so they need the ability stamp (_attackStartFrame) to arm
+  // the weapon in full. Basic attacks keep the swing extrusion.
   var _tAb = (typeof CLASH_TIER_ABILITY !== 'undefined') ? CLASH_TIER_ABILITY : 1;
   var _tSu = (typeof CLASH_TIER_SUPER   !== 'undefined') ? CLASH_TIER_SUPER   : 2;
   var _special = p._attackKindTier === _tAb || p._attackKindTier === _tSu;
@@ -127,16 +104,13 @@ function updateFragmentManifest(p) {
   if (p._fragFlash > 0) p._fragFlash = Math.max(0, p._fragFlash - 0.06);
 }
 
-// Render info for the weapon this frame, or null when the fighter isn't a bearer.
-// The weapon does not fade in as a whole — it EXTRUDES from the grip, so `grow`
-// scales along the weapon's own long axis and `taper` across it. A blade at
-// grow=0.3 is a stub of itself sticking out of the fist, not a ghost.
+// Render info for this frame's weapon, or null for non-bearers. The weapon extrudes from
+// the grip: grow runs along its axis and taper across it.
 function fragmentWeaponVisual(p) {
   if (!p || !isFragmentBearer(p)) return null;
   var a = (p._fragArm === undefined) ? 1 : p._fragArm;
   var eased = a * a * (3 - 2 * a);
-  // All three must reach exactly 0 at a=0 — a floor here leaves a permanent
-  // stub of weapon in the fist of a fighter who is supposed to be empty-handed.
+  // All three must hit exactly 0 at a=0, or a stub stays in the empty fist.
   return {
     alpha:   Math.min(1, eased * 1.9),   // opaque early, but gone when gone
     grow:    eased,                      // length out of the fist
@@ -145,8 +119,7 @@ function fragmentWeaponVisual(p) {
   };
 }
 
-// Light running up the arm as the fragment feeds the shape into his hand.
-// Peaks early (the surge precedes the weapon) and is gone once it is solid.
+// Light running up the arm as the fragment feeds the weapon into the hand.
 function drawFragmentArmSurge(p, sx, sy, ex, ey, hx, hy) {
   if (!p || !isFragmentBearer(p)) return;
   var a = (p._fragArm === undefined) ? 1 : p._fragArm;
@@ -165,9 +138,7 @@ function drawFragmentArmSurge(p, sx, sy, ex, ey, hx, hy) {
 
   ctx.save();
   ctx.lineCap = 'round';
-  // Charged length of the arm behind the surge. Drawn white-cored with a
-  // coloured bloom: the tint alone vanishes against a cyan fighter on a pale
-  // sky, and this has to read on every arena and every player colour.
+  // White core with a coloured bloom, so the arm reads on pale skies and any player colour.
   ctx.shadowColor = tint;
   ctx.shadowBlur  = 16;
   ctx.globalAlpha = glow * 0.5;
@@ -182,7 +153,6 @@ function drawFragmentArmSurge(p, sx, sy, ex, ey, hx, hy) {
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth   = 3.0;
   ctx.stroke();
-  // Bright node at the surge front
   ctx.globalAlpha = Math.min(1, glow * 1.2);
   ctx.fillStyle   = '#ffffff';
   ctx.shadowBlur  = 20;
@@ -192,8 +162,7 @@ function drawFragmentArmSurge(p, sx, sy, ex, ey, hx, hy) {
   ctx.restore();
 }
 
-// Crystallization VFX at the grip: shards converging inward as it forms,
-// scattering outward as it disperses. Drawn in the same space as the weapon.
+// Shards converge while forming and scatter while dispersing.
 function drawFragmentManifest(p, hx, hy, ang, scale) {
   if (!p || !isFragmentBearer(p)) return;
   var a = (p._fragArm === undefined) ? 1 : p._fragArm;
@@ -209,11 +178,9 @@ function drawFragmentManifest(p, hx, hy, ang, scale) {
   ctx.rotate(ang || 0);
   // Local space: +X runs out along the weapon, away from the fist.
 
-  // Growth front — the edge where solid becomes unformed, running outward.
   var front = a * 30 * sc;
   var flare = Math.sin(a * Math.PI);
 
-  // Motes streaming outward along the blade axis, drawn ahead of the front.
   var n = 8;
   for (var i = 0; i < n; i++) {
     var seed = i * 2.7;
@@ -231,7 +198,6 @@ function drawFragmentManifest(p, hx, hy, ang, scale) {
     ctx.stroke();
   }
 
-  // The growth front itself — a bright wedge sitting at the tip of the formed part.
   ctx.globalAlpha = flare * 0.9;
   ctx.strokeStyle = '#ffffff';
   ctx.shadowColor = tint;
@@ -242,7 +208,6 @@ function drawFragmentManifest(p, hx, hy, ang, scale) {
   ctx.lineTo(front,  3.4 * sc * flare);
   ctx.stroke();
 
-  // Grip core — where it leaves the fist
   ctx.globalAlpha = flare * 0.8;
   ctx.fillStyle   = '#ffffff';
   ctx.shadowBlur  = 15 * sc * flare;

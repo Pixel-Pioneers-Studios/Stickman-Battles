@@ -1,25 +1,15 @@
 'use strict';
-// js/story/levels/ch129.js — Chapter 129 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch129.js: chapter 129 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 129 — Architecture Soldiers (walk → duel vs two Architecture Soldiers)
-// The Inner Corridor of the Creator's domain. White panelled walls, ceiling
-// ribs of lattice, and screens set into the walls every few metres — and on
-// every screen, you: wireframe replays of the fights you've won, the ones the
-// probe recorded, looping ("Every fight you'd ever won. Used against you").
-// The soldiers were "already in position when you arrived": at the midpoint
-// the corridor widens into a square chamber with two marked standing spots
-// on the floor, lit from above. Wall plinths are the climbs; the cache
-// shafts are maintenance hatches in the floor.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 129, Architecture Soldiers (walk, then duel two Architecture Soldiers).
+// Inner corridor of the Creator's domain. Wall screens loop replays of your own wins.
 (function () {
   const G = 440, CHAMBER = 3000;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
                  [3660, 350, 100], [3790, 270, 110], [5050, 340, 110], [5180, 260, 110]];
   const HATCHES = [1800, 4680];
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+  // Loot: a hidden cache off the route, and a better one with an optional elite.
   const STASH = [
     { id: 'a', x: 2060, y: 250, w: 140, steps: [[1990, 345, 90]] },
     { id: 'b', x: 4220, y: 250, w: 190, steps: [[4150, 345, 90]], gx: 60, guard: { name: 'Architecture Sentry', weaponKey: 'sword', classKey: 'warrior', health: 170, color: '#9a8ac8' } },
@@ -58,7 +48,6 @@
       ctx.fillStyle = '#b8b4c8'; ctx.fillRect(x, y, w, G - y); ctx.fillStyle = '#ece8f8'; ctx.fillRect(x, y, w, 5);
       ctx.fillStyle = 'rgba(0,0,0,0.08)'; ctx.fillRect(x + w - 8, y, 8, G - y);
     }
-    // The chamber: two marked standing spots, lit from above
     if (_slVisible(v, CHAMBER - 420, CHAMBER + 420)) {
       for (const sx of [CHAMBER - 90, CHAMBER + 90]) {
         ctx.save(); ctx.globalCompositeOperation = 'lighter';

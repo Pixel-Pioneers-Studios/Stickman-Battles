@@ -1,28 +1,24 @@
-// smb-online.js — Lobby presence layer
+// smb-online.js, Lobby presence layer
 //
-// Sits ON TOP of the existing NetworkManager (smb-network.js).
-// NetworkManager owns the WebRTC connections and gameplay sync.
+// Sits on top of NetworkManager (smb-network.js), which owns WebRTC and gameplay sync.
 // LobbyManager owns lobby metadata, the player roster, and the
 // simulated-server advertisement stored in localStorage.
 //
 // Load order: after smb-network.js, before smb-save.js.
 'use strict';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 const _LOB_KEY_PREFIX   = 'smblob_';      // localStorage key prefix for lobby ads
 const _LOB_TTL_MS       = 90000;          // non-persistent lobbies expire after 90 s
 const _LOB_ADV_HZ       = 20000;          // re-advertise every 20 s while hosting
 const _PUBLIC_LOBBY_ID  = 'PUBLIC_SERVER'; // well-known ID for the persistent lobby
 
-// ── LobbyManager ──────────────────────────────────────────────────────────────
 const LobbyManager = (() => {
 
-  // { id, players, maxPlayers, isPrivate, persistent? } — null when not in a lobby
+  // { id, players, maxPlayers, isPrivate, persistent? }, null when not in a lobby
   let _current   = null;
   let _advTimer  = null;
   let _localName = 'Player';
 
-  // ── Private helpers ───────────────────────────────────────────────────────────
 
   function _playerName() {
     if (window.AccountManager) {
@@ -83,7 +79,7 @@ const LobbyManager = (() => {
     } catch(e) {}
   }
 
-  // Remove the lobby ad — EXCEPT for the persistent public lobby.
+  // Remove the lobby ad, EXCEPT for the persistent public lobby.
   function _unadvertise() {
     if (!_current) return;
     if (_current.id === _PUBLIC_LOBBY_ID) {
@@ -114,7 +110,6 @@ const LobbyManager = (() => {
     };
   }
 
-  // ── createLobby ──────────────────────────────────────────────────────────────
   // opts: { maxPlayers?, isPrivate?, id? }
   function createLobby(opts) {
     opts = opts || {};
@@ -151,7 +146,6 @@ const LobbyManager = (() => {
     return _current;
   }
 
-  // ── joinLobby ─────────────────────────────────────────────────────────────────
   function joinLobby(id) {
     if (!id) { console.warn('[Lobby] joinLobby: id required'); return null; }
     id = String(id).toUpperCase().trim();
@@ -169,14 +163,14 @@ const LobbyManager = (() => {
     _current = {
       id,
       label:      meta ? (meta.label || id) : id,
-      // Don't pre-populate a fake "Host" entry — we don't know if anyone is there yet.
+      // Don't pre-populate a fake "Host" entry, we don't know if anyone is there yet.
       // The real player count comes from NetworkManager once the connection resolves.
       players:    meta ? meta.players.slice() : [],
       maxPlayers: meta ? meta.maxPlayers : (isPub ? 10 : 2),
       isPrivate:  meta ? !!meta.isPrivate : false,
       persistent: isPub,
     };
-    // Add ourselves (slot unknown until slotAssign — use 0 as placeholder)
+    // Add ourselves (slot unknown until slotAssign, use 0 as placeholder)
     _current.players.push({ slot: 0, name: _playerName() });
 
     GameState.update(s => { s.session.online.lobbyId = id; s.session.online.role = 'guest'; s.session.online.connected = true; });
@@ -201,8 +195,7 @@ const LobbyManager = (() => {
     return _current;
   }
 
-  // ── joinPublicLobby ───────────────────────────────────────────────────────────
-  // Convenience shortcut — always joins the well-known public server.
+  // Convenience shortcut, always joins the well-known public server.
   function joinPublicLobby() {
     // The Public Server now lives on the lobby server (smb-public-hub.js), so it
     // survives any one player leaving. The old peer-hosted room is the fallback.
@@ -210,7 +203,6 @@ const LobbyManager = (() => {
     return joinLobby(_PUBLIC_LOBBY_ID);
   }
 
-  // ── leaveLobby ────────────────────────────────────────────────────────────────
   function leaveLobby() {
     _unadvertise();           // public lobby: resets to empty; others: removed
     if (window.NetworkManager && typeof NetworkManager.disconnect === 'function') {
@@ -221,7 +213,6 @@ const LobbyManager = (() => {
     _lobbyUiRefresh();
   }
 
-  // ── getCurrentLobby ───────────────────────────────────────────────────────────
   function getCurrentLobby() {
     if (!_current) return null;
     const count = _slotCount();
@@ -239,7 +230,6 @@ const LobbyManager = (() => {
     };
   }
 
-  // ── listLobbies ───────────────────────────────────────────────────────────────
   // Persistent lobbies are never expired and always appear first.
   function listLobbies() {
     const now      = Date.now();
@@ -286,9 +276,6 @@ const LobbyManager = (() => {
   };
 })();
 
-// ══════════════════════════════════════════════════════════════════════════════
-// Lobby UI
-// ══════════════════════════════════════════════════════════════════════════════
 
 function _lobbyUiRefresh() {
   const wrap = document.getElementById('lobbySection');
@@ -299,7 +286,6 @@ function _lobbyUiRefresh() {
   const isHost = window.NetworkManager && typeof NetworkManager.isHost === 'function'      && NetworkManager.isHost();
   const inPub  = lob && lob.id === _PUBLIC_LOBBY_ID;
 
-  // ── Public Server button ────────────────────────────────────────────────────
   const pubBtn = document.getElementById('lobbyBtnPublic');
   if (pubBtn) {
     if (inPub) {
@@ -313,7 +299,6 @@ function _lobbyUiRefresh() {
     }
   }
 
-  // ── Status bar ──────────────────────────────────────────────────────────────
   const statusEl = document.getElementById('lobbyStatus');
   if (statusEl) {
     if (lob) {
@@ -323,14 +308,13 @@ function _lobbyUiRefresh() {
       statusEl.textContent = role + ' \u2022 ' + label + ' \u2022 ' + lob.players.length + '/' + lob.maxPlayers + ' players';
       statusEl.style.color = isHost ? '#88ffaa' : (inPub ? '#88eeff' : '#88ccff');
     } else {
-      // Nothing to report when not in a lobby — the panel's own status line
+      // Nothing to report when not in a lobby, the panel's own status line
       // and room chip already say where you are.
       statusEl.textContent = '';
       statusEl.style.display = 'none';
     }
   }
 
-  // ── Player roster ───────────────────────────────────────────────────────────
   const roster = document.getElementById('lobbyRoster');
   if (roster) {
     if (lob && lob.players.length) {
@@ -352,7 +336,6 @@ function _lobbyUiRefresh() {
     }
   }
 
-  // ── Show/hide controls based on lobby state ─────────────────────────────────
   const btnCreate  = document.getElementById('lobbyBtnCreate');
   const joinRow    = document.getElementById('lobbyJoinRow');
   const btnLeave   = document.getElementById('lobbyBtnLeave');
@@ -365,19 +348,15 @@ function _lobbyUiRefresh() {
   if (listWrap)  listWrap.style.display  = lob ? 'none' : 'flex';
   if (maxSel)    maxSel.style.display    = lob ? 'none' : 'inline-block';
   if (privWrap)  privWrap.style.display  = lob ? 'none' : 'flex';
-  // Leave button shown whenever in any lobby.
   if (btnLeave) btnLeave.style.display   = lob ? 'inline-block' : 'none';
 }
 
 function _lobbyRefreshList() {
-  // The panel keeps ONE list of joinable rooms (#publicRoomList, owned by
-  // refreshPublicRooms in smb-network.js) and it already folds in
-  // LobbyManager.listLobbies(). A second list here only ever confused people
-  // about which one was real.
+// The room list is #publicRoomList (refreshPublicRooms in smb-network.js), which already
+// folds in listLobbies(). A second list here only confused people.
   if (typeof refreshPublicRooms === 'function') refreshPublicRooms();
 }
 
-// ── Public functions called from button onclicks ──────────────────────────────
 
 function lobbyCreate() {
   const maxSel  = document.getElementById('lobbyMaxSel');
@@ -412,14 +391,9 @@ function lobbyJoinCode() {
 
 window.LobbyManager = LobbyManager;
 
-// ── Inject lobby section into #onlinePanel ────────────────────────────────────
 function _lobbyInjectUI() {
-  // Mount inside the panel's own step-1 block. The old version injected a
-  // second, complete room UI (its own create/join/max-players/private/leave
-  // widgets) above the panel's — two parallel ways to do the same thing, which
-  // was the single biggest source of confusion on this screen. What is left
-  // here is only what the panel does NOT already offer: the shared public
-  // server and the list of open lobbies.
+  // Mount in the panel's step-1 block. Only the public server and the open-lobby list go here,
+  // since the panel already offers create, join and leave.
   const mount = document.getElementById('lobbyMount') || document.getElementById('onlinePanel');
   if (!mount || document.getElementById('lobbySection')) return;
 
@@ -454,7 +428,6 @@ function _lobbyInjectUI() {
   _lobbyUiRefresh();
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
 function _lobbyToast(msg, isError) {
   let t = document.getElementById('lobbyToast');
   if (!t) {
@@ -477,7 +450,6 @@ function _lobbyToast(msg, isError) {
   t._hideTimer = setTimeout(function() { t.style.opacity = '0'; }, 2400);
 }
 
-// ── HTML escape ───────────────────────────────────────────────────────────────
 function _lobEsc(s) {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -486,7 +458,6 @@ function _lobEsc(s) {
     .replace(/"/g, '&quot;');
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', _lobbyInjectUI);
 } else {

@@ -1,23 +1,13 @@
 'use strict';
-// smb-brain-read.js — THE READ: in-match habit reading layered on THE BRAIN.
-// Depends on: smb-brain.js (Brain), smb-combat.js (SHIELD_PARRY_REST), at call time only.
-//
-// The network is a reflex: one frame in, keys out, plus 17 slow tallies. It can't
-// notice "you always swing 14 frames after you land" and act on it inside a match.
-// This layer can. It watches the opponent every frame, keeps short decayed tables
-// of WHEN their swings come (measured from four anchors) and HOW LONG they hold
-// their guard, and when a habit is clear it overrides the net's keys for that
-// moment only:
-//
-//   guard  raise the shield just before a predicted swing (a fresh guard held
-//          <= 8 frames at the hit is a 65% parry), and stop the net tapping
-//          the shield while one is coming so the guard is rested for it.
-//   drop   don't swing into a guard the opponent is about to keep up (blocked
-//          swings are minus); swing when their usual hold time runs out.
-//
-// No swing has startup, so a guard raised after the swing starts is a superhuman
-// reflex, not a read. Every prediction uses only what happened BEFORE the swing.
-// Tables decay with a ~12 s half-life: drop a habit and the read lets go of it.
+// smb-brain-read.js: in-match habit reading layered on THE BRAIN (smb-brain.js).
+// Depends on smb-brain.js (Brain) and smb-combat.js (SHIELD_PARRY_REST), at call time only.
+// The net is a reflex and can't notice a habit like "always swings 14 frames after landing".
+// This layer tracks swing timing and guard hold time, and when a habit is clear it
+// overrides the net's keys for that frame only:
+//   guard: raise the shield before a predicted swing, and stop tapping it while one is coming.
+//   drop: don't swing into a guard that will stay up. Swing when their usual hold runs out.
+// A guard raised after a swing starts would be a superhuman reflex, so predictions only
+// use what happened before the swing. Tables decay (~20 s half-life), so dropped habits fade.
 
 const BrainRead = (() => {
   const DECAY   = Math.pow(0.5, 1 / 1200);  // 1200 frames = 20 s half-life
@@ -33,12 +23,12 @@ const BrainRead = (() => {
   const K       = 4;                         // prior strength (frames of base-rate evidence per bin)
   const EV_MIN  = 2;                         // decayed swings in the window before a read counts
   // Guard read thresholds (CFG so tools/brain/readeval.js can sweep them).
-  const CFG = { raiseP: 0.6, raiseLift: 1.6, rest: true, drop: true };  // 0.6: ~55-64% of read guards meet a swing (0.45: ~30-45%)
-  const HOLD_P  = 0.35;                      // "a swing is coming soon" — keep the guard rested
+  const CFG = { raiseP: 0.6, raiseLift: 1.6, rest: true, drop: true };  // 0.6: most read guards meet a swing
+  const HOLD_P  = 0.35;                      // "a swing is coming soon": keep the guard rested
   const GUARD_FRAMES = 9;                    // a read guard stays up this long (parry window is 8)
   const DROP_EV = 3, DROP_P = 0.45, WAIT_P = 0.3;
 
-  let enabled = false;  // console: `read on` / `read off` (off until playtested in the shipping fight)
+  let enabled = false;  // console: `read on` / `read off`. Off until playtested.
 
   function create() {
     const z = n => new Float64Array(n);
@@ -194,7 +184,7 @@ const BrainRead = (() => {
     const dx = Math.abs(opp.cx() - me.cx()), dy = Math.abs(opp.cy() - me.cy());
     const opR = reachOf(opp), myR = reachOf(me);
 
-    // ── guard read ──
+    // guard read
     if (R.guardUntil >= 0) {
       if (t < R.guardUntil) { act[2] = 1; if (act[3] === 1) act[3] = 0; act[0] = 1; return; }
       R.guardUntil = -1;
@@ -225,7 +215,7 @@ const BrainRead = (() => {
       }
     }
 
-    // ── guard-drop read ──
+    // guard-drop read
     const canSwing = !(me.attackTimer > 0) && !(me.attackEndlag > 0);
     if (CFG.drop && opp.shielding && R.oShStart >= 0 && canSwing && dx < myR * 1.1 && dy < 100) {
       const h = t - R.oShStart;

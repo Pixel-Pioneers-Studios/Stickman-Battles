@@ -1,66 +1,47 @@
 'use strict';
-// smb-story-narrative-scene.js — Cinematic canvas renderer for story narratives.
-// Public API: showNarrativeScene(lines, chapter, callback)
-// Scene specs: window.STORY_SCENE_SPECS[chapterId]
+// Cinematic canvas renderer for story narratives. Public API: showNarrativeScene(lines, chapter, callback).
+// Scene specs live in window.STORY_SCENE_SPECS[chapterId].
 
 (function () {
 
   var TYPEWRITE_MS = 14;
   // Clean silhouette by default (see the cape block in _drawFigure).
   var SCENE_CAPE_DEFAULT = false;
-  // Holding click/space scrubs at this multiple of normal speed. It exists so an
-  // impatient viewer has something between "wait" and Skip, which ends the whole
-  // sequence. _FF_ARM keeps a plain click (which advances one beat) from scrubbing.
+  // Holding click or space scrubs at this multiple of normal speed. _FF_ARM stops a plain click from scrubbing.
   var FF_RATE = 4, FF_ARM = 9;
-  // Target reading rate for cinematic auto-advance, in characters per second of
-  // total on-screen time. ~24 cps sits just above the 20 cps subtitle standard,
-  // which reads correctly for sparse verse (most beats here are a few short
-  // lines) without making a long block unreadable.
+  // Auto-advance target in characters per second of on-screen time. ~24 cps is just above the 20 cps subtitle standard.
   var CIN_CPS = 24, CIN_HOLD_MAX = 300;
   var FOOT_YF = 0.74, DEF_LEFT = 0.26, DEF_RIGHT = 0.74;
 
-  // ── State ──────────────────────────────────────────────────────────────────────
   var _canvas, _ctx, _raf;
   var _beats = [], _beatIdx = 0, _typedLen = 0, _lastTypeTime = 0;
   var _callback = null, _chapter = null, _spec = null, _actStyle = null;
-  var _trans = null; // active beat transition {type, t, dur}
+  var _trans = null;
   var _t = 0, _beatT = 0;
   var _stars = [];
   var _cam   = { zoom: 1, cx: 0.5, cy: 0.5 };
   var _shakeStr = 0, _shakeDecay = 0;
   var _flashAlpha = 0, _flashColor = '#ffffff', _flashDecay = 0;
 
-  // ── Cinematic mode ─────────────────────────────────────────────────────────────
-  // Off by default: with _cinMode false every path below behaves exactly as it did
-  // before, so the 113 existing STORY_SCENE_SPECS entries are untouched.
-  //
-  // On, the scene stops being a click-through reader and becomes a film: beats
-  // auto-advance once the line has finished typing and held, the camera keeps
-  // drifting so a frame is never static, the per-beat "Next" button and the beat
-  // dots (useless at 100+ beats) are replaced by a thin progress bar, and a real
-  // SKIP appears — skipping the whole sequence, not advancing one beat.
+  // Off by default: with _cinMode false every path behaves as before.
+  // On: beats auto-advance after typing, the camera drifts, and SKIP ends the whole sequence.
   var _cinMode    = false;
-  var _cinHold    = 80;     // frames to hold a finished line before auto-advancing
-  var _autoT      = 0;      // frames since this line finished typing
-  var _ffHeld     = false;  // viewer is holding to fast-forward (see FF_RATE)
-  var _ptrAt      = 0;      // ms timestamp of the current press, 0 when released
-  var _keyFF      = false;  // Space/Right is held down
-  var _onSkip     = null;   // called instead of _callback when the viewer skips
-  var _skipRect   = null;   // hit box for the on-screen SKIP control
-  var _cinLabel   = null;   // overrides the chapter title (a sequence spans chapters)
-  var _cinProg    = null;   // {done, total} across a multi-chapter sequence
-  var _cinHoldEnd = false;  // stop auto-advancing on the last beat and show the button
+  var _cinHold    = 80;
+  var _autoT      = 0;
+  var _ffHeld     = false;
+  var _ptrAt      = 0;
+  var _keyFF      = false;
+  var _onSkip     = null;
+  var _skipRect   = null;
+  var _cinLabel   = null;
+  var _cinProg    = null;
+  var _cinHoldEnd = false;
   var _driftSeed  = 0;
 
-  // ── Math helpers ───────────────────────────────────────────────────────────────
   function _ease(t)         { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
   function _lerp(a, b, t)   { return a + (b - a) * t; }
 
-  // ── Animation-principle easing ────────────────────────────────────────────────
-  // The rig had exactly one curve (_ease, a symmetric smoothstep). That is why
-  // every motion read as floaty: real motion is asymmetric — it winds up before it
-  // goes (anticipation), travels fastest in the middle, and overshoots its target
-  // before settling (follow-through). These are the curves that supply that.
+  // Motion needs anticipation, fast travel and overshoot. The single smoothstep (_ease) read as floaty.
   function _easeOutCubic(t) { var u = 1 - t; return 1 - u*u*u; }
   function _easeInCubic(t)  { return t*t*t; }
   // Overshoots past 1 and settles back. s controls how far past.
@@ -68,29 +49,21 @@
     s = (s === undefined) ? 1.70158 : s;
     var u = t - 1; return u*u*((s+1)*u + s) + 1;
   }
-  // Dips BELOW 0 first (the wind-up), then drives to 1 and overshoots slightly.
-  // This is the shape of a punch, a step, a head turn — anything with intent.
+  // Dips below 0 (wind-up), then drives to 1 and overshoots. For punches, steps and head turns.
   function _easeAnticip(t, back) {
     back = (back === undefined) ? 0.22 : back;
     if (t < 0.30) { var a = t / 0.30; return -back * Math.sin(a * Math.PI); }
     return _easeOutBack((t - 0.30) / 0.70, 1.35);
   }
-  // Damped settle — for a motion that stops hard and rings out.
+  // Damped settle, for a motion that stops hard and rings out.
   function _easeSettle(t) {
     if (t >= 1) return 1;
     return 1 - Math.cos(t * Math.PI * 3.1) * Math.exp(-t * 5.2) * (1 - t);
   }
   function _clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
 
-  // ── Figure framing ────────────────────────────────────────────────────────────
-  // The figure is authored at a fixed ~85px tall regardless of viewport, so on a
-  // 760px window it occupied 11% of frame height — far too small for any posing to
-  // read, and the reason the scenes looked like distant dots rather than
-  // characters. Film framing puts a standing figure around a fifth of frame
-  // height; this scales toward that and clamps so a small window is not distorted
-  // and a very large one does not turn the figure into a billboard. Per-figure
-  // authored `scale` still multiplies on top, so a spec that made someone huge or
-  // tiny keeps its RELATIVE intent.
+  // Figure is authored at ~85px. Scale it toward a fifth of frame height, clamped so small windows don't distort and big ones don't become billboards.
+  // Authored `scale` still multiplies on top.
   function _figScale() {
     if (!_canvas || !_canvas.height) return 1;
     return _clamp(_canvas.height / 430, 1, 2.4);
@@ -103,7 +76,6 @@
     c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y); c.closePath();
   }
 
-  // ── Beat parsing ───────────────────────────────────────────────────────────────
   function _parseBeats(lines) {
     var beats = [], group = [];
     function pushRun(runLines) {
@@ -120,7 +92,7 @@
     }
     function flush() {
       if (!group.length) return;
-      // Split mixed narrator+dialogue groups so narrator lines don't appear in speech bubbles
+      // Split narrator and dialogue so narration stays out of bubbles
       var cur = [], curIsQuote = null;
       for (var i = 0; i < group.length; i++) {
         var isQ = group[i].trim().charAt(0) === '"';
@@ -136,7 +108,6 @@
     return beats;
   }
 
-  // ── Theme detection ────────────────────────────────────────────────────────────
   function _getTheme(ch) {
     var a = (ch && ch.arena) || (ch && ch.style) || '';
     var w = ((ch && ch.world) || '').toLowerCase();
@@ -148,7 +119,6 @@
     return 'fracture';
   }
 
-  // ── Stars ──────────────────────────────────────────────────────────────────────
   function _initStars(count, w, h) {
     _stars = [];
     for (var i = 0; i < count; i++)
@@ -157,7 +127,6 @@
                     speed: Math.random()*0.02+0.01 });
   }
 
-  // ── Post-processing helpers ────────────────────────────────────────────────────
   var _noiseCv = null;
   function _noisePattern(c) {
     if (!_noiseCv) {
@@ -194,11 +163,9 @@
     c.fillRect(0, 0, w + 128, h + 128);
     c.restore();
   }
-  // Horizontal parallax offset for a background layer. depth 0 = glued to the
-  // camera, 1 = fully counteracts camera panning (reads as infinitely far away).
+  // Parallax: depth 0 is glued to the camera, 1 cancels camera pan entirely.
   function _plx(w, depth) { return (_cam.cx - 0.5) * w * depth; }
 
-  // ── Camera system ──────────────────────────────────────────────────────────────
   function _camUpdate(bs, beatT) {
     if (bs && bs.camAnim && bs.camAnim.length) {
       var arr = bs.camAnim, result = arr[arr.length-1];
@@ -236,9 +203,7 @@
     if (_shakeStr > 0) _shakeStr = Math.max(0, _shakeStr - _shakeDecay);
     if (_flashAlpha > 0) _flashAlpha = Math.max(0, _flashAlpha - _flashDecay);
 
-    // Cinematic drift: a slow, never-repeating breath on top of whatever the beat
-    // asked for. Authored camAnim still reads exactly as written — this only stops
-    // long holds from looking like a frozen still.
+    // Slow drift so long holds never look frozen. Authored camAnim still plays as written.
     if (_cinMode) {
       var d = _t * 0.0031 + _driftSeed;
       _cam.cx   += Math.sin(d) * 0.0045 + Math.sin(d * 0.37) * 0.0022;
@@ -258,8 +223,7 @@
   }
   function _camEnd(c) { c.restore(); }
 
-  // ── Animated figure position helper ───────────────────────────────────────────
-  // playerPos / npcPos: [{at:frame, x:0-1, state:'', facing:1, alpha:1, scale:1}]
+  // playerPos / npcPos: [{at:frame, x:0-1, state, facing, alpha, scale}]. Optional y lifts the figure off the foot line (fraction of height, negative is up).
   function _getFigAnim(posArr, beatT) {
     if (!posArr || !posArr.length) return null;
     var cur = posArr[0], nxt = null;
@@ -268,21 +232,19 @@
     }
     if (!nxt || cur.x === undefined || nxt.x === undefined) return cur;
     var _u = _clamp((beatT-cur.at)/(nxt.at-cur.at),0,1);
-    // A body crossing a room anticipates and settles; it does not glide on a
-    // symmetric smoothstep. `ease:'linear'|'smooth'` on a keyframe opts back out
-    // for a deliberate mechanical or drifting move.
+    // Bodies anticipate and settle. ease:'linear' or 'smooth' on a keyframe opts out.
     var _mode = nxt.ease || cur.ease || 'anticip';
     var p = _mode === 'linear' ? _u
           : _mode === 'smooth' ? _ease(_u)
           : _mode === 'settle' ? _easeSettle(_u)
           : _easeAnticip(_u, 0.10);
-    // Arc: a figure moving any distance rises slightly through the middle rather
-    // than tracking a ruler. Suppressed when the keyframe asked for linear.
+    // Moving figures arc slightly up mid-move. Suppressed for linear keyframes.
     var _arcY = (_mode === 'linear') ? 0
               : -Math.sin(_u * Math.PI) * Math.abs(nxt.x - cur.x) * 26;
     return {
       arcY:   _arcY,
       x:      _lerp(cur.x, nxt.x, p),
+      y:      _lerp(cur.y || 0, nxt.y || 0, p),
       state:  cur.state, facing: cur.facing,
       alpha:  _lerp(cur.alpha!==undefined?cur.alpha:1, nxt.alpha!==undefined?nxt.alpha:1, p),
       scale:  cur.scale || 1, show: cur.show !== false,
@@ -290,13 +252,12 @@
     };
   }
 
-  // ── Background renderers ───────────────────────────────────────────────────────
   function _drawFloor(c, w, h, top, bot, sheen) {
     var fy = h * FOOT_YF;
     var g = c.createLinearGradient(0,fy,0,h);
     g.addColorStop(0,top); g.addColorStop(1,bot);
     c.fillStyle=g; c.fillRect(0,fy+2,w,h*(1-FOOT_YF));
-    // Horizon light strip — grounds the scene (replaces the old dashed debug line)
+    // Horizon light strip, grounds the scene
     c.save();
     var hg = c.createLinearGradient(0, fy-5, 0, fy+13);
     hg.addColorStop(0,   'rgba(255,255,255,0)');
@@ -315,7 +276,7 @@
     var g = c.createLinearGradient(0,0,0,h);
     g.addColorStop(0,'#07001a'); g.addColorStop(0.55,'#0e002a'); g.addColorStop(1,'#040010');
     c.fillStyle=g; c.fillRect(0,0,w,h);
-    // Nebula blobs — slow-breathing depth behind the starfield
+    // Nebula blobs, slow breathing depth
     var nebs=[[0.24,0.30,0.26,'85,40,190'],[0.72,0.20,0.22,'50,20,140'],[0.50,0.58,0.30,'35,10,95']];
     var nOff=_plx(w,0.6);
     for (var ni=0;ni<nebs.length;ni++) {
@@ -338,11 +299,11 @@
     var g=c.createLinearGradient(0,0,0,h);
     g.addColorStop(0,opts.skyTop||'#08102a'); g.addColorStop(0.5,opts.skyMid||'#0f1a38'); g.addColorStop(1,opts.skyBot||'#0a1020');
     c.fillStyle=g; c.fillRect(0,0,w,h);
-    // Stars (wrapped so parallax panning never empties the sky)
+    // Stars, wrapped so parallax never empties the sky
     var stOff=_plx(w,0.85);
     for (var si=0;si<_stars.length;si++) { var s2=_stars[si]; if(s2.y>h*0.38)continue; var sx=((s2.x+stOff)%w+w)%w; c.globalAlpha=0.20+Math.sin(t*s2.speed+s2.twinkle)*0.10; c.fillStyle='#ffffff'; c.beginPath(); c.arc(sx,s2.y,s2.r*0.8,0,Math.PI*2); c.fill(); }
     c.globalAlpha=1;
-    // Moon + halo (key light source)
+    // Moon and halo (key light)
     if (!opts.noMoon) {
       var mx=w*0.16+_plx(w,0.8), my=h*0.15, mCol=opts.moonTint||'#dfe6f5';
       var mg=c.createRadialGradient(mx,my,6,mx,my,h*0.22);
@@ -354,17 +315,17 @@
       c.beginPath(); c.arc(mx+6,my-4,2.1,0,Math.PI*2); c.fill();
       c.beginPath(); c.arc(mx+2,my+7,1.6,0,Math.PI*2); c.fill();
     }
-    // FAR skyline — hazy, atmospheric-tinted, strong parallax
+    // Far skyline, hazy, strong parallax
     var farBlds=[[0,0.42,0.05],[0.06,0.36,0.06],[0.14,0.44,0.04],[0.20,0.34,0.07],[0.30,0.40,0.05],[0.37,0.31,0.06],[0.46,0.38,0.05],[0.53,0.33,0.07],[0.62,0.41,0.05],[0.70,0.35,0.06],[0.78,0.30,0.07],[0.87,0.38,0.06],[0.94,0.34,0.06]];
     c.save(); c.translate(_plx(w,0.5),0);
     c.fillStyle=opts.farColor||'#0d1730';
     for (var fb=0;fb<farBlds.length;fb++) { var f=farBlds[fb]; c.fillRect(f[0]*w-w*0.05,f[1]*h,f[2]*w,(FOOT_YF-f[1])*h+4); }
     c.restore();
-    // Horizon haze band — depth separation between skylines
+    // Haze band between skylines
     var hz=c.createLinearGradient(0,h*0.38,0,h*FOOT_YF+2);
     hz.addColorStop(0,'rgba(95,125,195,0)'); hz.addColorStop(1,opts.hazeColor||'rgba(95,125,195,0.13)');
     c.fillStyle=hz; c.fillRect(0,h*0.38,w,h*(FOOT_YF-0.38)+2);
-    // NEAR skyline + deterministic lit windows (stable positions, slow flicker)
+    // Near skyline with deterministic lit windows
     var blds=[[0,0.56,0.06],[0.04,0.44,0.07],[0.09,0.50,0.05],[0.13,0.38,0.07],[0.19,0.48,0.08],[0.25,0.40,0.06],[0.29,0.33,0.08],[0.35,0.44,0.05],[0.38,0.37,0.09],[0.45,0.46,0.05],[0.48,0.30,0.10],[0.56,0.39,0.07],[0.61,0.47,0.06],[0.65,0.35,0.09],[0.72,0.42,0.05],[0.75,0.28,0.10],[0.82,0.40,0.07],[0.87,0.48,0.05],[0.90,0.42,0.07],[0.95,0.50,0.05]];
     c.save(); c.translate(_plx(w,0.15),0);
     c.fillStyle=opts.bldColor||'#060e1c';
@@ -373,10 +334,10 @@
       var b2=blds[bi], bx=b2[0]*w, bw2=b2[2]*w, bty=b2[1]*h;
       var cols=Math.min(4,Math.max(1,Math.floor(bw2/18))), rows=Math.min(8,Math.max(2,Math.floor((h*FOOT_YF-bty)/30)));
       for (var wy=0;wy<rows;wy++) for (var wx=0;wx<cols;wx++) {
-        if (bty+10+wy*28 > h*0.60) break;                   // no windows near street level
+        if (bty+10+wy*28 > h*0.60) break;
         var seed=bi*97+wy*13+wx*7, rr=_mHash(seed);
-        if (rr<0.60) continue;                              // most windows stay dark
-        var flick=Math.sin(t*0.018+seed*2.7)>-0.75?1:0;     // rare slow flicker
+        if (rr<0.60) continue;
+        var flick=Math.sin(t*0.018+seed*2.7)>-0.75?1:0;
         c.globalAlpha=0.34*flick*(0.55+0.45*_mHash(seed+1));
         c.fillStyle=opts.winColor||'#ffd9a0';
         c.fillRect(bx+5+wx*((bw2-10)/cols), bty+10+wy*28, 3.5, 5.5);
@@ -390,21 +351,19 @@
     var g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,'#060e08'); g.addColorStop(0.5,'#091608'); g.addColorStop(1,'#050b05'); c.fillStyle=g; c.fillRect(0,0,w,h);
     var stOff=_plx(w,0.85);
     for (var si=0;si<_stars.length;si++) { var s=_stars[si]; if(s.y>h*0.38)continue; var sx=((s.x+stOff)%w+w)%w; c.globalAlpha=0.18+Math.sin(t*s.speed+s.twinkle)*0.10; c.fillStyle='#cceecc'; c.beginPath(); c.arc(sx,s.y,s.r*0.7,0,Math.PI*2); c.fill(); } c.globalAlpha=1;
-    // Moonlight glow filtering through the canopy
+    // Moonlight through the canopy
     var mx=w*0.62+_plx(w,0.8), my=h*0.12;
     var mg=c.createRadialGradient(mx,my,4,mx,my,h*0.30);
     mg.addColorStop(0,'rgba(200,235,205,0.20)'); mg.addColorStop(1,'rgba(200,235,205,0)');
     c.fillStyle=mg; c.fillRect(mx-h*0.30,my-h*0.30,h*0.6,h*0.6);
     function tree(x,sc,col,topY) { c.fillStyle=col; c.beginPath(); c.moveTo(x,h*0.79); c.lineTo(x-52*sc,h*0.79); c.lineTo(x-32*sc,h*0.56); c.lineTo(x-22*sc,h*0.56); c.lineTo(x-42*sc,h*0.38); c.lineTo(x-16*sc,h*0.38); c.lineTo(x-26*sc,h*(topY||0.20)); c.lineTo(x+26*sc,h*(topY||0.20)); c.lineTo(x+16*sc,h*0.38); c.lineTo(x+42*sc,h*0.38); c.lineTo(x+22*sc,h*0.56); c.lineTo(x+32*sc,h*0.56); c.lineTo(x+52*sc,h*0.79); c.closePath(); c.fill(); }
-    // FAR treeline — hazy, blue-shifted, strong parallax
+    // Far treeline, hazy, blue-shifted
     c.save(); c.translate(_plx(w,0.5),0);
     tree(w*0.02,0.42,'#0a1510',0.42); tree(w*0.14,0.5,'#0a1510',0.38); tree(w*0.33,0.46,'#0a1510',0.40); tree(w*0.52,0.52,'#0a1510',0.36); tree(w*0.68,0.44,'#0a1510',0.42); tree(w*0.88,0.5,'#0a1510',0.38);
     c.restore();
-    // Haze between layers
     var hz=c.createLinearGradient(0,h*0.40,0,h*FOOT_YF+2);
     hz.addColorStop(0,'rgba(120,180,140,0)'); hz.addColorStop(1,'rgba(120,180,140,0.09)');
     c.fillStyle=hz; c.fillRect(0,h*0.40,w,h*(FOOT_YF-0.40)+2);
-    // NEAR trees
     c.save(); c.translate(_plx(w,0.15),0);
     tree(w*0.07,0.72,'#030805'); tree(w*0.20,0.88,'#030805'); tree(w*0.80,0.84,'#030805'); tree(w*0.93,0.74,'#030805');
     c.restore();
@@ -422,7 +381,7 @@
 
   function _drawCaveBg(c,w,h,t) {
     var g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,'#030507'); g.addColorStop(1,'#08090d'); c.fillStyle=g; c.fillRect(0,0,w,h);
-    // FAR rock wall — faint stalactites + stalagmites with parallax
+    // Far rock wall, stalactites and stalagmites with parallax
     c.save(); c.translate(_plx(w,0.45),0);
     c.fillStyle='#0a0d14';
     for (var fi=0;fi<9;fi++) { var fx=(fi/8)*w+Math.sin(fi*2.3)*30; var fh=h*(0.16+Math.sin(fi*1.7)*0.10); c.beginPath(); c.moveTo(fx-16,0); c.lineTo(fx+16,0); c.lineTo(fx,fh); c.closePath(); c.fill(); }
@@ -439,7 +398,6 @@
     _drawFloor(c,w,h,'#050608','#030405','rgba(80,140,220,0.10)');
   }
 
-  // ── Cinematic effect renderers ─────────────────────────────────────────────────
 
   function _drawPortal(c, x, y, ht, color, alpha, t) {
     c.save(); c.globalAlpha=alpha;
@@ -517,9 +475,8 @@
     c.save(); for (var i=0;i<6;i++) { var sx=0.15*w+(i/5)*0.70*w; var sy=h*FOOT_YF-10-Math.sin(t*0.03+i)*15; var r=25+i*8; c.globalAlpha=alpha*(0.12+Math.sin(t*0.04+i)*0.05); c.fillStyle='#221100'; c.beginPath(); c.arc(sx,sy,r,0,Math.PI*2); c.fill(); } c.restore();
   }
 
-  // ── NEW cinematic effects ──────────────────────────────────────────────────────
 
-  // Radial speed lines — manga/anime impact feel
+  // Radial speed lines (manga impact)
   function _drawSpeedLines(c, cx, cy, count, color, alpha, t) {
     c.save(); c.strokeStyle=color; c.shadowColor=color; c.shadowBlur=6;
     for (var i=0;i<count;i++) {
@@ -552,7 +509,7 @@
       var angle=(i/count)*Math.PI*2+i*0.4;
       var speed=60+Math.sin(i*2.1)*30;
       var sx=cx+Math.cos(angle)*speed*progress;
-      var sy=cy+Math.sin(angle)*speed*progress+progress*progress*80; // gravity arc
+      var sy=cy+Math.sin(angle)*speed*progress+progress*progress*80;
       var sp_alpha=(1-progress)*(0.7+Math.sin(i*1.9)*0.3);
       c.globalAlpha=Math.max(0,sp_alpha);
       c.fillStyle=color; c.shadowColor=color; c.shadowBlur=8;
@@ -638,18 +595,60 @@
     c.textAlign='left'; c.restore();
   }
 
-  // ── Stick figure — enhanced ────────────────────────────────────────────────────
-  var _reflPass = false; // true while drawing ground reflections (skips shadow/rim)
+  // Stick figure──────────────────────────────────────────────────
+  var _reflPass = false;
+  // Acting memory is keyed per figure ('p', 'n', 'x3'). _drawFigure is stateless; the caller names the figure via _figKey.
+  var _figMem = {}, _figKey = null;
+  var _FIG_BLEND = 14;   // frames to carry one state's pose into the next
+
+  // Fighter look: black body, neon outline in the character colour, no face. Two passes of one skeleton.
+  // window.SCENE_FIGURE_CLASSIC = true restores the solid figure with a face.
+  var _figPass = 0;
+  var _FIG_OUTLINE = 3.6;
+  var _FIG_INK = '#08080d';
+  var _lwDesc = null, _sbDesc = null;
+  function _figPassBegin(c, pass) {
+    var proto = Object.getPrototypeOf(c);
+    _lwDesc = _lwDesc || Object.getOwnPropertyDescriptor(proto, 'lineWidth');
+    _sbDesc = _sbDesc || Object.getOwnPropertyDescriptor(proto, 'shadowBlur');
+    if (!_lwDesc || !_sbDesc) return false;
+    if (pass === 1) {
+      Object.defineProperty(c, 'lineWidth', { configurable: true,
+        get: function () { return _lwDesc.get.call(this); },
+        set: function (v) { _lwDesc.set.call(this, v + _FIG_OUTLINE); } });
+    } else {
+      // The black pass must not throw a dark glow over the outline under it.
+      Object.defineProperty(c, 'shadowBlur', { configurable: true,
+        get: function () { return 0; },
+        set: function () { _sbDesc.set.call(this, 0); } });
+    }
+    return true;
+  }
+  function _figPassEnd(c) { delete c.lineWidth; delete c.shadowBlur; }
+
   function _drawFigure(c, x, y, color, facing, state, t, alpha, scale, expr) {
+    if (!_figPass && !window.SCENE_FIGURE_CLASSIC) {
+      var _ok = false;
+      try {
+        _figPass = 1;
+        _ok = _figPassBegin(c, 1);
+        if (_ok) { _drawFigure(c, x, y, color, facing, state, t, alpha, scale, expr); _figPassEnd(c); }
+        if (_ok) {
+          _figPass = 2;
+          _figPassBegin(c, 2);
+          _drawFigure(c, x, y, color, facing, state, t, alpha, scale, expr);
+        }
+      } finally { _figPassEnd(c); _figPass = 0; }
+      if (_ok) return;
+    }
+    var _neon = color;
+    if (_figPass === 2) color = _FIG_INK;
     c.save();
     var _a = Math.max(0, alpha !== undefined ? alpha : 1);
     c.globalAlpha = _a;
     scale = scale || 1;
-    // Contact shadow. Deferred until after the body pose is solved so it can carry
-    // WEIGHT: a shadow that never changes reads as a sticker under the figure. It
-    // now tracks the hip (not the head), and shrinks + softens as the body rises,
-    // which is most of what sells a figure as having mass.
-    var _shDraw = (!_reflPass && _a > 0.4);
+    // Contact shadow is solved after the pose so it carries weight: it tracks the hip and shrinks as the body rises.
+    var _shDraw = (!_reflPass && _a > 0.4 && _figPass !== 1);
     if (scale !== 1) { c.translate(x, y); c.scale(scale, scale); c.translate(-x, -y); }
 
     var isTalk   = state === 'talk';
@@ -664,31 +663,34 @@
     var isKneel  = state === 'kneel';
     var isFloat  = state === 'float';
     var isGuard  = state === 'guard';
-    var isListen = state === 'listen'; // idle + occasional nods toward the speaker
-    var isPoint  = state === 'point';  // arm extended toward facing direction
+    var isListen = state === 'listen';
+    var isPoint  = state === 'point';
 
-    // ── Keyframed rig (smb-figure-rig.js) ───────────────────────────────────────
-    // If the rig has a clip for this state, it supplies the pose and the sine-wave
-    // path below is bypassed. Additive on purpose: any state without a clip — and
-    // the whole function if the rig file fails to load — falls back to the original
-    // code, so no story scene can break by adopting this.
-    //
-    // Scale is left at 1 here because the canvas transform above already applies
-    // it; solving at scale too would square it.
-    //
-    // Event-driven clips (attack, hit) run off _beatT so they START on the beat
-    // rather than wherever the free-running clock happens to be — a punch that
-    // begins mid-swing is the thing that reads as broken.
+    // Keyframed rig (smb-figure-rig.js). A clip for this state sets the pose and skips the sine path below. States without a clip fall back to the old code.
+    // The canvas transform already applies scale, so the rig solves unscaled.
+    // Event clips (attack, hit) run off _beatT so they start on the beat, not mid-swing.
     var _rig = null;
     if (typeof FigureRig !== 'undefined' && FigureRig.hasClip(state)) {
-      // Ambient loops get an x-derived phase so two figures in the same state do
-      // not move in lockstep. Event-driven clips must NOT get one: a punch whose
-      // start depends on where the figure is standing begins mid-swing, which is
-      // exactly the thing the beat clock exists to prevent.
+      // Ambient loops get an x-based phase so pairs don't move in lockstep. Event clips must not, or they start mid-swing.
       var _evt   = isAttack || isHit;
-      var _rigT  = _evt ? _beatT : t;
+      var _heldC = FigureRig.isHeld && FigureRig.isHeld(state);
+      // Acting memory (_figMem): when the figure took its state and the pose it left, so a change is a move, not a jump cut.
+      var _m = null;
+      if (_figKey) {
+        _m = _figMem[_figKey] || (_figMem[_figKey] = { state: state, since: -9999, from: null, last: null });
+        if (_m.state !== state) { _m.from = _m.last; _m.state = state; _m.since = _t; }
+      }
+      var _sinceT = _m ? (_t - _m.since) : _beatT;
+      // Strikes and hits restart each beat. Entered poses carry over, so a kneeling figure stays kneeling.
+      var _rigT  = _evt ? Math.min(_beatT, _sinceT) : (_heldC ? _sinceT : t);
       var _phase = _evt ? 0 : (x * 7) % 40;
       var _pose  = FigureRig.sample(state, _rigT, { phase: _phase });
+      if (_pose && _m) {
+        if (_m.from && _sinceT < _FIG_BLEND && FigureRig.blend) {
+          _pose = FigureRig.blend(_m.from, _pose, _easeOutCubic(_sinceT / _FIG_BLEND), {});
+        }
+        _m.last = _pose;
+      }
       if (_pose) _rig = FigureRig.solve(_pose, x, y, 1, facing);
     }
 
@@ -708,52 +710,43 @@
     var breathY = Math.sin(t*0.038) * 1.4;
     var talkBob = isTalk ? Math.sin(t*0.14) * 1.0 : 0;
     var walkBob = (isWalk||isRun) ? Math.abs(Math.sin(t*(isRun?0.28:0.20))) * (isRun?4:3) : 0;
-    var hitSnap = isHit ? Math.max(0, 1-_beatT*0.04)*6 : 0; // initial snap on hit
+    var hitSnap = isHit ? Math.max(0, 1-_beatT*0.04)*6 : 0;
     // Listener: occasional short nodding bursts, otherwise still
     var listenNod = (isListen && Math.sin(t*0.011) > 0.55) ? Math.abs(Math.sin(t*0.15))*2.2 : 0;
-    // Idle/listen: slow weight shift so standing figures never look frozen
+    // Slow weight shift so idle figures don't freeze
     var sway = (state === 'idle' || isListen) ? Math.sin(t*0.016)*1.6 : 0;
 
     var headR  = 13;
     var offY   = breathY + talkBob + walkBob + floatY - crouchY + listenNod;
 
-    // ── Overlapping action ──────────────────────────────────────────────────────
-    // Nothing on a body arrives at the same instant: the hips lead, the chest
-    // follows, the head arrives last. The rig drove every joint off the same `t`,
-    // which is the single biggest reason it read as a rigid diagram. _drawFigure
-    // is stateless, so rather than spring the head we evaluate its bob at a
-    // slightly EARLIER time — analytic lag, no per-figure memory required.
-    var LAG = 5.5;                       // frames the head trails the hips by
+    // Overlapping action: hips lead, chest follows, head arrives last.
+    // The head bob is sampled at an earlier time: analytic lag, no per-figure state.
+    var LAG = 5.5;                       // frames the head trails the hips
     var tL  = t - LAG;
     var breathYL = Math.sin(tL*0.038) * 1.4;
     var talkBobL = isTalk ? Math.sin(tL*0.14) * 1.0 : 0;
     var walkBobL = (isWalk||isRun) ? Math.abs(Math.sin(tL*(isRun?0.28:0.20))) * (isRun?4:3) : 0;
     var floatYL  = isFloat ? -16 + Math.sin(tL*0.04)*4 : 0;
     var offYHead = breathYL + talkBobL + walkBobL + floatYL - crouchY + listenNod;
-    // The head also drifts horizontally against the lean — a neck holding a head
-    // up rather than a ball welded to a stick.
+    // Head drifts against the lean, like a neck holding a head up.
     var headDX = (offY - offYHead) * 0.28 * facing;
 
-    // ── Squash & stretch ────────────────────────────────────────────────────────
-    // Applied to the torso length and head radius, not as a canvas scale, so the
-    // limbs stay the right length. A struck body compresses; a falling one draws out.
+    // Squash and stretch on torso and head radius, not canvas scale, so limbs keep their length.
     var _sq = 0;
-    if (isHit)  _sq = -Math.max(0, 1 - _beatT * 0.055) * 0.16;   // compress on impact
-    if (isFall) _sq =  Math.min(0.13, _beatT * 0.004);           // draw out in the air
+    if (isHit)  _sq = -Math.max(0, 1 - _beatT * 0.055) * 0.16;
+    if (isFall) _sq =  Math.min(0.13, _beatT * 0.004);
     if (isAttack) _sq = Math.max(0, 1 - Math.abs(_beatT * 0.06 - 0.55) * 3) * 0.07;
     torsoLen *= (1 + _sq);
     headR    *= (1 - _sq * 0.45);
 
     var headCY = y - 72 + offYHead;
     var neckY  = headCY + headR + 2;
-    var shldrY = y - 72 + offY + 13 + 2 + 6;   // shoulders ride the BODY, not the head
+    var shldrY = y - 72 + offY + 13 + 2 + 6;
     var hipX   = x + Math.sin(torsoLean) * torsoLen - hitSnap * facing + sway;
     var hipY   = shldrY + Math.cos(Math.abs(torsoLean)) * torsoLen;
     var headX  = x + headDX;
 
-    // The rig owns the skeleton when it has a clip. Everything downstream — face,
-    // cape, shadow, effects — reads these same variables, so they all follow the
-    // keyframed pose without needing to know the rig exists.
+    // The rig owns the skeleton when it has a clip. Face, cape and shadow read these variables and follow the keyframed pose.
     if (_rig) {
       headX  = _rig.head.x;
       headCY = _rig.head.y;
@@ -782,24 +775,23 @@
     c.strokeStyle = color; c.lineWidth = 4.5; c.lineCap = 'round'; c.lineJoin = 'round';
     c.shadowColor = color; c.shadowBlur = isTalk ? 10 : isAttack ? 14 : isHit ? 8 : 4;
 
-    // Head
-    c.fillStyle = color; c.beginPath(); c.arc(headX, headCY, headR, 0, Math.PI*2); c.fill();
+    c.fillStyle = color; c.beginPath(); c.arc(headX, headCY, headR + (_figPass === 1 ? _FIG_OUTLINE * 0.5 : 0), 0, Math.PI*2); c.fill();
 
-    // Rim light — cool key light catching the upper-left of the head
-    if (!_reflPass) {
+    // Rim light: cool key light catching the upper-left of the head
+    if (!_reflPass && !_figPass) {
       c.save();
       c.strokeStyle = 'rgba(235,242,255,0.32)'; c.lineWidth = 1.6; c.shadowBlur = 0;
       c.beginPath(); c.arc(headX, headCY, headR - 0.9, Math.PI * 0.95, Math.PI * 1.55); c.stroke();
       c.restore();
     }
 
-    // ── FACE ──────────────────────────────────────────────────────
+    if (!_figPass) {
     var _feExpr   = expr || 'neutral';
     var _feEyeOff = facing * 4.5;
     if (isHit) _feEyeOff *= -0.5;
     var _feEyeY = headCY - 1.5;
-    var _feE1x  = headX + _feEyeOff * 0.5;           // inner eye
-    var _feE2x  = headX + _feEyeOff * 0.5 + facing * 5; // outer eye
+    var _feE1x  = headX + _feEyeOff * 0.5;
+    var _feE2x  = headX + _feEyeOff * 0.5 + facing * 5;
 
     // Periodic blink (per-figure phase offset so pairs don't blink in sync)
     var _blink = !isHit && ((t + ((x * 13) | 0)) % 235) < 7;
@@ -810,7 +802,6 @@
       c.beginPath(); c.moveTo(_feE2x - 2.2, _feEyeY); c.lineTo(_feE2x + 2.2, _feEyeY); c.stroke();
       c.restore();
     } else {
-      // White sclerae
       c.fillStyle = '#ffffff';
       c.beginPath(); c.arc(_feE1x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
       c.beginPath(); c.arc(_feE2x, _feEyeY, 2.4, 0, Math.PI*2); c.fill();
@@ -822,7 +813,6 @@
         c.fillRect(_feE2x - 2.6, _feEyeY - 2.4, 5.2, 1.6);
       }
 
-      // Pupils
       if (!isHit) {
         c.fillStyle = 'rgba(0,0,0,0.88)';
         c.beginPath(); c.arc(_feE1x + facing * 0.4, _feEyeY, 1.2, 0, Math.PI*2); c.fill();
@@ -834,27 +824,26 @@
       }
     }
 
-    // Eyebrows — one line above each eye; nose-side lower = determined, higher = worried
+    // Eyebrows: one line above each eye; nose side lower is determined, higher is worried
     var _feBrowY = headCY - 7.5;
     c.strokeStyle = 'rgba(0,0,0,0.65)';
     c.lineWidth   = 1.8;
     c.lineCap     = 'round';
     for (var _feBI = 0; _feBI < 2; _feBI++) {
       var _feBEx   = _feBI === 0 ? _feE1x : _feE2x;
-      var _feNoseX = _feBEx - facing * 2.0;  // toward nose
-      var _feEarX  = _feBEx + facing * 2.5;  // toward ear
+      var _feNoseX = _feBEx - facing * 2.0;
+      var _feEarX  = _feBEx + facing * 2.5;
       var _feNoseY = _feBrowY, _feEarY = _feBrowY;
       if (isHit) {
-        _feNoseY -= 2.0; _feEarY += 0.6;            // worried ↗
+        _feNoseY -= 2.0; _feEarY += 0.6;
       } else if (isAttack || _feExpr === 'focused' || _feExpr === 'intense') {
-        _feNoseY += 2.0; _feEarY -= 0.6;            // determined ↘
+        _feNoseY += 2.0; _feEarY -= 0.6;
       } else if (_feExpr === 'cool') {
-        _feNoseY += 1.0; _feEarY -= 0.3;            // cool slight ↘
+        _feNoseY += 1.0; _feEarY -= 0.3;
       }
       c.beginPath(); c.moveTo(_feEarX, _feEarY); c.lineTo(_feNoseX, _feNoseY); c.stroke();
     }
 
-    // Mouth
     c.lineWidth = 2;
     if (isTalk) {
       var mw = 5 + Math.abs(Math.sin(t*0.18)) * 3;
@@ -873,7 +862,6 @@
       c.quadraticCurveTo(_smMid + 1, headCY + 6, _smMid + 5, headCY + 4);
       c.stroke();
     } else if (_feExpr === 'intense') {
-      // Tight grim line
       c.strokeStyle = 'rgba(190,0,0,0.45)';
       c.lineWidth = 1.8;
       c.beginPath(); c.moveTo(headX - 3.5, headCY+5); c.lineTo(headX + 4.5, headCY+5); c.stroke();
@@ -881,31 +869,19 @@
       c.strokeStyle = 'rgba(200,0,0,0.40)';
       c.beginPath(); c.arc(headX + _feEyeOff*0.2, headCY+4, 4, 0, Math.PI, true); c.stroke();
     }
-    // neutral/focused: no mouth drawn = stoic read
+    // No mouth on neutral or focused: reads stoic.
+    }
 
-    // The face block above sets strokeStyle/lineWidth for brows and mouth and
-    // never puts them back. Everything drawn after it — torso, arms, legs —
-    // inherited whatever the last face feature used, so an `attack` figure drew
-    // its whole body in mouth-red and a `hit` figure drew it in 35%-black. Restore
-    // the body's own pen before continuing.
+    // The face code leaves strokeStyle and lineWidth set. Restore the body's pen before the torso and limbs draw.
     c.strokeStyle = color; c.lineWidth = 4.5; c.lineCap = 'round'; c.lineJoin = 'round';
     c.shadowColor = color; c.shadowBlur = isTalk ? 10 : isAttack ? 14 : isHit ? 8 : 4;
 
-    // ── CAPE (behind torso) ───────────────────────────────────────────────
-    // Drawn on every figure, which is the single biggest thing flattening the
-    // silhouette: a filled shape behind the torso hides the back arm and turns a
-    // posed figure into a blob with a head. Toggleable so the choice is reversible
-    // — set window.SCENE_CAPE = true to bring it back everywhere.
+    // Cape, behind the torso. Only drawn when window.SCENE_CAPE is true, since a filled shape there hides the back arm.
     var _capeOn = (typeof window.SCENE_CAPE === 'boolean') ? window.SCENE_CAPE : SCENE_CAPE_DEFAULT;
     if (_capeOn) {
-    var _cd  = -facing;  // trails opposite to facing
+    var _cd  = -facing;
     var _cT  = typeof frameCount !== 'undefined' ? frameCount : t * 1.5;
-    // The cape used to reach 44px out from a body whose entire torso is 34px
-    // long, so it read as a blue teardrop with a head on it: it swallowed the
-    // silhouette and hid the trailing arm entirely. Narrowed to trail behind the
-    // figure rather than engulf it. It also gets its own wind phase LAG, so it
-    // follows the body instead of moving with it — cloth is the clearest place
-    // overlapping action is visible.
+    // Narrowed so the cape trails the figure instead of covering it. Its own wind phase (LAG) makes cloth follow the body.
     var _cWv = Math.sin(_cT * 0.082) * (isFall || isHit ? 6 : 3.4);
     var _cDr = Math.sin(_cT * 0.058 + 0.5) * 2.2;
     var _cLag = (offY - offYHead) * 0.9;   // cloth trails the torso's rise and fall
@@ -946,10 +922,9 @@
     c.stroke();
     c.restore();
 
-    }  // end cape
+    }
 
-    // Torso — bends through the chest. With the rig, the chest is a real joint the
-    // pose drives, so a coiled punch or a struck body curves the spine correctly.
+    // Torso bends through the chest, a real joint in the rig, so a coiled punch curves the spine.
     c.lineWidth = 5.0;
     c.beginPath();
     if (_rig) { c.moveTo(_rig.neck.x, _rig.neck.y); c.quadraticCurveTo(_rig.chest.x, _rig.chest.y, hipX, hipY); }
@@ -957,20 +932,16 @@
     c.stroke();
     c.lineWidth = 4.5;
 
-    // Arms
     var aBase = shldrY + 5;
     var laAng, raAng;
     if (isAttack) {
       // Dominant arm swings through in a strike arc.
-      // This used to be a linear ramp (`min(1, _beatT*0.06)`), which is why a
-      // strike had no weight: the arm left and arrived at the same speed and
-      // stopped dead. _easeAnticip pulls it BACK first, drives it through fast,
-      // overshoots, and settles — anticipation and follow-through in one curve.
+      // Eases back first (anticipation), drives through, overshoots and settles. A linear ramp read as weightless.
       var swing = _easeAnticip(_clamp(_beatT * 0.052, 0, 1));
       laAng = facing > 0 ? (Math.PI*0.30 + swing*Math.PI*0.55) : (Math.PI*0.90 - swing*Math.PI*0.55);
       raAng = facing > 0 ? (-0.55 + swing*0.15) : (Math.PI*1.55 - swing*0.15);
     } else if (isHit) {
-      // Rings out from the impact pose rather than snapping to it and holding.
+      // Rings out from the impact pose rather than snapping to it.
       var _hs = _easeSettle(_clamp(_beatT * 0.035, 0, 1));
       laAng  = Math.PI*0.30 - facing*0.5 * _hs;
       raAng  = 0.40 + facing*0.4 * _hs;
@@ -1010,20 +981,14 @@
 
     var armLen = 26;
 
-    // Limbs taper (upper heavier than fore) instead of being one uniform 4.5px
-    // pipe end to end. Flat line weight is a large part of what made the figure
-    // read as clip art.
-    // Far-side limbs are drawn a shade darker and pushed slightly away from the
-    // camera side. Without it the back arm lands exactly on the torso and simply
-    // disappears — the figure reads as one-armed. Hand animation solves this the
-    // same way: the far limb is a darker fill so the silhouette stays legible.
+    // Tapered limbs (upper heavier than fore). Far-side limbs are darker and pushed away from the camera so the back arm doesn't vanish into the torso.
     function _shade(hex, k) {
       var m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '#4488ff');
       if (!m) return hex;
       var r = Math.round(parseInt(m[1],16) * k), g = Math.round(parseInt(m[2],16) * k), bl = Math.round(parseInt(m[3],16) * k);
       return 'rgb(' + r + ',' + g + ',' + bl + ')';
     }
-    var _backCol = _shade(color, 0.72);  // dark enough to read as depth, light enough to survive a dark background
+    var _backCol = _shade(color, 0.72);
 
     // Two-segment bone from solved joint positions, tapering toward the extremity.
     function _bone(a, b, cJ, w1, w2) {
@@ -1045,19 +1010,12 @@
       return { x: ex, y: ey };
     }
 
-    // ── Smear ───────────────────────────────────────────────────────────────────
-    // A limb moving faster than the eye tracks should not be a crisp line in one
-    // place. Cheapest honest version: a couple of low-alpha copies at the pose the
-    // arm held a few frames ago. Only while the arm is genuinely fast.
+    // Smear: low-alpha copies at the pose the arm held a few frames ago, only while the arm is fast.
     var _smearAmt = 0;
     if (isAttack) _smearAmt = Math.max(0, 1 - Math.abs(_clamp(_beatT*0.052,0,1) - 0.52) * 3.4);
     else if (isRun) _smearAmt = 0.45;
 
-    // ── Rig smear ───────────────────────────────────────────────────────────────
-    // With the rig, a smear is just the same pose sampled a few frames EARLIER —
-    // which is what a smear physically is, and it lands exactly on the arc the
-    // limb travelled. (The legacy smear below reuses the old sine angles, so on
-    // the rig path it would ghost a limb that is not where the arm actually is.)
+    // Rig smear: the pose from a few frames earlier, which is the arc the limb travelled.
     if (_rig && !_reflPass) {
       var _sTrail = isAttack ? 3 : (isRun ? 2 : 0);
       if (_sTrail) {
@@ -1074,7 +1032,7 @@
           c.lineTo(_sj.elbowF.x, _sj.elbowF.y);
           c.lineTo(_sj.handF.x, _sj.handF.y);
           c.stroke();
-          if (isRun) {   // running legs smear too, or the gait reads soft
+          if (isRun) {
             c.beginPath();
             c.moveTo(_sj.hip.x, _sj.hip.y);
             c.lineTo(_sj.kneeF.x, _sj.kneeF.y);
@@ -1084,13 +1042,13 @@
         }
         c.restore();
       }
-      _smearAmt = 0;   // legacy smear off — the rig version above replaces it
+      _smearAmt = 0;
     }
 
     if (_smearAmt > 0.05 && !_reflPass) {
       c.save(); c.shadowBlur = 0;
       for (var _sm = 1; _sm <= 2; _sm++) {
-        var _sd = _sm * (isAttack ? 0.16 : 0.42);      // radians behind the live pose
+        var _sd = _sm * (isAttack ? 0.16 : 0.42);
         c.globalAlpha = _a * _smearAmt * (0.26 / _sm);
         c.lineWidth = 4.2 - _sm * 0.7;
         var _sa = laAng + Math.PI - _sd * facing;
@@ -1101,8 +1059,7 @@
     }
 
     if (_rig) {
-      // Rig path: back arm first (darker, nudged back) so the front arm reads in
-      // front of the torso and the silhouette stays readable.
+      // Rig path: back arm first (darker) so the front arm reads in front of the torso.
       var _bo = -facing * 2.2;
       c.save();
       c.strokeStyle = _backCol; c.shadowBlur = 0;
@@ -1116,11 +1073,10 @@
       _limb(raAng, x);
     }
 
-    // Legs
     var legLen  = isKneel ? 22 : (isCrouch ? 20 : 30);
 
     if (_rig) {
-      // Rig path. Back leg first, darker, same silhouette reasoning as the arms.
+      // Rig path: back leg first, darker, same reasoning as the arms.
       var _lo = -facing * 2.0;
       c.save();
       c.strokeStyle = _backCol; c.shadowBlur = 0;
@@ -1132,8 +1088,7 @@
       c.lineTo(_rig.footB.x+_lo + facing * 6, _rig.footB.y + 1.5); c.stroke();
       c.restore();
       _bone(_rig.hip, _rig.kneeF, _rig.footF, 5.0, 3.6);
-      // Feet: a short bone off the ankle along facing. Without them the legs end
-      // in points and the figure reads as floating no matter how good the pose is.
+      // Feet are a short bone along facing. Without them legs end in points and the figure reads as floating.
       c.lineWidth = 3.0;
       c.beginPath(); c.moveTo(_rig.footF.x, _rig.footF.y);
       c.lineTo(_rig.footF.x + facing * 6, _rig.footF.y + 1.5); c.stroke();
@@ -1152,9 +1107,7 @@
       var legSwing = isHit  ? Math.sin(t*0.15)*8 :
                      isFall ? 10 * facing        :
                      Math.sin(t*0.038)*2.5;
-      // Standing legs, tapered and footed to match the gait. The weight sits on
-      // whichever leg the sway is currently over, so a standing figure has a
-      // supporting side rather than two identical props.
+      // Standing weight goes on the leg the sway is over, so a standing figure has a supporting side.
       for (var _lg = 0; _lg < 2; _lg++) {
         var _sgn = _lg ? 1 : -1;
         var _kx  = hipX + _sgn * 9 + legSwing * -_sgn;
@@ -1180,12 +1133,10 @@
     var thighAng = Math.PI * 0.5 - sw * amp * facing;
     var kx = hx + Math.cos(thighAng) * thigh;
     var ky = hy + Math.sin(thighAng) * thigh;
-    // Knee bends hardest while the leg swings forward (recovery), extends at contact
+    // Knee bends hardest in recovery and extends at contact.
     var bendK = Math.max(0, Math.cos(phase) * facing);
     var bend  = (0.12 + bendK * 0.95) * amp * 1.35;
-    // The shin LAGS the thigh — a knee does not arrive with the hip. This is
-    // overlapping action on the leg, and it is what stops the gait reading as a
-    // pair of scissors opening and closing.
+    // The shin lags the thigh. Without that, the gait reads as scissors.
     var shinAng = thighAng + bend * facing + Math.sin(phase - 0.55) * 0.10 * facing;
     var fx = kx + Math.cos(shinAng) * shin, fy = ky + Math.sin(shinAng) * shin;
     // Thigh heavier than shin, same taper as the arms.
@@ -1194,9 +1145,8 @@
     c.beginPath(); c.moveTo(hx, hy); c.lineTo(kx, ky); c.stroke();
     c.lineWidth = 3.6;
     c.beginPath(); c.moveTo(kx, ky); c.lineTo(fx, fy); c.stroke();
-    // Foot: rolls flat at contact, points through the swing. Feet are the whole
-    // reason a walk reads as weight rather than sliding.
-    var plant = Math.max(0, -Math.cos(phase) * facing);   // 1 at contact, 0 mid-swing
+    // Foot rolls flat at contact and points through the swing. That is what makes a walk read as weight.
+    var plant = Math.max(0, -Math.cos(phase) * facing);
     c.lineWidth = 3.0;
     c.beginPath(); c.moveTo(fx, fy);
     c.lineTo(fx + facing * (3 + plant * 5), fy + (1 - plant) * -2.5 + plant * 1.5);
@@ -1204,7 +1154,6 @@
     c.lineWidth = _lw;
   }
 
-  // ── Speech bubble + caption ───────────────────────────────────────────────────
   function _drawBubble(c, anchorX, anchorY, text, color, typedLen, maxW, tailSide) {
     var shown=text.slice(0,typedLen); var pad=17,fSize=15,lineH=23;
     c.font=fSize+'px \'Segoe UI\', Arial, sans-serif';
@@ -1225,12 +1174,7 @@
     for (var li=0;li<wrLines.length;li++) { c.fillText(wrLines[li],bx+pad,by+pad+fSize+li*lineH); }
   }
 
-  // ── ACT STYLE PACKS ────────────────────────────────────────────────────────────
-  // Per-act visual identity merged into every scene (docs/story-cinematics-plan.md
-  // Phase 1). Existing STORY_SCENE_SPECS inherit these with zero edits.
-  // Chapter→act mapping is by id runs (acts have no act field; ids overlap between
-  // act directories, so ranges are listed explicitly — keep in sync when adding
-  // chapters; unmapped ids warn once in the console).
+  // Per-act visual identity, merged into every scene. Chapter-to-act mapping is by explicit id ranges. Keep in sync when adding chapters; unmapped ids warn once.
   var STORY_ACT_IDS = {
     act0:   [[0, 12]],
     act1:   [[13, 27]],
@@ -1243,8 +1187,7 @@
     act4:   [[114, 130]],
     act7:   [[140, 155]],
   };
-  // grade: full-screen color wash; letterbox: default bar fraction when a beat
-  // doesn't set its own; captionTint: narrator bar color; motif: ambient signature.
+  // grade: full-screen wash. letterbox: default bar fraction. captionTint: narrator bar colour. motif: ambient signature.
   var STORY_ACT_STYLES = {
     act0:   { grade: 'rgba(255,180,90,0.07)',  letterbox: 0.06,  captionTint: 'rgba(30,18,4,0.74)',  motif: 'dust',     motifColor: '#ffd9a0' },
     act1:   { grade: 'rgba(0,200,220,0.06)',   letterbox: 0.085, captionTint: 'rgba(2,22,28,0.74)',  motif: 'shards',   motifColor: '#55ddee' },
@@ -1270,7 +1213,7 @@
     return null;
   }
 
-  // Deterministic per-index pseudo-random (no state — motifs replay identically)
+  // Deterministic per-index pseudo-random (no state, so motifs replay identically)
   function _mHash(i) { var r = Math.sin(i * 127.1 + 311.7) * 43758.5453; return r - Math.floor(r); }
 
   // Ambient act-signature motif, drawn inside the camera transform over the bg.
@@ -1279,7 +1222,7 @@
     var col = _actStyle.motifColor || '#ffffff';
     c.save();
     switch (_actStyle.motif) {
-      case 'dust': // warm drifting motes
+      case 'dust':
         c.fillStyle = col;
         for (var i = 0; i < 18; i++) {
           var r = _mHash(i);
@@ -1289,7 +1232,7 @@
           c.beginPath(); c.arc(x, y, 1.1 + r * 1.3, 0, Math.PI * 2); c.fill();
         }
         break;
-      case 'shards': // slowly tumbling fracture triangles drifting up
+      case 'shards':
         c.strokeStyle = col; c.lineWidth = 1;
         for (var i2 = 0; i2 < 10; i2++) {
           var r2 = _mHash(i2);
@@ -1302,13 +1245,13 @@
           c.restore();
         }
         break;
-      case 'grid': // faint architect grid with slow parallax drift
+      case 'grid':
         c.strokeStyle = col; c.lineWidth = 1; c.globalAlpha = 0.05;
         var gOff = (t * 0.12) % 64;
         for (var gx = -64 + gOff; gx < w + 64; gx += 64) { c.beginPath(); c.moveTo(gx, 0); c.lineTo(gx - 30, h); c.stroke(); }
         for (var gy = 32 + (t * 0.05) % 64; gy < h; gy += 64) { c.beginPath(); c.moveTo(0, gy); c.lineTo(w, gy); c.stroke(); }
         break;
-      case 'embers': // rising embers with flicker
+      case 'embers':
         c.fillStyle = col;
         for (var i3 = 0; i3 < 16; i3++) {
           var r3 = _mHash(i3);
@@ -1318,7 +1261,7 @@
           c.beginPath(); c.arc(x3, y3, 1 + r3 * 1.6, 0, Math.PI * 2); c.fill();
         }
         break;
-      case 'skybleed': { // pulsing colored bleed from the sky
+      case 'skybleed': {
         var sbGrad = c.createLinearGradient(0, 0, 0, h * 0.5);
         var sbA = 0.10 + 0.05 * Math.sin(t * 0.012);
         c.globalAlpha = sbA;
@@ -1326,10 +1269,10 @@
         c.fillStyle = sbGrad; c.fillRect(0, 0, w, h * 0.5);
         break;
       }
-      case 'tears': // brief vertical reality-tear flickers
+      case 'tears':
         c.strokeStyle = col; c.lineWidth = 1.6;
         for (var i4 = 0; i4 < 3; i4++) {
-          var cyc = (t + i4 * 217) % 260;             // each tear flickers ~1s every ~4.3s
+          var cyc = (t + i4 * 217) % 260;
           if (cyc > 26) continue;
           var r4 = _mHash(i4 + Math.floor((t + i4 * 217) / 260));
           var x4 = r4 * w, y4 = _mHash(i4 + 70) * h * 0.5 + h * 0.1;
@@ -1339,7 +1282,7 @@
           c.stroke();
         }
         break;
-      case 'panels': // floating construct rectangles, slow bob
+      case 'panels':
         c.strokeStyle = col; c.lineWidth = 1;
         for (var i5 = 0; i5 < 6; i5++) {
           var r5 = _mHash(i5);
@@ -1349,7 +1292,7 @@
           c.strokeRect(x5 - pw / 2, y5 - ph / 2, pw, ph);
         }
         break;
-      case 'rings': // kernel pulse rings expanding from upper center
+      case 'rings':
         c.strokeStyle = col; c.lineWidth = 1.4;
         for (var i6 = 0; i6 < 2; i6++) {
           var rp = ((t + i6 * 45) % 90) / 90;
@@ -1361,8 +1304,7 @@
     c.restore();
   }
 
-  // Parse an 'rgba(r,g,b,a)' / 'rgb(...)' tint into parts so the scrim can fade
-  // the SAME colour out to transparent instead of stopping at a hard edge.
+  // Splits an rgba()/rgb() tint so the scrim can fade the same colour to transparent.
   function _tintParts(css) {
     var m = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/.exec(css || '');
     if (!m) return { r: 0, g: 0, b: 0, a: 0.72 };
@@ -1371,13 +1313,11 @@
 
   function _drawCaption(c, w, h, text, typedLen) {
     var shown = text.slice(0, typedLen);
-    // Scale with viewport rather than a fixed 16px — on a 1440p screen the old
-    // caption was tiny relative to the frame.
+    // Scales with the viewport. A fixed 16px was tiny on large screens.
     var fSize = Math.max(16, Math.round(h * 0.0225));
     var lineH = Math.round(fSize * 1.55);
     var pad   = Math.round(fSize * 1.4);
-    // Shorter measure reads better than the old 0.74; long lines were the main
-    // reason this looked like a subtitle track rather than a title card.
+    // Shorter measure than before. Long lines made it look like a subtitle track.
     var maxW  = Math.min(w * 0.66, 980);
 
     c.save();
@@ -1391,11 +1331,7 @@
     if (cur) wrLines.push(cur);
 
     var totalH = wrLines.length * lineH + pad * 2;
-    // Placement. In cinematic mode the caption sits just above the lower
-    // letterbox, the way film subtitles do — the old FOOT_YF anchor put it
-    // straight through the subject's head, which only worked while the caption
-    // was an opaque bar hiding him. In the standard reader it stays where it was
-    // (the Next button owns the bottom of the frame there).
+    // Cinematic mode puts the caption above the lower letterbox. The standard reader keeps it where the Next button can own the bottom.
     var by;
     if (_cinMode) {
       var _bsL  = _getBeatSpec();
@@ -1407,19 +1343,13 @@
     }
     var _capA  = Math.min(1, _beatT / 12);
 
-    // ── Scrim ───────────────────────────────────────────────────────────────
-    // A flat filled rectangle is what made this read as a cheap subtitle bar.
-    // Use a vertical gradient of the act's own tint that fades to nothing above
-    // the text and carries down past the baseline, so the type sits in shadow
-    // rather than in a box.
+    // Scrim: vertical gradient of the act tint, fading out above the text so the type sits in shadow, not a box.
     var tp   = _tintParts((_actStyle && _actStyle.captionTint) || 'rgba(0,0,0,0.72)');
     var top  = by - fSize * 2.6;
     var bot  = Math.min(h, by + totalH + fSize * 2.2);
     var grd  = c.createLinearGradient(0, top, 0, bot);
     var rgb  = tp.r + ',' + tp.g + ',' + tp.b;
-    // The reader still has to MASK the figure standing behind the text, so it
-    // keeps a near-solid core; the cinematic caption sits below him and can stay
-    // airy. Both fade to nothing at the edges — that is what kills the "bar" look.
+    // The reader keeps a near-solid core to mask the figure behind the text. Both fade at the edges.
     var _core = _cinMode ? 0.82 : 1.0;
     grd.addColorStop(0,    'rgba(' + rgb + ',0)');
     grd.addColorStop(0.30, 'rgba(' + rgb + ',' + (tp.a * 0.78 * _core).toFixed(3) + ')');
@@ -1439,7 +1369,6 @@
     c.fillStyle = ruleG;
     c.fillRect(w * 0.5 - 90, by - 2, 180, 1.2);
 
-    // ── Type ────────────────────────────────────────────────────────────────
     if ('letterSpacing' in c) c.letterSpacing = '0.6px';
     c.globalAlpha = _capA;
     c.textAlign = 'center';
@@ -1463,14 +1392,133 @@
     c.fillText(label,w*0.5,by+28); c.textAlign='left'; c.restore();
   }
 
-  // ── Beat spec helper ──────────────────────────────────────────────────────────
+  // Kael's presence: the space around him grows with his power, 0..1 from the chapter id (none before id 13, 0.92+ for the Absolute form).
+  // A beat's power: override turns it off at 0.
+  function _kaelPower(bs) {
+    if (bs && typeof bs.power === 'number') return _clamp(bs.power, 0, 1);
+    if (_spec && typeof _spec.power === 'number') return _clamp(_spec.power, 0, 1);
+    var id = _chapter && _chapter.id;
+    if (typeof id !== 'number' || id < 13) return 0;
+    var p = 0.12 + 0.88 * Math.pow(_clamp((id - 13) / 172, 0, 1), 0.85);
+    return id >= 152 ? Math.max(p, 0.92) : p;
+  }
+  var _PRES_STATE = { kneel: 0.45, crouch: 0.5, hit: 0.45, fall: 0.5, stance: 1.15, attack: 1.2, brace: 1.1, run: 1.05 };
+  var _presK = 0.8;
+  function _drawKaelPresence(c, x, gy, by, t, P, state, alpha, s) {
+    _presK += ((_PRES_STATE[state] || 0.8) - _presK) * 0.05;
+    var K = _presK * alpha;
+    if (K <= 0.01) return;
+    function sm(a, b) { var u = _clamp((P - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); }
+    function fr(v) { return v - Math.floor(v); }
+    var R = (85 + 215 * P) * s;
+    var cr = Math.round(80 + 120 * sm(0.5, 1)), cg = Math.round(150 + 75 * sm(0.5, 1));
+    var col = function (a) { return 'rgba(' + cr + ',' + cg + ',255,' + Math.max(0, Math.min(1, a)).toFixed(3) + ')'; };
+    var i, u, h1, h2, h3;
+    c.save();
+
+    var debris = sm(0.28, 0.5), cracks = sm(0.42, 0.65), ripple = sm(0.58, 0.8), far = sm(0.78, 0.98);
+
+    // Streaks falling toward him, the frame leaning in.
+    if (far > 0) {
+      c.globalCompositeOperation = 'lighter';
+      c.lineCap = 'round';
+      for (i = 0; i < 34; i++) {
+        h1 = _mHash(i + 500); h2 = _mHash(i + 540); h3 = _mHash(i + 580);
+        u = fr(t * (0.0016 + 0.0016 * h2) + h3);
+        var ang = h1 * Math.PI * 2, r1 = R * (3.6 - 2.0 * u), len = (50 + 110 * h2) * s;
+        c.strokeStyle = col(Math.sin(Math.PI * u) * 0.34 * K * far);
+        c.lineWidth = 1.4 * s;
+        c.beginPath();
+        c.moveTo(x + Math.cos(ang) * r1, by + Math.sin(ang) * r1 * 0.7);
+        c.lineTo(x + Math.cos(ang) * (r1 - len), by + Math.sin(ang) * (r1 - len) * 0.7);
+        c.stroke();
+      }
+    }
+
+    // Ripples in the air around his body.
+    if (ripple > 0) {
+      c.globalCompositeOperation = 'lighter';
+      for (i = 0; i < 3; i++) {
+        u = fr(t * 0.0035 + i / 3);
+        var rr = R * (0.35 + 1.25 * u);
+        c.strokeStyle = col((1 - u) * 0.20 * K * ripple);
+        c.lineWidth = (1 + 1.5 * (1 - u)) * s;
+        c.beginPath(); c.ellipse(x, by, rr, rr * 0.92, 0, 0, Math.PI * 2); c.stroke();
+      }
+    }
+
+    // Pool of light on the floor.
+    c.globalCompositeOperation = 'lighter';
+    c.save();
+    c.translate(x, gy + 5 * s); c.scale(1, 0.20);
+    var pg = c.createRadialGradient(0, 0, 0, 0, 0, R);
+    pg.addColorStop(0,   col(0.34 * K * (0.75 + 0.25 * P)));
+    pg.addColorStop(0.5, col(0.11 * K * (0.75 + 0.25 * P)));
+    pg.addColorStop(1,   col(0));
+    c.fillStyle = pg; c.beginPath(); c.arc(0, 0, R, 0, Math.PI * 2); c.fill();
+    c.restore();
+
+    // The floor gives: glowing hairline cracks running out from under him.
+    if (cracks > 0) {
+      c.lineWidth = 1.3 * s; c.lineJoin = 'round';
+      c.strokeStyle = col(0.55 * K * cracks);
+      for (i = 0; i < 8; i++) {
+        h1 = _mHash(i + 300); h2 = _mHash(i + 340);
+        var dir = i % 2 ? 1 : -1, L = R * (0.45 + 0.75 * h1) * cracks;
+        var px = x + dir * 6 * s, py = gy + (4 + 9 * h2) * s;
+        c.beginPath(); c.moveTo(px, py);
+        for (var k = 1; k <= 5; k++) {
+          px += dir * L / 5;
+          py += (_mHash(i * 7 + k + 360) - 0.5) * 5 * s;
+          c.lineTo(px, py);
+        }
+        c.stroke();
+      }
+    }
+
+    // Dust lifting off the ground.
+    var n = Math.floor(10 + 40 * P);
+    for (i = 0; i < n; i++) {
+      h1 = _mHash(i + 100); h2 = _mHash(i + 140); h3 = _mHash(i + 180);
+      u = fr(t * (0.004 + 0.006 * h2) + h3);
+      c.fillStyle = col(Math.sin(Math.PI * u) * 0.75 * K);
+      var ms = (0.8 + 1.6 * h3) * s;
+      c.fillRect(x + (h1 - 0.5) * 1.8 * R - ms / 2, gy - u * (40 + 220 * P) * s, ms, ms);
+    }
+
+    // Loose debris hanging in the air, each piece with its shadow left on the floor.
+    if (debris > 0) {
+      c.globalCompositeOperation = 'source-over';
+      var dn = Math.floor(3 + 9 * P);
+      for (i = 0; i < dn; i++) {
+        h1 = _mHash(i + 200); h2 = _mHash(i + 240); h3 = _mHash(i + 280);
+        var dx = x + (i % 2 ? 1 : -1) * (0.22 + 0.72 * h1) * R;
+        var hov = ((10 + 70 * P * h2) * debris + Math.sin(t * 0.021 + i * 1.9) * 3) * s;
+        var ds = (2.2 + 3.4 * h3) * s, rot = h3 * 6.28 + t * 0.004 * (h2 - 0.5);
+        c.fillStyle = 'rgba(0,0,0,' + (0.22 * K * debris).toFixed(3) + ')';
+        c.beginPath(); c.ellipse(dx, gy + 6 * s, ds * 1.3, ds * 0.35, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath();
+        for (var v = 0; v < 4; v++) {
+          var va = rot + v * Math.PI / 2, vr = ds * (0.7 + 0.6 * _mHash(i * 5 + v + 420));
+          if (v === 0) c.moveTo(dx + Math.cos(va) * vr, gy - hov + Math.sin(va) * vr);
+          else c.lineTo(dx + Math.cos(va) * vr, gy - hov + Math.sin(va) * vr);
+        }
+        c.closePath();
+        c.fillStyle = 'rgba(10,14,22,' + (0.9 * K * debris).toFixed(3) + ')'; c.fill();
+        c.strokeStyle = col(0.5 * K * debris); c.lineWidth = 0.9 * s; c.stroke();
+      }
+    }
+    c.restore();
+  }
+
   function _getBeatSpec() {
     if (!_spec || !_spec.beats) return null;
     var _bi = _beatIdx + ((_chapter && _chapter._sceneBeatOffset) || 0);
     return _spec.beats[_bi] || _spec.beats[_spec.beats.length-1] || null;
   }
 
-  // ── Effect dispatcher ─────────────────────────────────────────────────────────
+  var _FX_AMBIENT = { speedlines:1, static_noise:1, fragment_pulse:1, portal:1, multi_portals:1, sky_bleed:1,
+                      fire_glow:1, smoke:1, echo_text:1, phone:1, objective_marker:1 };
   function _drawBeatEffects(effects, c, w, h, footY, t, bt, pX, nX) {
     for (var i = 0; i < effects.length; i++) {
       var ef = effects[i];
@@ -1481,17 +1529,18 @@
       var raw    = ef.alpha !== undefined ? ef.alpha : 1;
       var alpha  = raw;
       if (ef.fadeIn) alpha *= Math.min(1, (bt-sf)/ef.fadeIn);
+      // Ambient effects run to the end of the beat unless given a duration.
+      if (ef.duration && _FX_AMBIENT[ef.type]) {
+        if (bt > sf + ef.duration) continue;
+        alpha *= Math.min(1, (sf + ef.duration - bt) / 10);
+      }
 
       switch (ef.type) {
         case 'portal':
           _drawPortal(c, (ef.xf!==undefined?ef.xf:ef.cx||0.5)*w, (ef.yf!==undefined?ef.yf:ef.cy||0.5)*h, (ef.height||0.45)*h, ef.color||'#aa44ff', alpha, localT);
           break;
         case 'multi_portals': {
-          // Two authoring conventions exist in STORY_SCENE_SPECS: an explicit
-          // `portals: [...]` array, and a bare `count: N`. Only the array was
-          // ever implemented, so every `count:` spec threw
-          // "Cannot read properties of undefined (reading 'length')" from inside
-          // the draw loop. Support both, and treat neither as a no-op.
+          // Support both `portals: [...]` and a bare `count: N`. Only the array was ever implemented.
           var _mp = ef.portals;
           if (!_mp && ef.count > 0) {
             _mp = [];
@@ -1507,7 +1556,7 @@
           break;
         }
         case 'sky_cracks':
-          _drawSkyCracks(c,w,h,ef.progress!==undefined?ef.progress:Math.min(1,(bt-sf)/60),localT);
+          _drawSkyCracks(c,w,h,ef.progress!==undefined?ef.progress:Math.min(1,(bt-sf)/(ef.spreadFrames||60)),localT);
           break;
         case 'fire_glow':
           _drawFireGlow(c,w,h,alpha*(ef.intensity||1),localT);
@@ -1519,10 +1568,10 @@
           _drawFragmentPulse(c,pX,footY,ef.color||'#4488ff',localT);
           break;
         case 'door':
-          _drawDoor(c,ef.xf*w,ef.yf*h,ef.w2*w,ef.h2*h,ef.crack||0,localT);
+          _drawDoor(c,ef.xf*w,ef.yf*h,(ef.w2||0.09)*w,(ef.h2||0.40)*h,ef.crack||0,localT);
           break;
         case 'door_opening':
-          _drawDoor(c,ef.xf*w,ef.yf*h,ef.w2*w,ef.h2*h,Math.min(1,(bt-sf)/(ef.openFrames||40)),localT);
+          _drawDoor(c,ef.xf*w,ef.yf*h,(ef.w2||0.09)*w,(ef.h2||0.40)*h,Math.min(1,(bt-sf)/(ef.openFrames||40)),localT);
           break;
         case 'cache_items':
           _drawCacheItems(c,w,h,alpha,localT);
@@ -1575,7 +1624,6 @@
     }
   }
 
-  // ── Main render loop ───────────────────────────────────────────────────────────
   function _render() {
     if (!_canvas) return;
     _t++; _beatT++;
@@ -1599,15 +1647,14 @@
       _ctx.save(); _ctx.translate(_twP * w * 0.30, 0);
     }
 
-    // ── Scene (inside camera transform) ─────────────────────────────────────────
     _camBegin(_ctx, w, h);
 
-    // Background
     var theme = (bs && bs.bg) ? bs.bg : (_spec && _spec.bg) ? _spec.bg : _getTheme(_chapter);
-    // A chapter with an authored map plays its scenes in that map unless a beat
-    // or spec points at another level explicitly.
+    // A chapter with an authored map plays in that map, unless a beat names another level.
     var _lvScene = (typeof storyLevelSceneSpec === 'function') ? storyLevelSceneSpec(_chapter) : null;
     if (_lvScene && !(bs && bs.bg) && theme !== 'level') { theme = 'level'; if (!(_spec && _spec.level)) bs = Object.assign({}, bs || {}, { level: _lvScene }); }
+    var _lvSpec = (bs && bs.level) || (_spec && _spec.level);
+    if (_lvSpec) _lvSpec.t = _beatT;
     if (bs && bs.warp) { _ctx.save(); var wave=Math.sin(_t*0.04)*bs.warp; _ctx.transform(1,wave*0.01,wave*0.008,1,0,0); }
     switch(theme) {
       case 'city':     _drawCityBg(_ctx,w,h,_t,bs&&bs.cityOpts); break;
@@ -1619,7 +1666,7 @@
     }
     if (bs && bs.warp) _ctx.restore();
 
-    // Act-signature ambient motif (style pack — over bg, under everything else)
+    // Act-signature ambient motif (style pack, over bg, under everything else)
     _drawActMotif(_ctx, w, h, _t, footY);
 
     if (!beat) { _camEnd(_ctx); if (_twActive) _ctx.restore(); _finish(); return; }
@@ -1630,7 +1677,13 @@
     // Extra background figures
     if (bs && bs.extraFigures) {
       for (var ei=0;ei<bs.extraFigures.length;ei++) {
-        var ef=bs.extraFigures[ei]; _drawFigure(_ctx,ef.xf*w,footY,ef.color||'#887766',ef.facing||1,ef.state||'idle',_t+ei*17,ef.alpha||0.55,(ef.scale||1)*_figScale());
+        var ef=bs.extraFigures[ei];
+        // `pos` takes playerPos keyframes, so a crowd can march in and break formation.
+        var efa = ef.pos ? _getFigAnim(ef.pos, _beatT) : null;
+        if (efa && efa.show === false) continue;
+        _figKey='x'+ei;
+        _drawFigure(_ctx,(efa&&efa.x!==undefined?efa.x:ef.xf)*w,footY+(efa?(efa.arcY||0)+(efa.y||0)*h:0),ef.color||'#887766',(efa&&efa.facing)||ef.facing||1,(efa&&efa.state)||ef.state||'idle',_t+ei*17,efa&&efa.alpha!==undefined?efa.alpha:(ef.alpha||0.55),((efa&&efa.scale)||ef.scale||1)*_figScale());
+        _figKey=null;
       }
     }
 
@@ -1638,7 +1691,7 @@
     var pCfg = _resolveFig('player', bs, beat);
     var nCfg = _resolveFig('npc',    bs, beat);
 
-    // Ground reflections — figures mirrored below the foot line, squashed + faint
+    // Ground reflections: figures mirrored below the foot line, squashed and faint
     var _fy2 = footY + 14;
     _reflPass = true;
     _ctx.save();
@@ -1648,8 +1701,13 @@
     _ctx.restore();
     _reflPass = false;
 
+    var _kp = pCfg.show ? _kaelPower(bs) : 0;
+    if (_kp > 0) _drawKaelPresence(_ctx, pCfg.x, footY, footY + (pCfg.arcY||0) - 46*_figScale(), _t, _kp, pCfg.state, pCfg.alpha, _figScale());
+    _figKey = 'p';
     if (pCfg.show) _drawFigure(_ctx, pCfg.x, footY + (pCfg.arcY||0), '#4488ff', pCfg.facing, pCfg.state, _t, pCfg.alpha, (pCfg.scale||1)*_figScale(), pCfg.expr);
+    _figKey = 'n';
     if (nCfg.show) _drawFigure(_ctx, nCfg.x, footY + (nCfg.arcY||0), nCfg.color, nCfg.facing, nCfg.state, _t, nCfg.alpha, (nCfg.scale||1)*_figScale(), nCfg.expr);
+    _figKey = null;
 
     // Effects in front of figures
     if (bs && bs.effects) _drawBeatEffects(bs.effects,_ctx,w,h,footY,_t,_beatT,_pX(),_nX());
@@ -1667,17 +1725,14 @@
       _ctx.restore();
     }
 
-    // ── Screen-space overlays (no camera transform) ──────────────────────────────
-    // Act color grade — subtle full-screen wash unifying the act's look
+    // Act color grade: subtle full-screen wash unifying the act's look
     if (_actStyle && _actStyle.grade) {
       _ctx.save(); _ctx.fillStyle = _actStyle.grade; _ctx.fillRect(0, 0, w, h); _ctx.restore();
     }
     // Cinematic post pass: vignette + animated film grain
     _drawVignette(_ctx, w, h);
     if (_cinMode) {
-      // Second, tighter vignette + a low horizon bloom. Cheap, and it is most of
-      // the difference between "a drawing" and "a shot" — the eye gets pushed to
-      // the middle of the frame and the ground plane picks up some air.
+      // A tighter second vignette and a low horizon bloom. Most of what makes it read as a shot, not a drawing.
       _ctx.save();
       var vg2 = _ctx.createRadialGradient(w*0.5, h*0.46, Math.min(w,h)*0.30,
                                           w*0.5, h*0.46, Math.max(w,h)*0.78);
@@ -1697,14 +1752,11 @@
     var _lbRaw = (bs && bs.letterbox !== undefined) ? bs.letterbox : (_actStyle && _actStyle.letterbox);
     if (_lbRaw) {
       var lbh = (typeof _lbRaw === 'number' ? _lbRaw : 0.085) * h;
-      // In cinematic mode the bars slide in over the first ~0.4s rather than
-      // being present on frame 1 — the frame opening up is what reads as "a film
-      // is starting" instead of "a text box appeared".
+      // Bars slide in over the first ~0.4s, so the frame opens up instead of appearing.
       if (_cinMode) lbh *= _ease(_clamp(_t / 26, 0, 1));
       _ctx.fillStyle='#000000';
       _ctx.fillRect(0,0,w,lbh); _ctx.fillRect(0,h-lbh,w,lbh);
-      // A hairline of light along the inner edge stops the bars reading as
-      // "canvas ends here" and gives the frame a defined edge.
+      // A hairline of light on the inner edge, so the bars don't read as the canvas ending.
       if (lbh > 1) {
         _ctx.save(); _ctx.globalAlpha = 0.10; _ctx.fillStyle = '#ffffff';
         _ctx.fillRect(0, lbh - 1, w, 1); _ctx.fillRect(0, h - lbh, w, 1);
@@ -1732,10 +1784,9 @@
       }
     }
 
-    // ── HUD (typewriter text, chapter label, dots, button) ──────────────────────
     var totalText = beat.lines.join(' ');
     var now = performance.now();
-    _ffUpdate();   // before the typewriter, so a scrub speeds typing on the same frame
+    _ffUpdate();
     if (_typedLen < totalText.length) {
       var add = Math.floor((now - _lastTypeTime) / (TYPEWRITE_MS / (_ffHeld ? FF_RATE : 1)));
       if (add > 0) { _typedLen = Math.min(totalText.length, _typedLen+add); _lastTypeTime=now; }
@@ -1745,13 +1796,17 @@
     var bMaxW = Math.min(280, w*0.36);
     var headYoff = footY - (72 + 13) * _figScale() - 26;
     var resolvedPX = _pX(), resolvedNX = _nX();
+    // Bubbles are screen space, so the speaker's position goes through the camera first.
+    function _camX(x) { return _clamp(_cam.cx * w + (x - _cam.cx * w) * _cam.zoom, 40, w - 40); }
+    var _headTop = footY - (72 + 13) * _figScale();
+    headYoff = Math.max(h * 0.30, _cam.cy * h + (_headTop - _cam.cy * h) * _cam.zoom - 26);
 
     if (beat.hasQuote) {
       if (beat.speaker === 'player') {
-        _drawBubble(_ctx, resolvedPX, headYoff, totalText, '#4488ff', _typedLen, bMaxW, 'left');
+        _drawBubble(_ctx, _camX(resolvedPX), headYoff, totalText, '#4488ff', _typedLen, bMaxW, 'left');
       } else {
         var bubX = (bs && bs.bubbleX !== undefined) ? w*bs.bubbleX : resolvedNX;
-        _drawBubble(_ctx, bubX, headYoff, totalText, npcColor, _typedLen, bMaxW, 'right');
+        _drawBubble(_ctx, _camX(bubX), headYoff, totalText, npcColor, _typedLen, bMaxW, 'right');
       }
     } else {
       _drawCaption(_ctx, w, h, totalText, _typedLen);
@@ -1765,21 +1820,8 @@
     var done = _typedLen >= totalText.length;
 
     if (_cinMode) {
-      // ── Cinematic chrome ────────────────────────────────────────────────────
-      // Auto-advance once the line has finished and held.
-      //
-      // The hold is a READING-RATE budget, not a flat pause. The old curve was
-      // `_cinHold + min(150, len*1.1)`, which was backwards at both ends: the flat
-      // floor gave a 16-char beat 1.7s (9 cps — twice as long as anyone needs, and
-      // the main source of drag), while the 150-frame cap meant everything past
-      // ~136 chars got the SAME hold, so a 383-char beat ran at 42 cps and could
-      // not be read at all. Now every beat targets ~CIN_CPS characters per second
-      // of total on-screen time (typing included), with a floor so a one-word beat
-      // still registers and a cap so a single overlong card cannot stall the film.
-      // A single-chapter cutscene ends by handing the player the controller: it
-      // holds on the last beat and shows the ordinary Fight!/Continue button
-      // rather than auto-firing into the match. A multi-chapter RUN passes this
-      // off, because eleven buttons would break the one-film conceit.
+      // Auto-advance once the line has finished and held. The hold is a reading-rate budget of ~CIN_CPS chars per second, with a floor and a cap.
+      // A single-chapter cutscene holds on the last beat and shows the normal action button. A multi-chapter run passes that off.
       var _isLastBeat = _beatIdx >= _beats.length - 1;
       if (done && _cinHoldEnd && _isLastBeat) {
         var _lbLast = _chapter && _chapter.noFight ? 'Continue →' : '⚔️  Fight!';
@@ -1792,18 +1834,14 @@
         if (_autoT >= hold) {
           _autoT = 0;
           _advance();
-          // _advance can end the scene (last beat -> _finish -> _cleanup), which
-          // nulls _ctx and cancels the rAF. Unlike the click path, we are INSIDE
-          // _render here, so the rest of this frame would draw into a dead
-          // context. Bail out of the frame instead.
+          // _advance can end the scene and null _ctx. We are inside _render, so bail out of this frame.
           if (!_canvas || !_ctx) return;
         }
       } else {
         _autoT = 0;
       }
 
-      // Progress bar across the whole sequence (beat dots are unreadable at
-      // 100+ beats). _cinProg is supplied by the multi-chapter runner.
+      // Progress bar across the sequence. Beat dots are unreadable at 100+ beats.
       var frac;
       if (_cinProg && _cinProg.total > 0) {
         frac = (_cinProg.done + (_beatIdx + 1) / Math.max(1, _beats.length)) / _cinProg.total;
@@ -1816,7 +1854,7 @@
       _ctx.fillStyle = 'rgba(255,255,255,0.12)'; _ctx.fillRect(barX, barY, barW, 2);
       _ctx.fillStyle = _ffHeld ? 'rgba(255,236,190,0.95)' : 'rgba(255,204,136,0.75)';
       _ctx.fillRect(barX, barY, barW * frac, _ffHeld ? 3 : 2);
-      // Scrub readout — the bar thickening alone is too quiet to explain itself.
+      // Scrub readout. The bar thickening alone is too quiet to explain itself.
       if (_ffHeld) {
         _ctx.globalAlpha = 0.8; _ctx.fillStyle = '#ffecbe';
         _ctx.font = 'bold 10px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign = 'left';
@@ -1825,10 +1863,7 @@
       }
       _ctx.restore();
 
-      // SKIP control — the only thing that ends the sequence. A click anywhere
-      // else still nudges to the next beat, so impatience and exit are separate.
-      // Suppressed once we are holding on the final beat: there is nothing left
-      // to skip, and the action button is the only thing that should read as live.
+      // SKIP ends the sequence. Other clicks only advance a beat. Hidden on the final beat, where the action button is the only live control.
       if (_cinHoldEnd && _isLastBeat && done) { _skipRect = null; }
       else {
       _ctx.save();
@@ -1841,8 +1876,7 @@
       _ctx.fillText('Skip  ▸▸', sx2 + sw2 / 2, sy2 + 19);
       _ctx.globalAlpha = 0.26; _ctx.fillStyle = '#aabbcc'; _ctx.font = '10px \'Segoe UI\', Arial, sans-serif';
       _ctx.fillText('Esc', sx2 + sw2 / 2, sy2 - 6);
-      // Fast-forward affordance. Shown only for the first stretch of the sequence:
-      // once the viewer knows the control it is just clutter over the film.
+      // Fast-forward hint, shown only at the start of the sequence.
       if (!_ffHeld && (!_cinProg || _cinProg.done < 1) && _beatIdx < 2) {
         _ctx.globalAlpha = 0.22;
         _ctx.fillText('hold to fast-forward', sx2 + sw2 / 2, sy2 + sh2 + 13);
@@ -1850,15 +1884,12 @@
       _ctx.textAlign = 'left'; _ctx.restore();
       }
     } else {
-      // ── Standard reader chrome (unchanged) ──────────────────────────────────
       _skipRect = null;
-      // Progress dots
       if (_beats.length > 1) {
         var dotR=4,dotGap=12,dotY=30,totalDW=_beats.length*(dotR*2+dotGap)-dotGap,dotX0=w-18-totalDW;
         for (var di=0;di<_beats.length;di++) { _ctx.beginPath(); _ctx.arc(dotX0+di*(dotR*2+dotGap)+dotR,dotY,dotR,0,Math.PI*2); _ctx.fillStyle=di===_beatIdx?'#ffcc88':'rgba(255,200,100,0.28)'; _ctx.fill(); }
       }
 
-      // Button
       if (done) { var isLast=_beatIdx>=_beats.length-1; _drawBtn(_ctx,w,h,isLast?(_chapter&&_chapter.noFight?'Continue →':'⚔️  Fight!'):'Next →'); }
       else { _ctx.save(); _ctx.globalAlpha=0.30; _ctx.fillStyle='#aabbcc'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign='center'; _ctx.fillText('click or press any key to skip',w*0.5,h*0.97); _ctx.textAlign='left'; _ctx.restore(); }
     }
@@ -1882,7 +1913,6 @@
     var isPlayer = who === 'player';
     var npcColor = (bs && bs.npcColor) ? bs.npcColor : (_spec && _spec.npcColor) ? _spec.npcColor : (_chapter && _chapter.opponentColor) || '#cc7733';
 
-    // Animated keyframe path
     var posArr = bs && (isPlayer ? bs.playerPos : bs.npcPos);
     if (posArr) {
       var fa = _getFigAnim(posArr, _beatT) || {};
@@ -1893,13 +1923,12 @@
         alpha:  fa.alpha  !== undefined ? fa.alpha  : 1,
         scale:  fa.scale  || 1,
         show:   fa.show   !== false,
-        arcY:   fa.arcY   || 0,
+        arcY:   (fa.arcY || 0) + (fa.y || 0) * _canvas.height,
         color:  isPlayer ? '#4488ff' : npcColor,
         expr:   fa.expr || (isPlayer ? (bs && bs.playerExpr) : (bs && bs.npcExpr)) || 'neutral',
       };
     }
 
-    // Static spec path
     var w = _canvas.width;
     if (isPlayer) {
       var defState = beat.speaker==='player' ? 'talk' : (beat.speaker==='npc' ? 'listen' : 'idle');
@@ -1927,15 +1956,13 @@
     }
   }
 
-  // ── Beat entry: transition + audio sting (plan Phase 2) ────────────────────────
-  // Beat spec fields: transition: 'fade' | 'slam' | 'whip' | 'none' (default 'fade');
-  // sting: 'low' | 'rise' | 'impact' | 'silence'.
+  // Beat transition and audio sting. transition: fade | slam | whip | none (default fade). sting: low | rise | impact | silence.
   var _TRANS_DUR = { fade: 14, slam: 8, whip: 11 };
   function _beatEnter(isFirst) {
     var bs = _getBeatSpec();
     var tType = (bs && bs.transition !== undefined) ? bs.transition : 'fade';
     if (isFirst && (!bs || bs.transition === undefined)) {
-      _trans = { type: 'fade', t: 0, dur: 22 };           // scene opens from black
+      _trans = { type: 'fade', t: 0, dur: 22 };
     } else if (_TRANS_DUR[tType]) {
       _trans = { type: tType, t: 0, dur: _TRANS_DUR[tType] };
     } else {
@@ -1947,13 +1974,12 @@
       if      (sting === 'low'     && SoundManager.stingLow)    SoundManager.stingLow();
       else if (sting === 'rise'    && SoundManager.stingRise)   SoundManager.stingRise();
       else if (sting === 'impact'  && SoundManager.stingImpact) SoundManager.stingImpact();
-      else if (sting === 'silence') SoundManager._cosmicSilenceTimer = 50; // anticipation hush
+      else if (sting === 'silence') SoundManager._cosmicSilenceTimer = 50;
     }
     var _vb = _beats[_beatIdx];
     if (_vb && window.StoryVoice) StoryVoice.speak(_vb.lines.join(' '), _vb.speaker);
   }
 
-  // ── Advance / finish ───────────────────────────────────────────────────────────
   function _advance() {
     var beat = _beats[_beatIdx]; if(!beat){_finish();return;}
     var total = beat.lines.join(' ');
@@ -1966,10 +1992,7 @@
 
   function _finish() { _cleanup(); if(_callback){var cb=_callback;_callback=null;cb();} }
 
-  // ── Gameplay hold ──────────────────────────────────────────────────────────
-  // Paired with gameLoop()'s `_storySceneHold` check. Held keys are dropped on
-  // both edges: a key pressed to advance a beat must not also be down when the
-  // match resumes, and a key held when the scene opened must not resume live.
+  // Pairs with gameLoop()'s _storySceneHold check. Held keys are dropped on both edges.
   function _holdBegin() {
     if (typeof storyHoldGameplay === 'function') storyHoldGameplay(true);
     else window._storySceneHold = true;
@@ -1978,9 +2001,7 @@
     if (!window._storySceneHold) return;
     if (typeof storyHoldGameplay === 'function') storyHoldGameplay(false);
     else window._storySceneHold = false;
-    // No loop restart here on purpose: gameLoop parks by re-queueing itself (the
-    // same way `paused` does), so the rAF chain is never broken and a second
-    // chain can never be started by a scene that opens on top of another.
+    // No loop restart here: gameLoop re-queues itself like `paused`, so the rAF chain is never broken or duplicated.
   }
 
   function _cleanup() {
@@ -1997,16 +2018,12 @@
     }
     _spec=null; _beatT=0; _cam.zoom=1; _cam.cx=0.5; _cam.cy=0.5;
     _shakeStr=0; _flashAlpha=0; _trans=null;
-    // Cinematic flags are per-invocation: a leaked _cinMode would turn every
-    // ordinary chapter narrative into an auto-advancing reel.
+    // Cinematic flags are per invocation, so a leaked _cinMode can't turn a normal narrative into an auto-advancing reel.
     _cinMode=false; _autoT=0; _onSkip=null; _skipRect=null; _cinLabel=null; _cinProg=null;
     _ffHeld=false; _ptrAt=0; _keyFF=false; _cinHoldEnd=false;
   }
 
-  // Skipping ends the WHOLE sequence, which is different from advancing a beat.
-  // The caller gets onSkip if it supplied one (so a multi-chapter runner can jump
-  // to the end state and still award/complete everything it was going to), else
-  // the normal callback so the flow continues exactly as if it had played out.
+  // Skip ends the whole sequence. onSkip (if given) jumps to the end state; otherwise the normal callback runs.
   function _skipAll() {
     var skip = _onSkip, cb = _callback;
     _onSkip = null; _callback = null;
@@ -2014,10 +2031,7 @@
     if (skip) skip(); else if (cb) cb();
   }
 
-  // Hold-to-fast-forward. A viewer who has read the line needs something between
-  // waiting and Skip (which ends the entire sequence), so holding the pointer or
-  // Space scrubs at FF_RATE. FF_ARM_MS keeps an ordinary click — which still
-  // advances one beat — from registering as a scrub.
+  // Hold to fast-forward. FF_ARM_MS keeps an ordinary click, which advances one beat, from counting as a scrub.
   var FF_ARM_MS = 160;
   function _ffUpdate() {
     _ffHeld = _cinMode && (_keyFF || (_ptrAt > 0 && performance.now() - _ptrAt > FF_ARM_MS));
@@ -2035,15 +2049,14 @@
       if (e.key === 'Tab') return;
       if (e.key === 'Escape') { if (_cinMode) { e.preventDefault(); _skipAll(); } return; }
       if (_cinMode && (e.key === ' ' || e.key === 'Spacebar' || e.key === 'ArrowRight')) {
-        e.preventDefault(); _keyFF = true; _ffUpdate(); return;   // hold scrubs; no advance
+        e.preventDefault(); _keyFF = true; _ffUpdate(); return;
       }
     }
-    // A press long enough to have armed the scrub was a fast-forward, not a click
-    // asking for the next beat — swallow the release so it does not also advance.
+    // A long press was a fast-forward, not a click. Swallow the release so it doesn't advance.
     if (e && e.type === 'click' && _ptrAt > 0 && performance.now() - _ptrAt > FF_ARM_MS) {
       _ptrAt = 0; _ffHeld = _keyFF; return;
     }
-    // Click on the SKIP control exits; a click anywhere else is just impatience.
+    // Clicks on SKIP exit. Other clicks just advance.
     if (_cinMode && e && e.type === 'click' && _skipRect && _canvas) {
       var r = _canvas.getBoundingClientRect();
       var mx = (e.clientX - r.left) * (_canvas.width / r.width);
@@ -2054,15 +2067,8 @@
     _advance();
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────────
-  // opts (all optional, all inert when omitted):
-  //   cinematic : play as a film — auto-advance, drift, progress bar, real skip
-  //   hold      : frames to hold a finished line before advancing (default 80)
-  //   onSkip    : called instead of `callback` if the viewer skips
-  //   label     : overrides the chapter title (a sequence spans several chapters)
-  //   progress  : {done, total} so the bar reflects the sequence, not one chapter
-  //   holdLastBeat : cinematic only — hold on the final beat and show the normal
-  //                  action button instead of auto-advancing into the match
+  // opts, all optional: cinematic (auto-advance, drift, progress bar, real skip), hold (frames per line, default 80),
+  // onSkip, label (chapter title override), progress {done,total}, holdLastBeat (cinematic only: hold on the final beat).
   function showNarrativeScene(lines, chapter, callback, opts) {
     if (!lines || !lines.length) { if(callback)callback(); return; }
     _cleanup();
@@ -2076,21 +2082,17 @@
     _cinHoldEnd = !!opts.holdLastBeat;
     _autoT    = 0;
     _driftSeed = Math.random() * 100;
-    _beats=_parseBeats(lines); _beatIdx=0; _typedLen=0; _t=0; _beatT=0;
+    _beats=_parseBeats(lines); _beatIdx=0; _typedLen=0; _t=0; _beatT=0; _figMem={};
     _lastTypeTime=performance.now();
     if (!_beats.length) { if(_callback){var cb=_callback;_callback=null;cb();}return; }
 
     var chId = chapter && chapter.id;
     _spec = (chId !== undefined && window.STORY_SCENE_SPECS && STORY_SCENE_SPECS[chId]) ? STORY_SCENE_SPECS[chId] : null;
     _actStyle = _getActStyle(chId);
-    // Coverage drift check (docs/story-cinematics-plan.md): narrated but no visual spec
+    // Narrated beat with no visual spec (coverage check)
     if (chId !== undefined && !_spec) console.info('[StoryScene] chapter', chId, 'has narrative but no STORY_SCENE_SPECS entry — rendering with act style only');
 
-    // Freeze the match underneath. These scenes play BETWEEN levels while the
-    // game loop is still running, so without this the world kept simulating
-    // behind the overlay — enemies fought, timers ran, the player could be
-    // killed by a fight nobody could see. gameLoop() parks on this flag and
-    // smb-input.js stops feeding it keys.
+    // Freeze the match underneath. Scenes play between levels with the loop running; gameLoop() parks on this flag and smb-input.js stops feeding keys.
     _holdBegin();
 
     _canvas = document.createElement('canvas');
@@ -2109,14 +2111,10 @@
   }
 
   window.showNarrativeScene = showNarrativeScene;
-  // How many scene beats a line array parses into (lets a chapter's second half of
-  // narration continue the first half's staging; see _playBranchAfterNarrative).
+  // Number of scene beats a line array parses into, so a second half can continue the first half's staging.
   window._storyBeatCount = function (lines) { return _parseBeats(lines || []).length; };
-  // Dev hook: lets the figure rig be rendered in isolation (a contact sheet of
-  // every state) without running a scene. Nothing in the game calls it.
+  // Dev hook: renders the figure rig in isolation (contact sheet). The game never calls it.
   window._sceneDrawFigure = _drawFigure;
-  // Event-driven clips (attack, hit) read the module-local beat clock, so the
-  // contact-sheet harness needs a way to scrub it. Test-only; nothing in the game
-  // calls this, and the render loop overwrites _beatT every frame anyway.
+  // Test-only: lets the contact-sheet harness scrub the beat clock. The render loop overwrites _beatT every frame anyway.
   window._sceneSetBeatT = function (v) { _beatT = v; };
 })();

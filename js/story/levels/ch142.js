@@ -1,18 +1,6 @@
 'use strict';
-// js/story/levels/ch142.js — Chapter 142 map (story ARENA). See smb-story-levels.js.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 142 — The Last Request (assassination, scrolling)
-// The Gate Threshold. The Gate Overseer is jamming the rift entity's final
-// message: a tower of stacked transmitter rings at the far end of the
-// threshold, each ring pulsing a wave of interference out across the space
-// (the waves scramble the air — you can see the noise in them). The threshold
-// is a series of white terraces climbing toward the gate, connected by
-// lattice bridges, with the gate itself behind everything, sealed. A meter
-// on the tower base counts down to the gate locking permanently as the
-// assassination timer runs. Built on the null arena's neutral rules (the
-// Creator arena would bring boss-floor behaviour with it).
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch142.js: Chapter 142 map (assassination, scrolling). See smb-story-levels.js.
+// Built on the null arena rules. The creator arena would add boss-floor behaviour.
 (function () {
   const W = 2200, FLOOR = 470, TOWER = 2020;
   const TERR = [[150, 380, 200], [430, 320, 160], [680, 380, 180], [950, 290, 160], [1230, 360, 180], [1500, 280, 160], [1760, 350, 160]];
@@ -32,7 +20,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#080012');
-    // The gate behind everything, sealed
     _slParallax(v, 0.1, (l, r) => {
       const gx = 1100 * 0.1 + 450;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -44,13 +31,11 @@
   }
 
   function back(v) {
-    // Interference waves rolling out from the tower
     for (let k = 0; k < 4; k++) {
       const t = ((frameCount + k * 40) % 160) / 160;
       ctx.strokeStyle = `rgba(255,110,160,${0.35 * (1 - t)})`; ctx.lineWidth = 2; ctx.setLineDash([4, 6]);
       ctx.beginPath(); ctx.arc(TOWER, 200, 40 + t * 1000, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
     }
-    // White terraces climbing toward the gate, lattice bridges between them
     for (let i = 0; i < TERR.length; i++) {
       const [x, y, w] = TERR[i];
       if (!_slVisible(v, x - 20, x + w + 120)) continue;
@@ -58,7 +43,6 @@
       ctx.fillStyle = tg; ctx.fillRect(x, y, w, FLOOR - y); ctx.fillStyle = '#ece8f8'; ctx.fillRect(x, y, w, 5);
       if (i + 1 < TERR.length) { const [nx, ny] = TERR[i + 1]; ctx.strokeStyle = 'rgba(160,140,240,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + w, y + 4); ctx.lineTo(nx, ny + 4); ctx.stroke(); }
     }
-    // The jamming tower: stacked transmitter rings over a base with the lock meter
     if (_slVisible(v, TOWER - 200, TOWER + 200)) {
       ctx.fillStyle = '#2a1048'; ctx.fillRect(TOWER - 10, 100, 20, 290);
       for (let k = 0; k < 5; k++) { const pulse = Math.sin(frameCount * 0.15 + k) * 4; ctx.strokeStyle = '#ff7aa8'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(TOWER, 130 + k * 50, 50 + pulse, 10, 0, 0, Math.PI * 2); ctx.stroke(); }

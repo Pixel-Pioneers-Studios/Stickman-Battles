@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch137.js — Chapter 137 map. See smb-story-levels.js for the contract.
+// Chapter 137 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 137 — The Face (scavenge, 4 records)
-// The approach to the Inner Sanctum, where the Creator left the records of
-// the fracture system's origin. The walls here are lined with record panes
-// — glass sheets with text scrolling in them — and the architecture keeps
-// trying to purge them: panes ahead of you go dark one after another. Each
-// record you need is kept somewhere specific: the Void Mind report on a
-// reading stand by the entry; Project: Paradox — Origin on a raised lectern;
-// the cost assessment on a desk stacked with tallies; the Creator's own
-// admission on a plinth at the end, under the only pane still showing a face
-// — a plain, tired one. White plinths are the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 137, The Face (scavenge, 4 records). White plinths are the climbs.
 (function () {
   const G = 440;
   const STAND = 500, LECTERN = [1150, 370, 100], DESK = 2000, PLINTH = [2945, 380, 110];

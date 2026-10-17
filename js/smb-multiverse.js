@@ -1,13 +1,8 @@
-// smb-multiverse.js — Multiverse Progression System
-// Adds: MultiverseManager, EncounterManager, MultiverseScalingSystem
-// Worlds: War-Torn, Gravity Flux, Shadow Realm, Titan World
-// Integrates Fallen God as guide/observer with timed dialogue
-// Must load after smb-story.js and before smb-menu.js
+// Multiverse progression: MultiverseManager, EncounterManager, MultiverseScalingSystem.
+// Worlds: War-Torn, Gravity Flux, Shadow Realm, Titan World. The Fallen God observes
+// with timed dialogue. Loads after smb-story.js and before smb-menu.js.
 'use strict';
 
-// ============================================================
-// MULTIVERSE WORLD DEFINITIONS
-// ============================================================
 const MULTIVERSE_WORLDS = [
   {
     id:          'war_torn',
@@ -19,9 +14,9 @@ const MULTIVERSE_WORLDS = [
     loreText:    'Every soul here has fought since birth. They know nothing else.',
     arenaKey:    'homeAlley',
     order:       0,
-    unlockRequirement: null, // always first
+    unlockRequirement: null, // always unlocked
     modifier: {
-      aiAggressionMult:  1.6,   // AI attacks far more frequently
+      aiAggressionMult:  1.6,   // AI attacks more often
       aiDefenseMult:     0.4,   // AI barely defends
       enemyDmgMult:      1.15,
       enemySpeedMult:    1.10,
@@ -55,7 +50,7 @@ const MULTIVERSE_WORLDS = [
     unlockRequirement: 'war_torn',
     modifier: {
       gravityFlipInterval: 720,  // frames between flips (12s at 60fps)
-      gravityFlipDuration: 180,  // frames gravity is inverted (3s warning before snap)
+      gravityFlipDuration: 180,  // frames gravity stays inverted
       enemyDmgMult:        1.10,
       label:               '🌀 Flux Field',
       description:         'Gravity inverts every 12 seconds. Both fighters are affected.',
@@ -87,7 +82,7 @@ const MULTIVERSE_WORLDS = [
     order:       2,
     unlockRequirement: 'gravity_flux',
     modifier: {
-      visibilityRadius:  220,   // px in game-space — beyond this, entities fade to black
+      visibilityRadius:  220,   // px; beyond this, entities fade to black
       enemyTeleportCd:   180,   // frames between enemy teleport blinks
       enemyDmgMult:      1.20,
       enemySpeedMult:    1.05,
@@ -143,11 +138,9 @@ const MULTIVERSE_WORLDS = [
   },
 ];
 
-// ============================================================
-// MULTIVERSE SCALING SYSTEM
-// ============================================================
+// Multiverse scaling
 const MultiverseScalingSystem = (function() {
-  // Per-world-completed passive bonuses applied to the player fighter
+  // Passive bonuses per completed world, applied to the player fighter
   const WORLD_CLEAR_BONUSES = {
     war_torn:      { speedAdd: 0.15, dmgMult: 0.06, label: 'War-Hardened Reflexes' },
     gravity_flux:  { jumpMult: 0.12, speedAdd: 0.10, label: 'Flux Adaptation' },
@@ -155,8 +148,7 @@ const MultiverseScalingSystem = (function() {
     titan_world:   { maxHpAdd: 20,   kbBonus: 0.08, label: 'Titan-Breaker Strength' },
   };
 
-  // Combat adaptation — gained per encounter completed, up to a cap
-  // These are fractional so they feel earned, not inflated
+  // Combat adaptation, gained per encounter up to a cap. Fractional on purpose.
   const ENCOUNTER_ADAPTATION = {
     standard: { dmgMult: 0.01 },
     elite:    { dmgMult: 0.02, speedAdd: 0.05 },
@@ -167,7 +159,7 @@ const MultiverseScalingSystem = (function() {
   const MAX_ADAPT = { dmgMult: 0.40, speedAdd: 0.50, maxHpAdd: 60, kbResist: 0.15, kbBonus: 0.12, jumpMult: 0.20 };
 
   return {
-    // Apply all accumulated bonuses to a fighter object at fight-start
+    // Apply accumulated bonuses to a fighter at fight start
     applyToFighter(p, saveData) {
       if (!p || !saveData) return;
       const bonuses = saveData.accumulatedBonuses || {};
@@ -182,11 +174,11 @@ const MultiverseScalingSystem = (function() {
       if (bonuses.kbBonus)  p.kbBonus  = Math.min((p.kbBonus  || 0) + bonuses.kbBonus,  0.40);
       if (bonuses.jumpMult) p._mvJumpMult = 1.0 + bonuses.jumpMult;
 
-      // Store on fighter so HUD can display stat summary
+      // HUD reads this for the stat summary
       p._multiverseBonuses = Object.assign({}, bonuses);
     },
 
-    // Record a world-clear bonus into saveData
+    // Saves a world-clear bonus to saveData
     recordWorldClear(worldId, saveData) {
       if (!saveData || !WORLD_CLEAR_BONUSES[worldId]) return;
       const bonus = WORLD_CLEAR_BONUSES[worldId];
@@ -199,7 +191,7 @@ const MultiverseScalingSystem = (function() {
       saveData.worldClearBonusLog.push({ worldId, label: bonus.label, at: Date.now() });
     },
 
-    // Record an encounter adaptation into saveData
+    // Saves an encounter adaptation to saveData
     recordEncounterAdapt(encounterType, saveData) {
       if (!saveData || !ENCOUNTER_ADAPTATION[encounterType]) return;
       const bonus = ENCOUNTER_ADAPTATION[encounterType];
@@ -209,7 +201,7 @@ const MultiverseScalingSystem = (function() {
       }
     },
 
-    // Build a human-readable stat summary for the HUD
+    // Stat summary for the HUD
     getSummaryLines(saveData) {
       const acc = (saveData && saveData.accumulatedBonuses) || {};
       const lines = [];
@@ -221,7 +213,7 @@ const MultiverseScalingSystem = (function() {
       return lines;
     },
 
-    // Scale an enemy fighter to the world's difficulty tier
+    // Scale an enemy to the world's difficulty tier
     applyWorldModifierToEnemy(enemy, worldId, worldsCompleted) {
       if (!enemy || !worldId) return;
       const world = MULTIVERSE_WORLDS.find(w => w.id === worldId);
@@ -234,16 +226,14 @@ const MultiverseScalingSystem = (function() {
         enemy.maxHealth = Math.round((enemy.maxHealth || 100) * m.enemyHealthMult);
         enemy.health    = enemy.maxHealth;
       }
-      // Scale further with each world cleared (soft difficulty ramp)
+      // Each cleared world adds a little more difficulty
       const extraDmg = 1 + worldsCompleted * 0.08;
       enemy.dmgMult = (enemy.dmgMult || 1) * extraDmg;
     },
   };
 })();
 
-// ============================================================
-// ENCOUNTER MANAGER
-// ============================================================
+// Encounter manager
 const EncounterManager = (function() {
   let _currentEncounterIdx = 0;
   let _currentWorld        = null;
@@ -268,7 +258,7 @@ const EncounterManager = (function() {
       if (_currentEncounterIdx >= _currentWorld.encounters.length) {
         _currentEncounterIdx = _currentWorld.encounters.length - 1;
         if (typeof _onComplete === 'function') _onComplete();
-        return false; // no more
+        return false; // no encounters left
       }
       return true;
     },
@@ -292,12 +282,10 @@ const EncounterManager = (function() {
   };
 })();
 
-// ============================================================
-// FALLEN GOD DIALOGUE SYSTEM
-// ============================================================
+// Fallen God dialogue
 const FallenGodSystem = (function() {
   let _activeDialogue = null; // { text, timer, maxTimer }
-  let _seenDialogue   = new Set(); // prevent repeats per session
+  let _seenDialogue   = new Set(); // no repeats in a session
 
   const GENERIC_LINES = [
     '"Every world you pass through teaches the next one to fear you."',
@@ -342,22 +330,19 @@ const FallenGodSystem = (function() {
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-      // Background bar
       ctx.fillStyle = `rgba(8,0,20,${alpha * 0.82})`;
       ctx.fillRect(0, ch - 110, cw, 110);
 
-      // Gold accent line
       ctx.fillStyle = `rgba(255,180,60,${alpha * 0.6})`;
       ctx.fillRect(0, ch - 110, cw, 2);
 
-      // Speaker label
       ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
       ctx.letterSpacing = '2px';
       ctx.fillStyle = `rgba(255,180,60,${alpha})`;
       ctx.fillText('THE FALLEN GOD', 28, ch - 78);
       ctx.letterSpacing = '0px';
 
-      // Dialogue text — wrap at ~90 chars
+      // Wrap at about 90 chars
       const words = _activeDialogue.text.split(' ');
       const lines  = [];
       let cur = '';
@@ -379,9 +364,7 @@ const FallenGodSystem = (function() {
   };
 })();
 
-// ============================================================
-// MULTIVERSE MANAGER — central controller
-// ============================================================
+// Multiverse manager: the central controller
 const MultiverseManager = (function() {
   const _SAVE_KEY = 'smc_multiverse';
 
@@ -393,7 +376,7 @@ const MultiverseManager = (function() {
       accumulatedBonuses:  {},
       worldClearBonusLog:  [],
       totalExp:            0,
-      encounterHistory:    [], // { worldId, type, result } last 20
+      encounterHistory:    [], // { worldId, type, result }, last 20
     };
   }
 
@@ -403,7 +386,7 @@ const MultiverseManager = (function() {
       if (!raw) return _defaultSave();
       const p = JSON.parse(raw);
       if (!p || !Array.isArray(p.unlockedWorlds)) return _defaultSave();
-      // Ensure all fields present
+      // Fill in any missing fields
       if (!p.accumulatedBonuses) p.accumulatedBonuses = {};
       if (!p.worldClearBonusLog) p.worldClearBonusLog = [];
       if (!p.encounterHistory)   p.encounterHistory   = [];
@@ -416,7 +399,6 @@ const MultiverseManager = (function() {
     try { localStorage.setItem(_SAVE_KEY, JSON.stringify(_save)); } catch(e) {}
   }
 
-  // Active state
   let _active        = false;
   let _activeWorldId = null;
   let _gravFlipTimer = 0;
@@ -425,7 +407,6 @@ const MultiverseManager = (function() {
   let _worldXform = null;
 
   return {
-    // ── Accessors ───────────────────────────────────────────
     isActive()         { return _active; },
     getSave()          { return _save; },
     getActiveWorldId() { return _activeWorldId; },
@@ -434,7 +415,7 @@ const MultiverseManager = (function() {
     isWorldComplete(id){ return _save.completedWorlds.includes(id); },
     getCompletedCount(){ return _save.completedWorlds.length; },
 
-    // ── Unlock next world when a world is completed ─────────
+    // Unlock the next world when one is completed
     _tryUnlockNext(completedId) {
       const completed = MULTIVERSE_WORLDS.find(w => w.id === completedId);
       if (!completed) return;
@@ -448,13 +429,12 @@ const MultiverseManager = (function() {
       return null;
     },
 
-    // ── Enter a world ─────────────────────────────────────────
     enterWorld(worldId, forceUnlocked = false) {
       const world = MULTIVERSE_WORLDS.find(w => w.id === worldId);
       if (!world) return false;
-      // Story mode bypasses the unlock gate — world is entered via chapter progression
+      // Story mode skips the unlock gate, since chapter progression enters the world
       if (!forceUnlocked && !_save.unlockedWorlds.includes(worldId)) {
-        // Auto-unlock when entered through story
+        // Unlocks when entered through story
         if (!_save.unlockedWorlds.includes(worldId)) _save.unlockedWorlds.push(worldId);
       }
 
@@ -472,9 +452,9 @@ const MultiverseManager = (function() {
       return true;
     },
 
-    // ── Called from endGame() after each encounter ───────────
+    // Called from endGame() after each encounter
     onEncounterComplete(worldId, encounterType, playerWon) {
-      if (!playerWon) return; // retry — no progression
+      if (!playerWon) return; // a retry does not progress
       MultiverseScalingSystem.recordEncounterAdapt(encounterType, _save);
       _save.totalExp += (encounterType === 'boss' ? 80 : encounterType === 'elite' ? 40 : 20);
       _save.encounterHistory.push({ worldId, type: encounterType, result: 'win', t: Date.now() });
@@ -487,7 +467,7 @@ const MultiverseManager = (function() {
       EncounterManager.advanceEncounter();
     },
 
-    // ── Called when all encounters in a world are done ───────
+    // Called when every encounter in a world is done
     onWorldComplete(worldId) {
       if (_save.completedWorlds.includes(worldId)) return;
       _save.completedWorlds.push(worldId);
@@ -504,19 +484,18 @@ const MultiverseManager = (function() {
         }
       }
 
-      // Show world-complete banner
       _multiverseWorldCompleteTimer  = 280;
       _multiverseWorldCompleteLabel  = MULTIVERSE_WORLDS.find(w => w.id === worldId)?.name || '';
       _multiverseWorldCompleteUnlock = unlocked ? unlocked.name : null;
     },
 
-    // ── Apply active world modifier to current game state ────
+    // Apply the active world modifier to the current game state
     applyActiveModifier() {
       const world = this.getActiveWorld();
       if (!world) return;
       const m = world.modifier;
 
-      // AI aggression override via worldModifiers (read by Fighter.updateAI)
+      // AI aggression override, read by Fighter.updateAI via worldModifiers
       worldModifiers.aiAggressionMult  = m.aiAggressionMult  || 1.0;
       worldModifiers.aiDefenseMult     = m.aiDefenseMult     || 1.0;
       worldModifiers.visibilityRadius  = m.visibilityRadius  || null;
@@ -524,14 +503,14 @@ const MultiverseManager = (function() {
       worldModifiers.gravityFlipInterval = m.gravityFlipInterval || null;
     },
 
-    // ── Called once when a multiverse fight starts ────────────
+    // Called once when a multiverse fight starts
     onFightStart() {
       this.applyActiveModifier();
       // Apply player scaling bonuses
       if (players && players[0]) {
         MultiverseScalingSystem.applyToFighter(players[0], _save);
       }
-      // Apply world modifier to enemy fighters
+      // Apply the world modifier to enemies
       const enc = EncounterManager.getCurrentEncounter();
       if (enc && players) {
         const worldsCompleted = this.getCompletedCount();
@@ -541,7 +520,7 @@ const MultiverseManager = (function() {
       }
     },
 
-    // ── Per-frame tick ────────────────────────────────────────
+    // Per-frame tick
     tick() {
       if (!_active) return;
       FallenGodSystem.tick();
@@ -550,8 +529,7 @@ const MultiverseManager = (function() {
       if (!world) return;
       const m = world.modifier;
 
-      // Gravity Flux: inverts every gravityFlipInterval frames and snaps back
-      // after gravityFlipDuration.
+      // Gravity Flux: inverts every gravityFlipInterval frames, then snaps back after gravityFlipDuration.
       if (m.gravityFlipInterval && players) {
         _gravFlipTimer++;
         const _span = _gravFlipping ? (m.gravityFlipDuration || m.gravityFlipInterval) : m.gravityFlipInterval;
@@ -567,7 +545,7 @@ const MultiverseManager = (function() {
         }
       }
 
-      // Shadow Realm: ramp up fog
+      // Shadow Realm: fog ramps up
       if (m.visibilityRadius && _shadowFogAlpha < 0.88) {
         _shadowFogAlpha = Math.min(0.88, _shadowFogAlpha + 0.008);
       }
@@ -590,17 +568,16 @@ const MultiverseManager = (function() {
       }
     },
 
-    // ── Per-frame draw (game-world space) ─────────────────────
+    // Per-frame draw in world space
     draw() {
       if (!_active) return;
-      // The shadow fog is drawn in screen space; keep the camera transform so it
-      // can centre on the player in scrolling worlds.
+      // Keep the camera transform so the fog can centre on the player.
       _worldXform = (typeof ctx.getTransform === 'function') ? ctx.getTransform() : null;
       const world = this.getActiveWorld();
       if (!world) return;
       const m = world.modifier;
 
-      // World modifier badge (top-left, game-space)
+      // World modifier badge, top-left
       ctx.save();
       ctx.font = 'bold 9px "Segoe UI", Arial, sans-serif';
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -631,7 +608,7 @@ const MultiverseManager = (function() {
       }
     },
 
-    // ── Screen-space draw (after transform reset) ─────────────
+    // Screen-space draw, after the transform reset
     drawScreenSpace() {
       if (!_active) return;
       FallenGodSystem.draw();
@@ -639,7 +616,7 @@ const MultiverseManager = (function() {
       const world = this.getActiveWorld();
       if (!world) return;
 
-      // Shadow Realm: darkness vignette overlay
+      // Shadow Realm: darkness vignette
       if (world.modifier.visibilityRadius && _shadowFogAlpha > 0 && players && players[0]) {
         const p   = players[0];
         const T   = _worldXform;
@@ -659,7 +636,7 @@ const MultiverseManager = (function() {
       }
     },
 
-    // ── World-complete banner ─────────────────────────────────
+    // World-complete banner
     _drawWorldCompleteBanner() {
       if (!_multiverseWorldCompleteTimer || _multiverseWorldCompleteTimer <= 0) return;
       _multiverseWorldCompleteTimer--;
@@ -689,7 +666,7 @@ const MultiverseManager = (function() {
       ctx.restore();
     },
 
-    // ── HUD draw — encounter progress indicator ───────────────
+    // HUD: encounter progress indicator
     drawHUD() {
       if (!_active) return;
       const world = this.getActiveWorld();
@@ -743,7 +720,7 @@ const MultiverseManager = (function() {
       ctx.restore();
     },
 
-    // ── Reset for back-to-menu ─────────────────────────────────
+    // Reset for back-to-menu
     deactivate() {
       _active              = false;
       _activeWorldId       = null;
@@ -761,7 +738,7 @@ const MultiverseManager = (function() {
       EncounterManager.reset();
     },
 
-    // ── New run (reset save) ──────────────────────────────────
+    // New run: reset the save
     resetSave() {
       if (!confirm('Reset all Multiverse progress? This cannot be undone.')) return;
       _save = _defaultSave();
@@ -772,17 +749,15 @@ const MultiverseManager = (function() {
   };
 })();
 
-// ============================================================
-// WORLD SELECTION — now lives inside Story Mode modal tab
-// ============================================================
+// World selection, inside the Story Mode modal tab
 function openMultiverseMenu() {
-  // Open story modal and switch to multiverse tab
+  // Open the story modal on the multiverse tab
   if (typeof openStoryMenu === 'function') openStoryMenu();
   setTimeout(() => { if (typeof switchStoryTab === 'function') switchStoryTab('multiverse'); }, 60);
 }
 
 function closeMultiverseMenu() {
-  // Just close the story modal
+  // Close the story modal
   const m = document.getElementById('storyModal');
   if (m) m.style.display = 'none';
 }
@@ -792,7 +767,7 @@ function _renderMultiverseWorldList() {
   if (!list) return;
   list.innerHTML = '';
 
-  // Show a top-level banner if the ship isn't built yet — no cards are clickable.
+  // Banner if the ship is not built yet. No cards are clickable.
   const shipReady = window.SHIP && SHIP.built;
   if (!shipReady) {
     const banner = document.createElement('div');
@@ -806,7 +781,6 @@ function _renderMultiverseWorldList() {
   const save = MultiverseManager.getSave();
   const statLines = MultiverseScalingSystem.getSummaryLines(save);
 
-  // Header stats
   if (statLines.length > 0) {
     const statsDiv = document.createElement('div');
     statsDiv.style.cssText = 'padding:6px 10px 10px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;';
@@ -821,7 +795,7 @@ function _renderMultiverseWorldList() {
     const completed = MultiverseManager.isWorldComplete(world.id);
     const isCurrent = save.currentWorldId === world.id;
 
-    // Card is only interactive if the ship is built AND the world is unlocked
+    // Cards are interactive only if the ship is built and the world is unlocked
     const cardClickable = shipReady && unlocked && !completed;
     const card = document.createElement('div');
     card.style.cssText = [
@@ -862,7 +836,6 @@ function _renderMultiverseWorldList() {
     list.appendChild(card);
   });
 
-  // Total exp display
   const expDiv = document.createElement('div');
   expDiv.style.cssText = 'text-align:center;padding:8px;font-size:0.65rem;color:#556;margin-top:4px;';
   expDiv.textContent = `Total Multiverse EXP: ${save.totalExp}`;
@@ -870,8 +843,7 @@ function _renderMultiverseWorldList() {
 }
 
 function _beginMultiverseWorld(worldId) {
-  // Require the Axiom Ship to be complete before any trial can be entered.
-  // The ship is built by collecting all 5 parts through story chapters.
+  // The Axiom Ship must be complete before any trial. Its 5 parts come from story chapters.
   if (!window.SHIP || !SHIP.built) {
     if (typeof storyFightSubtitle !== 'undefined') {
       storyFightSubtitle = {
@@ -885,7 +857,7 @@ function _beginMultiverseWorld(worldId) {
   }
   closeMultiverseMenu();
   MultiverseManager.enterWorld(worldId);
-  // Launch first encounter
+  // Launch the first encounter
   _launchMultiverseEncounter();
 }
 
@@ -897,11 +869,11 @@ function _launchMultiverseEncounter() {
   gameMode = 'multiverse';
   selectedArena = world.arenaKey;
 
-  // Configure the two fighters via existing player config system
+  // Configure the two fighters through the existing player config
   const p1w = document.getElementById('p1Weapon');
-  if (p1w) p1w.value = p1w.value || 'sword'; // keep P1 weapon
+  if (p1w) p1w.value = p1w.value || 'sword';
 
-  // Store encounter config for _startGameCore to read
+  // Read by _startGameCore
   _pendingMultiverseEncounter = {
     opponentName:  enc.opponentName,
     weaponKey:     enc.weaponKey,
@@ -919,19 +891,15 @@ function _launchMultiverseEncounter() {
   startGame();
 }
 
-// Pending encounter config read by _startGameCore
+// Pending encounter config, read by _startGameCore.
 let _pendingMultiverseEncounter = null;
 
-// ============================================================
-// BANNER GLOBALS (used by MultiverseManager._drawWorldCompleteBanner)
-// ============================================================
+// Banner globals, used by MultiverseManager._drawWorldCompleteBanner.
 let _multiverseWorldCompleteTimer  = 0;
 let _multiverseWorldCompleteLabel  = '';
 let _multiverseWorldCompleteUnlock = null;
 
-// ============================================================
-// MULTIVERSE MATCH END — called from endGame()
-// ============================================================
+// Multiverse match end, called from endGame()
 function multiverseOnMatchEnd(playerWon) {
   if (!MultiverseManager.isActive()) return;
   const enc = EncounterManager.getCurrentEncounter();
@@ -944,7 +912,7 @@ function multiverseOnMatchEnd(playerWon) {
   );
 
   if (playerWon) {
-    // Brief delay then auto-advance to next encounter (or world-complete screen)
+    // Short delay, then advance to the next encounter or the world-complete screen
     setTimeout(() => {
       const nextEnc = EncounterManager.getCurrentEncounter();
       if (nextEnc && EncounterManager.getEncounterIndex() < EncounterManager.getEncounterCount()) {
@@ -953,29 +921,24 @@ function multiverseOnMatchEnd(playerWon) {
         if (ov) ov.style.display = 'none';
         _launchMultiverseEncounter();
       } else {
-        // World complete — go back to multiverse menu
+        // World complete: back to the multiverse menu
         setTimeout(() => {
           backToMenu();
           setTimeout(openMultiverseMenu, 400);
-        }, 2800); // let world-complete banner show
+        }, 2800); // time for the world-complete banner
       }
     }, 1800);
   }
-  // If player lost — standard retry screen handles it; no auto-advance
+  // A loss goes to the standard retry screen, with no auto-advance
 }
 
-// ============================================================
-// GRAVITY: hook into Fighter physics
-// Fighter.update() uses gravDir; we override it per-frame via
-// worldModifiers so existing gravity inversion code path fires.
-// ============================================================
-// This function is called by smb-loop.js each frame when multiverse is active
+// Gravity hook. Fighter.update() reads gravDir, so this overrides it per frame
+// through worldModifiers. Called by smb-loop.js each frame while multiverse is active.
 function multiverseTickPhysicsHooks() {
   if (!MultiverseManager.isActive() || !players) return;
   players.forEach(p => {
     if (p._mvGravInverted !== undefined && !p.isBoss) {
-      // Re-use the existing tfGravityInverted path in Fighter.update()
-      // We temporarily shadow it without touching TF state
+      // Reuses the tfGravityInverted path in Fighter.update(). Shadows it without touching TF state.
       p._mvGravInvertedActive = !!p._mvGravInverted;
     }
   });

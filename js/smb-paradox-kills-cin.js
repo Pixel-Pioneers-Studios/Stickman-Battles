@@ -1,13 +1,8 @@
 'use strict';
-// smb-paradox-kills-cin.js — _makeTFKillsParadoxCinematic — TF executes Paradox
-// Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
+// smb-paradox-kills-cin.js: _makeTFKillsParadoxCinematic, TrueForm executes Paradox.
+// Depends on smb-globals.js and smb-paradox-class.js.
 
-// ============================================================
-// _makeTFKillsParadoxCinematic  — TrueForm executes Paradox
-// 600 frames / 10 seconds. Fires when opening-fight threshold is reached.
-// Sequence: lock → teleport strikes → command terminal → collapse →
-//           energy stream → absorption pulse → onEnd → absorption phase
-// ============================================================
+// 600 frames (10 s). Fires when the opening-fight threshold is reached.
 function _makeTFKillsParadoxCinematic(tf) {
   return {
     durationFrames:   600,
@@ -25,19 +20,17 @@ function _makeTFKillsParadoxCinematic(tf) {
     _phaseLabel: { text: '\u2014 THE UNMAKING \u2014', color: '#cc88ff' },
 
     update(t) {
-      // ── slow-motion envelope ──────────────────────────────────
       if      (t < 0.4) slowMotion = Math.max(0.06, 1 - t * 2.4);
       else if (t > 9.3) slowMotion = Math.min(1.0,  (t - 9.3) / 0.7);
       else              slowMotion = 0.06;
 
-      // Manually tick TF attack animation (gameFrozen skips Fighter.update())
+      // Ticked by hand, since gameFrozen skips Fighter.update().
       if (tf && tf.attackTimer > 0) {
         tf.attackTimer--;
         tf.state = tf.attackTimer > 0 ? 'attacking' : 'idle';
       }
       if (paradoxEntity) paradoxEntity.update();
 
-      // ── camera ───────────────────────────────────────────────
       cinematicCamOverride = (t < 9.8);
       if (cinematicCamOverride && tf) {
         const tgt = t < 4 ? 1.45 : t < 7 ? 1.55 : 1.3;
@@ -46,7 +39,7 @@ function _makeTFKillsParadoxCinematic(tf) {
         cinematicFocusY     = (tf.cy ? tf.cy() : GAME_H / 2) - 15;
       }
 
-      // ── 0.5s: spawn Paradox, init overlay ────────────────────
+      // 0.5s: spawn Paradox, init overlay
       if (t >= 0.5 && !this._paradoxSpawned) {
         this._paradoxSpawned = true;
         if (!paradoxEntity) spawnParadox(200, GAME_H - 200);
@@ -63,7 +56,7 @@ function _makeTFKillsParadoxCinematic(tf) {
           showBossDialogue('You cannot run.', 210);
       }
 
-      // ── 0.8s: LOCK — Paradox frozen in place ─────────────────
+      // 0.8s: lock Paradox in place
       if (t >= 0.8 && !this._lockFired) {
         this._lockFired = true;
         if (paradoxEntity) {
@@ -77,7 +70,6 @@ function _makeTFKillsParadoxCinematic(tf) {
         if (paradoxEntity) spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#00ffff', 18);
       }
 
-      // Pin Paradox while locked (until strike 1)
       if (this._lockFired && !this._strike1Fired && paradoxEntity) {
         paradoxEntity.vx = 0;
         paradoxEntity.vy = 0;
@@ -85,12 +77,11 @@ function _makeTFKillsParadoxCinematic(tf) {
         paradoxEntity.y  = this._prevPY;
       }
 
-      // Fade lock-ring alpha in
       if (_tfKCOverlay && _tfKCOverlay.lockActive && (t < 7.3)) {
         _tfKCOverlay.lockAlpha = Math.min(1, (_tfKCOverlay.lockAlpha || 0) + 0.05);
       }
 
-      // ── 1.5s: STRIKE 1 — TF teleports BEHIND Paradox ────────
+      // 1.5s: strike 1, TF teleports behind Paradox
       if (t >= 1.5 && !this._strike1Fired) {
         this._strike1Fired = true;
         if (tf && paradoxEntity) {
@@ -113,7 +104,6 @@ function _makeTFKillsParadoxCinematic(tf) {
           this._prevPY = paradoxEntity.cy();
         }
         if (typeof CinFX !== 'undefined') { CinFX.shake(22); CinFX.flash('#00ffff', 0.40, 10); }
-        // Energy distortion lines
         if (_tfKCOverlay) {
           for (let i = 0; i < 5; i++) {
             _tfKCOverlay.distortLines.push({
@@ -126,7 +116,7 @@ function _makeTFKillsParadoxCinematic(tf) {
         }
       }
 
-      // ── 2.3s: STRIKE 2 — TF teleports ABOVE Paradox ─────────
+      // 2.3s: strike 2, TF teleports above Paradox
       if (t >= 2.3 && !this._strike2Fired) {
         this._strike2Fired = true;
         if (tf && paradoxEntity) {
@@ -149,14 +139,13 @@ function _makeTFKillsParadoxCinematic(tf) {
         if (typeof CinFX !== 'undefined') { CinFX.shake(28); CinFX.flash('#ffffff', 0.35, 10); }
         if (typeof showBossDialogue === 'function')
           showBossDialogue('Every timeline checked\u2026 you lose.', 230);
-        // Reality tear cracks
         if (_tfKCOverlay) {
           _tfKCOverlay.realityTears.push({ x: 0.35 + Math.random() * 0.30, alpha: 0.80, seed: Math.random() * 10 });
           _tfKCOverlay.realityTears.push({ x: 0.55 + Math.random() * 0.20, alpha: 0.55, seed: Math.random() * 10 });
         }
       }
 
-      // ── 3.0s: STRIKE 3 — Multiversal final blow ──────────────
+      // 3.0s: strike 3, final blow
       if (t >= 3.0 && !this._strike3Fired) {
         this._strike3Fired = true;
         if (tf && paradoxEntity) {
@@ -192,7 +181,6 @@ function _makeTFKillsParadoxCinematic(tf) {
         if (typeof CinFX !== 'undefined') { CinFX.shake(45); CinFX.flash('#ffffff', 0.88, 14); }
         if (typeof showBossDialogue === 'function')
           showBossDialogue('This is where it ends.', 240);
-        // More distortion + extra tear
         if (_tfKCOverlay) {
           for (let i = 0; i < 8; i++) {
             _tfKCOverlay.distortLines.push({
@@ -206,7 +194,7 @@ function _makeTFKillsParadoxCinematic(tf) {
         }
       }
 
-      // ── 3.8s: command-line terminal panel opens ───────────────
+      // 3.8s: terminal panel opens
       if (t >= 3.8 && !this._termFired) {
         this._termFired = true;
         if (_tfKCOverlay) {
@@ -214,7 +202,7 @@ function _makeTFKillsParadoxCinematic(tf) {
           _tfKCOverlay.termSlide          = 0;
           _tfKCOverlay.termTimer          = 0;
           _tfKCOverlay.termProgress       = 0;
-          _tfKCOverlay.termProgressStart  = 145; // progress bar starts ~2.4s after panel opens
+          _tfKCOverlay.termProgressStart  = 145; // ~2.4s after the panel opens
           _tfKCOverlay.termLines = [
             { text: 'I find every thread of you.',                       color: '#cc88ff', delay: 0,   revealCount: 0 },
             { text: '  across all that ever was   [\u03c8-\u221e]',       color: '#e8d4ff', delay: 42,  revealCount: 0 },
@@ -227,7 +215,6 @@ function _makeTFKillsParadoxCinematic(tf) {
           showBossDialogue('Every version. Every timeline.', 260);
       }
 
-      // While terminal active: Paradox glitches and tracks center for collapse
       if (this._termFired && !this._collapseFired && paradoxEntity) {
         paradoxEntity.vx = 0;
         paradoxEntity.vy = 0;
@@ -239,7 +226,7 @@ function _makeTFKillsParadoxCinematic(tf) {
         this._prevPY = paradoxEntity.cy();
       }
 
-      // ── 7.0s: COLLAPSE — Paradox destroyed ───────────────────
+      // 7.0s: collapse, Paradox destroyed
       if (t >= 7.0 && !this._collapseFired) {
         this._collapseFired = true;
         const px = this._prevPX || (paradoxEntity ? paradoxEntity.cx() : GAME_W / 2);
@@ -261,7 +248,6 @@ function _makeTFKillsParadoxCinematic(tf) {
           }
         }
         if (typeof showBossDialogue === 'function') showBossDialogue('Erased.', 200);
-        // Force terminal to show TERMINATED immediately
         if (_tfKCOverlay && _tfKCOverlay.termLines) {
           const last = _tfKCOverlay.termLines[_tfKCOverlay.termLines.length - 1];
           if (last) last.revealCount = last.text.length;
@@ -269,12 +255,12 @@ function _makeTFKillsParadoxCinematic(tf) {
         }
       }
 
-      // ── 7.5s: terminal closes ────────────────────────────────
+      // 7.5s: terminal closes
       if (t >= 7.5 && _tfKCOverlay && _tfKCOverlay.termVisible) {
         _tfKCOverlay.termVisible = false;
       }
 
-      // ── 8.2s: energy streams from Paradox remains → player ───
+      // 8.2s: energy streams from Paradox to player
       if (t >= 8.2 && !this._streamFired) {
         this._streamFired = true;
         if (_tfKCOverlay) _tfKCOverlay.lockActive = false;
@@ -284,7 +270,7 @@ function _makeTFKillsParadoxCinematic(tf) {
           showBossDialogue('Their energy\u2026 it\u2019s yours now.', 240);
       }
 
-      // Continuous stream particles (t 8.2 – 9.3)
+      // Stream runs 8.2-9.3s.
       if (this._streamFired && !this._absorptionFired && settings.particles && particles.length < MAX_PARTICLES) {
         const hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss && p.health > 0) : null;
         const hx   = hero ? hero.cx() : GAME_W / 2;
@@ -304,7 +290,7 @@ function _makeTFKillsParadoxCinematic(tf) {
         }
       }
 
-      // ── 9.3s: absorption pulse — player gains Paradox power ──
+      // 9.3s: absorption pulse
       if (t >= 9.3 && !this._absorptionFired) {
         this._absorptionFired = true;
         playerParadoxAbsorbed = true;
@@ -328,7 +314,6 @@ function _makeTFKillsParadoxCinematic(tf) {
           showBossDialogue('You carry a piece of the multiverse. That is why you survive.', 300);
       }
 
-      // Tick Paradox entity (fade/glitch)
       if (paradoxEntity) paradoxEntity.update();
     },
 
@@ -338,17 +323,16 @@ function _makeTFKillsParadoxCinematic(tf) {
       paradoxEntity        = null;
       _tfKCOverlay         = null;
 
-      // Mark paradox death cinematic as complete — absorption MUST check this flag
+      // Absorption checks this flag, so set it here.
       paradoxDeathComplete = true;
 
-      // Guarantee TF starts the main fight at exactly 9000 HP
+      // TF starts the main fight at 9000 HP.
       if (tf) {
         tf.health           = 9000;
         tf.maxHealth        = Math.max(tf.maxHealth, 9000);
         tf.postSpecialPause = 4;
       }
 
-      // Reposition hero away from TF
       const hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
       if (hero && tf) {
         hero.x  = Math.max(40, tf.x - 140);
@@ -357,8 +341,7 @@ function _makeTFKillsParadoxCinematic(tf) {
         hero.vy = 0;
       }
 
-      // Begin absorption → transition to dimension-punch cinematic
-      // startTFAbsorptionScene is the new declarative version; falls back to legacy helper
+      // startTFAbsorptionScene is the declarative version. The legacy helper is the fallback.
       if (hero && typeof startTFAbsorptionScene === 'function') {
         startTFAbsorptionScene(hero, paradoxEntity);
       } else if (hero && typeof _startAbsorptionThenPunch === 'function') {

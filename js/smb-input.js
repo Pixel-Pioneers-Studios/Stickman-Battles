@@ -1,15 +1,11 @@
 'use strict';
-// smb-input.js — Keyboard event handlers, _normKey, _clearAllKeys, SCROLL_BLOCK, processInput()
-// Depends on: smb-globals.js, smb-data-weapons.js (WEAPONS)
-// ============================================================
-// INPUT
-// ============================================================
+// smb-input.js: keyboard handlers, _normKey, _clearAllKeys, SCROLL_BLOCK, processInput().
+// Depends on smb-globals.js and smb-data-weapons.js (WEAPONS).
 const keysDown      = new Set();
 const keyHeldFrames = {};   // key → frames held continuously
-const ATTACK_MASH_LOCK = 16; // frames the attack key stays dead after a mashed recovery; outlasts STRING_STUN_PAD so a mashed follow-up drops the string
+const ATTACK_MASH_LOCK = 16; // frames the attack key stays dead after a mashed recovery (outlasts STRING_STUN_PAD)
 
-// Last-used input device for on-screen prompts (QTE icons): 'keyboard' | 'touch' | 'gamepad'.
-// Synthetic keydowns from the touch pads are untrusted, so they don't flip it to keyboard.
+// Last input device for on-screen prompts: 'keyboard' | 'touch' | 'gamepad'. Synthetic touch keydowns don't count as keyboard.
 let lastInputDevice = ('ontouchstart' in window && !window.matchMedia('(pointer:fine)').matches) ? 'touch' : 'keyboard';
 document.addEventListener('keydown', e => { if (e.isTrusted) lastInputDevice = 'keyboard'; }, true);
 document.addEventListener('pointerdown', e => { lastInputDevice = (e.pointerType === 'touch' || e.pointerType === 'pen') ? 'touch' : (e.pointerType === 'mouse' && lastInputDevice === 'touch' ? 'keyboard' : lastInputDevice); }, true);
@@ -26,32 +22,26 @@ function pollInputDevice() {
 
 const SCROLL_BLOCK = new Set([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 's', '/']);
 
-// Normalize a key string so that caps-lock and shift don't break single-letter
-// bindings. Only single alphabetic characters are lowercased; everything else
-// (Arrow*, Enter, ' ', '.', '/', etc.) is returned unchanged.
+// Lowercase single letters so caps lock and shift don't break bindings. Everything else passes through.
 function _normKey(k) {
   if (!k) return k;
   return (k.length === 1 && k >= 'A' && k <= 'Z') ? k.toLowerCase() : k;
 }
 
-// Letter bindings resolve by PHYSICAL key position, not by the character the
-// layout prints. e.code is layout-independent, so WASD lands on the same three
-// keys an AZERTY player calls ZQSD and a QWERTZ player calls WASD — required by
-// portals that serve every European locale. Non-letter keys (Space, Arrow*,
-// digits) are unaffected and still come from e.key.
+// Letter bindings use the physical key (e.code), so WASD is the same keys on every layout.
+// Portals serve every European locale. Non-letter keys still come from e.key.
 function _eventKey(e) {
   const c = e.code;
   if (c && c.length === 4 && c.slice(0, 3) === 'Key') {
     const ch = c.charAt(3);
     if (ch >= 'A' && ch <= 'Z') return ch.toLowerCase();
   }
+  if (c === 'Semicolon') return ';';   // P2 attack: the key right of L on any layout
   return _normKey(e.key);
 }
 
-// Who a human's attack/Q/E is aimed at. Two-human modes keep players[] as-is;
-// with no second player (Battle Royale, where the 99 bots live in minions[])
-// the old fallback was "first living minion" — often thousands of px away — so
-// range-gated moves like Iaijutsu never fired their slashes. Use the nearest foe.
+// Who a human's attack/Q/E aims at. With no second player (Battle Royale), use the nearest foe.
+// minions[0] is often far off, which made range-gated moves like Iaijutsu never fire.
 function _inputTarget(p, i) {
   const other = players[i === 0 ? 1 : 0];
   if (other) return other;
@@ -69,10 +59,8 @@ document.addEventListener('keydown', e => {
   const ae = document.activeElement;
   const inputFocused = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable);
   if (inputFocused) return; // let the input receive all keystrokes unmodified
-  // A between-level narrative scene owns the keyboard: its own handler runs the
-  // beat advance / fast-forward / skip. Without this, Escape both skipped the
-  // scene AND opened the pause menu underneath it, and movement keys queued up
-  // to fire the instant the match resumed.
+// A between-level narrative scene owns the keyboard. Escape here would skip the scene and open
+// the pause menu under it, and queued movement would fire when the match resumes.
   if (window._storySceneHold) return;
   if (tfEndingScene && tfEndingScene.skippable && tfEndingScene.phase === 'powers') { trySkipTFEnding(); return; }
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { pauseGame(); return; }
@@ -82,11 +70,10 @@ document.addEventListener('keydown', e => {
     _cheatBuffer = ((_cheatBuffer || '') + e.key.toUpperCase()).slice(-20);
     if (_cheatBuffer.endsWith('GAMECONSOLE')) {
       _cheatBuffer = '';
-      openGameConsole();
+      if (typeof openGameConsole === 'function') openGameConsole();
     }
   }
   if (!gameRunning && e.key && e.key.length === 1) {
-    // _cheatBuffer already updated above — just check for menu-only codes
     if (_cheatBuffer.endsWith('TRUEFORM')) {
       _cheatBuffer = '';
       if (!unlockedTrueBoss) {
@@ -103,7 +90,6 @@ document.addEventListener('keydown', e => {
         spawnParticles && spawnParticles(450, 260, '#cc00ff', 30);
         spawnParticles && spawnParticles(450, 260, '#ffffff', 20);
         showBossDialogue && showBossDialogue('Cosmic Axiom Unlocked!', 180);
-        // Show a brief notification
         const notif = document.createElement('div');
         notif.textContent = '⚡ COSMIC AXIOM UNLOCKED ⚡';
         notif.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:rgba(160,0,255,0.92);color:#fff;padding:16px 32px;border-radius:12px;font-size:1.2rem;font-weight:900;letter-spacing:3px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 40px #cc00ff;';
@@ -173,7 +159,7 @@ document.addEventListener('keydown', e => {
   }
   const _nk = _eventKey(e);
   if (SCROLL_BLOCK.has(_nk)) e.preventDefault();
-  if (keysDown.has(_nk)) return; // already tracked — let held-frame counter run
+  if (keysDown.has(_nk)) return; // already tracked: let held-frame counter run
   keysDown.add(_nk);
 
   // Battle Royale inventory: 1-5 select slot (weapons auto-swap, consumables just highlight)
@@ -200,12 +186,8 @@ document.addEventListener('keydown', e => {
   // Block attack/ability/super keydown events during the TF opening cinematic (after free period)
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
       && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
-  // Nor during a finisher. The finisher freezes the world and blocks
-  // processInput(), but this keydown path calls attack/ability/useSuper
-  // directly and never went through that block. Measured in a 2026-09-21
-  // replay: a player caught by Sovereign's execution pressed super 6 frames in,
-  // spent a full meter on their 5th super, triggered a domain the death then
-  // cancelled — and lost the whole five-super domain count with it.
+    // Also blocked during a finisher: it freezes the world, but this path calls attack/ability/useSuper
+    // directly. Without this, a super pressed mid-execution spent meter on a domain the death cancelled.
   if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
   if (typeof activeWorldFinisher !== 'undefined' && activeWorldFinisher) return;
 
@@ -217,18 +199,13 @@ document.addEventListener('keydown', e => {
     if (p._fusionAIOverride) return;
     if (_nk === p.controls.attack) {
       e.preventDefault();
-      // Combo Strike aim window: the attack key COMMITS the kick instead of
-      // starting a normal swing. Without this the same press would queue an
-      // ordinary attack that fires the instant the super releases.
+      // Combo Strike aim window: the attack key commits the kick, not a normal swing.
       if (p._comboSuper && p._comboSuper.phase === 3) { p._comboSuper.fire = true; return; }
-      // A press inside the swing's own cooldown/endlag used to be dropped, so a
-      // combo-string follow-up had to land in the ~10 frames after recovery;
-      // an AI that polls every frame never misses that window. Buffer it too.
-      // One press per recovery is the timing: pressing again inside the same
-      // recovery is mashing, which drops the buffered swing and holds the
-      // attack key out for ATTACK_MASH_LOCK frames past the recovery.
+      // A press during the swing's cooldown is buffered, so a combo follow-up can land in the window
+      // after recovery. Pressing again inside the recovery is mashing: it drops the buffer and locks
+      // the attack key for ATTACK_MASH_LOCK frames past recovery.
       const _recovering = p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0);
-      if (frameCount < (p._attackMashUntil || 0)) { /* mashed — ignored */ }
+      if (frameCount < (p._attackMashUntil || 0)) { /* mashed: ignored */ }
       else if (!incapacitated && !_recovering) { p.attack(other); }
       else if (_recovering && !incapacitated && p._inputBuffer && p._inputBuffer.action === 'attack') {
         p._inputBuffer = null;
@@ -238,13 +215,13 @@ document.addEventListener('keydown', e => {
     }
     if (_nk === p.controls.ability) {
       e.preventDefault();
-      // Depth phase: Q = move toward background layer (-Z) — not bufferable
+      // Depth phase: Q = move toward background layer (-Z): not bufferable
       if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
           typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
         p.z = Math.max(-1, (p.z || 0) - 0.3);
         spawnParticles(p.cx(), p.cy(), '#8844ff', 4);
       } else if (p._storyNoAbility) {
-        // ability locked in story — silently ignore
+        // ability locked in story: silently ignore
       } else if (!incapacitated) {
         p.ability(other);
       } else {
@@ -253,13 +230,13 @@ document.addEventListener('keydown', e => {
     }
     if (p.controls.super && _nk === p.controls.super) {
       e.preventDefault();
-      // Depth phase: E = move toward foreground layer (+Z) — not bufferable
+      // Depth phase: E = move toward foreground layer (+Z): not bufferable
       if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
           typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled && !p.isAI) {
         p.z = Math.min(1, (p.z || 0) + 0.3);
         spawnParticles(p.cx(), p.cy(), '#00aaff', 4);
       } else if (p._storyNoSuper) {
-        // super locked in story — silently ignore
+        // super locked in story: silently ignore
       } else if (!incapacitated || (p.stunTimer > 0 && !(p.ragdollTimer > 0) && p.superReady)) {
         // Stunned with a full meter: two presses of useSuper() burst out of the combo.
         checkSecretLetterCollect(p);
@@ -275,14 +252,12 @@ document.addEventListener('keyup', e => {
   const _nk = _eventKey(e);
   keysDown.delete(_nk);
   delete keyHeldFrames[_nk];
-  // Layout-shifted duplicate: release the printed character too, so a key that
-  // another listener tracked under e.key can never stick down.
+  // Release the printed character too, so a key tracked under e.key can't stick down.
   const _pk = _normKey(e.key);
   if (_pk !== _nk) { keysDown.delete(_pk); delete keyHeldFrames[_pk]; }
 });
 
-// When the tab loses focus, clear all held keys so players can't exploit
-// held-key persistence (floating, invincibility timer freeze, etc.)
+// Tab lost focus: clear held keys so nothing stays held (floating, invincibility timer freeze).
 function _clearAllKeys() {
   keysDown.clear();
   for (const k in keyHeldFrames) delete keyHeldFrames[k];
@@ -300,7 +275,7 @@ function processInput() {
   if (!gameRunning || paused) return;
   if (gameLoading) return; // freeze input while loading screen is visible
   if (activeCinematic) return; // freeze player controls during boss cinematics
-  if (gameFrozen) return;      // hard freeze during cinematics — halts all input
+  if (gameFrozen) return;      // hard freeze during cinematics: halts all input
   if (tfAbsorptionScene) return; // freeze all input during absorption cinematic
   if (typeof isCutsceneActive === 'function' && isCutsceneActive()) return; // freeze during cutscenes
   // Combat lock: highest-priority phase (cinematic/finisher) blocks all player input
@@ -309,8 +284,7 @@ function processInput() {
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
       && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
 
-  // Paradox Control Override — tick the canonical controlState/controlTimer
-  // Hard rule: only ONE controller is active at a time; no overlap.
+  // Paradox control override. Only one controller is active at a time.
   if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused) {
     // --- Safeguard 1: controlState must always be a known value ---
     if (controlState !== 'player' && controlState !== 'paradox') {
@@ -354,9 +328,7 @@ function processInput() {
     if (typeof controlTimer !== 'undefined') {
       controlTimer--;
       if (controlTimer <= 0) {
-        // Flip ownership — exactly one switch, no overlap
         controlState = (controlState === 'player') ? 'paradox' : 'player';
-        // Assign duration for the NEW owner
         if (controlState === 'player') {
           controlTimer = 180 + Math.floor(Math.random() * 121); // 180–300
         } else {
@@ -394,10 +366,9 @@ function processInput() {
     if (controlState === 'paradox' && _fusionP1 && typeof paradoxFusionUpdateAI === 'function') {
       if (aiTick % AI_TICK_INTERVAL === 0) paradoxFusionUpdateAI(_fusionP1);
     }
-    } // end safeguard-4 else (player alive)
+    }
   }
 
-  // Update key-held counters
   for (const k of keysDown) keyHeldFrames[k] = (keyHeldFrames[k] || 0) + 1;
 
   players.forEach(p => {
@@ -453,7 +424,6 @@ function processInput() {
     const wHeld = keyHeldFrames[p.controls.jump]  || 0;
 
 
-    // --- Regular movement ---
     // True Form: inverted controls for human players only
     const _ctrlInv  = (!p.isAI) && ((gameMode === 'trueform' && tfControlsInverted) || (currentArenaKey === 'mirror' && mirrorFlipped));
     const _leftKey  = _ctrlInv ? p.controls.right : p.controls.left;
@@ -470,13 +440,12 @@ function processInput() {
     }
     // Decay acceleration ramp when no direction key held
 
-    // --- Jump (ground jump + double jump) ---
     if (wHeld === 1) {
       // Knight gets higher jump power
       const jumpPower = p.charClass === 'megaknight' ? -22 : -17;
       const dblPower  = p.charClass === 'megaknight' ? -16 : -13;
       if (p.onGround || (p.coyoteFrames > 0 && !p.canDoubleJump) || p._lavaJumpGrace > 0) {
-        // Ground jump (or coyote jump — briefly after walking off a platform,
+        // Ground jump (or coyote jump: briefly after walking off a platform,
         // or lava-bounce grace so players can always jump back out of lava)
         p.vy = jumpPower;
         p.canDoubleJump = true; // enable one double-jump after leaving ground
@@ -487,7 +456,7 @@ function processInput() {
         if (p.charClass === 'megaknight') spawnParticles(p.cx(), p.y + p.h, '#8844ff', 5);
         SoundManager.jump();
       } else if (p.canDoubleJump && !p._noDoubleJump) {
-        // Double jump in air — gated by skill flag in story mode
+        // Double jump in air: gated by skill flag in story mode
         p.vy = dblPower;
         p.canDoubleJump = false;
         spawnParticles(p.cx(), p.cy(), p.color,  8);
@@ -507,7 +476,6 @@ function processInput() {
     // _shieldOosLatch: an attack out of shield dropped the guard (Fighter.attack);
     // it stays down until the key is released, or a held key would re-raise it.
     const sNewPress = sHeld && (p.shieldHoldTimer || 0) === 0 && !p.shieldBroken && !p._shieldOosLatch;
-    // Tick down BR item shield timer
     if (p._brShieldTimer > 0) {
       p._brShieldTimer--;
       if (p._brShieldTimer <= 0) { p.shielding = false; p._brShieldTimer = 0; }
@@ -527,7 +495,7 @@ function processInput() {
       p.shielding = false;
       p.shieldHoldTimer = 0;
     } else if (!sHeld && !p._brShieldTimer) {
-      // Key released — clear shield state and allow fresh activation on next press
+      // Key released: clear shield state and allow fresh activation on next press
       p.shielding       = false;
       p.shieldHoldTimer = 0;
       p.shieldBroken    = false;
@@ -535,7 +503,7 @@ function processInput() {
       p._shieldRaiseDelay = 0;
     } else if (sNewPress && p._domainSlowFactor > 0 && p._domainSlowFactor < 1 &&
                (p._shieldRaiseDelay || 0) < Math.round(8 / p._domainSlowFactor - 8)) {
-      // Shadow Realm time dilation: the shield comes up late — keep holding through the raise
+      // Shadow Realm time dilation: the shield comes up late: keep holding through the raise
       p._shieldRaiseDelay = (p._shieldRaiseDelay || 0) + 1;
     } else if (sNewPress && !(p.weapon && p.weapon.type === 'ranged' && p._rangedCommitTimer > 0)) {
       // New key-press: book it under the active shield rules (smb-combat.js shieldRaise)
@@ -545,10 +513,9 @@ function processInput() {
         if (SoundManager.shieldUp) SoundManager.shieldUp();
       }
     } else if (sHeld && p.shielding) {
-      // Continuing to hold an active shield
       p.shieldHoldTimer = (p.shieldHoldTimer || 0) + 1;
       if (p.shieldHoldTimer >= SHIELD_MAX) {
-        // Max continuous hold — force re-press for next activation
+        // Max continuous hold: force re-press for next activation
         p.shielding       = false;
         p.shieldHoldTimer = 0;
         p.shieldBroken    = true;
@@ -563,7 +530,7 @@ function processInput() {
         paradoxPlayerUseAbility(p);
       }
     }
-    // Fracture interaction — E key (super) or ability key on P1 near an unlocked fracture
+    // Fracture interaction: E key (super) or ability key on P1 near an unlocked fracture
     if (!p.isAI && p === players[0] && typeof checkFractureInteraction === 'function') {
       const _ePressed = (keyHeldFrames[p.controls.super] || 0) === 1;
       checkFractureInteraction(p, _ePressed);
@@ -571,20 +538,13 @@ function processInput() {
   });
 }
 
-// ============================================================
-// GAMEPAD — standard-mapping pads drive the same code paths as the keyboard and
-// the mobile touch pads: synthetic keydown/keyup on the player's bound keys.
-//   Pad 1 -> first local human; pad 2 -> second local human (local 2P only).
-//   Stick/D-pad L/R = move, stick/D-pad up or A = jump, stick/D-pad down or
-//   LB/RB/LT/RT = shield, X = attack, Y = ability (Q), B = super (E).
-//   Start = Esc (pause/back). Outside a live match (menus, pause overlay) the
-//   D-pad/stick moves a focus ring over visible buttons and A clicks it; during a
-//   story narrative scene A advances it (Enter).
-// Only keys the pad itself pressed are released by the pad, so it never fights
-// the keyboard. Runs on its own rAF loop so menus work too.
-// ============================================================
+// Gamepad: standard-mapping pads send the same synthetic keydown/keyup as the keyboard and touch pads.
+// Pad 1 is the first local human, pad 2 the second (local 2P only). Own rAF loop, so menus work too.
+//   Stick/D-pad L/R = move, up or A = jump, down or LB/RB/LT/RT = shield, X = attack, Y = ability (Q), B = super (E).
+//   Start = Esc. Outside a match the D-pad moves a focus ring and A clicks it; in a story scene A advances (Enter).
+// Only keys the pad itself pressed get released by the pad, so it never fights the keyboard.
 const _GP_ON = 0.35, _GP_OFF = 0.25;
-const _GP_P2_KEYS = { left: 'j', right: 'l', jump: 'i', attack: 'u', shield: 'k', ability: 'o', super: '[' };
+const _GP_P2_KEYS = { left: 'j', right: 'l', jump: 'i', attack: ';', shield: 'k', ability: 'o', super: 'u' };
 const _GP_P1_KEYS = { left: 'a', right: 'd', jump: 'w', attack: ' ', shield: 's', ability: 'q', super: 'e' };
 const _gpHeld = [{}, {}];        // per pad: action -> key we sent keydown for
 const _gpAct  = [{}, {}];        // per pad: action -> latched on/off (hysteresis)

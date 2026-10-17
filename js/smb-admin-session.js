@@ -1,8 +1,7 @@
 'use strict';
 
-// Short-lived server admin session bridge. The permanent admin secret lives only
-// on the server; browsers exchange their verified Supabase session for a signed
-// admin token that expires quickly.
+// Browser side of the admin session. The admin secret stays on the server; the browser
+// swaps its Supabase session for a short-lived signed token.
 const AdminSession = (() => {
   const STORAGE_KEY = 'smb_admin_session_v1';
   let _session = null;

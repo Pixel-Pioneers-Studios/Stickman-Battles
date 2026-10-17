@@ -1,18 +1,8 @@
 'use strict';
-// js/story/levels/ch92.js — Chapter 92 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch92.js: chapter 92 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 92 — The Ground Is a Suggestion (puzzle, 3 gravity nodes)
-// The approach corridor to the Axis, unstable: its ground is broken into
-// slabs floating at slightly different heights with short gaps between, and
-// loose rubble hangs in the air over every gap. Three gravity nodes run the
-// corridor — gyroscopes of stone rings on pedestals, each lock sitting on its
-// pedestal at the height puzzleSwitchDefs gives it. Unactivated, a node's
-// rings tumble on every axis and the rubble near it drifts; each one you
-// activate locks its rings flat and pulls its rubble down into a neat stack.
-// The Axis Core at the end is a sphere held between two stone horns. Floating
-// slabs over the gaps are the high routes.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch 92: puzzle, 3 gravity nodes. Gaps are crossed on floating slabs (the high routes).
+// Activating a node locks its stone rings flat and stacks its rubble.
 (function () {
   const SLABS = [[0, 1040, 440], [1100, 1980, 430], [2040, 3400, 440]];
   const NODES = [[600, 390], [1500, 355], [2700, 370]];
@@ -53,7 +43,7 @@
     }
     ctx.fillStyle = on ? '#cfe6ff' : '#4a4640'; ctx.beginPath(); ctx.arc(x, cy, 8, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#4a4640'; ctx.fillRect(x - 3, cy + 8, 6, y - cy - 8);
-    // The node's rubble: drifting while it's off, stacked once it's on
+    // Rubble drifts until its node is on
     for (let k = 0; k < 6; k++) {
       const s = 10 + _slHash(k + x) * 10;
       if (on) { ctx.fillStyle = '#4a4640'; ctx.fillRect(x + 60 + (k % 2) * 6, b - s - Math.floor(k / 2) * 14, s + 6, 12); }
@@ -72,7 +62,6 @@
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w - 12, y + 18); ctx.lineTo(x + w * 0.5, y + 34); ctx.lineTo(x + 12, y + 18); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#6a6458'; ctx.fillRect(x, y, w, 4);
     }
-    // The Axis Core held between two horns of stone
     if (_slVisible(v, CORE - 160, CORE + 160)) {
       ctx.fillStyle = '#4a4640';
       for (const s of [-1, 1]) { ctx.beginPath(); ctx.moveTo(CORE + s * 40, 440); ctx.quadraticCurveTo(CORE + s * 110, 300, CORE + s * 50, 200); ctx.lineTo(CORE + s * 70, 210); ctx.quadraticCurveTo(CORE + s * 130, 320, CORE + s * 80, 440); ctx.fill(); }

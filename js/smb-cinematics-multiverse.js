@@ -1,13 +1,6 @@
 'use strict';
-// smb-cinematics-multiverse.js — startMultiverseTravelCinematic()
-// Depends on: smb-cinematics-core.js
-// ============================================================
-// MULTIVERSE TRAVEL CINEMATIC
-// DOM-canvas overlay; runs independently of the game loop so
-// it can play safely between story chapters (no game loop active).
-// ============================================================
+// Multiverse travel cinematic. DOM-canvas overlay that runs outside the game loop, so it is safe between story chapters. Needs smb-cinematics-core.js.
 function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
-  // Remove any leftover overlay from a previous call
   const old = document.getElementById('multiverseTravelOverlay');
   if (old) old.remove();
 
@@ -33,7 +26,6 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
   let frame = 0;
   let rafId;
 
-  // Build star-field particles once
   const stars = [];
   for (let i = 0; i < 140; i++) {
     stars.push({
@@ -50,12 +42,10 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
     const t   = frame / TOTAL_FRAMES;       // 0 → 1
     const env = Math.sin(t * Math.PI);       // 0 → 1 → 0 envelope
 
-    // ── Background ───────────────────────────────────────────────
     c.clearRect(0, 0, W, H);
     c.fillStyle = '#000';
     c.fillRect(0, 0, W, H);
 
-    // ── Streaking distortion lines ────────────────────────────────
     c.save();
     for (let i = 0; i < 28; i++) {
       const y     = H * ((i / 28 + t * 0.6) % 1);
@@ -70,7 +60,6 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
     }
     c.restore();
 
-    // ── Star particles ────────────────────────────────────────────
     const speed = 1 + t * 3;
     c.save();
     c.globalAlpha = env * 0.85;
@@ -84,7 +73,6 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
     }
     c.restore();
 
-    // ── Radial vortex (peaks at t=0.5) ───────────────────────────
     const vortexAlpha = Math.max(0, 1 - Math.abs(t - 0.5) * 3.5) * 0.75;
     if (vortexAlpha > 0.01) {
       const grad = c.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, H * 0.65);
@@ -98,7 +86,6 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
       c.restore();
     }
 
-    // ── White flash at peak ───────────────────────────────────────
     const flashAlpha = Math.max(0, 1 - Math.abs(t - 0.5) * 9);
     if (flashAlpha > 0.01) {
       c.save();
@@ -108,7 +95,6 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
       c.restore();
     }
 
-    // ── Text ──────────────────────────────────────────────────────
     const textAlpha = env;
     if (textAlpha > 0.01) {
       c.save();
@@ -116,14 +102,12 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
       c.textAlign     = 'center';
       c.textBaseline  = 'middle';
 
-      // "REALITY SHIFT" heading
       c.font        = `bold ${Math.round(H * 0.062)}px 'Arial Black', Arial, sans-serif`;
       c.shadowColor = COL;
       c.shadowBlur  = 28;
       c.fillStyle   = '#ffffff';
       c.fillText('REALITY SHIFT', W / 2, H / 2 - H * 0.065);
 
-      // Arc label sub-heading
       if (arcLabel) {
         c.font        = `${Math.round(H * 0.033)}px Arial, sans-serif`;
         c.shadowBlur  = 14;
@@ -133,7 +117,6 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
       c.restore();
     }
 
-    // ── Fade in / fade out ────────────────────────────────────────
     if (t < 0.09) {
       c.save();
       c.globalAlpha = 1 - t / 0.09;

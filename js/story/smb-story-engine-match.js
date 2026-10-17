@@ -1,9 +1,8 @@
 'use strict';
 
-// smb-story-engine-match.js — spawnWorldBoss, story2OnMatchEnd, _completeChapter2, storyVictory, story2Init
+// smb-story-engine-match.js, spawnWorldBoss, story2OnMatchEnd, _completeChapter2, storyVictory, story2Init
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
-// ── Saga scoping ──────────────────────────────────────────────────────────────
 // On a 'full' build these resolve to the whole story, so behaviour is unchanged.
 // smb-saga-structure.js loads AFTER this file, so both guard on its presence.
 function _sagaFinalId() {
@@ -15,8 +14,8 @@ function _sagaInRange(chId) {
   return true;
 }
 
-// Patches the freshly-spawned Boss instance with world-specific stat/behaviour
-// tweaks.  Keep these as simple property overrides — do NOT rebuild Boss logic.
+// Patches a freshly spawned Boss with world-specific stats and behaviour.
+// Keep these as property overrides. Don't rebuild Boss logic here.
 function spawnWorldBoss(wId) {
   if (!players || !Array.isArray(players)) return;
   const boss = players.find(p => p && p.isBoss && !p.isTrueForm);
@@ -51,7 +50,7 @@ function spawnWorldBoss(wId) {
           boss.weaponKey = playerWeaponKey;
         }
       }
-      boss.kbResist = (boss.kbResist || 0.3) * 0.8; // slightly less tanky — relies on mirroring
+      boss.kbResist = (boss.kbResist || 0.3) * 0.8; // slightly less tanky, relies on mirroring
       break;
 
     case 'godfall':
@@ -83,8 +82,7 @@ function spawnWorldBoss(wId) {
   }
 }
 
-// ── Called when the player wins a story2 chapter ─────────────────────────────
-// ── Shop recommendation on chapter loss ───────────────────────────────────────
+// Shop nag on chapter loss.
 function _showStory2LoseNag(ch) {
   // Wait one frame so endGame() can finish building the overlay before we inject into it
   requestAnimationFrame(() => {
@@ -114,7 +112,7 @@ function _showStory2LoseNag(ch) {
     ].join(';');
 
     if (affordable.length === 0) {
-      // Player can't afford anything — tell them tokens come from winning/replaying
+      // Player can't afford anything, tell them tokens come from winning/replaying
       nag.innerHTML = `
         <div style="font-weight:700;margin-bottom:5px;color:#ffaa66;">💡 Ability Store</div>
         <div style="color:#ccbbaa;">You don't have enough tokens to buy anything right now.
@@ -159,7 +157,7 @@ function _showStory2LoseNag(ch) {
     if (btnRow) btnRow.before(nag);
     else ov.querySelector('.overlay-box').appendChild(nag);
 
-    // Wire up Visit Store button — open story menu directly on the store tab
+    // Wire up Visit Store button, open story menu directly on the store tab
     const storeBtn = nag.querySelector('#story2NagStoreBtn');
     if (storeBtn) {
       storeBtn.onclick = () => {
@@ -176,7 +174,7 @@ function _showStory2LoseNag(ch) {
 // Causes story2OnMatchEnd to auto-advance instead of showing the retry screen.
 let _axiomForcedPlayerLoss = false;
 
-// Hooked into endGame via storyOnMatchEnd — we intercept after storyModeActive check
+// Hooked into endGame via storyOnMatchEnd, we intercept after storyModeActive check
 function story2OnMatchEnd(playerWon) {
   const ch = _activeStory2Chapter;
   if (!ch || !storyModeActive) return false; // not a story2 fight
@@ -205,7 +203,7 @@ function story2OnMatchEnd(playerWon) {
     }
   }
   if (!playerWon) {
-    // Ch63: Axiom scripted defeat — advance automatically, do not show retry screen.
+    // Ch63: Axiom scripted defeat, advance automatically, do not show retry screen.
     // Phase expansion reassigns ch.id; the original id lives in ch._origId.
     if (_axiomForcedPlayerLoss && (ch._origId !== undefined ? ch._origId : ch.id) === 63) {
       _axiomForcedPlayerLoss = false;
@@ -215,7 +213,7 @@ function story2OnMatchEnd(playerWon) {
     _axiomForcedPlayerLoss = false;
     if (_story2.runState) _story2.runState.noDeathChain = 0;
     _showStory2RetryScreen(ch);
-    return true; // handled — don't complete chapter
+    return true; // handled, don't complete chapter
   }
 
   const p1 = players && players.find(p => !p.isBoss && !p.isAI);
@@ -223,7 +221,7 @@ function story2OnMatchEnd(playerWon) {
     _storySetCarryHealthPct(p1.health / p1.maxHealth);
   }
 
-  // Multiverse world boss beaten — record world clear, unlock next world, apply scaling
+  // Multiverse world boss beaten, record world clear, unlock next world, apply scaling
   if (ch.isMultiverseWorld && ch.multiverseWorldId && typeof MultiverseManager !== 'undefined') {
     MultiverseManager.onWorldComplete(ch.multiverseWorldId);
     MultiverseManager.deactivate();
@@ -257,7 +255,7 @@ function story2OnMatchEnd(playerWon) {
   const _firstClear = !_story2.defeated.includes(ch.id);
   if (_firstClear) {
     _story2.defeated.push(ch.id);
-    // Recompute rather than increment — saga-scoped and idempotent.
+    // Recompute rather than increment, saga-scoped and idempotent.
     if (typeof _storyRecomputePowerLevel === 'function') _storyRecomputePowerLevel();
     if (typeof unlockAchievement === 'function') unlockAchievement('story_begin');
     // Immediately commit defeated list to account.data so it survives before saveGame flushes
@@ -272,7 +270,7 @@ function story2OnMatchEnd(playerWon) {
   _story2.chapter = Math.max(_story2.chapter, ch.id + 1);
   if (_story2.chapter !== _prevChapter) {
     console.info('[STATE MUTATION] chapter', _prevChapter, '->', _story2.chapter);
-    // Immediately commit chapter to account.data — authoritative before saveGame flushes
+    // Immediately commit chapter to account.data, authoritative before saveGame flushes
     const _acctC = window.GameState ? GameState.getActiveAccount() : null;
     if (_acctC && _acctC.data) {
       if (!_acctC.data.story || typeof _acctC.data.story !== 'object') _acctC.data.story = {};
@@ -296,7 +294,7 @@ function story2OnMatchEnd(playerWon) {
   if (!_story2.runState) _story2.runState = { healthPct: 1, noDeathChain: 0 };
   _story2.runState.noDeathChain = (_story2.runState.noDeathChain || 0) + 1;
 
-  // Sovereign chapter win — unlock Neural AI and Sovereign Ω modes
+  // Sovereign chapter win, unlock Neural AI and Sovereign Ω modes
   if (ch.isSovereignFight && !sovereignBeaten) {
     if (typeof setAccountFlagWithRuntime === 'function') {
       setAccountFlagWithRuntime(['unlocks', 'sovereignBeaten'], true, function(v) { sovereignBeaten = v; });
@@ -323,26 +321,24 @@ function story2OnMatchEnd(playerWon) {
   _saveStory2();
   if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
 
-  // ── Ship part awards (first-clear only) ────────────────────────────────
   // Hull fragments scattered through Act 0 and Act 1.
   // Engine drops at the Act 1 climax (ch ~24). Core at Act 3 (ch ~50).
   // Crystal is awarded by the fracture preview system, not here.
   // Award against the ORIGINAL chapter id (phase expansion reassigns ch.id),
-  // and only on the final phase — otherwise every phase of an expanded chapter
+  // and only on the final phase, otherwise every phase of an expanded chapter
   // re-awards on its own first clear.
   const _chOrig = ch._origId !== undefined ? ch._origId : ch.id;
   const _isFinalPhase = ch._origId === undefined || ch._phaseFinal === true;
   if (_firstClear && _isFinalPhase && typeof giveShipPart === 'function') {
-    if (_chOrig === 5)  giveShipPart('hull');   // Act 0 — first victory
+    if (_chOrig === 5)  giveShipPart('hull');   // Act 0, first victory
     if (_chOrig === 12) giveShipPart('hull');   // Act 0 arc 2 close
-    if (_chOrig === 18) giveShipPart('hull');   // Act 1 — void arena cleared
+    if (_chOrig === 18) giveShipPart('hull');   // Act 1, void arena cleared
     if (_chOrig === 24) giveShipPart('hull');   // Act 1 climax
     if (_chOrig === 30) giveShipPart('hull');   // Act 2 entry
-    if (_chOrig === 24) giveShipPart('engine'); // Act 1 boss — engine recovered
-    if (_chOrig === 50) giveShipPart('core');   // Act 3 climax — dimensional core
+    if (_chOrig === 24) giveShipPart('engine'); // Act 1 boss, engine recovered
+    if (_chOrig === 50) giveShipPart('core');   // Act 3 climax, dimensional core
   }
 
-  // ── Motivation advancement ─────────────────────────────────────────────
   // Stage 0→1: player has fought enough to start asking why (ch 10)
   // Stage 1→2: player learns the Creator controls the branch (ch 30)
   // Stage 2→3: player understands True Form is the only end (ch 55)
@@ -352,7 +348,6 @@ function story2OnMatchEnd(playerWon) {
     if (_chOrig === 55) advanceMotivation(); // 2→3: commitment
   }
 
-  // ── Fracture unlock: reveal branch_alpha after Act 1 ──────────────────
   if (_firstClear && ch.id === 20 && typeof unlockFracture === 'function') {
     unlockFracture('branch_alpha');
   }
@@ -372,7 +367,6 @@ function story2OnMatchEnd(playerWon) {
     return true;
   }
 
-  // ── Per-chapter onComplete hook ───────────────────────────────────────────
   // Arc files can attach `onComplete()` to a chapter object to fire side effects
   // (set story flags, trigger lore moments, etc.) on first-clear win.
   if (_firstClear && typeof ch.onComplete === 'function') {
@@ -391,7 +385,7 @@ function _completeChapter2(ch) {
   storyPhaseIndicator = null;
   if (!_story2.defeated.includes(ch.id)) {
     _story2.defeated.push(ch.id);
-    // Recompute rather than increment — saga-scoped and idempotent.
+    // Recompute rather than increment, saga-scoped and idempotent.
     if (typeof _storyRecomputePowerLevel === 'function') _storyRecomputePowerLevel();
   }
   _story2.tokens += _storyTokenReward(ch.tokenReward);
@@ -483,7 +477,7 @@ function _showStory2Victory(ch) {
 
   if (nextBtn) {
     if (ch.id === 0) {
-      // First chapter beaten — offer "Continue to Game" to unlock the main menu
+      // First chapter beaten, offer "Continue to Game" to unlock the main menu
       nextBtn.style.display = '';
       nextBtn.textContent = '🎮 Continue to Game';
       nextBtn.style.cssText = 'padding:12px 28px;font-size:1rem;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,#1a5acc,#2277ee);border:none;border-radius:10px;color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(50,120,255,0.5);width:100%;margin-top:8px;';
@@ -524,16 +518,14 @@ function storyVictoryNextChapter() {
     if (nextCh) {
       _activeStory2Chapter = null;
 
-      // Detect arc boundary — show multiverse travel cinematic when entering a new arc
+      // Detect arc boundary, show multiverse travel cinematic when entering a new arc
       const curArc  = _getArcForChapter(ch.id);
       const nextArc = _getArcForChapter(nextCh.id);
       const crossingArc = nextArc && curArc && nextArc.id !== curArc.id;
 
       function _doLaunch() {
-        // Reveal the story modal as the backdrop BEFORE launching. If the next
-        // chapter is a fight, _beginChapter2 → _launchChapter2FightImmediate hides
-        // it again; doing this after the launch re-opened the modal on top of the
-        // now-running level (had to close both the level and the modal to play).
+        // Show the story modal as backdrop before launching. A fight chapter hides it again,
+        // so opening it after the launch would cover the running level.
         const m = document.getElementById('storyModal');
         if (m) m.style.display = 'flex';
         _renderChapterList();

@@ -1,17 +1,5 @@
 'use strict';
-// js/story/levels/ch133.js — Chapter 133 map (story ARENA, gauntlet). See smb-story-levels.js.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 133 — The First Creation (3-round gauntlet, one screen)
-// The Memory Chamber: where the Creator keeps the oldest thing it made. The
-// room is dim and old by this domain's standards — the white panels have
-// yellowed, the lattice is hand-drawn rather than perfect. Memory frames hang
-// in the dark around the walls, each showing one early, clumsy attempt at
-// making something: a cube that doesn't close, a sphere with a dent, a stick
-// figure with too many joints. In the centre, under glass, the first thing
-// that worked: a single small, perfect ring, turning. The ledges keep the
-// haunted arena's layout this chapter was built on.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch133.js: Chapter 133 map (3-round gauntlet, one screen). See smb-story-levels.js.
 (function () {
   const G = 480;
   const LEDGES = [[345, 185, 210, 18], [130, 268, 155, 18], [615, 268, 155, 18], [18, 158, 112, 16], [770, 158, 112, 16]];
@@ -26,11 +14,9 @@
   function backdrop(v) {
     _slSkyAbove(v, '#0c0812');
     ctx.fillStyle = '#1a1420'; ctx.fillRect(v.x - 10, v.y - 10, v.w + 20, G - v.y + 10);
-    // Yellowed panels, hand-drawn lattice
     for (let x = -40; x < 960; x += 120) { ctx.fillStyle = 'rgba(200,190,150,0.08)'; ctx.fillRect(x + 4, 20, 112, 440); }
     ctx.strokeStyle = 'rgba(200,190,150,0.15)'; ctx.lineWidth = 1;
     for (let k = 0; k < 14; k++) { ctx.beginPath(); ctx.moveTo(-40, 30 + k * 32 + _slHash(k + 1330) * 6); ctx.lineTo(960, 30 + k * 32 + _slHash(k + 1331) * 10); ctx.stroke(); }
-    // Memory frames: early, clumsy attempts
     for (const [x, y, k] of FRAMES) {
       ctx.fillStyle = '#2a2230'; ctx.fillRect(x - 36, y, 72, 60); ctx.strokeStyle = '#8a7a58'; ctx.lineWidth = 2; ctx.strokeRect(x - 36, y, 72, 60);
       ctx.strokeStyle = 'rgba(220,210,180,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath();
@@ -40,7 +26,6 @@
       else { ctx.moveTo(x - 16, y + 46); ctx.lineTo(x, y + 14); ctx.lineTo(x + 18, y + 42); }
       ctx.stroke();
     }
-    // The first thing that worked: a small, perfect ring under glass
     ctx.fillStyle = 'rgba(200,220,255,0.06)'; ctx.fillRect(420, 70, 60, 70); ctx.strokeStyle = 'rgba(200,220,255,0.35)'; ctx.strokeRect(420, 70, 60, 70);
     ctx.strokeStyle = '#f0e8c8'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(450, 105, 14, 14 * Math.abs(Math.cos(frameCount * 0.02)), 0, 0, Math.PI * 2); ctx.stroke();
   }

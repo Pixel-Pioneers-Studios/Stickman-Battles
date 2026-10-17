@@ -1,11 +1,11 @@
 'use strict';
-// smb-admin-panels.js — Admin panel toggle/create/refresh, panel action handlers, toast, ban screen, F9 listener, startup sync
+// Admin panel (toggle, create, refresh, actions), toast, ban screen, F9 listener, startup sync.
 // Depends on: smb-globals.js, smb-state.js, smb-accounts.js
 
 
 function _adminPanelToggle() {
   if (!_adminPanelIsAllowed()) {
-    // Silently ignore for non-admins — no UI feedback on purpose.
+    // Silently ignore for non-admins, no UI feedback on purpose.
     return;
   }
   _adminPanelOpen = !_adminPanelOpen;
@@ -40,7 +40,6 @@ function _adminPanelGetOrCreate() {
     'color:#ffe0a0',
   ].join(';');
 
-  // Header
   const hdr = document.createElement('div');
   hdr.style.cssText = [
     'display:flex','align-items:center','justify-content:space-between',
@@ -59,7 +58,7 @@ function _adminPanelGetOrCreate() {
   ].join('');
   panel.appendChild(hdr);
 
-  // Body — populated by _adminPanelRefresh
+  // Body, populated by _adminPanelRefresh
   const body = document.createElement('div');
   body.id = 'adminPanelBody';
   body.style.cssText = 'padding:16px 18px;display:flex;flex-direction:column;gap:14px;';
@@ -78,7 +77,6 @@ function _adminPanelRefresh() {
   const allAccts = window.AccountManager ? AccountManager.getAllAccounts() : [];
   const peerRoster = (window.NetworkManager && typeof NetworkManager.getPeerRoster === 'function') ? NetworkManager.getPeerRoster() : [];
 
-  // Build account options string for <select>
   const acctOptions = allAccts.map(function(a) {
     return '<option value="' + _adminEsc(a.id) + '">' + _adminEsc(a.username) + (a.id === activeId ? ' (active)' : '') + '</option>';
   }).join('');
@@ -104,13 +102,11 @@ function _adminPanelRefresh() {
   }).join('') : '<div style="font-size:0.73rem;opacity:0.48;">No connected peers.</div>';
 
   body.innerHTML = [
-    // ── Active account info ────────────────────────────────────────────────
     '<div style="font-size:0.78rem;opacity:0.55;padding-bottom:4px;border-bottom:1px solid rgba(255,140,0,0.2);">',
       'Active: <strong style="color:#ffcc66;">' + (active ? _adminEsc(active.username) : 'none') + '</strong>',
       ' &nbsp;|&nbsp; ID: <code style="font-size:0.72rem;color:#aac;">' + (activeId || '—') + '</code>',
     '</div>',
 
-    // ── Cinematic Viewer ──────────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Cinematic Viewer</div>',
       '<div style="font-size:0.73rem;opacity:0.5;margin-bottom:5px;">All cinematics, finishers, and convictions. Always fully unlocked.</div>',
@@ -121,7 +117,6 @@ function _adminPanelRefresh() {
       '</button>',
     '</div>',
 
-    // ── Set Chapter ────────────────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Set Story Chapter</div>',
       '<div style="display:flex;gap:6px;align-items:center;">',
@@ -139,7 +134,6 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Give All Unlocks ───────────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Give All Unlocks</div>',
       '<div style="display:flex;gap:6px;align-items:center;">',
@@ -154,7 +148,6 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Teleport to Story Fight ────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Teleport to Story Fight</div>',
       '<div style="font-size:0.73rem;opacity:0.5;margin-bottom:5px;">Starts the chapter immediately. Must be on the menu screen.</div>',
@@ -168,7 +161,6 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Reset Account ──────────────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Reset Account Save</div>',
       '<div style="display:flex;gap:6px;align-items:center;">',
@@ -183,7 +175,6 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Delete Account ─────────────────────────────────────────────────────
     '<div>',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:6px;">Delete Account</div>',
       '<div style="display:flex;gap:6px;align-items:center;">',
@@ -198,11 +189,9 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Online Controls ────────────────────────────────────────────────────
     '<div style="border-top:1px solid rgba(255,140,0,0.15);padding-top:12px;">',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:8px;">Online Controls</div>',
 
-      // Join Any Lobby
       '<div style="margin-bottom:8px;">',
         '<div style="font-size:0.73rem;opacity:0.6;margin-bottom:4px;">Join Any Lobby</div>',
         '<div style="display:flex;gap:6px;">',
@@ -216,7 +205,6 @@ function _adminPanelRefresh() {
         '</div>',
       '</div>',
 
-      // Kick Player
       '<div style="margin-bottom:8px;">',
         '<div style="font-size:0.73rem;opacity:0.6;margin-bottom:4px;">Kick Player (by account)</div>',
         '<div style="display:flex;gap:6px;align-items:center;">',
@@ -231,7 +219,6 @@ function _adminPanelRefresh() {
         '</div>',
       '</div>',
 
-      // Set Chapter Live
       '<div>',
         '<div style="font-size:0.73rem;opacity:0.6;margin-bottom:4px;">Set Chapter Live (local + remote)</div>',
         '<div style="display:flex;gap:6px;align-items:center;">',
@@ -250,7 +237,6 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Moderation ───────────────────────────────────────────────────────
     '<div style="border-top:1px solid rgba(255,140,0,0.15);padding-top:12px;">',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:8px;">Moderation</div>',
       '<div style="display:flex;flex-direction:column;gap:6px;">',
@@ -276,7 +262,6 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Manage Admins ──────────────────────────────────────────────────────
     '<div style="border-top:1px solid rgba(255,140,0,0.15);padding-top:12px;">',
       '<div style="font-size:0.8rem;font-weight:600;color:#ffcc66;margin-bottom:4px;">Manage Admins</div>',
       '<div style="font-size:0.7rem;opacity:0.5;margin-bottom:6px;">Paste any account ID — no local lookup needed, works cross-device.</div>',
@@ -295,13 +280,11 @@ function _adminPanelRefresh() {
       '</div>',
     '</div>',
 
-    // ── Footer hint ────────────────────────────────────────────────────────
     '<div style="font-size:0.7rem;opacity:0.35;text-align:center;padding-top:4px;',
       'border-top:1px solid rgba(255,140,0,0.15);">Press F9 to close</div>',
   ].join('');
 }
 
-// ── Panel action handlers ─────────────────────────────────────────────────────
 
 function _adminPanelSetChapter() {
   const id  = (document.getElementById('adminChapterAcctSel') || {}).value || '';
@@ -463,7 +446,6 @@ function _adminPanelKickTarget(target) {
   }
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
 function _adminToast(msg, isError) {
   let t = document.getElementById('adminToast');
   if (!t) {
@@ -486,7 +468,6 @@ function _adminToast(msg, isError) {
   t._hideTimer = setTimeout(function() { t.style.opacity = '0'; }, 2600);
 }
 
-// ── HTML escape (panel only) ──────────────────────────────────────────────────
 function _adminEsc(s) {
   return String(s)
     .replace(/&/g, '&amp;')
@@ -495,7 +476,6 @@ function _adminEsc(s) {
     .replace(/"/g, '&quot;');
 }
 
-// ── F9 keydown listener ───────────────────────────────────────────────────────
 document.addEventListener('keydown', function(e) {
   if (e.key === 'F9') {
     e.preventDefault();
@@ -503,17 +483,12 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Ban Screen
-// Shown when the active account matches a ban record on this device.
-// This protects against shared-device scenarios. Cross-device bans require
-// a server backend — browser games have no way to enforce them client-side.
-// ═══════════════════════════════════════════════════════════════════════════════
+// Ban screen. Shown when the active account matches a ban record on this device.
+// Cross-device bans need the server, since browser games can't enforce them client-side.
 
 const APPEAL_DISCORD_URL = 'https://discord.gg/JWk3jMFKBP';
 
 function showBanScreen(banRecord) {
-  // Remove any existing ban screen first
   const existing = document.getElementById('smbBanScreen');
   if (existing) existing.remove();
 
@@ -528,7 +503,7 @@ function showBanScreen(banRecord) {
   if (isPerm) {
     durationText = 'This ban is <strong style="color:#ff4444;">permanent</strong>.';
   } else if (msLeft <= 0) {
-    // Expired — don't show the screen
+    // Expired, don't show the screen
     return;
   } else if (daysLeft >= 1) {
     durationText = 'Expires in <strong style="color:#ffaa44;">' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's') + '</strong>.';
@@ -554,39 +529,32 @@ function showBanScreen(banRecord) {
   ].join(';');
 
   overlay.innerHTML = [
-    // Animated vignette bars
     '<div style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">',
       '<div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#ff0000,#aa0000,#ff0000);animation:smbBanPulse 2s infinite;"></div>',
       '<div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#aa0000,#ff0000,#aa0000);animation:smbBanPulse 2s 1s infinite;"></div>',
     '</div>',
 
-    // Main card
     '<div style="position:relative;max-width:min(580px,90vw);width:100%;text-align:center;padding:48px 36px;',
       'background:rgba(20,0,5,0.82);border:1px solid rgba(255,40,40,0.35);border-radius:16px;',
       'box-shadow:0 0 80px rgba(200,0,0,0.25),0 0 20px rgba(255,0,0,0.1) inset;">',
 
-      // Icon
       '<div style="font-size:3.5rem;margin-bottom:12px;filter:drop-shadow(0 0 16px #ff2222);">&#x26D4;</div>',
 
-      // Title
       '<div style="font-size:1.7rem;font-weight:800;letter-spacing:3px;color:#ff3333;',
         'text-shadow:0 0 24px rgba(255,0,0,0.6);margin-bottom:6px;text-transform:uppercase;">',
         'Account Banned',
       '</div>',
 
-      // Subtitle
       '<div style="font-size:0.82rem;color:rgba(255,150,150,0.5);letter-spacing:2px;margin-bottom:32px;text-transform:uppercase;">',
         'Access to Stickman Clash has been restricted',
       '</div>',
 
-      // Reason card
       '<div style="background:rgba(255,30,30,0.07);border:1px solid rgba(255,60,60,0.25);border-radius:10px;',
         'padding:18px 22px;margin-bottom:18px;text-align:left;">',
         '<div style="font-size:0.68rem;color:rgba(255,120,120,0.55);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Reason</div>',
         '<div style="font-size:0.92rem;color:#ffcccc;">' + reason + '</div>',
       '</div>',
 
-      // Duration + Issued
       '<div style="display:flex;gap:12px;margin-bottom:28px;">',
         '<div style="flex:1;background:rgba(255,30,30,0.05);border:1px solid rgba(255,60,60,0.2);border-radius:10px;padding:14px 16px;text-align:left;">',
           '<div style="font-size:0.65rem;color:rgba(255,120,120,0.5);letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">Duration</div>',
@@ -598,7 +566,6 @@ function showBanScreen(banRecord) {
         '</div>',
       '</div>',
 
-      // Appeal section
       '<div style="background:rgba(80,60,20,0.18);border:1px solid rgba(255,180,40,0.25);border-radius:10px;padding:16px 22px;margin-bottom:24px;text-align:left;">',
         '<div style="font-size:0.68rem;color:rgba(255,200,80,0.55);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Think this is a mistake?</div>',
         '<div style="font-size:0.82rem;color:rgba(255,220,140,0.8);margin-bottom:12px;">',
@@ -612,7 +579,6 @@ function showBanScreen(banRecord) {
           'text-decoration:none;cursor:pointer;transition:background 0.2s;" ',
           'onmouseover="this.style.background=\'rgba(88,101,242,0.38)\'" ',
           'onmouseout="this.style.background=\'rgba(88,101,242,0.22)\'">',
-          // Discord icon (SVG)
           '<svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">',
             '<path d="M15.247 1.15A14.56 14.56 0 0 0 11.67 0c-.16.29-.35.68-.48.99a13.4 13.4 0 0 0-4.37 0C6.67.68 6.47.29 6.31 0a14.52 14.52 0 0 0-3.58 1.15C.39 4.7-.24 8.15.075 11.55a14.76 14.76 0 0 0 4.55 2.33c.37-.5.7-1.04.98-1.6a9.54 9.54 0 0 1-1.54-.75c.13-.1.25-.2.37-.3a10.5 10.5 0 0 0 9.08 0c.12.1.24.2.37.3a9.54 9.54 0 0 1-1.54.75c.28.56.61 1.1.98 1.6a14.7 14.7 0 0 0 4.55-2.33C18.23 8.15 17.61 4.7 15.25 1.15ZM6 9.46c-.95 0-1.72-.88-1.72-1.96 0-1.08.76-1.97 1.72-1.97.96 0 1.73.88 1.72 1.97 0 1.08-.76 1.96-1.72 1.96Zm6 0c-.95 0-1.72-.88-1.72-1.96 0-1.08.76-1.97 1.72-1.97.96 0 1.73.88 1.72 1.97 0 1.08-.76 1.96-1.72 1.96Z" fill="currentColor"/>',
           '</svg>',
@@ -620,7 +586,6 @@ function showBanScreen(banRecord) {
         '</a>',
       '</div>',
 
-      // Account ID (for appeal reference)
       (function() {
         const acct = (window.AccountManager && AccountManager.getActiveAccount) ? AccountManager.getActiveAccount() : null;
         if (!acct) return '';
@@ -634,7 +599,6 @@ function showBanScreen(banRecord) {
 
     '</div>',
 
-    // CSS keyframe animation (injected once)
     '<style id="smbBanScreenStyles">',
       '@keyframes smbBanPulse { 0%,100%{opacity:1} 50%{opacity:0.35} }',
     '</style>',
@@ -643,10 +607,7 @@ function showBanScreen(banRecord) {
   document.body.appendChild(overlay);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Server Sync — REST helpers
-// All functions are async and fail gracefully when the server is unreachable.
-// ═══════════════════════════════════════════════════════════════════════════════
+// Server sync: REST helpers. All async, and they fail quietly when the server is down.
 
 function _syncServerUrl() {
   return (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.url)
@@ -657,7 +618,7 @@ function _syncServerUrl() {
 // Generic fetch wrapper. Returns parsed JSON or null on any failure.
 async function _serverFetch(method, endpoint, body) {
   const base = _syncServerUrl();
-  if (!base) return null; // server not configured — offline mode
+  if (!base) return null; // server not configured, offline mode
 
   if (window.AdminSession && method !== 'GET') await AdminSession.ensure();
   const headers = Object.assign({ 'Content-Type': 'application/json' },
@@ -674,7 +635,7 @@ async function _serverFetch(method, endpoint, body) {
     }
     return await res.json();
   } catch (e) {
-    // Network error / server down — silently degrade to offline mode
+    // Network error / server down, silently degrade to offline mode
     console.warn('[ServerSync] Unreachable (' + (e.message || e) + ')');
     return null;
   }
@@ -724,8 +685,7 @@ async function syncBansFromServer() {
   return added;
 }
 
-// Ask the server directly whether the given identity is banned.
-// Fastest path for the ban screen — does not depend on the local cache.
+// Asks the server directly. Fastest path for the ban screen, independent of the local cache.
 // Returns a BanRecord or null.
 async function checkBanOnServer(identity) {
   if (!_syncServerUrl()) return null;
@@ -744,7 +704,7 @@ async function checkBanOnServer(identity) {
   }
 }
 
-// ── Ban screen entry point (server-aware) ─────────────────────────────────────
+// Ban screen entry point (server-aware)
 
 async function checkAndShowBanScreen() {
   if (typeof AccountManager === 'undefined' || typeof isConnectionBanned !== 'function') return;
@@ -758,34 +718,28 @@ async function checkAndShowBanScreen() {
     username:  acct.username || '',
   };
 
-  // 1. Ask the server directly — most authoritative, works cross-device.
+  // Server first: most authoritative, and works across devices.
   const serverRecord = await checkBanOnServer(identity);
   if (serverRecord) {
     showBanScreen(serverRecord);
     return;
   }
 
-  // 2. Fall back to local ban records (covers same-device bans when offline).
   const localRecord = isConnectionBanned(identity);
   if (localRecord) showBanScreen(localRecord);
 }
 
-// ── Startup: sync + check once all scripts have loaded ───────────────────────
 
 let _syncInterval = null;
 
 window.addEventListener('load', function() {
-  // Short delay so AccountManager / GameState finish any synchronous init.
   setTimeout(async function() {
-    // Pull server bans into local cache first (so local check also catches them).
     await syncBansFromServer();
-    // Pull server-side admin overrides so cross-device grants take effect.
     if (typeof syncAdminOverridesFromServer === 'function') {
       await syncAdminOverridesFromServer();
     }
-    // Then check whether the active account is banned.
     await checkAndShowBanScreen();
-    // Schedule periodic background re-sync while the tab is open.
+  // Background re-sync while the tab is open.
     const interval = (typeof SERVER_CONFIG !== 'undefined' && SERVER_CONFIG.syncIntervalMs > 0)
       ? SERVER_CONFIG.syncIntervalMs
       : 0;

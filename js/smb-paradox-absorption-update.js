@@ -1,15 +1,12 @@
 'use strict';
-// smb-paradox-absorption-update.js — Absorption update logic (_startAbsorptionThenPunch, updateTFAbsorption, absorption scene update/draw)
+// Absorption update logic (_startAbsorptionThenPunch, updateTFAbsorption, scene update and draw).
 // Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
 
-// ============================================================
-// ABSORPTION  — Paradox energy flows into player after portal
 // Triggered from _makeTFParadoxEntryCinematic.onEnd()
-// ============================================================
 function _startAbsorptionThenPunch(boss, hero) {
   // Guard: only start if paradox death cinematic has fully completed
   if (!paradoxDeathComplete) return;
-  // Clear any pending dialogue so death-scene lines don't bleed into absorption text
+  // Drop queued death-scene dialogue so it doesn't bleed into absorption.
   if (typeof bossDialogue !== 'undefined') bossDialogue.timer = 0;
   _tfAbsorptionState = { timer: 0, boss, hero };
   tfCinematicState   = 'absorption';
@@ -27,7 +24,6 @@ function updateTFAbsorption() {
   const hx = s.hero ? s.hero.cx() : GAME_W / 2;
   const hy = s.hero ? s.hero.cy() : GAME_H / 2;
 
-  // Particle stream from dissolution point toward hero
   if (t < 120 && settings.particles && particles.length < MAX_PARTICLES) {
     const srcX = GAME_W * 0.55, srcY = GAME_H / 2;
     const lerpT = Math.random();
@@ -70,8 +66,8 @@ function updateTFAbsorption() {
       showBossDialogue("No weapon. No system. Just your hands. Finish it.", 320);
   }
 
-  // t=170: hand off directly to punch cinematic — clear state AFTER startTFEnding
-  // takes ownership so there is no gap frame between the two sequences.
+  // t=170: hand off to the punch cinematic.
+  // Clear state only after startTFEnding takes over, or one frame flashes.
   if (t >= 170) {
     if (!absorptionComplete) absorptionComplete = true;
     if (paradoxDeathComplete && absorptionComplete) {
@@ -84,9 +80,7 @@ function updateTFAbsorption() {
   }
 }
 
-// ============================================================
-// ABSORPTION DRAW  — cyan aura on player during and after absorption
-// ============================================================
+// Absorption draw: cyan aura on the player.
 function drawTFAbsorption() {
   if (!_tfAbsorptionState && !playerParadoxAbsorbed) return;
 
@@ -129,15 +123,13 @@ function drawTFAbsorption() {
   ctx.restore();
 }
 
-// ============================================================
-// ABSORPTION CINEMATIC v2  — memory-driven scene
+// Absorption cinematic v2: memory-driven scene.
 // Phases: fade_in(0-40) → memories(40-130) → merge(130-175) → power_surge(175-210) → done(210+)
 // Uses activeCinematic + gameFrozen so no gameplay occurs during the scene.
 // Hands off to startTFEnding() when complete.
-// ============================================================
 function startTFAbsorptionScene(player, paradoxRef) {
   if (tfAbsorptionScene) return; // already running
-  // Clear any pending boss dialogue so death-scene lines don't bleed into absorption
+  // Drop pending boss dialogue, as above.
   if (typeof bossDialogue !== 'undefined') bossDialogue.timer = 0;
   const boss = typeof players !== 'undefined' ? players.find(p => p.isBoss && p.health > 0) : null;
   tfAbsorptionScene = {
@@ -151,9 +143,7 @@ function startTFAbsorptionScene(player, paradoxRef) {
     flashAlpha:  0,
     absorbed:    false
   };
-  // Inert sentinel object (not `true`): updateCinematic ticks activeCinematic,
-  // and a primitive would throw in strict mode now that endCinematic respects
-  // onEnd handoffs instead of nulling this immediately.
+  // Object, not true: updateCinematic ticks it, and a primitive would throw in strict mode.
   activeCinematic = { timer: 0, durationFrames: Infinity, update() {}, onEnd: null, _absorptionSentinel: true };
   gameFrozen      = true;
   tfCinematicState = 'absorption';
@@ -166,21 +156,18 @@ function updateTFAbsorptionScene() {
 
   sc.timer++;
 
-  // Keep player frozen
   if (sc.playerRef) {
     sc.playerRef.vx = 0;
     sc.playerRef.vy = 0;
   }
 
-  //--------------------------------------------------
-  // PHASE 1 — FADE IN (0–40)
+  // Phase 1: fade in (0-40)
   if (sc.timer < 40) {
     sc.phase = 'fade_in';
     sc.flashAlpha = Math.min(1, sc.timer / 40);
   }
 
-  //--------------------------------------------------
-  // PHASE 2 — MEMORY FLASHES (40–140)
+  // Phase 2: memories (40-140)
   else if (sc.timer < 140) {
     sc.phase = 'memories';
 
@@ -189,12 +176,10 @@ function updateTFAbsorptionScene() {
     }
   }
 
-  //--------------------------------------------------
-  // PHASE 3 — MERGE (140–180)
+  // Phase 3: merge (140-180)
   else if (sc.timer < 180) {
     sc.phase = 'merge';
 
-    // Pull paradox into player
     if (sc.paradoxRef && sc.playerRef) {
       const dx = sc.playerRef.cx() - sc.paradoxRef.cx();
       const dy = sc.playerRef.cy() - sc.paradoxRef.cy();
@@ -204,16 +189,13 @@ function updateTFAbsorptionScene() {
     }
   }
 
-  //--------------------------------------------------
-  // PHASE 4 — POWER SURGE (180–210)
+  // Phase 4: power surge (180-210)
   else if (sc.timer < 210) {
     sc.phase = 'power_surge';
 
     sc.flashAlpha = Math.sin(sc.timer * 0.4) * 0.5 + 0.5;
   }
 
-  //--------------------------------------------------
-  // END
   else {
     sc.phase = 'done';
 
@@ -225,15 +207,13 @@ function updateTFAbsorptionScene() {
       }
     }
 
-    // Hand off directly to punch cinematic — do NOT clear activeCinematic/gameFrozen
-    // before startTFEnding runs, or a gap frame will flash between the two cinematics.
+    // Hand off first. Clearing activeCinematic or gameFrozen here flashes a gap frame.
     if (typeof startTFEnding === 'function') {
       const _tfEndBoss = players.find(p => p.isBoss);
       startTFEnding(_tfEndBoss, true);
     }
     // Only clear after startTFEnding has taken ownership.
-    // null (not false): downstream `=== null` idle checks rely on it, and the
-    // cinematic combat lock must be released now that endCinematic defers to us.
+    // null, not false: idle checks use === null.
     tfAbsorptionScene = null;
     activeCinematic   = null;
     if (typeof clearCombatLock === 'function') clearCombatLock('cinematic');
@@ -253,7 +233,6 @@ function drawTFAbsorptionScene() {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0); // screen-space for overlay
 
-  // Fade-in dark vignette
   if (s.phase === 'fade_in') {
     const a = Math.min(1, t / 40);
     ctx.globalAlpha = a * 0.38;
@@ -261,7 +240,6 @@ function drawTFAbsorptionScene() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // Memories + merge: dark overlay behind the scene
   if (s.phase === 'memories' || s.phase === 'merge') {
     const fadeOut = s.phase === 'merge' ? Math.max(0, 1 - (t - 130) / 45) : 1;
     ctx.globalAlpha = 0.50 * fadeOut;
@@ -273,7 +251,6 @@ function drawTFAbsorptionScene() {
   ctx.restore();
   ctx.save();
 
-  // Memory text (world-space, centered)
   if (s.phase === 'memories') {
     const memText = _TF_ABSORPTION_MEMORIES[s.memoryIndex] || '';
     const textAge = (t - 40) % 22;

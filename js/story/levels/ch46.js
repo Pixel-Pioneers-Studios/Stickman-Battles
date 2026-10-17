@@ -1,16 +1,8 @@
 'use strict';
-// js/story/levels/ch46.js — Chapter 46 map. See smb-story-levels.js for the contract.
+// Chapter 46 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 46 — What the Ancients Left (traversal)
-// "The first dimension to ever fracture. It looked like your world might.
-// Broken towers. Cracked sky. A planet mid-collapse, frozen in time." Nothing
-// here moves: towers hang mid-topple, chunks of street hang in the air where
-// they were thrown, dust is a still cloud. The frozen debris is the high
-// route — chunks stepping up in threes — over ground split into craters and
-// heaved slabs. The fourth Architect's vault, where the Fracture Diagram is
-// kept, is the one intact building, at the far end.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 46, What the Ancients Left (traversal). Frozen debris is the high route.
+// The fourth Architect's vault at the far end holds the Fracture Diagram.
 (function () {
   const FLOOR = [[0, 600, 440], [600, 900, 470], [900, 1500, 440], [1500, 1700, 405], [1700, 2300, 440], [2300, 2550, 480],
                  [2550, 3300, 440], [3300, 3500, 410], [3500, 4800, 440]];

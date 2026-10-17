@@ -1,19 +1,6 @@
 'use strict';
-// js/story/levels/ch87.js — Chapter 87 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 87 — The War Camp (walk → duel vs two War Veterans)
-// The War Champion's camp, behind the front. Tents and cook fires, weapon
-// racks, a supply wagon you can climb, a watchtower, the war drums on their
-// stage. At the midpoint the command post that "had never fallen. Not in
-// three hundred years": a gatehouse of stone and timber between two towers,
-// with the Champion's personal guard waiting in the gate. Inside the post,
-// the wall the chapter ends on: "a record of every fighter who reached this
-// point. The list is not short. None of the names have a victory beside
-// them." It runs on and on, column after column, every line ending in a
-// blank where the mark would go. The cache shafts are supply cellar hatches,
-// their trapdoors propped open.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch87.js: Chapter 87 map (War Camp, walk then duel two War Veterans).
+// Midpoint command post gate and the record wall at the end are the story beats.
 (function () {
   const G = 440, GATE = 3000, WALL0 = 3500, WALL1 = 4500;
   const WAGON = { x: 500, w: 140, bed: 370, roof: 300 };
@@ -34,8 +21,7 @@
     return NAMES[i];
   }
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+  // Optional loot (see level.loot in smb-story-levels.js): a hidden cache, and a better one held by an optional elite.
   const STASH = [
     { id: 'a', x: 2000, y: 250, w: 140, steps: [[1930, 345, 90]] },
     { id: 'b', x: 4490, y: 250, w: 190, steps: [[4420, 345, 90]], gx: 60, guard: { name: 'Veteran Champion', weaponKey: 'sword', classKey: 'warrior', health: 170, color: '#9a5a30' } },
@@ -73,7 +59,7 @@
     for (const [x, c] of TENTS) if (_slVisible(v, x - 90, x + 90)) tent(x, c);
     for (const x of [700, 1600, 2450, 3900, 5300]) if (_slVisible(v, x - 10, x + 80)) rack(x);
     for (const x of [960, 1950, 5600]) if (_slVisible(v, x - 40, x + 40)) { _slFire(x - 14, G, 28, 0.7); _slSmoke(x, G - 30, 140, true, x); }
-    // Supply wagon: bed and canopy are both standable
+    // Wagon bed and canopy are both standable
     if (_slVisible(v, WAGON.x - 30, WAGON.x + WAGON.w + 30)) {
       const { x, w, bed, roof } = WAGON;
       ctx.fillStyle = '#5a3e26'; ctx.fillRect(x, bed, w, 24);
@@ -82,7 +68,6 @@
       ctx.beginPath(); ctx.moveTo(x + 20, bed); ctx.lineTo(x + 20, roof + 10); ctx.quadraticCurveTo(x + w / 2, roof - 12, x + w - 20, roof + 10); ctx.lineTo(x + w - 20, bed); ctx.closePath(); ctx.fill();
       for (let k = 0; k < 3; k++) _slCrate(x + 8 + k * 30, bed - 22, 22);
     }
-    // Watchtower with its crate step
     if (_slVisible(v, CRATES[0] - 20, TOWER.x + TOWER.w + 20)) {
       _slCrate(CRATES[0], CRATES[1], 40); _slCrate(CRATES[0] + 34, CRATES[1] + 40, 40); _slCrate(CRATES[0], CRATES[1] + 40, 34);
       const { x, w, y } = TOWER;
@@ -92,7 +77,6 @@
       ctx.fillStyle = '#5a3e26'; ctx.fillRect(x, y, w, 8);
       ctx.fillStyle = '#4a3420'; ctx.fillRect(x, y - 30, 6, 30); ctx.fillRect(x + w - 6, y - 30, 6, 30); ctx.fillRect(x - 6, y - 40, w + 12, 10);
     }
-    // War drums on their stage
     if (_slVisible(v, DRUMS[0] - 20, DRUMS[0] + DRUMS[2] + 20)) {
       const [x, y, w] = DRUMS;
       ctx.fillStyle = '#4a3420'; ctx.fillRect(x, y, w, G - y); ctx.fillStyle = '#5a3e26'; ctx.fillRect(x - 4, y, w + 8, 7);
@@ -102,7 +86,6 @@
         ctx.strokeStyle = '#3a2a1c'; ctx.lineWidth = 1; for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.moveTo(dx - 18 + k * 12, y - 44); ctx.lineTo(dx - 12 + k * 12, y); ctx.stroke(); }
       }
     }
-    // The command post: gatehouse between two towers
     if (_slVisible(v, GATE - 420, GATE + 420)) {
       _slBrick(GATE - 360, 220, 120, G - 220, '#5a4a3a');
       _slBrick(GATE + 240, 220, 120, G - 220, '#5a4a3a');
@@ -115,7 +98,6 @@
       for (let gx = GATE - 196; gx < GATE + 200; gx += 28) { ctx.beginPath(); ctx.moveTo(gx, 276); ctx.lineTo(gx, 300); ctx.stroke(); }
       _slBanner(GATE - 300, 220, 80, '#8a1a10', 1); _slBanner(GATE + 300, 220, 80, '#8a1a10', 2);
     }
-    // The record wall: every fighter who reached this point, none with a victory
     if (_slVisible(v, WALL0, WALL1)) {
       _slBrick(Math.max(WALL0, v.x - 40), 120, Math.min(WALL1, v.x + v.w + 40) - Math.max(WALL0, v.x - 40), G - 120, '#5a4a3a');
       ctx.fillStyle = 'rgba(30,20,12,0.7)'; ctx.font = '7px monospace'; ctx.textAlign = 'left';
@@ -131,7 +113,6 @@
       ctx.fillStyle = '#4a3420'; ctx.fillRect(x + 6, y + 8, 6, G - y - 8); ctx.fillRect(x + w - 12, y + 8, 6, G - y - 8);
       if (y === 370) { ctx.fillStyle = '#c8b890'; ctx.fillRect(x + 10, y - 3, w - 20, 3); ctx.fillStyle = '#8a1a10'; ctx.fillRect(x + 50, y - 4, 6, 2); }
     }
-    // Supply cellar hatches over the cache shafts, trapdoors propped open
     for (const hx of HATCHES) {
       if (!_slVisible(v, hx - 90, hx + 90)) continue;
       ctx.fillStyle = '#3a2a1c'; ctx.fillRect(hx - 52, G - 6, 8, 6); ctx.fillRect(hx + 44, G - 6, 8, 6);

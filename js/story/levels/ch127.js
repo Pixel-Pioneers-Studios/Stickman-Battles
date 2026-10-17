@@ -1,22 +1,11 @@
 'use strict';
-// js/story/levels/ch127.js — Chapter 127 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 127 — Paradox (escape, run right)
-// The Threshold destabilizing "in the wake of what happened". The open
-// ground of the last chapter is coming apart: the meadow breaks into plates
-// with gaps opening between them, and the closer you get to the Creator's
-// fracture the more the land is overwritten by its geometry — grass giving
-// way to white wireframe, rocks to clean polyhedra. Behind the collapse wall
-// the sky folds down over the ground. The fracture itself fills the far end:
-// a tall seam of white light with the Creator's lattice visible through it.
-// Broken shelves of hillside (green early, white late) are the high routes.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 127 map (escape, run right). See smb-story-levels.js for the contract.
+// Ground turns to white wireframe toward the fracture at the far end.
 (function () {
   const PLATES = [[0, 900, 440], [960, 1700, 432], [1760, 2600, 440], [2660, 3300, 428], [3360, 4000, 440]];
   const HIGH = [[600, 345, 110], [1300, 330, 110], [1430, 250, 110], [2200, 340, 110], [2900, 330, 110], [3500, 340, 110]];
   const RIFT = 3750;
-  const white = x => Math.max(0, Math.min(1, (x - 2000) / 1500));      // how overwritten the land is at x
+  const white = x => Math.max(0, Math.min(1, (x - 2000) / 1500));   // 0..1 overwrite amount
 
   function floor() { return PLATES.map(([x0, x1, y]) => Object.assign(_slFloorSeg(x0, y, x1 - x0, 600 - y), { noDraw: true })); }
   function layout() {
@@ -27,7 +16,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#0e1220');
-    // The fracture: a tall seam of white light with the lattice behind it
     _slParallax(v, 0.3, (l, r) => {
       const fx = RIFT * 0.3 + 500;
       if (fx < l - 300 || fx > r + 300) return;
@@ -41,13 +29,11 @@
   }
 
   function back(v) {
-    // Behind the wall the sky folds down over the ground
     const wx = (typeof escapeWallX !== 'undefined') ? escapeWallX : -200;
     if (wx > v.x - 40) {
       ctx.fillStyle = '#0a0c16';
       ctx.beginPath(); ctx.moveTo(v.x - 40, v.y - 40); ctx.lineTo(wx, v.y - 40); ctx.quadraticCurveTo(wx - 80, 240, wx, 470); ctx.lineTo(v.x - 40, 470); ctx.closePath(); ctx.fill();
     }
-    // Grass giving way to wireframe; rocks to clean polyhedra
     for (let x = Math.floor(v.x / 14) * 14; x < v.x + v.w; x += 14) {
       const w = white(x);
       if (_slHash(x) < w) continue;

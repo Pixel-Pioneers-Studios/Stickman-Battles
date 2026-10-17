@@ -43,14 +43,8 @@ const SovArtifact = (function () {
 
   const EMPTY = { version: 0, generated: null, matches: 0, grid: {}, tactics: [], findings: [], genome: null };
 
-  // ── Tactic library ────────────────────────────────────────────────────────
-  // Sovereign's live vocabulary is six verbs (attack, shield, super,
-  // approach_air, and two movement keys). A grid over six actions can only ever
-  // express intensity, which is why "he adapts" has never been visible: the
-  // machine was right and there was nothing to choose between. These are the
-  // named plans VECTOR selects among and proposes additions to. Anything listed
-  // here must be executable by _executeTactic in smb-smk2-class.js or it is
-  // decoration.
+  // Named plans VECTOR picks from and proposes additions to. Each one must be
+  // executable by _executeTactic in smb-smk2-class.js.
   const BASE_TACTICS = [
     'pressure_ground',    'bait_whiff_punish',  'anti_air_hold',
     'corner_carry',       'ledge_deny',         'spacing_poke',
@@ -63,8 +57,7 @@ const SovArtifact = (function () {
     d.grid     = d.grid     && typeof d.grid === 'object' ? d.grid : {};
     d.tactics  = Array.isArray(d.tactics)  ? d.tactics  : [];
     d.findings = Array.isArray(d.findings) ? d.findings : [];
-    // Library is the union: a file can add tactics but never silently drop the
-    // base set out from under code that references it.
+    // Union, not replace: a file can add tactics but never drop the base set.
     const seen = new Set(BASE_TACTICS);
     d.tactics = BASE_TACTICS.concat(d.tactics.filter(t => typeof t === 'string' && !seen.has(t) && seen.add(t)));
     return d;
@@ -77,7 +70,7 @@ const SovArtifact = (function () {
     try {
       const r = await fetch(PATH + '?t=' + Date.now(), { cache: 'no-store' });
       if (r.ok) raw = await r.json();
-    } catch (e) { /* file:// or missing — fall through */ }
+    } catch (e) { /* file:// or missing */ }
     if (!raw) {
       try { const s = localStorage.getItem(LS_KEY); if (s) raw = JSON.parse(s); } catch (e) {}
     }
@@ -90,8 +83,7 @@ const SovArtifact = (function () {
 
   function data() { return _data || (_data = _merge(null)); }
 
-  // Grid priors, scaled to PRIOR_CAP. Returns the same shape SovereignMK2
-  // already merges from SovDossier, so the seeding path stays one code path.
+  // Grid priors scaled to PRIOR_CAP, in the same shape SovDossier returns.
   function gridPrior() {
     const g = data().grid, out = {};
     for (const sit of Object.keys(g)) {
@@ -109,18 +101,14 @@ const SovArtifact = (function () {
   function tactics()  { return data().tactics.slice(); }
   function findings() { return data().findings.slice(); }
 
-  // Findings relevant to a situation cell or weapon — the tight-retrieval brief
-  // that goes to a small model, instead of the whole ledger.
+  // Findings for one cell or weapon: the small brief sent to the model.
   function brief(filter) {
     const f = String(filter || '').toLowerCase();
     if (!f) return findings().slice(-8);
     return findings().filter(x => JSON.stringify(x).toLowerCase().includes(f)).slice(-8);
   }
 
-  // ── Write-back ────────────────────────────────────────────────────────────
-  // Called by the VECTOR loop through the console/page bridge. Accumulates
-  // rather than replaces: a training run adds evidence, it does not erase what
-  // earlier runs proved.
+  // Write-back from the VECTOR loop. Accumulates, never replaces.
   function absorb(delta) {
     const d = data();
     if (!delta) return d;
@@ -151,8 +139,7 @@ const SovArtifact = (function () {
 
   function exportJSON() { return JSON.stringify(data(), null, 1); }
 
-  // Auto-load at boot. Non-blocking: a Sovereign constructed before the fetch
-  // resolves simply seeds from an empty artifact, which is the current behaviour.
+  // Auto-load at boot. A Sovereign built before the fetch resolves seeds from an empty artifact.
   if (typeof window !== 'undefined') { try { load(); } catch (e) {} }
 
   return { load, data, gridPrior, tactics, findings, brief, absorb, exportJSON, BASE_TACTICS, PRIOR_CAP };

@@ -1,24 +1,8 @@
-// Void Mind arc — Reckonings V, VI, VII, VIII
-// ids 161, 162, 163, 164
-//
-// The final four reckonings. The Void Mind has been building a case.
-// By reckoning VIII, it asks the one question that doesn't need a false version.
-//
-// V   — "The Line You Drew"    (Kael's intention vs. momentum)
-// VI  — "What God Built"       (God's silence — avoidance or complicity)
-// VII — "What You Carried"     (the fragment as delivery mechanism)
-// VIII — "What Remains"         (the final question — no false version this time)
+// Void Mind arc, Reckonings V-VIII (ids 161-164). The Void Mind builds a case, then asks one question that needs no false version.
+// V The Line You Drew, VI What God Built, VII What You Carried, VIII What Remains.
 STORY_CHAPTER_REGISTRY.push(
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING V — "The Line You Drew"
-  // Target memory: Kael carried specific memories and refused to put them down.
-  // The Third Architect. The Herald. The Preserved. Veran. He named them.
-  // The difference between carrying and accumulating is intention.
-  // The Void Mind presents: you accumulated. You didn't decide to remember.
-  // You didn't put things down because you don't put things down.
-  // That's not a value. It's a property of the person, not a choice they made.
-  // ────────────────────────────────────────────────────────────────────────────
+  // Reckoning V, The Line You Drew: carrying a memory is intention, and the Void Mind says Kael only accumulated.
   {
     id: 177, title: 'The Line You Drew',
     world: '⬛ The Substrate — Below All Dimensions',
@@ -60,7 +44,7 @@ STORY_CHAPTER_REGISTRY.push(
       'because that quality is survivable.',
       'Not because it is meaningful.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): mass without direction: the weight, made to arrive.
+    // Playable beat, see _playChapterBeat in smb-story-engine-flow.js.
     beat: {
       arena: 'void', levelId: 181,
       opponentName: 'The Weight', opponentSuffix: '— mass without direction', opponentColor: '#55556a',
@@ -90,16 +74,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The memory of the Third Architect is still present. So is the Herald\'s hope and Veran\'s name. The question the Void Mind introduced is whether those memories are there because you put them there or because you cannot release what you touch. You gave it an answer. The weight does not change. What changes is what the weight represents.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING VI — "What God Built"
-  // Target memory: God chose not to engage the Void Mind because it understood
-  // the cost of engagement — not because it was complicit.
-  // "Its intentions are unknown." God's silence was avoidance.
-  // The Void Mind presents: God built the Substrate's floor.
-  // The architecture God laid down is what the Void Mind operates inside.
-  // Silence was not avoidance. It was preparation — building the house
-  // before the eventual occupant arrived.
-  // ────────────────────────────────────────────────────────────────────────────
+  // Reckoning VI, What God Built: the false version says God's silence was preparation, not avoidance.
   {
     id: 178, title: 'What God Built',
     world: '⬛ The Substrate — Below All Dimensions',
@@ -138,7 +113,7 @@ STORY_CHAPTER_REGISTRY.push(
       'God finished what it was building.',
       'It did not have to say what the building was for.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): walking the floor God built; nothing here was built for you.
+    // Playable beat, see _playChapterBeat in smb-story-engine-flow.js.
     beat: {
       type: 'exploration', exploreMode: 'traversal',
       arena: 'god_domain', style: 'void', worldLength: 3400,
@@ -169,16 +144,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Substrate is God\'s architecture. The Void Mind is inside it. What God knew when it built this and what it intended are questions that the record cannot answer. The Void Mind introduced the possibility that God\'s silence was preparation rather than avoidance. You gave it your account. The architecture is unchanged either way.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING VII — "What You Carried"
-  // Target memory: the fragment is Void Mind radiation crystallized.
-  // It found Kael because his identity resists erasure — resistant identities
-  // survive the radiation. The fragment doesn't control the bearer. It amplifies.
-  // The Void Mind presents: resistant identities survive radiation because
-  // they can carry it to its source intact. Kael was a delivery mechanism.
-  // Every fight strengthened the carrier. Every memory reinforced the cargo.
-  // Peak form was maximum charge. He is standing here because the delivery completed.
-  // ────────────────────────────────────────────────────────────────────────────
+  // Reckoning VII, What You Carried: the fragment is Void Mind radiation, and resistant identities carry it to its source.
   {
     id: 179, title: 'What You Carried',
     world: '⬛ The Substrate — Below All Dimensions',
@@ -218,7 +184,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The fragment was always going home.',
       'You were the path it walked on.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the delivery: run, and what is behind you collapses as you go.
+    // Playable beat, see _playChapterBeat in smb-story-engine-flow.js.
     beat: {
       type: 'exploration', exploreMode: 'escape',
       arena: 'void', style: 'void', worldLength: 3400,
@@ -251,15 +217,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The fragment is still present. You are still present. The Void Mind has now mapped seven accounts — what you hold, what you gave, what you admitted uncertainty about. It has a record of what resists and what will move. The final reckoning is not a false version. It is a question.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // RECKONING VIII — "What Remains"
-  // There is no false version this time.
-  // The Void Mind has presented seven alternative accounts.
-  // Some were held. Some were accepted. Some were admitted uncertain.
-  // It has a map of what remained fixed and what shifted.
-  // The final reckoning is not about the past.
-  // It is one question, asked plainly.
-  // ────────────────────────────────────────────────────────────────────────────
+  // Reckoning VIII, What Remains: no false version this time, only a map of what held and what shifted.
   {
     id: 180, title: 'What Remains',
     world: '⬛ The Substrate — Below All Dimensions',
@@ -287,7 +245,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'What are you carrying out?',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the last question, answered with what you pick up.
+    // Playable beat, see _playChapterBeat in smb-story-engine-flow.js.
     beat: {
       type: 'exploration', exploreMode: 'scavenge',
       arena: 'void', style: 'void', worldLength: 3400,

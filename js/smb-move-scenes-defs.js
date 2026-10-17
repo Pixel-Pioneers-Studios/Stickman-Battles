@@ -1,15 +1,12 @@
 'use strict';
-// smb-move-scenes-defs.js — choreography for every weapon's ability (Q) and
+// Choreography for each weapon's ability (Q) and super (E).
 // super (E). Runtime, pose schema and conventions: smb-move-scenes.js.
-//
 // Reading a track: angles are facing-right canonical, canvas convention (0 is
 // forward, PI/2 straight down, -PI/2 straight up, PI behind). An arm angle is
 // shoulder -> hand; `w` is where the weapon points. Angles stay continuous
 // across keys (past 2*PI if a swing keeps going) because keys interpolate
 // numerically: 3.3 -> 6.2 sweeps OVER the top, 3.3 -> 0.2 sweeps under.
-//
 // Depends on: smb-move-scenes.js (msDefine, MS_POSE_DEF).
-// ============================================================
 
 const MS_PI = Math.PI;
 const MS_TAU = Math.PI * 2;
@@ -32,12 +29,8 @@ function msCatch(sc, v, chip) {
 // Is the scene still holding v (false for bosses, which are hit but never held)?
 function msHeld(sc, v) { return !!v && sc.vars.locked && v._msLock === sc; }
 
-// ═════════════════════════════════════════════════════════════════════════════
 // AXE
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Rising Cleave. A short dash that has to land; on contact the axe comes up
-// under them and throws them into the air, and as they fall back to chest height
-// the axe comes round flat and sends them away.
+// Q: Rising Cleave. Uppercut, then a flat swing that sends them away.
 msDefine('axe:q', {
   color: '#ff8a3d',
   endlag: 6,
@@ -53,9 +46,7 @@ msDefine('axe:q', {
       { t: 6,  e: 'out', r: 1.40, w: 1.10, l: 0.90, lean: -5, drop: 11, fr: 20, fl: -6 },
       { t: 20, e: 'io', ...MS_STAND },
     ] },
-    // Uppercut 2-6, hang 6-14, the axe goes back over the shoulder 14-26, coils
-    // 26-30, then the flat swing 30-36 crosses the camera (arm and blade shorten
-    // as they point at the viewer) and connects at 34.
+    // Uppercut, hang, then the flat swing at 34 crosses the camera.
     hit: { len: 56, keys: [
       { t: 0,  r: 2.75, w: 3.10, l: 0.20, lean: 12, drop: 5, fr: 17, fl: -17 },
       { t: 2,  e: 'in',   r: 2.30, w: 2.55, l: 0.30, lean: 7, drop: 10, fr: 15, fl: -14, trail: true },
@@ -118,8 +109,7 @@ msDefine('axe:q', {
   },
 });
 
-// A move with no catch: wind-up, release, recovery. The weapon's original
-// effect (projectiles, AoE, buff) fires on `fireAt`.
+// Wind-up, release, recovery. The weapon's own effect fires on fireAt.
 function msCast(o) {
   return {
     color: o.color, endlag: o.endlag || 0, when: o.when, free: o.free, hideWhile: o.hideWhile,
@@ -138,10 +128,7 @@ function msCast(o) {
 const MS_AIM  = { r: 0.02, rl: 1.05, w: 0.0, l: 0.14, ll: 0.78, lean: 2, drop: 3, fr: 9, fl: -10 };   // two-hand level aim
 const MS_KNEEL = { r: 0.10, rl: 1.05, w: 0.04, l: 0.22, ll: 0.8, lean: 4, drop: 15, fr: 13, fl: -15 };
 
-// ═════════════════════════════════════════════════════════════════════════════
-// AXE — E: Axe Throw. Over the shoulder, a full-body heave, the axe leaves the
-// hand on the follow-through.
-// ═════════════════════════════════════════════════════════════════════════════
+// E: Axe Throw. The axe leaves the hand on the follow-through.
 msDefine('axe:e', msCast({
   color: '#ff8a3d', len: 30, fireAt: 14,
   hideWhile: u => !!u._thrownAxe,
@@ -155,10 +142,8 @@ msDefine('axe:e', msCast({
   onFire(sc) { sc.sfx('swing'); sc.shake(8); },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SWORD
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Blade Storm: coil low, then one whole-circle cut that throws the four arcs.
+// Q: Blade Storm. Coil low, then one full-circle cut throws four arcs.
 msDefine('sword:q', msCast({
   color: '#88ccff', len: 30, fireAt: 11,
   keys: [
@@ -170,7 +155,7 @@ msDefine('sword:q', msCast({
   ],
   onFire(sc) { sc.slash(0, -6, 64, -MS_PI * 0.8, MS_PI * 1.2, { ry: 30, color: '#bfe6ff', w: 11, life: 14 }); sc.sfx('swing'); },
 }));
-// E — Air Slash: three cuts, each one throws its arc as it finishes.
+// E: Air Slash. Three cuts, each throwing its arc.
 msDefine('sword:e', msCast({
   color: '#88ccff', len: 40, fireAt: 4, endlag: 4,
   keys: [
@@ -187,10 +172,8 @@ msDefine('sword:e', msCast({
   tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // HAMMER
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Ground Shockwave: a small jump with the hammer overhead, driven into the floor.
+// Q: Ground Shockwave. Small jump, hammer driven into the floor.
 msDefine('hammer:q', msCast({
   color: '#ffcc44', len: 34, fireAt: 14, endlag: 4,
   keys: [
@@ -205,8 +188,7 @@ msDefine('hammer:q', msCast({
   onFire(sc) { sc.flash('#ffe08a', 0.10, 5); sc.ring(sc.ucx() + sc.f * 30, sc.ub.y + sc.user.h, 110, '#ffcc44', 18); },
 }));
 
-// E — Mjolnir: a sweeping swing that has to catch; whoever it catches is
-// swung round twice on the hammer head and thrown, under a lightning strike.
+// E: Mjolnir. A sweeping catch, a double spin on the hammer head, then a throw under lightning.
 msDefine('hammer:e', {
   color: '#ffcc44', endlag: 8,
   tracks: {
@@ -221,8 +203,7 @@ msDefine('hammer:e', {
       { t: 0,  r: 6.4, w: 6.5, l: 2.3, lean: 10, drop: 7, fr: 17, fl: -12 },
       { t: 20, e: 'io', r: 0.95 + MS_TAU, w: 0.75 + MS_TAU, l: 1.4, lean: 0, drop: 0, fr: 7, fl: -7 },
     ] },
-    // Two turns: the arm sweeps through a full circle per turn while the
-    // victim rides the hammer head round a flattened orbit.
+    // Two turns: the arm sweeps a full circle per turn, the victim rides the hammer head.
     spin: { len: 64, keys: [
       { t: 0,  r: 0.1, w: 0.1, l: 2.4, lean: -8, drop: 8, fr: 12, fl: -12 },
       { t: 6,  e: 'in',  r: -0.2, w: -0.2, l: 2.6, lean: -12, drop: 9, fr: 10, fl: -14, trail: true },
@@ -278,10 +259,8 @@ msDefine('hammer:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SPEAR
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Ground Spike: hop, spear reversed overhead, driven point-first into the floor.
+// Q: Ground Spike. Hop, spear reversed overhead, driven point-first into the floor.
 msDefine('spear:q', msCast({
   color: '#aaaaff', len: 30, fireAt: 13, endlag: 4,
   keys: [
@@ -296,8 +275,7 @@ msDefine('spear:q', msCast({
   onFire(sc) { sc.ring(sc.ucx(), sc.ub.y + sc.user.h, 120, '#aaaaff', 16); },
 }));
 
-// E — Lance Charge: couch the spear, charge, and if the point lands, run them
-// onto it, carry them, and flick them off the end into the air.
+// E: Lance Charge. Couch, charge, and carry them on the point if it lands.
 msDefine('spear:e', {
   color: '#aaaaff', endlag: 8,
   tracks: {
@@ -359,9 +337,7 @@ msDefine('spear:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // GUN / PEA SHOOTER / FLAMETHROWER / BOW / SLINGSHOT / PAPER AIRPLANE / BOOMERANG
-// ═════════════════════════════════════════════════════════════════════════════
 // Recoil on top of an aimed pose: the barrel kicks up on each shot interval.
 function msRecoil(period, kick, from, to) {
   return (sc, p) => {
@@ -421,7 +397,7 @@ msDefine('flamethrower:q', msCast({
   ],
   tick(sc) { if (sc.in(8, 14)) sc.dash(-3.5); },
 }));
-// E — Backdraft: brace, the burst goes forward and the shooter is blown back.
+// E: Backdraft. The burst goes forward and blows the shooter back.
 msDefine('flamethrower:e', msCast({
   color: '#ff5500', len: 34, fireAt: 10, endlag: 4,
   keys: [
@@ -443,7 +419,7 @@ msDefine('bow:q', msCast({
     { t: 22, e: 'io', ...MS_STAND },
   ],
 }));
-// E — Arrow Rain: aim high and loose eight times, the string hand cycling.
+// E: Arrow Rain. Eight loose shots, string hand cycling.
 msDefine('bow:e', msCast({
   color: '#ffee44', len: 46, fireAt: 8, endlag: 4,
   keys: [
@@ -470,7 +446,7 @@ msDefine('slingshot:q', msCast({
     { t: 26, e: 'io', ...MS_STAND },
   ],
 }));
-// E — Gravity Stone: whirl the sling overhead, then let the boulder go.
+// E: Gravity Stone. Whirl the sling, then let go.
 msDefine('slingshot:e', msCast({
   color: '#ff9933', len: 32, fireAt: 20,
   keys: [
@@ -490,7 +466,7 @@ msDefine('paperairplane:q', msCast({
   ],
   poseMod(sc, p) {
     if (sc.lt < 2 || sc.lt > 32) return p;
-    const ph = ((sc.lt - 2) % 7.2) / 7.2;   // one throw per legacy interval
+    const ph = ((sc.lt - 2) % 7.2) / 7.2;   // one throw per interval
     const k = ph < 0.55 ? ph / 0.55 : 1 - (ph - 0.55) / 0.45;
     p.r = -2.3 + 2.55 * (1 - k); p.w = p.r - 0.2; p.lean = -3 + 9 * (1 - k);
     return p;
@@ -525,11 +501,9 @@ msDefine('boomerang:e', msCast({
   onFire(sc) { sc.slash(0, -10, 58, 0, MS_TAU, { ry: 26, color: '#e8c070', w: 8, life: 12 }); },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SHIELD
-// ═════════════════════════════════════════════════════════════════════════════
 const MS_SHIELD_UP = { r: 0.12, rl: 0.85, w: -1.45, l: 0.4, ll: 0.75, lean: 12, drop: 7, fr: 17, fl: -16 };
-// Q — Shield Bash: rush behind the shield, pin them to its face, drive, shove.
+// Q: Shield Bash. Rush behind the shield, pin them to its face, shove.
 msDefine('shield:q', {
   color: '#88aaff', endlag: 6,
   tracks: {
@@ -583,8 +557,7 @@ msDefine('shield:q', {
     return false;
   },
 });
-// E — Fortress Charge: a long blazing rush; whoever it meets is carried on the
-// shield face and launched by a rising bash at the end of it.
+// E: Fortress Charge. A long rush; whoever it meets is carried on the shield and launched.
 msDefine('shield:e', {
   color: '#88aaff', endlag: 8,
   tracks: {
@@ -650,9 +623,7 @@ msDefine('shield:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // SCYTHE
-// ═════════════════════════════════════════════════════════════════════════════
 msDefine('scythe:q', msCast({
   color: '#aa44aa', len: 26, fireAt: 11,
   hideWhile: u => !!u._scytheToss,
@@ -664,8 +635,7 @@ msDefine('scythe:q', msCast({
     { t: 26, e: 'io', ...MS_STAND, hide: true },
   ],
 }));
-// E — Soul Reap: the blade hooks them from range and reels them in, three
-// reaping turns drink from them, the last one tears them upward.
+// E: Soul Reap. The blade hooks and reels them in; three reaping turns drink from them.
 msDefine('scythe:e', {
   color: '#cc44cc', endlag: 6,
   tracks: {
@@ -742,10 +712,8 @@ msDefine('scythe:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // FRYING PAN
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Ground Pound: a high hop with the pan overhead, slammed flat on landing.
+// Q: Ground Pound. High hop, pan slammed flat on landing.
 msDefine('fryingpan:q', msCast({
   color: '#ffdd66', len: 40, fireAt: 999, endlag: 4,
   keys: [
@@ -762,14 +730,13 @@ msDefine('fryingpan:q', msCast({
     if (!sc.fired && sc.lt > 8 && sc.ub.landed) {
       sc.fire();
       sc.ring(sc.ucx(), sc.ub.y + sc.user.h, 150, '#ffdd66', 18);
-      // Hold the slam pose from here regardless of how long the jump took.
+      // Hold the slam pose however long the jump took.
       if (sc.lt < 22) { sc.t0 -= 22 - sc.lt; sc.lt = 22; }
     }
     if (sc.lt >= 22 && !sc.fired) sc.fire();
   },
 }));
-// E — Grand Slam: BONK on the head (they crumple, seeing stars), a golfer's
-// wind-up, and a swing that sends them straight up.
+// E: Grand Slam. A bonk on the head, a golfer's wind-up, then a swing straight up.
 msDefine('fryingpan:e', {
   color: '#ffdd44', endlag: 8,
   tracks: {
@@ -835,11 +802,8 @@ msDefine('fryingpan:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // BROOMSTICK
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Broom Ride: hop on and fly a short arc, ramming anything in the way. The
-// flight is a scene arc, so it stops at the ledge rather than flying off it.
+// Q: Broom Ride. A short flying arc that rams anything in the way and stops at the ledge.
 const MS_BROOM_SIT = { r: 1.05, rl: 0.75, w: 0.0, l: 0.9, ll: 0.7, lean: 6, air: true, lg: 0.55, lgl: 0.9, ls: 0.62, lsl: 0.66, rot: -0.12 };
 msDefine('broomstick:q', {
   color: '#cc9966', endlag: 4,
@@ -865,7 +829,7 @@ msDefine('broomstick:q', {
     }
   },
 });
-// E — Tornado Spin: arms out, the broom whirls round twice and blasts everyone out.
+// E: Tornado Spin. Arms out, the broom whirls twice and blasts everyone away.
 msDefine('broomstick:e', msCast({
   color: '#cc9966', len: 40, fireAt: 18, endlag: 6,
   keys: [
@@ -877,10 +841,8 @@ msDefine('broomstick:e', msCast({
   tick(sc) { if (sc.in(6, 30) && sc.lt % 6 < 1) sc.slash(0, -8, 74, 0, MS_TAU, { ry: 22, color: '#e0c090', w: 6, life: 8 }); },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // COMBAT (fists)
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Roundhouse: chamber, spin, the kicking leg comes round at head height.
+// Q: Roundhouse. Chamber, spin, kicking leg at head height.
 msDefine('combat:q', msCast({
   color: '#ff4444', len: 24, fireAt: 8,
   keys: [
@@ -893,7 +855,7 @@ msDefine('combat:q', msCast({
   onFire(sc) { sc.slash(6, -14, 62, 2.9, 6.6, { ry: 18, color: '#ff8080', w: 10, life: 10 }); sc.sfx('swing'); },
   tick(sc) { if (sc.lt < 7) sc.dash(4); },
 }));
-// E — Combo Strike: the dash must land; then an uppercut, a hang, an aimed kick.
+// E: Combo Strike. The dash must land, then an uppercut, a hang, an aimed kick.
 // Aim with left/right (bots aim at the nearer side), commit with attack.
 msDefine('combat:e', {
   color: '#ff4444', endlag: 8,
@@ -1041,9 +1003,7 @@ msDefine('combat:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // FLAIL
-// ═════════════════════════════════════════════════════════════════════════════
 msDefine('flail:q', msCast({
   color: '#aaaaaa', len: 26, fireAt: 12,
   keys: [
@@ -1062,11 +1022,8 @@ msDefine('flail:e', msCast({
   ],
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // WHIP
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Lasso: an overhead crack throws the loop; whoever it lands on is reeled
-// in hand over hand and cracked point-blank, hooked and bleeding.
+// Q: Lasso. The loop is reeled in hand over hand and cracked point-blank.
 msDefine('whip:q', {
   color: '#cc8833', endlag: 4,
   tracks: {
@@ -1136,7 +1093,7 @@ msDefine('whip:q', {
     return false;
   },
 });
-// E — Serpent's Coil: three full-body lashes, timed to the coil's own reach.
+// E: Serpent's Coil. Three full-body lashes, timed to the coil's reach.
 msDefine('whip:e', msCast({
   color: '#ffcc55', len: 70, fireAt: 1, endlag: 4,
   keys: [
@@ -1158,12 +1115,9 @@ msDefine('whip:e', msCast({
   },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // KATANA
-// ═════════════════════════════════════════════════════════════════════════════
-// Q — Iaijutsu: hand on the hilt, a blink-fast draw that passes THROUGH them,
-// a held pose — and the cut only lands when the blade goes back in its sheath.
-// Standing still: a longer draw, 28. Moving: a shorter one, 22.
+// Q: Iaijutsu. A blink-fast draw through them; the cut lands when the blade goes back in the sheath.
+// Draw length: 28 standing, 22 moving.
 const MS_IAI_HOLD = { r: 2.05, rl: 0.75, w: 2.95, l: 1.85, ll: 0.7, lean: 6, drop: 12, fr: 13, fl: -15 };
 const MS_IAI_CUT  = { r: -0.15, rl: 1.15, w: -0.35, l: 2.7, ll: 0.9, lean: 14, drop: 9, fr: 20, fl: -14 };
 msDefine('katana:q', {
@@ -1227,8 +1181,7 @@ msDefine('katana:q', {
     return false;
   },
 });
-// E — Shadow Step: vanish, reappear behind them, three cuts from behind and a
-// final draw-through that sends them flying.
+// E: Shadow Step. Vanish, reappear behind them, three cuts and a draw-through.
 msDefine('katana:e', {
   color: '#ffffff', endlag: 6,
   tracks: {
@@ -1305,9 +1258,7 @@ msDefine('katana:e', {
   },
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
 // ELECTRIC STAFF
-// ═════════════════════════════════════════════════════════════════════════════
 msDefine('electricstaff:q', msCast({
   color: '#00eeff', len: 22, fireAt: 7,
   keys: [
@@ -1317,7 +1268,7 @@ msDefine('electricstaff:q', msCast({
     { t: 22, e: 'io', ...MS_STAND },
   ],
 }));
-// E — Thunderstrike: the staff goes up and stays up while the sky answers.
+// E: Thunderstrike. Staff stays up while the sky answers.
 msDefine('electricstaff:e', msCast({
   color: '#00eeff', len: 68, fireAt: 8, endlag: 4,
   keys: [
@@ -1335,9 +1286,7 @@ msDefine('electricstaff:e', msCast({
   },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // WEAPONS-EXT (Bomb, Fragment, Knives, Glass Blade, Anchor, Crossbow)
-// ═════════════════════════════════════════════════════════════════════════════
 // Bomb Q stays an input mechanic (tap throws, hold detonates) with no scene.
 msDefine('bomb:e', msCast({
   color: '#ff8a3d', len: 30, fireAt: 14,
@@ -1350,8 +1299,7 @@ msDefine('bomb:e', msCast({
     { t: 30, e: 'io', ...MS_STAND },
   ],
 }));
-// Fragment Barrage keeps its own footwork (it follows the victim in), so the
-// scene only poses it: four alternating punches, then both palms for the laser.
+// Fragment Barrage keeps its own footwork, so the scene only poses four punches and a laser.
 msDefine('fragment:q', msCast({
   color: '#8fd8ff', len: 56, fireAt: 0, free: true,
   keys: [
@@ -1431,8 +1379,7 @@ msDefine('glassblade:e', msCast({
 // Drop Anchor: first press throws it; the second, once it has bitten, hauls.
 msDefine('anchor:q', {
   color: '#8a939c',
-  // Hauling yourself to the anchor is travel, possibly across a gap the scene
-  // would tether you short of, so only the throw and the drag are scenes.
+  // Hauling yourself is travel, so only the throw and the drag are scenes.
   when(u) { const a = u._wxAnchor; return !a || (a.state === 'embedded' && !a.pull && !!a.hooked && a.hooked.health > 0); },
   start(sc) { if (sc.user._wxAnchor) sc.play('haul'); },
   tracks: {
@@ -1497,15 +1444,10 @@ msDefine('crossbow:e', msCast({
   onFire(sc) { sc.flash('#ffe0b0', 0.12, 5); sc.dash(-6); },
 }));
 
-// ═════════════════════════════════════════════════════════════════════════════
 // ENEMY AND TRIAL WEAPONS (Null Blade, Void Blade, Shock Rifle, Lantern, Gauntlet)
-// ═════════════════════════════════════════════════════════════════════════════
-// Bosses never run scenes, so the Gauntlet's only play when a fighter carries
-// it. The Knight Gauntlets' Q and E belong to the Knight class code and Bomb Q
-// is an input mechanic; neither has a scene.
+// Bosses never run scenes. Gauntlet plays only when a fighter carries it.
 //
-// The dashes keep their own velocity (free): the ability sets it and the scene
-// only poses the body through it.
+// Dashes keep their own velocity; the scene only poses the body.
 const MS_SWORD_E_KEYS = [
   { t: 0,  ...MS_STAND },
   { t: 3,  e: 'out',  r: -2.30, w: -2.45, l: 0.6, lean: -4, drop: 5, fr: 12, fl: -11, trail: true },
@@ -1516,7 +1458,7 @@ const MS_SWORD_E_KEYS = [
   { t: 25, e: 'snap', r: 0.08, rl: 1.15, w: 0.02, l: 2.6, lean: 14, drop: 6, fr: 19, fl: -12 },
   { t: 40, e: 'io',   ...MS_STAND },
 ];
-// Q — Counter Step: blade drawn back along the hip, one step through them.
+// Q: Counter Step. Blade drawn back along the hip, one step through them.
 msDefine('nullblade:q', msCast({
   color: '#ff4422', len: 26, fireAt: 6, free: true,
   keys: [
@@ -1533,7 +1475,7 @@ msDefine('nullblade:e', msCast({
   onFire(sc) { sc.sfx('swing'); },
   tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
 }));
-// Q — Void Slash: a low lunge, two cuts crossing as it lands.
+// Q: Void Slash. Low lunge, two crossing cuts.
 msDefine('voidblade:q', msCast({
   color: '#b060ff', len: 28, fireAt: 5, free: true,
   keys: [
@@ -1552,7 +1494,7 @@ msDefine('voidblade:e', msCast({
   onFire(sc) { sc.sfx('swing'); },
   tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
 }));
-// Q — Chain Lightning: shouldered, three rounds walking the muzzle up.
+// Q: Chain Lightning. Three rounds, walking the muzzle up.
 msDefine('shockrifle:q', msCast({
   color: '#00ddff', len: 26, fireAt: 5,
   keys: [
@@ -1575,7 +1517,7 @@ msDefine('shockrifle:e', msCast({
   poseMod: msRecoil(5, 0.24, 8, 32),
   onFire(sc) { sc.flash('#b8f4ff', 0.16, 6); sc.shake(8); },
 }));
-// Q — Reveal Sweep: the lantern goes up overhead and the light goes out from it.
+// Q: Reveal Sweep. Lantern up overhead, light goes out from it.
 msDefine('lantern:q', msCast({
   color: '#ffcc66', len: 34, fireAt: 12,
   keys: [
@@ -1591,7 +1533,7 @@ msDefine('lantern:e', msCast({
   onFire(sc) { sc.sfx('swing'); },
   tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
 }));
-// Q — Void Slam: both fists overhead, then the floor.
+// Q: Void Slam. Both fists overhead, then the floor.
 msDefine('gauntlet:q', msCast({
   color: '#b060ff', len: 34, fireAt: 14,
   keys: [

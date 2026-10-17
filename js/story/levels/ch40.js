@@ -1,17 +1,7 @@
 'use strict';
-// js/story/levels/ch40.js — Chapter 40 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch40.js. Chapter 40 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 40 — The Second Architect (walk → duel vs the Second Architect)
-// Through the root door from chapter 39, inside the sanctum: a hall hollowed
-// out of one living tree. "We built those portals together, you know." The
-// walls are the Architect's notebook — portal schematics grown into the grain
-// and glowing green. Shelf-fungus brackets climb the walls; workbenches with
-// half-built portal rings line the walk. The Architect tests you in the
-// sanctum's heart, a moss clearing under a circle of light from the hollow
-// trunk above. The cache shafts are root holes down into the tree's
-// underground. Beyond: the dimensional key on its stand, and the way out.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 40, walk to duel vs the Second Architect. Cache shafts are root holes; the key sits past the heart clearing.
 (function () {
   const G = 440, HEART = 3000, KEY = 5500;
   const FUNGUS = [[420, 350, 100], [560, 270, 110], [1150, 340, 110], [1290, 260, 120], [2250, 350, 100], [2380, 270, 120],
@@ -19,8 +9,7 @@
   const BENCHES = [[800, 160], [2050, 140], [4100, 160], [5250, 140]];
   const HOLES = [1800, 4680];
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+  // Optional loot (see level.loot in smb-story-levels.js): a hidden cache off the route, and a better one guarded by an optional elite.
   const STASH = [
     { id: 'a', x: 2020, y: 250, w: 140, steps: [[1950, 345, 90]] },
     { id: 'b', x: 4470, y: 250, w: 190, steps: [[4400, 345, 90]], gx: 60, guard: { name: 'Grove Warden', weaponKey: 'spear', classKey: 'warrior', health: 165, color: '#5a8a3a' } },

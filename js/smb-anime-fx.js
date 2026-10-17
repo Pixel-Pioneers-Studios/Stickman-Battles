@@ -1,9 +1,8 @@
 'use strict';
-// smb-anime-fx.js — Anime-style cinematic effect utilities (AniFX)
+// smb-anime-fx.js, Anime-style cinematic effect utilities (AniFX)
 // Depends on: smb-globals.js (canvas, GAME_W, GAME_H, camXCur, camYCur, camZoomCur)
 // Loaded after smb-cinematics-core.js, before smb-cinematics-boss-thresh.js
 
-// ── World-to-screen coordinate helper (no shake component) ────────────────────
 function _cinWorldToScreen(wx, wy) {
   const sc = Math.min(canvas.width / GAME_W, canvas.height / GAME_H) * camZoomCur;
   return {
@@ -60,7 +59,6 @@ function _aniFxHexToRgb(hex) {
 }
 
 
-// ── AniFX — anime-style screen-space effect library ────────────────────────────
 // All functions receive rctx (the canvas 2D context in identity/screen-space transform).
 // Entity positions are world-space and converted internally via _cinWorldToScreen().
 

@@ -1,23 +1,14 @@
 'use strict';
-// js/story/levels/ch29.js — Chapter 29 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch29.js: chapter 29 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 29 — Deep Fragment (walk → duel vs the Crucible Champion)
-// "The Crucible. Where the rift entity tested and broke fragment bearers who
-// made it this far. The last forty-seven had failed here." Through the door
-// from chapter 28 into a round pit-arena carved in basalt. Forty-seven marks
-// are cut into the ring wall, one per failed bearer, with an empty space for
-// the forty-eighth. Spectator ledges spiral up the wall; the champion's
-// dais is the midpoint. On victory the 47 signatures release — the far side
-// is the open core, the compass burning white.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 29, Deep Fragment (walk, then duel the Crucible Champion).
+// Round basalt pit. 47 failed-bearer marks on the ring wall, one blank space.
 (function () {
   const G = 440, PIT = 3000;
   const RING_LEDGES = [[2380, G - 90, 140], [2300, G - 190, 140], [2400, G - 290, 160], [3480, G - 90, 140], [3560, G - 190, 140], [3440, G - 290, 160]];
   const ENTRY = [[600, G - 70, 120], [1500, G - 110, 160], [1680, G - 210, 120], [4600, G - 100, 160], [4800, G - 200, 140]];
 
-  // Optional loot (see _slStashPlats / level.loot in smb-story-levels.js): a hidden cache
-  // one jump off the route, and a better one held by an OPTIONAL elite.
+  // Loot: a hidden cache off the route, and a better one with an optional elite.
   const STASH = [
     { id: 'a', x: 1020, y: 250, w: 140, steps: [[950, 345, 90]] },
     { id: 'b', x: 5320, y: 250, w: 190, steps: [[5250, 345, 90]], gx: 60, guard: { name: 'Crucible Warden', weaponKey: 'hammer', classKey: 'thor', health: 180, color: '#c8501a' } },
@@ -27,7 +18,7 @@
     const P = [];
     for (const [x, y, w] of RING_LEDGES) _slLedge(P, x, y, w);
     for (const [x, y, w] of ENTRY) _slLedge(P, x, y, w);
-    _slLedge(P, PIT - 80, G - 40, 160);           // the dais
+    _slLedge(P, PIT - 80, G - 40, 160);
     _slStashPlats(P, STASH);
     return P;
   }
@@ -44,14 +35,14 @@
   function back(v) {
     const x0 = Math.max(-200, v.x - 40), x1 = Math.min(6200, v.x + v.w + 40);
     ctx.fillStyle = '#200806'; ctx.fillRect(x0, -300, x1 - x0, 740);
-    // Entry tunnel (left) and exit (right) are rough basalt; the pit is cut stone
+    // Entry and exit are rough basalt; the pit is cut stone.
     for (let px = Math.floor(x0 / 70) * 70; px < x1; px += 70) {
       const inPit = Math.abs(px - PIT) < 900;
       ctx.fillStyle = inPit ? (px % 140 ? '#3a160c' : '#40180e') : (px % 140 ? '#2a0e08' : '#30120a');
       ctx.fillRect(px, -300, 66, 740);
     }
     for (const [x, y, w] of ENTRY) if (_slVisible(v, x, x + w)) { ctx.fillStyle = '#3a1a10'; ctx.fillRect(x, y, w, G - y); ctx.fillStyle = '#4a2416'; ctx.fillRect(x, y, w, 6); }
-    // The ring wall: 47 marks and one blank space
+    // Ring wall: 47 marks and one blank for the 48th.
     if (_slVisible(v, PIT - 900, PIT + 900)) {
       ctx.fillStyle = '#4a2010'; ctx.fillRect(PIT - 900, G - 470, 1800, 24);
       for (let k = 0; k < 48; k++) {
@@ -69,17 +60,14 @@
         ctx.fillStyle = '#5a2c1a'; ctx.fillRect(x, y, w, 4);
         ctx.fillStyle = '#2a0e08'; ctx.beginPath(); ctx.moveTo(x, y + 12); ctx.lineTo(x + w, y + 12); ctx.lineTo(x + w - 20, y + 40); ctx.lineTo(x + 20, y + 40); ctx.fill();
       }
-      // Braziers ringing the pit
       for (const bx of [PIT - 500, PIT - 250, PIT + 250, PIT + 500]) {
         ctx.fillStyle = '#3a2216'; ctx.fillRect(bx - 8, G - 60, 16, 60); ctx.fillRect(bx - 18, G - 66, 36, 8);
         _slFire(bx - 15, G - 66, 30, 0.9);
       }
-      // The dais
       ctx.fillStyle = '#4a2214'; ctx.fillRect(PIT - 80, G - 40, 160, 40);
       ctx.fillStyle = '#6a3420'; ctx.fillRect(PIT - 86, G - 44, 172, 6);
       ctx.fillStyle = 'rgba(255,170,90,0.6)'; ctx.font = 'bold 10px Georgia'; ctx.textAlign = 'center'; ctx.fillText('XLVIII ?', PIT, G - 18);
     }
-    // Beyond: the open core, waiting for the released signatures
     if (_slVisible(v, 4900, 6200)) {
       const p = 0.7 + 0.3 * Math.sin(frameCount * 0.04);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';

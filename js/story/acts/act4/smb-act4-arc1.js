@@ -293,6 +293,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The maintenance exit. The Preserved\'s voice, one last time before the signal cuts: "There are others. We found ways to hold on." A pause. "We always knew someone would come back through." You step through. Forward.',
   },
 
-  // ─────── Act 4 Arc 2 continues in smb-act4-arc2.js (ids 123–130) ──
+  // Arc 2 continues in smb-act4-arc2.js (ids 123-130)
 
 );

@@ -42,3 +42,21 @@
 [league 2026-10-11T15:33:35.866Z] gate: brain-hunter4 wins 60% vs cand, 75% vs shipped (tol +6)
 [league 2026-10-11T15:33:35.932Z] gate PASS: shipped 9334 -> 12756
 [league 2026-10-11T15:33:35.934Z] end: main iter 12756, gate 1 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4
+[league 2026-10-13T02:21:38.549Z] start: 8 h, main iter 12756, backup data/brain/pre-league-1791858098543, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4
+[league 2026-10-13T02:21:38.632Z] MAIN (candidate data/brain-cand) from shipped iter 12756 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4 for 7.90 h
+[league 2026-10-13T10:16:02.149Z] candidate done at iter 16473
+[league 2026-10-13T10:21:41.708Z] memory: cand 16473 normal 56.2% vs memory cleared 52.9% = +3.3 (need +5); vs switching hunters 54% / 49% -> does not adapt
+[league 2026-10-13T10:23:02.957Z] gate: cand 16473 vs shipped 12756: 46% vs mirror 48% = -1.5 (need +5)
+[league 2026-10-13T10:23:02.958Z] gate REJECT: shipped stays 12756
+[league 2026-10-13T10:23:02.965Z] end: main iter 12756, gate 0 shipped / 1 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4
+[league 2026-10-15T23:44:58.296Z] start: 8 h, main iter 12756, backup data/brain/pre-league-1792107898292, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4
+[league 2026-10-15T23:44:58.378Z] MAIN (candidate data/brain-cand) from shipped iter 12756 vs data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4 for 7.90 h
+[league 2026-10-16T07:41:09.024Z] candidate done at iter 15705
+[league 2026-10-16T07:46:41.480Z] memory: cand 15705 normal 53.6% vs memory cleared 49.8% = +3.8 (need +5); vs switching hunters 46% / 54% -> does not adapt
+[league 2026-10-16T07:48:09.504Z] gate: cand 15705 vs shipped 12756: 51% vs mirror 44% = +7.0 (need +5)
+[league 2026-10-16T07:49:33.131Z] gate: brain-hunter wins 37% vs cand, 37% vs shipped (tol +6)
+[league 2026-10-16T07:50:54.502Z] gate: brain-hunter2 wins 39% vs cand, 36% vs shipped (tol +6)
+[league 2026-10-16T07:52:13.774Z] gate: brain-hunter3 wins 42% vs cand, 44% vs shipped (tol +6)
+[league 2026-10-16T07:53:46.362Z] gate: brain-hunter4 wins 58% vs cand, 55% vs shipped (tol +6)
+[league 2026-10-16T07:53:46.420Z] gate PASS: shipped 12756 -> 15705
+[league 2026-10-16T07:53:46.423Z] end: main iter 15705, gate 1 shipped / 0 rejected, hunters data/brain-hunter,data/brain-hunter2,data/brain-hunter3,data/brain-hunter4

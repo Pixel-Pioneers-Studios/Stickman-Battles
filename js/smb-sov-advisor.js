@@ -1,54 +1,37 @@
 'use strict';
-// smb-sov-advisor.js — SovereignAdvisor: slow strategic layer above SovereignMK2.
+// smb-sov-advisor.js: SovereignAdvisor, a slow strategic layer above SovereignMK2.
 // Depends on: smb-globals.js, smb-smk2-class.js (SovereignMK2), smb-ai-console.js (_AI_URL)
 // Loaded after smb-smk2-class.js.
-//
-// WHAT THIS IS
-// Sovereign's own brain is a per-FRAME tactical engine — reads, punishes, spacing.
-// It has no slow loop: nothing ever steps back and asks "this whole approach is
-// losing, try a different one". This module is that loop. Every ~15 seconds it
-// summarises the fight, asks a small local model (Ollama, same server VECTOR uses)
-// which direction to take, and applies the answer as a BIAS on systems Sovereign
-// already has. It is an advisor, not a driver: it never issues per-frame commands.
-//
-// HARD RULES
-//  • Never blocks the game loop — one in-flight request, fully async, short timeout.
-//  • Never touches safety systems (edge avoidance, void recovery, spawn protection).
-//  • Any failure — Ollama down, timeout, malformed reply, unknown value — is a
-//    silent no-op and Sovereign plays exactly as he does without this file.
-//  • Output is validated against a strict allowlist; the model cannot inject
-//    arbitrary state, only choose from options the engine already supports.
+// Every ~15s it summarises the fight, asks a small local model (Ollama) for a direction, and applies it as a bias.
+// Advisor only: no per-frame commands, and never touches edge avoidance, recovery or spawn protection.
+// Any failure is a silent no-op. Model output is checked against an allowlist.
 
 const SovereignAdvisor = (() => {
 
   const URL_BASE = (typeof _AI_URL !== 'undefined' && _AI_URL) ? _AI_URL : 'http://localhost:11434';
 
-  // Deliberately biased toward SMALL models — "like VECTOR but weaker". This runs
-  // during live combat, so a 2-3B model answering in <2s beats a 7B answering in 8.
+  // Biased toward small models: this runs in live combat, so a fast answer beats a slow good one.
   const PREFERRED = ['llama3.2:1b', 'qwen2.5:1.5b', 'gemma2:2b', 'phi3:mini', 'llama3.2',
                      'qwen2.5:3b', 'phi3', 'qwen2.5', 'mistral', 'llama3'];
 
-  const INTERVAL_FRAMES = 900;   // ~15s at 60fps — the advisory cadence
-  // Measured on real local models: llama3.2:3b ≈ 5s, qwen2.5-coder:7b ≈ 10s, and
-  // the first call of a session also pays model load. 11s keeps the 7b usable;
-  // anything slower is dropped, which costs one advisory and nothing else.
+  const INTERVAL_FRAMES = 900;   // advisory cadence (~15s at 60fps)
+  // 11s timeout: llama3.2:3b takes ~5s, qwen2.5-coder:7b ~10s. Slower replies are dropped.
   const REQUEST_TIMEOUT = 11000;
   const WINDOW_FRAMES   = 900;   // telemetry covers the last window only
 
-  // ── Allowlists — the model may only pick from these ────────────────────────
+  // Allowlists: the model may only pick from these.
   const STRATEGIES = ['anti-air', 'parry', 'guard-break', 'intercept', 'pressure', 'none'];
   const PRESSURES  = ['study', 'suffocate'];
 
   let _enabled   = true;      // master switch (SovereignAdvisor.off() to disable)
   let _model     = null;
-  let _probed    = false;     // have we checked Ollama availability this session?
+  let _probed    = false;     // Ollama availability checked this session
   let _available = false;
   let _inFlight  = false;
   let _nextAt    = 0;         // frameCount of next advisory
   let _log       = [];        // recent directives, for inspection
   let _stats     = { asked: 0, applied: 0, failed: 0 };
 
-  // Rolling telemetry, reset each window
   let _w = null;
   function _resetWindow() {
     _w = { dealt: 0, taken: 0, sovSwings: 0, sovHits: 0, pSwings: 0, pHits: 0,
@@ -67,7 +50,7 @@ const SovereignAdvisor = (() => {
     return players.find(p => p && p !== s && !p.isSovereignMK2 && !p.isBoss) || null;
   }
 
-  // ── Per-frame telemetry sampling (cheap; no allocation in the common path) ──
+  // Per-frame telemetry sampling. Cheap, no allocation on the common path.
   function tick() {
     if (!_enabled) return;
     if (typeof gameRunning === 'undefined' || !gameRunning) return;
@@ -96,11 +79,11 @@ const SovereignAdvisor = (() => {
     if (_nextAt === 0) { _nextAt = frameCount + INTERVAL_FRAMES; return; }
     if (frameCount >= _nextAt && !_inFlight) {
       _nextAt = frameCount + INTERVAL_FRAMES;
-      _advise(s, p);          // fire-and-forget; never awaited by the caller
+      _advise(s, p);          // fire-and-forget
     }
   }
 
-  // ── Build the compact fight report the model reasons over ──────────────────
+  // Compact fight report for the model.
   function _report(s, p) {
     const f = Math.max(1, _w.frames);
     const pct = v => Math.round(100 * v / f);
@@ -202,14 +185,13 @@ const SovereignAdvisor = (() => {
       if (dir) { _apply(dir); _stats.applied++; _log.push({ at: frameCount, dir, report }); if (_log.length > 40) _log.shift(); }
       else     { _stats.failed++; }
     } catch (e) {
-      _stats.failed++;            // Ollama down / slow / refused — Sovereign is unaffected
+      _stats.failed++;            // Sovereign plays on unaffected
     } finally {
       _inFlight = false;
     }
   }
 
-  // Strict validation. A small model WILL occasionally emit prose, fences, or
-  // invented enum values; every one of those paths must end as a no-op.
+  // Model replies can contain prose, fences or invented enum values. Each must end as a no-op.
   function _parse(text) {
     if (!text) return null;
     let raw = text.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -219,10 +201,7 @@ const SovereignAdvisor = (() => {
     try { o = JSON.parse(raw.slice(a, b + 1)); } catch (e) { return null; }
     if (!o || typeof o !== 'object') return null;
 
-    // If the model supplied an enum we don't recognise, treat the WHOLE reply as
-    // untrusted rather than salvaging the numeric fields — a reply that invents
-    // "omega-slam" has no more claim to a correct spacing value than to a correct
-    // strategy, and salvaging let a pure hallucination apply a max spacing bias.
+    // An unknown enum voids the whole reply. Salvaging the numbers let a hallucinated reply set a max spacing bias.
     if (o.strategy != null && !STRATEGIES.includes(o.strategy)) return null;
     if (o.pressure != null && !PRESSURES.includes(o.pressure)) return null;
 
@@ -232,17 +211,16 @@ const SovereignAdvisor = (() => {
     if (!isFinite(spacing)) spacing = 0;
     spacing = Math.max(-1, Math.min(1, spacing));
     const edge = o.edge === true;
-    if (!strategy && !pressure && !spacing && !edge) return null;   // nothing usable
+    if (!strategy && !pressure && !spacing && !edge) return null;
     return { strategy, pressure, spacing, edge,
              reason: typeof o.reason === 'string' ? o.reason.slice(0, 80) : '' };
   }
 
-  // Apply as BIAS only. Every field maps onto a knob Sovereign already exposes;
-  // nothing here can disable edge avoidance, recovery, or spawn protection.
+  // Bias only: every field maps to a knob Sovereign already has. Safety systems are not reachable from here.
   function _apply(dir) {
     const s = _sov(); if (!s) return;
     s._advisorStrategy = (dir.strategy && dir.strategy !== 'none') ? dir.strategy : null;
-    s._advisorSpacing  = dir.spacing * 26;      // px of prefDist bias — deliberately small
+    s._advisorSpacing  = dir.spacing * 26;      // px of prefDist bias, kept small
     s._advisorEdge     = dir.edge;
     if (dir.pressure) { s._pressureMode = dir.pressure; s._pressureHoldTimer = 240; }
     s._advisorReason   = dir.reason;
@@ -265,7 +243,7 @@ const SovereignAdvisor = (() => {
                last: _log.length ? _log[_log.length - 1] : null };
     },
     history() { return _log.slice(); },
-    // Test seam: apply a directive without a model, to verify the bias plumbing.
+    // Test seam: apply a directive without calling the model.
     _debugApply(dir) { const d=_parse(typeof dir==='string'?dir:JSON.stringify(dir)); if(d){_apply(d);return d;} return null; },
   };
 })();

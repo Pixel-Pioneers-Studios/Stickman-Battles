@@ -1,8 +1,8 @@
 'use strict';
-// smb-attacktest-commands.js — _atkCommand console router, _atkHelp, _atkList, _atkSummon, _atkAll, kit HUD, key handler, kit fire
-// Depends on: smb-globals.js, smb-fighter.js, smb-combat.js
+// Attack-test console router, kit HUD, key handler and kit fire.
+// Depends on smb-globals.js, smb-fighter.js, smb-combat.js.
 
-// ─── CONSOLE COMMAND ROUTER ───────────────────────────────────
+// Console command router.
 function _atkCommand(raw) {
   const parts = raw.trim().split(/\s+/);
   const sub   = (parts[0] || '').toLowerCase();
@@ -58,7 +58,7 @@ function _atkList(classKey) {
   _consolePrint('Use:  atk summon <label>', '#668899');
 }
 
-// Returns a ctx for summon calls: live-delegating from P1 when in-game, else a static proxy
+// Returns a ctx for summon calls: live from P1 in-game, else a static proxy.
 function _atkGetSummonCtx(isTF) {
   const firer = typeof players !== 'undefined' ? players.find(p => !p.isBoss && p.health > 0) : null;
   return firer ? _atkMakePlayerCtx(firer, isTF) : _atkMakeProxy(isTF);
@@ -100,7 +100,7 @@ function _atkAll(classKey) {
   let idx = 0;
   function _next() {
     if (!gameRunning) { _atkDemoRunning=false; _consolePrint('[ATK] Demo aborted.','#ff8888'); return; }
-    // Never fire demo attacks into an active cinematic — wait it out instead.
+    // Don't fire demo attacks into a cinematic. Wait it out.
     if (typeof isCinematic !== 'undefined' && isCinematic) { setTimeout(_next, 500); return; }
     if (idx >= bucket.length) { _atkDemoRunning=false; _consoleOk('[ATK] Demo complete.'); return; }
     const entry    = bucket[idx++];
@@ -124,8 +124,7 @@ function _atkTogglePause(v) { _atkPauseBetween = v ? v.toLowerCase()!=='off' : !
 function _atkSetSpeed(v)    { const n=parseFloat(v); if(isNaN(n)||n<0.1||n>4){_consoleErr('0.1–4.0');return;} _atkSpeed=n; _consoleOk('[ATK] Speed: '+n.toFixed(2)+'×'); }
 function _atkSetScale(v)    { const n=parseFloat(v); if(isNaN(n)||n<0.1||n>10){_consoleErr('0.1–10.0');return;} _atkDamageScale=n; _consoleOk('[ATK] Scale: '+n.toFixed(2)+'×'); }
 
-// ─── ADMIN CLASS SYSTEM ───────────────────────────────────────
-// Attack lists used by both the kit weapons and the GUI
+// Admin class system. Attack lists are shared by the kit weapons and the GUI.
 const _ADMIN_KIT_ATTACKS = {
   creator:  ATK_REGISTRY.creator,
   trueform: ATK_REGISTRY.trueform,
@@ -142,7 +141,7 @@ const _ADMIN_KIT_ATTACKS = {
  * @param {string} kitKey   — 'creator' | 'trueform' | 'yeti' | 'beast' | 'off'
  * @param {string} [slot]   — 'p1' | 'p2' | 'p2' (default: 'p1')
  */
-// ─── Kit HUD DOM overlay ───────────────────────────────────────
+// Kit HUD DOM overlay.
 function _atkUpdateKitHUD() {
   let hud = document.getElementById('atkKitHUD');
   // Collect all equipped players
@@ -173,7 +172,7 @@ function _atkUpdateKitHUD() {
   }).join('');
 }
 
-// ─── Per-kit keydown handler ───────────────────────────────────
+// Per-kit keydown handler.
 let _atkKitKeyHandler = null;
 function _atkInstallKeyHandler() {
   if (_atkKitKeyHandler) return; // already installed
@@ -206,15 +205,14 @@ function _atkRemoveKeyHandler() {
   }
 }
 
-// ─── Core fire helper (fires kit.idx attack for a player) ─────
+// Core fire helper: fires the kit.idx attack for a player.
 function _atkKitFire(player) {
   const kit  = player._adminKit;
   if (!kit) return;
   const isTF = kit.kitKey === 'trueform';
   const entry = kit.bucket[kit.idx];
-  // Live-delegating ctx: position reads/writes go to the real player so
-  // teleport attacks move them, meteor attacks apply real physics, and
-  // bossRef stored in global state (tfGammaBeam etc.) tracks them live.
+  // Live ctx: position reads and writes hit the real player, so teleports move it
+  // and bossRef in global state tracks it.
   const ctx = _atkMakePlayerCtx(player, isTF);
   // Target: any live non-dummy entity that isn't the firing player
   const tgt = typeof players !== 'undefined'
@@ -253,13 +251,13 @@ function _atkEquipClass(kitKey, slot) {
   // Build kit state on the player
   player._adminKit = { kitKey, bucket, idx: 0, prevWeapon: player.weapon };
 
-  // Build a synthetic weapon: Q fires current slot (no advance); E advances to next slot
+  // Synthetic weapon. Q fires the current slot. E advances to the next.
   const kitWeapon = Object.assign({}, player.weapon || {}, {
     name:            kitKey.charAt(0).toUpperCase() + kitKey.slice(1) + ' Kit',
     type:            'admin',
     abilityCooldown: 30,
     cooldown:        player.weapon ? player.weapon.cooldown : 28,
-    // Q — fire currently selected attack (no cycle)
+    // Q fires the selected attack, without cycling.
     ability(user) {
       if (!user._adminKit) return;
       _atkKitFire(user);
@@ -268,7 +266,7 @@ function _atkEquipClass(kitKey, slot) {
   });
   player.weapon = kitWeapon;
 
-  // E — advance selection to next attack (no fire; instant super recharge)
+  // E advances the selection without firing, and refills super.
   if (!player._origActivateSuper) {
     player._origActivateSuper = player.activateSuper ? player.activateSuper.bind(player) : null;
   }
@@ -278,7 +276,7 @@ function _atkEquipClass(kitKey, slot) {
     kit.idx = (kit.idx + 1) % kit.bucket.length;
     _consolePrint(`[ADMIN KIT] selected [${kit.idx + 1}] ${kit.bucket[kit.idx].label}`, '#aaddff');
     _atkUpdateKitHUD();
-    // Immediately refill super so E is always available
+    // Refill super so E is always available.
     this.superMeter = 100; this.superReady = true;
   };
   player.superMeter = 100; player.superReady = true;

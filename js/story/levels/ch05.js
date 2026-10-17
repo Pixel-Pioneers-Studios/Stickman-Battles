@@ -1,14 +1,6 @@
 'use strict';
-// js/story/levels/ch05.js — Chapter 5 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 5 — Quiet Before (scavenge)
-// Night on the rooftops, after the Watcher. Four buildings at four heights,
-// planked across. Veran's relay components sit where a patrol would not think
-// to look — the top of the radio mast, a greenhouse shelf, the top of a
-// billboard and the lid of a water tower (positions mirrored in the chapter's
-// scavengeItemDefs). The city below is quiet in a way that is wrong.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 5 map (scavenge). Contract: smb-story-levels.js.
+// Rooftops at night. Relay parts sit where a patrol would not look.
 (function () {
   const G0 = 440;
   const ROOFS = [[0, 700, 440, '#4a3a44'], [700, 1310, 400, '#3e3a4e'], [1310, 1370, 440, null],
@@ -19,7 +11,7 @@
   const BOARD  = { x: 2160, w: 300, base: 470, cat: 340, top: 210 };
   const TOWER  = { x: 2720, w: 120, legTop: 320, tankH: 80 };
 
-  // Plank spans are thin and undrawn so the drop between buildings stays open below them
+  // Plank spans are undrawn so the drops between buildings stay open
   function floor() {
     return ROOFS.map(([x0, x1, y, col]) => col ? _slFloorSeg(x0, y, x1 - x0, 600 - y)
       : Object.assign(_slFloorSeg(x0, y, x1 - x0, 10), { noDraw: true }));
@@ -27,18 +19,18 @@
 
   function layout() {
     const P = [];
-    _slLedge(P, 300, 440 - 56, 70);                     // AC unit by the start bulkhead
-    _slLedge(P, SOLAR.x, 400 - 40, SOLAR.w);           // solar array top
+    _slLedge(P, 300, 440 - 56, 70);
+    _slLedge(P, SOLAR.x, 400 - 40, SOLAR.w);
     for (const y of MAST.ys) _slLedge(P, MAST.x, y, 70);
     _slLedge(P, GREEN.x + 20, GREEN.shelf, 80);
-    _slLedge(P, GREEN.x, 440 - 120, GREEN.w);           // greenhouse roof ridge
-    _slLedge(P, BOARD.x - 80, BOARD.base - 64, 70);     // vent box
+    _slLedge(P, GREEN.x, 440 - 120, GREEN.w);
+    _slLedge(P, BOARD.x - 80, BOARD.base - 64, 70);
     _slLedge(P, BOARD.x, BOARD.cat, BOARD.w);
-    _slLedge(P, BOARD.x + 40, BOARD.cat - 66, 60);      // ladder cage landing
+    _slLedge(P, BOARD.x + 40, BOARD.cat - 66, 60);
     _slLedge(P, BOARD.x + 90, BOARD.top, BOARD.w - 180);
     _slLedge(P, TOWER.x, TOWER.legTop, TOWER.w);
     _slLedge(P, TOWER.x + 8, TOWER.legTop - TOWER.tankH, TOWER.w - 16);
-    _slLedge(P, TOWER.x - 90, 440 - 60, 70);             // crate stack
+    _slLedge(P, TOWER.x - 90, 440 - 60, 70);
     return P;
   }
 
@@ -52,7 +44,7 @@
       mg.addColorStop(0, 'rgba(230,220,255,0.35)'); mg.addColorStop(1, 'rgba(230,220,255,0)');
       ctx.fillStyle = mg; ctx.fillRect(mx - 120, -60, 240, 240);
       ctx.fillStyle = '#ece6f4'; ctx.beginPath(); ctx.arc(mx, 60, 18, 0, Math.PI * 2); ctx.fill();
-      // A thin fracture line across the moon — the only sign of the war tonight
+      // Fracture line across the moon
       _slSkyCrack(_slJag(mx - 40, 30, mx + 60, 100, 6, 6, 5), 0.5);
     });
     _slParallax(v, 0.18, (l, r) => {
@@ -75,7 +67,6 @@
     });
   }
   function back(v) {
-    // Building faces behind each roof edge: the roofline steps up and down
     for (const [x0, x1, y, col] of ROOFS) {
       if (!col || !_slVisible(v, x0, x1)) continue;
       _slParapet(x0, x1, y, '#5a4e58');
@@ -84,7 +75,7 @@
       _slBulkhead(110, 440, 120, 116, '#5a4440');
       _slAcUnit(300, 440 - 56, 70, 56);
       _slSkylight(470, 440, 90);
-      // Strings of fairy lights someone hung for a rooftop party that never happened
+      // Fairy lights on the rooftop
       ctx.strokeStyle = 'rgba(40,30,40,0.8)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(230, 440 - 110); ctx.quadraticCurveTo(450, 440 - 70, 680, 400 - 130); ctx.stroke();
       for (let k = 0; k < 16; k++) {
@@ -96,7 +87,6 @@
       ctx.fillStyle = '#6a5040'; ctx.fillRect(560, 440 - 30, 70, 6); ctx.fillRect(566, 440 - 24, 4, 24); ctx.fillRect(620, 440 - 24, 4, 24);
     }
     if (_slVisible(v, 700, 1320)) {
-      // Solar array, tilted panels on a frame
       for (let px = SOLAR.x; px < SOLAR.x + SOLAR.w; px += 60) {
         ctx.fillStyle = '#4a4e54'; ctx.fillRect(px + 8, 400 - 40, 4, 40); ctx.fillRect(px + 46, 400 - 30, 4, 30);
         ctx.fillStyle = '#1e2c4a';
@@ -104,7 +94,7 @@
         ctx.strokeStyle = 'rgba(120,160,220,0.35)'; ctx.lineWidth = 1;
         for (let k = 1; k < 4; k++) { ctx.beginPath(); ctx.moveTo(px + k * 14, 400 - 42); ctx.lineTo(px + k * 14, 400 - 31); ctx.stroke(); }
       }
-      // Radio mast — three service platforms; the booster is at the top
+      // Radio mast, booster at the top
       ctx.strokeStyle = '#4a4f55'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(MAST.x + 18, 400); ctx.lineTo(MAST.x + 30, 40); ctx.moveTo(MAST.x + 52, 400); ctx.lineTo(MAST.x + 40, 40); ctx.stroke();
       ctx.lineWidth = 1;
@@ -120,7 +110,7 @@
       ctx.fillStyle = '#08060c'; ctx.fillRect(1310, 440, 60, 200);
     }
     if (_slVisible(v, 1370, 2010)) {
-      // Greenhouse: the power cell is on its potting shelf
+      // Greenhouse power cell
       const Gh = GREEN;
       ctx.fillStyle = 'rgba(150,200,180,0.18)'; ctx.fillRect(Gh.x, 440 - 110, Gh.w, 110);
       ctx.fillStyle = 'rgba(150,200,180,0.14)';
@@ -136,7 +126,7 @@
     }
     if (_slVisible(v, 2010, 2600)) {
       _slAcUnit(BOARD.x - 80, BOARD.base - 64, 70, 64);
-      // Tall billboard frame: catwalk, a caged ladder, the top deck
+      // Billboard catwalk and ladder
       const B = BOARD;
       ctx.fillStyle = '#2a2e32';
       for (const px of [B.x + 30, B.x + B.w - 36]) ctx.fillRect(px, B.top, 6, B.base - B.top);
@@ -164,7 +154,7 @@
     }
   }
 
-  // Planks over the two gaps between buildings
+  // Planks over the gaps between buildings
   function _planks(v, ph, x0, x1, y) {
     if (!_slVisible(v, x0 - 20, x1 + 20)) return;
     ctx.fillStyle = '#8a6a44';

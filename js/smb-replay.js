@@ -1,14 +1,10 @@
 'use strict';
-// smb-replay.js — Match replay recording, storage, download, and viewer.
-// Depends on: smb-globals.js (GAME_W, GAME_H, CHANGELOG, players, currentArena,
-//             currentArenaKey, gameMode, frameCount, onlineMode)
-// Loaded last; does not expose globals other than ReplaySystem.
+// Match replay: recording, IndexedDB storage, download and viewer. Loaded last.
+// Depends on smb-globals.js (GAME_W, players, currentArena, gameMode, frameCount, onlineMode).
 
 const ReplaySystem = (() => {
 
-  // ── Constants ───────────────────────────────────────────────────────────────
-  // Embed the running game version into every replay file so mismatched
-  // versions are detected at load time and refused instead of desyncing.
+  // Stamp the game version, so a mismatched replay is refused at load instead of desyncing.
   const GAME_VERSION = (() => {
     try { return CHANGELOG[0].version; } catch (e) { return '?'; }
   })();
@@ -19,10 +15,9 @@ const ReplaySystem = (() => {
   const PLAYBACK_FPS   = 20;   // frames per second of recorded data during playback
   const DB_NAME        = 'smb_replays_v1';
 
-  // No modes are skipped — record everything (training, minigames, exploration, etc.)
+  // Records every mode: training, minigames, exploration and so on.
   const SKIP_MODES = new Set();
 
-  // ── Recording state ─────────────────────────────────────────────────────────
   let _recording  = false;
   let _frames     = [];        // array indexed by recorded-frame number
   let _platFrames = {};        // { recordedFrameIdx: [platformSnapshot] }
@@ -30,10 +25,8 @@ const ReplaySystem = (() => {
   let _startFC    = 0;         // value of frameCount when recording began
   let _lastReplay = null;      // most recent completed replay object
 
-  // ── Database handle ─────────────────────────────────────────────────────────
   let _db = null;
 
-  // ── Playback state ──────────────────────────────────────────────────────────
   let _pbData    = null;
   let _pbFrame   = 0;          // float; supports sub-frame interpolation in tick
   let _pbPlaying = false;
@@ -42,7 +35,6 @@ const ReplaySystem = (() => {
   // Eased camera position, persisted across rendered frames (null = needs snap).
   let _pbCam     = { x: null, y: null };
 
-  // ── Arena background palette (approximations) ───────────────────────────────
   const ARENA_BG = {
     grass:      '#0e2612', forest:     '#0a1a0d', cave:       '#13101a',
     desert:     '#241606', snow:       '#141e29', city:       '#141420',
@@ -54,9 +46,6 @@ const ReplaySystem = (() => {
     sovereign:  '#0d0008', ruins:      '#1a1408', ice:        '#101c26',
   };
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // IndexedDB helpers
-  // ════════════════════════════════════════════════════════════════════════════
 
   function _openDB() {
     return new Promise((resolve, reject) => {
@@ -121,9 +110,6 @@ const ReplaySystem = (() => {
     }
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Snapshotting
-  // ════════════════════════════════════════════════════════════════════════════
 
   function _snapPlayers() {
     if (typeof players === 'undefined' || !Array.isArray(players)) return [];
@@ -143,11 +129,7 @@ const ReplaySystem = (() => {
       wk:    p.weaponKey || 'sword',
       ai:    p.isAI   ? 1 : 0,
       boss:  p.isBoss ? 1 : 0,
-      // ── Added fields ──────────────────────────────────────────────────────
-      // Without these a reader cannot tell a death-freeze from a real pose, an
-      // i-frame whiff from a miss, or a hitstun lock from a deliberate stand.
-      // Analysing a match without them means inferring state from hp/lives
-      // deltas, which misreads the ~14-frame death freeze as a real position.
+      // Without these, a reader can't tell a death freeze from a real pose, or an i-frame whiff from a miss.
       g:     p.onGround ? 1 : 0,
       inv:   Math.round(p.invincible   || 0),
       stn:   Math.round(p.stunTimer    || 0),
@@ -158,16 +140,9 @@ const ReplaySystem = (() => {
     }));
   }
 
-  // ── Event log ───────────────────────────────────────────────────────────────
-  // Detected every game frame (before the sampling gate) by diffing fighter
-  // state, so events carry the frame they actually happened on rather than the
-  // frame a 20fps sample happened to catch. Nothing here mutates game state and
-  // dealDamage() is untouched — this is pure observation.
-  // ── Input track ─────────────────────────────────────────────────────────────
-  // What each HUMAN player actually pressed, every frame. Frames are sampled at
-  // 20fps and hold state only, so a swing start can be inferred but an ability,
-  // a tapped jump or a 1-frame shield cannot. This track makes a replay into
-  // training data for tools/ghost-build.js (the human mimic).
+  // Events are detected every game frame, before the sampling gate, so they keep their real frame.
+  // Per-frame human inputs, for tools/ghost-build.js (the human mimic).
+  // 20fps samples can't show ability taps or 1-frame shields.
   //   held:    L=1 R=2 J=4 SH=8 D=16     pressed this frame: ATK=32 ABI=64 SUP=128
   // Stored run-length: per player, [[frame, mask], ...] appended only on change.
   const IN_L = 1, IN_R = 2, IN_J = 4, IN_SH = 8, IN_D = 16, IN_ATK = 32, IN_ABI = 64, IN_SUP = 128;
@@ -175,8 +150,7 @@ const ReplaySystem = (() => {
   let _inLast     = {};     // playerIdx -> last mask written
   let _inPressed  = {};     // playerIdx -> edge bits pressed since last recordFrame
   if (typeof document !== 'undefined') {
-    // Capture phase, observation only: runs before smb-input.js's handler and
-    // never stops or alters the event.
+    // Capture phase: observe only, never stop or alter the event.
     document.addEventListener('keydown', e => {
       if (!_recording || e.repeat || typeof players === 'undefined') return;
       const k = (typeof _eventKey === 'function') ? _eventKey(e) : e.key;
@@ -212,19 +186,15 @@ const ReplaySystem = (() => {
 
   let _events   = [];
   let _prevSnap = null;   // [{hp, lives, x, y}] from the previous game frame
-  let _bounds   = null;   // { minX, maxX, deathY } — the stage's kill boundary
+  let _bounds   = null;   // { minX, maxX, deathY }
 
   function _computeBounds() {
-    // Finite fallbacks on purpose: JSON.stringify turns Infinity into null, which
-    // would silently make every out-of-bounds test fail on a reloaded replay.
+    // Finite fallbacks: JSON turns Infinity into null, which breaks out-of-bounds tests on reload.
     let minX = -1e6, maxX = 1e6, deathY = GAME_H + 180;
     try {
       if (currentArena) {
         if (typeof currentArena.deathY === 'number') deathY = currentArena.deathY;
-        // Union of every live floor segment. `.find()` returned only the first one,
-        // which on The Circuit's segmented plate recorded bounds of -60..150 (the
-        // left anchor) instead of the real -60..960, so _outOfBounds() treated most
-        // of the stage as off-map.
+        // Union of all live floor segments. .find() returned only the first, which broke bounds on segmented plates.
         let lo = Infinity, hi = -Infinity;
         for (const pl of (currentArena.platforms || [])) {
           if (!pl || !pl.isFloor || pl.isFloorDisabled) continue;
@@ -242,9 +212,7 @@ const ReplaySystem = (() => {
     return e.x < _bounds.minX || e.x > _bounds.maxX || e.y > _bounds.deathY;
   }
 
-  // Attacker attribution is inferred, not authoritative: the nearest OTHER
-  // fighter that is mid-swing. Recorded as `byGuess` so a reader never mistakes
-  // it for engine-reported credit.
+  // Attacker is a guess: the nearest other fighter mid-swing. Recorded as byGuess.
   function _guessAttacker(list, victimIdx) {
     const v = list[victimIdx];
     let best = null, bestD = Infinity;
@@ -274,8 +242,7 @@ const ReplaySystem = (() => {
           _events.push({ t: 'dmg', fi: Math.round(fi * 10) / 10, fc: rawFc, p: i,
                          v: a.hp - b.hp, hp: b.hp, byGuess: _guessAttacker(cur, i) });
         }
-        // KO: hp crossed to zero. Cause is read from position AT the crossing,
-        // before the death freeze and ragdoll move the body somewhere misleading.
+        // KO cause is read at the crossing, before the death freeze moves the body.
         if (a.hp > 0 && b.hp <= 0) {
           _events.push({ t: 'ko', fi: Math.round(fi * 10) / 10, fc: rawFc, p: i,
                          cause: _outOfBounds(b) ? 'ringout' : 'damage',
@@ -306,9 +273,7 @@ const ReplaySystem = (() => {
     ]);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
   // Recording API
-  // ════════════════════════════════════════════════════════════════════════════
 
   function startRecording() {
     if ((typeof onlineMode !== 'undefined' && onlineMode) || window._pubHubActive) return;
@@ -330,8 +295,7 @@ const ReplaySystem = (() => {
       mode:     typeof gameMode       !== 'undefined' ? gameMode       : 'unknown',
       arenaKey: typeof currentArenaKey !== 'undefined' ? currentArenaKey : 'grass',
       date:     Date.now(),
-      // Stage kill boundary, so a reader never has to guess where "off the map"
-      // is. Ring-out vs damage is unrecoverable after the fact without this.
+      // Stage kill boundary, so a reader knows where off-map is.
       bounds:   _bounds,
       gameW:    typeof GAME_W !== 'undefined' ? GAME_W : 900,
       gameH:    typeof GAME_H !== 'undefined' ? GAME_H : 520,
@@ -343,8 +307,7 @@ const ReplaySystem = (() => {
   function recordFrame() {
     if (!_recording) return;
     const fc  = (typeof frameCount !== 'undefined' ? frameCount : 0) - _startFC;
-    // Events are detected at FULL frame rate — above the sampling gate — so a
-    // KO lands on the frame it happened rather than the next 3-frame sample.
+    // Events run at full frame rate, so a KO lands on its real frame.
     _detectEvents(fc);
     _recordInputs(fc);
     if (fc % RECORD_EVERY_N !== 0) return;
@@ -365,7 +328,6 @@ const ReplaySystem = (() => {
     _recording = false;
     if (_frames.length < 10) return; // too short (< 0.5 s), discard
 
-    // Determine winner name from surviving players
     let winnerName = null;
     if (typeof players !== 'undefined' && Array.isArray(players)) {
       const survivor = players.find(p => p && p.lives > 0 && !p.isBoss);
@@ -395,8 +357,7 @@ const ReplaySystem = (() => {
       frames:     _frames,
       platFrames: _platFrames,
       events:     _events,
-      // Per-frame human inputs (see _recordInputs). Absent in replays recorded
-      // before 2026-09-21; readers must treat it as optional.
+      // Absent in older replays, so readers treat it as optional.
       inputs:     _inputs,
       inputBits:  { L: IN_L, R: IN_R, J: IN_J, SH: IN_SH, D: IN_D, ATK: IN_ATK, ABI: IN_ABI, SUP: IN_SUP },
     };
@@ -407,9 +368,6 @@ const ReplaySystem = (() => {
     return _lastReplay ? JSON.parse(JSON.stringify(_lastReplay)) : null;
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Download
-  // ════════════════════════════════════════════════════════════════════════════
 
   async function _loadReplayByIndex(listIndex) {
     const db = await _ensureDB();
@@ -466,9 +424,6 @@ const ReplaySystem = (() => {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Replay list panel (inside game-over overlay)
-  // ════════════════════════════════════════════════════════════════════════════
 
   function _renderReplayList(el, vals) {
     if (vals.length === 0) {
@@ -515,9 +470,6 @@ const ReplaySystem = (() => {
     await _refreshBrowserList(el);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // File loader (entry point for the viewer)
-  // ════════════════════════════════════════════════════════════════════════════
 
   function openFilePicker() {
     const input = document.createElement('input');
@@ -558,9 +510,6 @@ const ReplaySystem = (() => {
     reader.readAsText(file);
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Viewer
-  // ════════════════════════════════════════════════════════════════════════════
 
   function _viewerError(msg) {
     const el = document.getElementById('replayViewerError');
@@ -580,7 +529,6 @@ const ReplaySystem = (() => {
     const errEl = document.getElementById('replayViewerError');
     if (errEl) errEl.style.display = 'none';
 
-    // Populate metadata header
     const hdr = document.getElementById('replayViewerMeta');
     if (hdr && data.meta) {
       const d   = new Date(data.meta.date);
@@ -610,7 +558,6 @@ const ReplaySystem = (() => {
     _syncUI();
   }
 
-  // Returns the closest platform snapshot at or before frameIdx
   function _platsAt(frameIdx) {
     if (!_pbData || !_pbData.platFrames) return [];
     const nums = Object.keys(_pbData.platFrames).map(Number).sort((a, b) => a - b);
@@ -622,12 +569,9 @@ const ReplaySystem = (() => {
     return _pbData.platFrames[best] || [];
   }
 
-  // ─── Stickman renderer ────────────────────────────────────────────────────
 
-  // Blend two recorded snapshots into an in-between pose. Recording runs at
-  // ~20fps; rendering runs at display rate, so without this every frame is held
-  // 3x and the result reads as a slideshow. Discrete fields (facing, attacking,
-  // name…) always come from the earlier frame — only continuous ones are blended.
+  // Blend two recorded snapshots so display-rate playback doesn't hold each frame 3x.
+  // Discrete fields come from the earlier frame.
   const _TELEPORT_DIST = 150;   // beyond this a "move" is a respawn, not motion
   function _lerpSnaps(a, b, t) {
     if (!a) return b || [];
@@ -663,8 +607,7 @@ const ReplaySystem = (() => {
     rctx.fillStyle = ARENA_BG[aKey] || '#111';
     rctx.fillRect(0, 0, W, H);
 
-    // Camera: centroid of all active players, eased rather than snapped. The raw
-    // centroid jumps hard whenever a fighter dies or respawns.
+    // Eased centroid, since the raw one jumps when a fighter dies or respawns.
     let cx = GAME_W / 2, cy = GAME_H / 2;
     if (snaps.length) {
       const alive = snaps.filter(p => p.hp > 0);
@@ -673,7 +616,7 @@ const ReplaySystem = (() => {
       cy = src.reduce((s, p) => s + p.y, 0) / src.length;
     }
     if (_pbCam.x === null || Math.hypot(cx - _pbCam.x, cy - _pbCam.y) > 400) {
-      _pbCam.x = cx; _pbCam.y = cy;              // first frame or a scrub — snap
+      _pbCam.x = cx; _pbCam.y = cy;              // first frame or a scrub, snap
     } else {
       _pbCam.x += (cx - _pbCam.x) * 0.18;
       _pbCam.y += (cy - _pbCam.y) * 0.18;
@@ -684,7 +627,6 @@ const ReplaySystem = (() => {
     const offX  = W / 2 - cx * scale;
     const offY  = H / 2 - cy * scale;
 
-    // Platforms
     rctx.fillStyle   = 'rgba(100,115,145,0.65)';
     rctx.strokeStyle = 'rgba(160,175,210,0.35)';
     rctx.lineWidth   = 1;
@@ -694,11 +636,9 @@ const ReplaySystem = (() => {
       rctx.strokeRect(px * scale + offX, py * scale + offY, pw * scale, ph * scale);
     }
 
-    // Stickmen
     for (const p of snaps) _drawStickman(rctx, p, scale, offX, offY);
 
-    // Event popups — damage numbers and KO callouts float for ~1s of replay time
-    // after the frame they occurred on, so the viewer can see what landed.
+    // Damage numbers and KO callouts linger about 1s of replay time after their frame.
     const evs = (_pbData && _pbData.events) || [];
     for (const ev of evs) {
       const age = frameFloat - ev.fi;
@@ -707,9 +647,7 @@ const ReplaySystem = (() => {
       if (!src) continue;
       let ex = src.x * scale + offX;
       let ey = src.y * scale + offY - 60 * scale - age * 1.6;
-      // A ring-out happens by definition off the side of the stage, so the
-      // victim is off-canvas and an un-clamped callout draws into the void.
-      // Pin it to the edge it left through instead of dropping it.
+      // Ring-out victims are off-canvas, so pin the callout to the edge they left through.
       if (ev.t === 'ko') {
         const M = 54;
         ex = Math.max(M, Math.min(W - M, ex));
@@ -732,7 +670,6 @@ const ReplaySystem = (() => {
       rctx.restore();
     }
 
-    // Timestamp overlay
     const total = Math.round((_pbData ? _pbData.frames.length : 0) / PLAYBACK_FPS);
     const cur   = Math.round(frameIdx / PLAYBACK_FPS);
     const tStr  = `${Math.floor(cur  / 60)}:${String(cur  % 60).padStart(2, '0')} / ${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
@@ -765,7 +702,6 @@ const ReplaySystem = (() => {
     const hipY    = footY - bodyLen - neckLen;
     const headCY  = hipY  - neckLen - headR;
 
-    // Shield glow
     if (p.sh && !dead) {
       rctx.save();
       rctx.strokeStyle = '#66aaff';
@@ -777,7 +713,6 @@ const ReplaySystem = (() => {
       rctx.restore();
     }
 
-    // Attack flash arc on the weapon side
     if (p.atk && !dead) {
       rctx.save();
       rctx.fillStyle   = 'rgba(255,230,60,0.2)';
@@ -788,18 +723,15 @@ const ReplaySystem = (() => {
       rctx.restore();
     }
 
-    // Head
     rctx.beginPath();
     rctx.arc(wx, headCY, headR, 0, Math.PI * 2);
     rctx.fill();
 
-    // Spine
     rctx.beginPath();
     rctx.moveTo(wx, headCY + headR);
     rctx.lineTo(wx, footY);
     rctx.stroke();
 
-    // Arms
     const elbowY = hipY + bodyLen * 0.4;
     rctx.beginPath();
     rctx.moveTo(wx - 14 * sc, elbowY - 12 * sc);
@@ -807,7 +739,6 @@ const ReplaySystem = (() => {
     rctx.lineTo(wx + 14 * sc, elbowY - 12 * sc);
     rctx.stroke();
 
-    // Legs
     rctx.beginPath();
     rctx.moveTo(wx, footY - 2 * sc);
     rctx.lineTo(wx - 10 * sc, footY + 22 * sc);
@@ -815,14 +746,12 @@ const ReplaySystem = (() => {
     rctx.lineTo(wx + 10 * sc, footY + 22 * sc);
     rctx.stroke();
 
-    // Name tag
     rctx.font      = `${Math.max(8, Math.round(9 * sc))}px sans-serif`;
     rctx.fillStyle = col;
     rctx.textAlign = 'center';
     rctx.fillText(p.name, wx, headCY - headR - 4 * sc);
     rctx.textAlign = 'left';
 
-    // HP bar
     if (p.mhp > 0) {
       const bw   = 32 * sc, bh = 4 * sc;
       const bx   = wx - bw / 2;
@@ -837,7 +766,6 @@ const ReplaySystem = (() => {
     rctx.restore();
   }
 
-  // ─── Playback controls ───────────────────────────────────────────────────────
 
   function _syncUI() {
     if (!_pbData) return;
@@ -871,7 +799,6 @@ const ReplaySystem = (() => {
     if (!_pbData) return;
     _pbPlaying = !_pbPlaying;
     if (_pbPlaying) {
-      // Restart from beginning if at end
       if (_pbFrame >= (_pbData.frames.length - 1)) _pbFrame = 0;
       _pbLastTs = 0;
       _pbRaf    = requestAnimationFrame(_pbTick);
@@ -907,9 +834,6 @@ const ReplaySystem = (() => {
     if (modal) modal.style.display = 'none';
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Public API
-  // ════════════════════════════════════════════════════════════════════════════
 
   return {
     startRecording,

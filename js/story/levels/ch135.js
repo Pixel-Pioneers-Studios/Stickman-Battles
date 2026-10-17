@@ -1,17 +1,7 @@
 'use strict';
-// js/story/levels/ch135.js — Chapter 135 map. See smb-story-levels.js for the contract.
+// Chapter 135 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 135 — Purge Sequence (walk → duel vs the purge, 2 lives)
-// The Purge Zone: a section of the domain built to flush things out. The walls
-// are banks of materialization frames — tall violet outlines where soldiers
-// are assembled — and every so often one fills in from the bottom up,
-// flickering. Warning chevrons run along the ceiling and the light pulses red
-// on a thirty-second cycle ("It always feels longer than it is"); a counter
-// over the midpoint counts the sequence down. The midpoint is the flush
-// chamber itself, floor grates on both sides. Stacked frame housings are the
-// climbs; the cache shafts are the purge drains.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 135, Purge Sequence (walk, then duel the purge, 2 lives).
 (function () {
   const G = 440, FLUSH = 3000;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -28,13 +18,11 @@
   function backdrop(v) {
     _slSkyAbove(v, '#080012');
     ctx.fillStyle = '#c8c4d8'; ctx.fillRect(v.x - 10, 60, v.w + 20, G - 60);
-    // Materialization frames; now and then one fills in from the bottom up
     for (let k = Math.floor(v.x / 90); k * 90 < v.x + v.w + 90; k++) {
       const x = k * 90 + 20, fill = ((frameCount + k * 97) % 600) / 600;
       ctx.strokeStyle = 'rgba(120,100,200,0.6)'; ctx.lineWidth = 2; ctx.strokeRect(x, 150, 50, G - 160);
       if (fill > 0.8) { const f = (fill - 0.8) / 0.2; ctx.fillStyle = `rgba(120,100,200,${0.25 + 0.2 * Math.sin(frameCount * 0.5)})`; ctx.fillRect(x, G - 10 - (G - 160) * f, 50, (G - 160) * f); }
     }
-    // Warning chevrons and the red pulse on a thirty-second cycle
     const red = ((frameCount % 1800) / 1800);
     ctx.fillStyle = '#2a1048'; ctx.fillRect(v.x - 10, v.y - 20, v.w + 20, 80 - v.y + 20);
     for (let x = Math.floor(v.x / 40) * 40; x < v.x + v.w + 40; x += 40) { ctx.fillStyle = (x / 40) % 2 ? '#d8b030' : '#1a0a30'; ctx.beginPath(); ctx.moveTo(x, 60); ctx.lineTo(x + 20, 44); ctx.lineTo(x + 40, 60); ctx.fill(); }

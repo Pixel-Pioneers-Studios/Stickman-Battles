@@ -1,18 +1,10 @@
 'use strict';
-// js/story/levels/ch145.js — Chapter 145 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch145.js: Chapter 145 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 145 — What Remains (escape, run right)
-// The Void, breached, "as Cosmic Axiom stirs". The ground is islands of
-// every world the fracture system touched, torn loose and drifting at
-// different heights with gaps between them; behind the collapse wall they
-// crumble and fall away into the dark. Far below and behind everything a
-// shape the size of a continent shifts in the void — not visible so much as
-// a place where the faint starlight bends and goes out — and each time it
-// moves, the islands shudder. The Stable Core at the end is a pale sphere
-// with the void curving around it. Shards drifting at mid-height are the
-// high routes.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 145: What Remains (escape, run right).
+// The Void, breached. Floating islands of every world the fracture touched.
+// Behind the collapse wall the islands crumble into the dark. The Stable Core is a pale sphere.
+// Shards at mid-height are the high routes.
 (function () {
   const ISLES = [[0, 950, 440, 'city'], [1010, 1800, 430, 'ruins'], [1860, 2700, 440, 'forest'], [2760, 3500, 432, 'crystal'], [3560, 4200, 440, 'void']];
   const SHARDS = [[650, 340, 110], [1400, 330, 110], [1520, 250, 110], [2300, 340, 110], [3100, 330, 110], [3800, 340, 100]];
@@ -29,7 +21,7 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#000000');
-    // Faint starlight, bending and going out where the vast shape moves
+    // Starlight bending where the void shape moves
     const cx = v.x + v.w * 0.5 + Math.sin(frameCount * 0.002) * 400, cy = 600;
     for (let k = 0; k < 120; k++) {
       const sx = v.x + _slHash(k + 1450) * v.w, sy = v.y + _slHash(k + 1451) * (440 - v.y);

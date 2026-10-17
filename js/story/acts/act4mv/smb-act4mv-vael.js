@@ -1,8 +1,6 @@
 // Appends chapters for act4mv/smb-act4mv-vael.js.
-// The VAEL Arc — a fracture boss with fractured precognition.
-// They see three seconds into every fight they've ever had. Except this one.
-// The player represents the first genuine unknown in VAEL's existence.
-// Slots at IDs 99–103 in the multiverse arc, after Null Space.
+// VAEL arc: a fracture boss with fractured precognition. Sees 3 seconds into every fight, except this one.
+// Slots at IDs 99-103 in the multiverse arc, after Null Space.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -142,14 +140,9 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    // ── THE TRIAL OF SELF-KNOWLEDGE — see docs/TRIALS_DESIGN.md ─────────────
-    // Placed immediately before the VAEL duel so it gates it. VAEL sees three
-    // seconds ahead and sees nothing when it looks at Kael; the copy is VAEL
-    // running the only prediction it has left \u2014 Kael's own last half-second,
-    // played back at him. Reflexes cannot win it, only breaking your own pattern.
-    // This also quietly foreshadows Sovereign, whose entire design is habit-reading.
-    // Plain arena duel, not walkFight: the copy mirrors about the arena, which
-    // only reads as a reflection inside a single screen.
+    // Trial of Self-knowledge (docs/TRIALS_DESIGN.md). Placed right before the VAEL duel to gate it.
+    // The copy plays Kael's own last half-second back at him. Reflexes can't win it, only breaking your pattern.
+    // Plain arena duel: the mirror only reads inside a single screen.
     id: 117, title: 'Thirty-Four Frames',
     world: '\ud83c\udf0a Fracture Coast \u2014 The Standing Tide',
     narrative: [

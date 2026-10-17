@@ -1,35 +1,17 @@
-// ============================================================
-// SOVEREIGN — MOVE BOOK: combo routes and counters
-// ============================================================
-// Two questions, both answered by physics rather than by opinion:
-//
-//   ROUTES   "I just landed a hit. Given what is still locked, how far away they
-//             are, how high, how many hits deep and what is off cooldown — what
-//             is the next move, and when, that connects before they can act?"
-//   COUNTERS "They just started a move. Three frames in, what answer to THAT
-//             move, from this distance, pays best?"
-//
-// Bots and players share one physics engine, so a link that is true in the lab
-// (the next hit lands while the target is still in stun or ragdoll) is true
-// against a human. tools/sov-movelab.js drills every weapon on the real engine
-// and writes what it measured to js/smb-sov-movebook.js (SOV_MOVEBOOK). This
-// file holds the pieces the drill and the live fight must share EXACTLY — the
-// situation keys and the per-frame drivers — so the lab measures the moves he
-// will actually make.
-//
-// His own evidence against real opponents is filed through SovDossier.recordMove
-// and outvotes the lab (the lab prior is capped at SOV_BOOK_PRIOR_CAP samples).
-//
-// Globals-based, no modules. Loaded before smb-smk2-class.js; everything here
-// resolves game globals at call time.
+// SOVEREIGN move book: combo routes and counters.
+// Two questions, both answered by physics. ROUTES: after a hit, which move connects next.
+// COUNTERS: after a move starts, which answer pays best from this distance.
+// Bots and players share one engine, so a link true in the lab (tools/sov-movelab.js writes
+// js/smb-sov-movebook.js) holds against humans too. This file holds the situation keys and
+// per-frame drivers that the lab and the live fight must share exactly.
+// His own evidence (SovDossier.recordMove) outvotes the lab prior, capped at SOV_BOOK_PRIOR_CAP.
+// Globals-based. Load before smb-smk2-class.js; globals resolve at call time.
 
 const SOV_ROUTE_MOVES   = ['swing', 'jswing', 'ability', 'super'];
 const SOV_ROUTE_DELAYS  = [0, 6, 12];
 const SOV_ROUTE_ACTIONS = SOV_ROUTE_MOVES.reduce((a, m) => a.concat(SOV_ROUTE_DELAYS.map(d => m + '@' + d)), []);
 const SOV_COUNTER_ACTIONS = ['none', 'shield', 'back', 'jback', 'jin', 'swing', 'ability', 'super', 'wpunish'];
-// He answers what he can SEE. A move's first frames are its windup; three frames
-// sits inside his existing reaction range (reactFrames 0-4), so nothing here
-// reacts faster than the cascade already does.
+// He reacts only to what he can see. Three frames is inside his reactFrames (0-4).
 const SOV_COUNTER_REACT  = 3;
 const SOV_COUNTER_WINDOW = 75;   // frames after the move starts that an exchange is scored over
 const SOV_BOOK_PRIOR_CAP = 20;   // lab samples count as at most this many of his own
@@ -41,9 +23,7 @@ const SovMoves = (() => {
 
   function lock(f) { return f ? Math.max(f.stunTimer || 0, f.ragdollTimer || 0) : 0; }
 
-  // Hit count in the engine's own combo window (dealDamage resets it after 45
-  // frames), which is what drives hitstun decay, the 3-hit string launcher and
-  // the forced launcher at 7.
+// Hit count in the engine's combo window (resets after 45 frames). Drives hitstun decay and the launchers.
   function comboN(att) {
     return (_fc() - (att._comboLastFrame || 0) > 45) ? 0 : (att._comboHitCount || 0);
   }
@@ -56,8 +36,7 @@ const SovMoves = (() => {
     return (f.cx() - L < 70 || R - f.cx() < 70) ? 1 : 0;
   }
 
-  // Finest first. Each coarser key drops what matters least, so a situation he
-  // has never seen exactly still reads what he knows about ones like it.
+// Finest first. Coarser keys drop the least important parts, so unseen situations still match similar ones.
   function routeKeys(att, tgt) {
     const w  = att.weaponKey || 'none';
     const n  = comboN(att);
@@ -80,8 +59,7 @@ const SovMoves = (() => {
       const [m, dl] = a.split('@');
       if (m === 'ability' && (att.abilityCooldown || 0) > +dl) continue;
       if (m === 'super' && !att.superReady) continue;
-      // routeSpend:false keeps ability and super out of routes, so the systems
-      // that bank them (super bank, domain charge, defensive abilities) keep them.
+// routeSpend:false keeps ability and super out of routes, so the banking systems keep them.
       if ((m === 'ability' || m === 'super') && att.isSovereignMK2 &&
           typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && SMK2_TUNE.routeSpend === false) continue;
       out.push(a);
@@ -96,15 +74,13 @@ const SovMoves = (() => {
 
   function _edge(att, dir) { return typeof att.isEdgeDanger === 'function' && att.isEdgeDanger(dir); }
 
-  // The blade's real reach, the same figure the whiff-guard in Fighter.attack()
-  // tests. weapon.range is a looser band and runs up to 40% long (spear: 130
-  // listed, under 100 measured), so spacing off it plants him out of reach.
+// The blade's real reach, as the whiff guard in Fighter.attack() tests it. weapon.range runs up to
+// 40% long, so spacing off it plants him out of reach.
   function reachOf(f, tgt) {
     return typeof f._meleeReachDist === 'function' ? f._meleeReachDist(tgt) : ((f.weapon && f.weapon.range) || 80);
   }
 
-  // One frame of a route step. 'pending' until the move fires, then 'fired';
-  // 'expired' if it never could.
+// One route step: 'pending' until the move fires, 'fired' after, 'expired' if it never could.
   function driveRoute(att, tgt, p, spd, jumpVy) {
     const age = _fc() - p.t0;
     const dx = tgt.cx() - att.cx(), gap = Math.abs(dx), dir = Math.sign(dx) || att.facing || 1;
@@ -140,9 +116,8 @@ const SovMoves = (() => {
     return p.fired >= 0 ? 'fired' : 'pending';
   }
 
-  // Outcome of one route step. `free` counts frames the target spent able to act
-  // before the first damage: 0-1 is a true link (1 absorbs update order), more
-  // is a gap a human could have shielded or jumped out of.
+// Outcome of one route step. `free` counts frames the target could act before the first damage:
+// 0-1 is a true link; more is a gap a human could shield or jump out of.
   function routeTracker(tgt) { return { hp: tgt.health, dmg: 0, free: 0, freeAtHit: -1, lastDmgF: -1 }; }
 
   function trackRoute(st, tgt) {
@@ -165,7 +140,7 @@ const SovMoves = (() => {
     return since > 45 ? 'miss' : null;
   }
 
-  // ── Counters ──────────────────────────────────────────────────────────────
+  // Counters
   function moveKind(f) {
     const tier = f.superActive ? 2 : (f._attackKindTier || 0);
     return tier >= 2 ? 'super' : tier === 1 ? 'ability' : f.onGround ? 'swing' : 'aswing';
@@ -218,8 +193,7 @@ const SovMoves = (() => {
         if (!p.fired) { def.useSuper(att); p.fired = !def.superReady; }
         return age < (p.fired ? 40 : 6);
       case 'wpunish':
-        // Step out of their reach until the move is spent, then walk into the
-        // recovery and swing. The classic answer to a committed swing.
+        // Step out of reach until the move is spent, then walk in and swing.
         if (p.phase === 0) {
           if (!_edge(def, -dir)) def.vx = -dir * spd * 1.3;
           if ((att.attackTimer || 0) <= 0 || age > 30) p.phase = 1;
@@ -248,14 +222,14 @@ const SovMoves = (() => {
     return st.dealt - st.taken + 0.3 * (aLock - lock(def));
   }
 
-  // ── Choosing ──────────────────────────────────────────────────────────────
+  // Choosing
   function _gauss() {
     let u = 0, v = 0;
     while (u === 0) u = Math.random();
     while (v === 0) v = Math.random();
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
-  // Beta draw via two gamma draws (Marsaglia-Tsang; shape >= 1 after +1 smoothing).
+  // Beta draw from two gamma draws (Marsaglia-Tsang).
   function _gamma(k) {
     if (k < 1) return _gamma(k + 1) * Math.pow(Math.random() || 1e-9, 1 / k);
     const d = k - 1 / 3, c = 1 / Math.sqrt(9 * d);

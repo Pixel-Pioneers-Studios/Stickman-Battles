@@ -98,9 +98,12 @@ window.BalanceSim = (function () {
 
   function _env(arenaKind) {
     const noop = () => {};
-    const spec = ARENAS_SIM[arenaKind] || ARENAS_SIM.flat;
+    // Any other name is a real arena from the game (tools/bot-perch.js, bot-duel.js).
+    const real = !ARENAS_SIM[arenaKind] && typeof ARENAS !== 'undefined' && ARENAS[arenaKind];
+    const spec = ARENAS_SIM[arenaKind] || real || ARENAS_SIM.flat;
     currentArena = Object.assign({ id: 'balancesim', name: 'Balance Sim', bgColor: '#101018' },
                                  spec, { platforms: spec.platforms.map(p => Object.assign({}, p)) });
+    if (real && typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
     players.length = 0;
     if (typeof minions         !== 'undefined') minions.length         = 0;
     if (typeof trainingDummies !== 'undefined') trainingDummies.length = 0;

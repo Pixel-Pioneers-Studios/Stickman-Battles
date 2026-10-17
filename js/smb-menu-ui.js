@@ -1,23 +1,18 @@
 'use strict';
-// smb-menu-ui.js — Mode selection, cosmetics/store, bot toggle
-// Depends on: smb-globals.js, smb-data-weapons.js, smb-state.js, smb-accounts.js
-// Must load BEFORE smb-menu-select.js
+// smb-menu-ui.js: mode selection, cosmetics/store, bot toggle.
+// Depends on smb-globals.js, smb-data-weapons.js, smb-state.js, smb-accounts.js. Load before smb-menu-select.js.
 
-// ============================================================
-// MENU UI HANDLERS
-// ============================================================
+// Menu UI handlers
 function selectMode(mode) {
   const _prevMode = gameMode;
-  // 'bot' is no longer a separate mode — merge into '2p' with bot toggles
+  // 'bot' is no longer a separate mode: merge into '2p' with bot toggles
   if (mode === 'bot') mode = '2p';
   if (mode === 'completerandom') {
     mode = '2p';
     completeRandomizer = true;
   } else if (mode !== '2p') {
-    // The flag is only meaningful in 2P (see isCompleteRandMode in
-    // smb-menu-startcore.js) and was previously only cleared by backToMenu, so
-    // picking Complete Randomizer and then any other card left it set — which
-    // dragged the randomizer's on-death arena/loadout swap into that mode.
+    // Only meaningful in 2P. Clear it on every mode change, or Complete Randomizer's arena/loadout
+    // swap leaks into the next mode.
     completeRandomizer = false;
   }
   // 'story' opens the story modal instead of changing menu layout
@@ -33,7 +28,7 @@ function selectMode(mode) {
   const modeCard = document.querySelector(`[data-mode="${mode}"]`);
   if (modeCard) modeCard.classList.add('active');
   const isBoss       = mode === 'boss';
-  // Online allows boss, trueform, training, minigames — no redirect needed
+  // Online allows boss, trueform, training, minigames: no redirect needed
   const isTrueForm   = mode === 'trueform';
   const isBoss2p     = isBoss && bossPlayerCount === 2;
   const isTraining   = mode === 'training';
@@ -41,7 +36,7 @@ function selectMode(mode) {
   const isOnline     = mode === 'online';
   const isAdaptive        = mode === 'adaptive' || mode === 'sovereign';
   const isCompleteRandom  = mode === '2p' && completeRandomizer;
-  // Only update onlineMode when not already connected (prevents clearing it when host/guest switch game modes)
+  // Keep onlineMode while connected, so host/guest mode switches don't clear it.
   if (!NetworkManager.connected) onlineMode = isOnline;
   // Show/hide boss player count toggle
   const bpt = document.getElementById('bossPlayerToggle');
@@ -53,10 +48,7 @@ function selectMode(mode) {
     crBtn.textContent = ` Complete Random: ${isCompleteRandom ? 'ON' : 'OFF'}`;
     crBtn.classList.toggle('active', isCompleteRandom);
   }
-  // Show/hide online connection panel.
-  // While a session is live the panel STAYS open: the host picks the match mode
-  // from inside it, and selectMode('2p') used to close the very panel that was
-  // driving it — which read as the Online screen vanishing on the first click.
+  // Online panel. Stays open while a session is live, since the host picks the match mode from inside it.
   const _sessionLive = !!(window.NetworkManager && NetworkManager.connected);
   const onlinePanel = document.getElementById('onlinePanel');
   if (onlinePanel) onlinePanel.style.display = (isOnline || _sessionLive) ? 'flex' : 'none';
@@ -90,9 +82,7 @@ function selectMode(mode) {
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
   document.getElementById('p2WeaponRow').style.display    = hideP2 ? 'none' : 'flex';
   document.getElementById('p2ClassRow').style.display     = hideP2 ? 'none' : 'flex';
-  // Hat/Cape live beside the preview now, so they hide with the rest of the
-  // P2 form; the panel then shows the opponent's portrait full-height instead
-  // of two orphaned dropdowns over an empty column.
+    // Hat/Cape sit beside the preview, so they hide with the P2 form. The panel shows the opponent's portrait.
   const _p2Stage = document.getElementById('p2HatRow');
   if (_p2Stage) _p2Stage.style.display = hideP2 ? 'none' : 'flex';
   const _p2Panel = document.getElementById('p2Config');
@@ -137,8 +127,7 @@ function selectMode(mode) {
       sel.value = 'sword';
     }
   }
-  // Boss fights are melee-only — grey the ranged cards out rather than letting the
-  // player pick one and have _startGameCore swap it for a sword at spawn.
+  // Boss fights are melee-only. Grey out ranged cards so _startGameCore doesn't swap them for a sword at spawn.
   if (typeof applyBossRangedLock === 'function') applyBossRangedLock(mode);
   // Enter config view if this was a user-initiated mode selection (home content currently visible)
   if (mode !== 'story') {
@@ -149,7 +138,7 @@ function selectMode(mode) {
   }
 }
 
-// ── Home/Config view state machine ───────────────────────────────────────────
+// Home/Config view state machine
 function _enterConfigView(mode) {
   const menuEl = document.getElementById('menu');
   if (menuEl) menuEl.classList.remove('menu-home');
@@ -182,7 +171,7 @@ function backToHome() {
   if (!_homeCanvasRAF) _initHomeCanvas();
 }
 
-// ── Simulator navigation ──────────────────────────────────────────────────────
+// Simulator navigation
 function _hideAllSimPanels() {
   ['simulatorPanel', 'refightPanel', 'theGridPanel'].forEach(function(id) {
     const el = document.getElementById(id);
@@ -230,8 +219,7 @@ function _applyRefightLocks() {
   });
   _setRefightCardLock('refight-gauntlet', !_allUnlocked);
 
-  // Locked cards are hidden outright (their names spoil the story), so the
-  // panel starts empty and fills in as bosses are beaten.
+  // Locked cards are hidden (their names spoil the story), so the panel fills in as bosses are beaten.
   var _anyUnlocked = Object.keys(_locks).some(function(id) { return _locks[id]; });
   var _empty = document.getElementById('refightEmpty');
   if (_empty) _empty.style.display = _anyUnlocked ? 'none' : '';
@@ -277,14 +265,13 @@ function closeTheGrid() {
   if (simPanel) simPanel.style.display = '';
 }
 
-// Back-compat alias — the real implementation is the cutscene theater
-// (smb-debug-jump.js). Kept so any older call site still lands somewhere real.
+// Back-compat alias. The real implementation is the cutscene theater in smb-debug-jump.js.
 function openCutsceneViewer() {
   if (typeof openCutsceneTheater === 'function') { openCutsceneTheater(); return; }
   if (typeof showToast === 'function') showToast('Cutscene theater unavailable.');
 }
 
-// ── Simulator fight launchers (formerly Boss Rush) ────────────────────────────
+// Simulator fight launchers
 let _bossRushGauntlet = [];  // ['boss','trueform','sovereign'] when gauntlet active
 let _bossRushIdx = -1;
 
@@ -303,7 +290,7 @@ function startSimGauntlet() {
   if (typeof startGame === 'function') startGame();
 }
 
-// Legacy aliases — referenced by old code paths
+// Legacy aliases: referenced by old code paths
 function openNexus()     { openSimulator(); }
 function closeNexus()    { closeSimulator(); }
 function openBossRush()  { openRefight(); }
@@ -354,9 +341,8 @@ function _openStoryPathPanel() {
 }
 
 function openStoryPath() {
-  // First Story open ever plays the Tuesday cold open, then reveals the panel
-  // underneath it. maybePlayTuesdayPrologue() lives in smb-menu-utils.js, which
-  // loads after this file — fine at click time, guarded anyway.
+  // First Story open plays the Tuesday cold open, then reveals the panel. maybePlayTuesdayPrologue()
+  // lives in smb-menu-utils.js, which loads later. Fine at click time.
   if (typeof maybePlayTuesdayPrologue === 'function' &&
       maybePlayTuesdayPrologue(_openStoryPathPanel)) return;
   _openStoryPathPanel();
@@ -369,10 +355,11 @@ function closeStoryPath() {
   if (storyPathPanel) storyPathPanel.style.display = 'none';
 }
 
-// ── Custom weapon options ─────────────────────────────────────────────────────
+// Custom weapon options
 function refreshCustomWeaponOptions() {
   const customWeapons = window.CUSTOM_WEAPONS || {};
-  const keys = Object.keys(customWeapons);
+  // "God Slayer" is the God fight's reward. Custom weapons with that name stay out of the pickers.
+  const keys = Object.keys(customWeapons).filter(k => !/god[\s_-]*slayer/i.test(k + ' ' + ((customWeapons[k] && customWeapons[k].name) || '')));
   for (const selId of ['p1Weapon', 'p2Weapon']) {
     const sel = document.getElementById(selId);
     if (!sel) continue;
@@ -398,7 +385,7 @@ function refreshCustomWeaponOptions() {
 
 // Called by the "Custom Weapons" checkbox in #onlineGameModeRow
 function toggleOnlineCustomWeapons(checked) {
-  // Guests cannot change match rules — bounce the checkbox back.
+  // Guests cannot change match rules: bounce the checkbox back.
   if (window.NetworkManager && NetworkManager.connected && !NetworkManager.isHost()) {
     NetworkManager.showToast('Only the host can change match settings');
     const el = document.getElementById('onlineCustomWeaponsCheck');
@@ -442,7 +429,7 @@ const WEAPON_THEMES = {
   neon:    '#00ff88',
 };
 
-// Cosmetic catalog — price 0 = free / always unlocked
+// Cosmetic catalog: price 0 = free / always unlocked
 const COSMETIC_CATALOG = [
   // Character skins
   { id: 'skin_default', type: 'skin', key: 'default', name: 'Default',   price: 0,   color: null },
@@ -462,7 +449,7 @@ const COSMETIC_CATALOG = [
   { id: 'wskin_neon',    type: 'wskin', key: 'neon',    name: 'Neon',    price: 125, color: '#00ff88' },
 ];
 
-// ---- Coin balance ----
+// Coin balance
 // Sourced from playerCoins global (hydrated by _refreshRuntimeFromSave)
 let coinBalance = (typeof playerCoins !== 'undefined') ? playerCoins : 0;
 
@@ -473,9 +460,8 @@ function _syncCoinDisplay() {
     storeBal.classList.add('coin-pop');
     setTimeout(() => storeBal.classList.remove('coin-pop'), 500);
   }
-  // Nav chip is a corner badge on a 34px plate — the number alone fits, and
-  // the plate's own coin icon already says what it counts. The store panel
-  // balance above keeps the glyph.
+  // Nav chip is a corner badge on a 34px plate. The number alone fits, since the plate's coin icon
+  // says what it counts.
   const coinEl = document.getElementById('coinDisplay');
   if (coinEl) coinEl.textContent = coinBalance;
 }
@@ -523,7 +509,7 @@ function awardCoins(n) {
   return setCoinBalance(getCoinBalance() + amount);
 }
 
-// ---- Unlocked cosmetics (sourced from unlockedCosmetics global) ----
+// Unlocked cosmetics (sourced from unlockedCosmetics global)
 function _getUnlocked() {
   return typeof unlockedCosmetics !== 'undefined' ? unlockedCosmetics : [];
 }
@@ -555,7 +541,7 @@ function unlockCosmetic(id) {
   return true;
 }
 
-// ---- Equip state ----
+// Equip state
 let p1Skin = 'default', p2Skin = 'default';
 let p1WeaponSkin = 'default', p2WeaponSkin = 'default';
 
@@ -573,7 +559,7 @@ function setWeaponSkin(pid, skin, btn) {
   if (btn) btn.classList.add('active');
 }
 
-// ---- Store modal ----
+// Store modal
 function openStore() {
   renderStore();
   const m = document.getElementById('cosmeticStore');
@@ -616,7 +602,7 @@ function handleStoreBuy(id) {
     if (msg) { msg.textContent = 'Not enough coins!'; msg.style.color = '#ff4455'; setTimeout(() => { msg.textContent = ''; }, 1800); }
     return;
   }
-  renderStore(); // refresh
+  renderStore();
   // If bought a skin/wskin that is currently equipped, mark it visually
   _syncStoreSwatches();
 }
@@ -636,18 +622,15 @@ function setBossPlayers(n) {
   bossPlayerCount = n;
   document.getElementById('bpBtn1').classList.toggle('active', n === 1);
   document.getElementById('bpBtn2').classList.toggle('active', n === 2);
-  selectMode('boss'); // refresh UI
+  selectMode('boss');
 }
 
-// Instant match for first-time visitors: no menus, no unlocks, no story gating.
-// Arena, weapon and class are all rolled at random for this match (see
-// isQuickFightRand in _startGameCore) — the 1v1 menu selections are left untouched.
-// Arenas are limited to this hazard-free set so a first fight reads clearly, unless
-// the player turns on settings.quickFightHazards.
+// Instant match for first-time visitors: no menus, no unlocks, no story gating. Arena, weapon and class
+// are rolled at random (see isQuickFightRand in _startGameCore). Arenas are the hazard-free set unless
+// settings.quickFightHazards is on.
 const _QUICK_FIGHT_ARENAS = ['grass', 'city', 'forest', 'colosseum', 'clouds', 'ruins'];
 function quickFight() {
-  // Hides storyModal directly rather than via closeStoryMenu(), which refuses to
-  // close until chapter 0 is beaten. Quick Fight is a deliberate bypass of that gate.
+  // Hides storyModal directly, since closeStoryMenu() refuses until chapter 0 is beaten. Quick Fight bypasses that on purpose.
   const sm = document.getElementById('storyModal');
   if (sm) sm.style.display = 'none';
   const ov = document.getElementById('prologueOverlay');
@@ -679,9 +662,7 @@ function toggleBot(pid) {
   selectMode(gameMode);
 }
 
-// ============================================================
-// WEAPON / CLASS CARD GRIDS
-// ============================================================
+// Weapon and class card grids
 const _WEAPON_CARD_DATA = {
   random:        { tag: 'Chaos' },
   sword:         { tag: 'Fast' },
@@ -733,7 +714,7 @@ const _CLASS_CARD_DATA = {
   adept:       { tag: 'Fragment' },
 };
 
-// ── Home Screen Canvas Animation ──────────────────────────────────────────────
+// Home Screen Canvas Animation
 var _homeCanvasRAF = null;
 var _homeCanvasT0  = 0;
 
@@ -777,7 +758,7 @@ function _homeDrawStick(ctx, cx, cy, color, t, flipped, sc) {
   ctx.lineCap  = 'round';
   ctx.lineJoin = 'round';
 
-  // ── CAPE (wide flowing cloak) ────────────────────────────────────
+  // CAPE (wide flowing cloak)
   var tipX = -40 + capeWave * 0.6, tipY = 55 + bob + capeDroop;
   ctx.save();
   ctx.beginPath();
@@ -827,7 +808,7 @@ function _homeDrawStick(ctx, cx, cy, color, t, flipped, sc) {
   ctx.stroke();
   ctx.restore();
 
-  // ── FIGURE ───────────────────────────────────────────────────────
+  // FIGURE
   ctx.strokeStyle = color;
   ctx.shadowColor = color;
 
@@ -877,7 +858,7 @@ function _homeDrawStick(ctx, cx, cy, color, t, flipped, sc) {
   ctx.lineTo(18, 30 + bob - swing * 0.55);
   ctx.stroke();
 
-  // ── SWORD ─────────────────────────────────────────────────────────
+  // SWORD
   ctx.save();
   ctx.translate(hx, hy);
   ctx.rotate(0.28 + Math.sin(t * 0.6) * 0.15);
@@ -912,12 +893,10 @@ function _homeDrawStick(ctx, cx, cy, color, t, flipped, sc) {
   ctx.restore();
 }
 
-// ── Large Kael hero silhouette for the homescreen ────────────────────────────
-// Drawn on homeCanvas (z-index 9) so he appears above the game canvas fracture
-// but behind HTML cards. baseY = foot position in screen pixels.
+// Large Kael silhouette for the home screen. Drawn on homeCanvas (z 9), above the fracture but behind
+// the HTML cards. baseY is the feet, in screen px.
 function _homeDrawKael(ctx, cx, baseY, sc, t) {
-  // Grounded "sword-planted" hero: clean stickman silhouette, no cape,
-  // one continuous gradient-faded red scarf as the signature element.
+  // Grounded sword-planted hero. Clean stickman, no cape. One red scarf is the signature element.
   var bob      = Math.sin(t * 0.9) * 2 * sc;   // subtle breathing on the torso
   var headR    = 14 * sc;
   var hipY     = baseY - 44 * sc;
@@ -956,7 +935,7 @@ function _homeDrawKael(ctx, cx, baseY, sc, t) {
 
   var RIM = 'rgba(255,255,255,0.6)';   // thin white outline
 
-  // Limb paths (torso, legs, arms) — traced once, stroked twice
+  // Limb paths (torso, legs, arms): traced once, stroked twice
   function limbPaths() {
     ctx.beginPath();
     ctx.moveTo(cx, shouldY);              ctx.lineTo(cx, hipY);               // torso
@@ -973,7 +952,7 @@ function _homeDrawKael(ctx, cx, baseY, sc, t) {
     ctx.moveTo(swX, guardY);      ctx.lineTo(swX, pommelY);         // grip
   }
 
-  // Head — dark fill + thin white outline
+  // Head: dark fill + thin white outline
   ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
   ctx.fillStyle = DARK; ctx.globalAlpha = 0.97; ctx.fill(); ctx.globalAlpha = 1;
   ctx.lineWidth = 1.4*sc; ctx.strokeStyle = RIM; ctx.stroke();
@@ -988,12 +967,12 @@ function _homeDrawKael(ctx, cx, baseY, sc, t) {
   limbPaths();  ctx.strokeStyle = DARK; ctx.lineWidth = 3.5*sc; ctx.stroke();
   swordPaths(); ctx.strokeStyle = DARK; ctx.lineWidth = 2.6*sc; ctx.stroke();
 
-  // Pommel — dark bead with thin white rim
+  // Pommel: dark bead with thin white rim
   ctx.beginPath(); ctx.arc(swX, pommelY - 2*sc, 2.4*sc, 0, Math.PI*2);
   ctx.fillStyle = DARK; ctx.fill();
   ctx.lineWidth = 1.2*sc; ctx.strokeStyle = RIM; ctx.stroke();
 
-  // Red scarf — one continuous ribbon off the left shoulder, fading at the tail
+  // Red scarf: one continuous ribbon off the left shoulder, fading at the tail
   var s1 = Math.sin(t * 1.1)         * 6  * sc;
   var s2 = Math.sin(t * 1.1 + 1.1)   * 10 * sc;
   var s3 = Math.sin(t * 1.1 + 2.2)   * 14 * sc;
@@ -1023,21 +1002,14 @@ function _homeDrawKael(ctx, cx, baseY, sc, t) {
 }
 
 
-// ── HOME HERO SCENE ─────────────────────────────────────────────────────────
-// A story beat instead of a portrait. Kael comes through the rift on the left,
-// caught mid-dash across the sky, with hunters converging from the right.
-//
-// Composition rule: everything lives in the upper band (~0.10H to 0.36H). The
-// title sits above it and the hub cards start around 0.38H, so the art has its
-// own lane and never fights either. The closing vignette darkens the lower half
-// so card text stays readable over whatever the game canvas draws underneath.
-//
-// Units: `u` is a single scale factor (1 at a 900px-tall window), and every
-// offset below is written in those units, so the whole scene rescales together.
+// Home hero scene: Kael comes through the rift on the left, mid-dash, with hunters closing from the right.
+// Everything sits in the upper band (~0.10H to 0.36H), above the hub cards (~0.38H). The closing
+// vignette darkens the lower half so card text stays readable.
+// `u` is the scale unit (1 at a 900px-tall window). Offsets use it, so the scene rescales as one.
 
-// The rift Kael came through — a vertical tear, brightest at its seam.
+// The rift Kael came through: a vertical tear, brightest at the seam.
 function _homeRift(ctx, x, y, h, u, t) {
-  var w = h * 0.085;   // a TEAR, not a lozenge — it was far too wide before
+  var w = h * 0.085;   // a tear, not a lozenge
   var flick = 0.86 + Math.sin(t * 2.3) * 0.08 + Math.sin(t * 5.7) * 0.04;
 
   ctx.save();
@@ -1070,8 +1042,7 @@ function _homeRift(ctx, x, y, h, u, t) {
   ctx.fillStyle = core; ctx.fill();
   ctx.strokeStyle = 'rgba(214,170,255,0.55)'; ctx.lineWidth = 1.2 * u; ctx.stroke();
 
-  // Hot seam down the middle — this is what sells it as an opening rather than
-  // a shape: a hard white line the fill blooms away from.
+  // Hot seam down the middle. The fill blooms away from it, so it reads as an opening, not a shape.
   var seam = ctx.createLinearGradient(x, y - h * 0.5, x, y + h * 0.5);
   seam.addColorStop(0,   'rgba(255,255,255,0)');
   seam.addColorStop(0.5, 'rgba(255,245,255,' + (0.92 * flick) + ')');
@@ -1095,30 +1066,26 @@ function _homeRift(ctx, x, y, h, u, t) {
   ctx.restore();
 }
 
-// One stickman. Shared by the hero and the hunters — only the pose constants,
-// colours and weapon differ, so they read as the same species of figure.
+// One stickman, shared by hero and hunters. Only pose constants, colours and weapon differ.
 // o = { face, u, dark, rim, weapon, alpha, scarf, t, lean }
 function _homeStickman(ctx, hx, hy, o) {
   var u = o.u, f = o.face || 1, t = o.t || 0;
   var DARK = o.dark || '#07040d';
   var RIM  = o.rim  || 'rgba(255,255,255,0.62)';
 
-  // Mid-dash pose, measured from the HIP at (0,0). Proportions matter more than
-  // the pose here: a ~92-unit figure with a 34-unit torso, 60 units of leg below
-  // the hip and a head that touches the shoulder. The first pass used 20 units
-  // of leg and left a gap between head and neck, which is why the figures read
-  // as spiders rather than people.
-  // x grows along the direction of travel; y grows downward.
+  // Mid-dash pose from the hip at (0,0). Proportions matter most: ~92 units tall, 34-unit torso, 60-unit legs,
+  // and a head touching the shoulder. Short legs made the figures read as spiders.
+  // x grows along travel; y grows downward.
   var P = function (dx, dy) { return [hx + dx * f * u, hy + dy * u]; };
   var sh   = P(8,  -34);                    // shoulder (torso pitched forward)
   var head = P(14, -48);                    // head centre, r 10 -> meets the neck
-  var lk   = P(22,  10), lf = P(34, 26);    // lead leg  — knee up, foot tucked
-  var tk   = P(-16, 18), tf = P(-34, 34);   // trail leg — thrown back
-  var le   = P(26, -26), lh = P(40, -34);   // lead arm  — reaching ahead
-  var te   = P(-14,-22), th = P(-26,-14);   // trail arm — loaded behind
+  var lk   = P(22,  10), lf = P(34, 26);    // lead leg : knee up, foot tucked
+  var tk   = P(-16, 18), tf = P(-34, 34);   // trail leg: thrown back
+  var le   = P(26, -26), lh = P(40, -34);   // lead arm : reaching ahead
+  var te   = P(-14,-22), th = P(-26,-14);   // trail arm: loaded behind
 
   var hr = 11 * u;                                   // head radius
-  // Point on the head's edge facing the shoulder — where the neck should end.
+  // Point on the head's edge facing the shoulder: where the neck should end.
   var ndx = head[0] - sh[0], ndy = head[1] - sh[1];
   var nlen = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
   var neck = [head[0] - (ndx / nlen) * hr, head[1] - (ndy / nlen) * hr];
@@ -1130,9 +1097,8 @@ function _homeStickman(ctx, hx, hy, o) {
   function body() {
     ctx.beginPath();
     ctx.moveTo(hx, hy);        ctx.lineTo(sh[0], sh[1]);                       // torso
-    // Neck stops ON THE HEAD'S CIRCUMFERENCE. Running it to the head's centre
-    // draws the line straight across the face, and because the body is stroked
-    // after the head is filled, that line sits on top of it.
+    // Neck ends ON the head's edge. Running it to the centre draws a line across the face, and the body
+    // is stroked after the head fill, so that line would show.
     ctx.moveTo(sh[0], sh[1]);  ctx.lineTo(neck[0], neck[1]);                   // neck
     ctx.moveTo(hx, hy);        ctx.lineTo(lk[0], lk[1]); ctx.lineTo(lf[0], lf[1]);
     ctx.moveTo(hx, hy);        ctx.lineTo(tk[0], tk[1]); ctx.lineTo(tf[0], tf[1]);
@@ -1160,8 +1126,7 @@ function _homeStickman(ctx, hx, hy, o) {
     }
   }
 
-  // Outline underlay, then the near-black body over it — the silhouette reads
-  // against both the dark sky and the rift's glare this way.
+  // Outline underlay, then the near-black body over it, so the silhouette reads against the sky and the rift glare.
   body();   ctx.strokeStyle = RIM;  ctx.lineWidth = 5.4 * u; ctx.stroke();
   weapon(); ctx.strokeStyle = RIM;  ctx.lineWidth = 4.0 * u; ctx.stroke();
   body();   ctx.strokeStyle = DARK; ctx.lineWidth = 4.2 * u; ctx.stroke();
@@ -1172,7 +1137,7 @@ function _homeStickman(ctx, hx, hy, o) {
   ctx.fillStyle = DARK; ctx.fill();
   ctx.lineWidth = 1.6 * u; ctx.strokeStyle = RIM; ctx.stroke();
 
-  // Hunters get an eye glint instead of a scarf — one red pinpoint each.
+  // Hunters get an eye glint instead of a scarf: one red pinpoint each.
   if (o.eye) {
     ctx.beginPath();
     ctx.arc(head[0] + 3 * f * u, head[1] - 1 * u, 1.7 * u, 0, Math.PI * 2);
@@ -1211,10 +1176,9 @@ function _homeDrawHeroScene(ctx, W, H, t) {
 
   var riftX = W * 0.17, riftY = bandY + 8 * u, riftH = H * 0.30;
   var heroX = W * 0.36, heroY = bandY + 26 * u;
-  var hu    = 1.75 * u;                // hero unit — biggest figure on screen
+  var hu    = 1.75 * u;                // hero unit: biggest figure on screen
 
-  // Stage wash — the game canvas underneath draws a bright fracture burst around
-  // the centre, which cut straight through the figures. This sits behind them.
+  // Stage wash. The game canvas draws a bright fracture burst at the centre, which would cut through the figures.
   var stage = ctx.createLinearGradient(0, bandY - H * 0.20, 0, bandY + H * 0.20);
   stage.addColorStop(0,   'rgba(5,4,14,0)');
   stage.addColorStop(0.5, 'rgba(5,4,14,0.55)');
@@ -1248,14 +1212,13 @@ function _homeDrawHeroScene(ctx, W, H, t) {
     });
   }
 
-  // Kael himself — a slow hover so the held pose still breathes.
+  // Kael himself: a slow hover so the held pose still breathes.
   var bob = Math.sin(t * 1.15) * 4 * u;
   _homeStickman(ctx, heroX, heroY + bob, {
     u: hu, face: 1, t: t, weapon: 'sword', scarf: true
   });
 
-  // Where the two sides are about to meet — a charged seam, not a flash. It
-  // gives the frame a centre of gravity between hero and hunters.
+  // Where the two sides meet: a charged seam, not a flash. It gives the frame a centre of gravity.
   var clashX = W * 0.52, clashY = bandY + 10 * u;
   var puls   = 0.5 + Math.sin(t * 1.7) * 0.5;
   var cg = ctx.createRadialGradient(clashX, clashY, 0, clashX, clashY, 150 * u);
@@ -1265,9 +1228,8 @@ function _homeDrawHeroScene(ctx, W, H, t) {
   ctx.fillStyle = cg;
   ctx.beginPath(); ctx.ellipse(clashX, clashY, 150 * u, 88 * u, 0, 0, Math.PI * 2); ctx.fill();
 
-  // The hunters closing from the right: four figures at different depths, each
-  // drifting in and easing back on its own cycle so the line never marches in
-  // lockstep. Smaller and dimmer with distance.
+  // Hunters closing from the right. Four figures at different depths, each on its own drift cycle so the
+  // line never marches in lockstep. Smaller and dimmer with distance.
   var foes = [
     { x: 0.64, y: -0.050, s: 1.55, w: 'axe',   sp: 0.85, ph: 0.0 },
     { x: 0.755, y: 0.055, s: 1.25, w: 'sword', sp: 1.05, ph: 1.7 },
@@ -1312,8 +1274,14 @@ function _initHomeCanvas() {
     var H = canvas.height || window.innerHeight;
     var t = (performance.now() - _homeCanvasT0) / 1000;
 
-    // Transparent — city skyline from game canvas shows through underneath
+    // Transparent: city skyline from game canvas shows through underneath
     ctx.clearRect(0, 0, W, H);
+
+    // Painted scene from smb-home-art.js; the older scene below is the fallback.
+    if (typeof _homeArtScene === 'function' && !window.HOME_ART_CLASSIC && _homeArtScene(ctx, W, H, t)) {
+      _homeCanvasRAF = requestAnimationFrame(frame);
+      return;
+    }
 
     // Subtle dark vignette over center column so text stays readable
     var cvig = ctx.createRadialGradient(W / 2, H * 0.42, H * 0.05, W / 2, H * 0.42, H * 0.45);
@@ -1322,14 +1290,11 @@ function _initHomeCanvas() {
     ctx.fillStyle = cvig;
     ctx.fillRect(0, 0, W, H);
 
-    // The story beat: Kael through the rift, hunters closing in.
-    // (_homeDrawKael below is the previous standing portrait — kept, unused,
-    // so the old composition can be restored without rewriting it.)
+    // Story beat: Kael through the rift, hunters closing in. _homeDrawKael (below) is the older standing
+    // portrait, kept unused so the old composition can come back.
     _homeDrawHeroScene(ctx, W, H, t);
 
-    // Lower-half scrim, drawn LAST so it sits over the art rather than under
-    // it — the hub cards start around 0.38H and their text has to stay legible
-    // whatever the scene and the game canvas are doing behind them.
+    // Lower-half scrim, drawn last so it sits over the art. Card text must stay legible over whatever is behind.
     var scrim = ctx.createLinearGradient(0, H * 0.30, 0, H * 0.62);
     scrim.addColorStop(0, 'rgba(4,4,11,0)');
     scrim.addColorStop(1, 'rgba(4,4,11,0.72)');

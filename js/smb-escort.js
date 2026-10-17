@@ -1,7 +1,6 @@
 'use strict';
-// smb-escort.js — Story escort chapter engine
-// A chapter with type:'escort' declares an NPC to protect and wave definitions.
-// The engine manages NPC physics, wave spawning, and win/fail signalling.
+// Story escort chapter engine. A chapter with type:'escort' declares an NPC to protect and waves to fight through.
+// The engine handles NPC physics, wave spawning, and win/fail signalling.
 //
 // Chapter shape:
 //   {
@@ -17,25 +16,21 @@
 //     fightScript, arena, playerLives, tokenReward, …
 //   }
 //
-// Explore escorts: a walkFight/exploration chapter that declares `escortNPC` runs
-// the same engine inside its scrolling world (initEscortMode is called from
-// _launchExplorationChapter). There the NPC follows the player along the map,
-// waves trigger on world-x, delivery does not end the match — the level's exit
-// gate (storyLevelClearBlocker) waits for it instead — and:
+// Explore escorts: a walkFight/exploration chapter with `escortNPC` runs this engine inside its scrolling world
+// (initEscortMode is called from _launchExplorationChapter). The NPC follows the player and waves trigger on world x.
+// Delivery does not end the match; the exit gate (storyLevelClearBlocker) waits for the NPC instead. Options:
 //     escortGoalX:   world x (default: just short of the exit)
 //     escortLeash:   NPC waits when the player is this far behind (default 260)
 //     escortHunters: arena-lock duel enemies that go after the NPC (default 0)
 //     escortArriveText: subtitle when the NPC reaches the goal
 
-// ============================================================
-// STATE
-// ============================================================
+// State
 var escortActive     = false;
 var escortNPC        = null;       // the Fighter being escorted (NOT in players/minions)
 var escortSpeed      = 0.7;
 var escortStopRange  = 220;
 var escortWaveDefs   = [];
-var escortWaveFired  = [];         // parallel bool array — true when wave spawned
+var escortWaveFired  = [];         // parallel bool array, true when wave spawned
 var escortState      = 'idle';     // 'idle' | 'playing' | 'success' | 'fail' | 'done'
 var escortBanner     = 0;          // banner countdown frames
 var escortNPCName    = 'Escort';
@@ -46,14 +41,11 @@ var _escortStuck     = 0;
 var _escortLastX     = 0;
 var _escortPending   = null;       // explore chapter waiting for its first live frame
 
-// Explore chapters arm the escort at launch; it starts on the first frame the
-// match is actually running (startGame defers its core setup behind the loading
-// screen, which also runs escortCleanup — a timer-based init loses that race).
+// Explore chapters arm the escort at launch and start on the first live frame. A timer-based init
+// loses the race with the loading screen's escortCleanup.
 function escortArm(chapter) { _escortPending = chapter || null; }
 
-// ============================================================
-// INIT
-// ============================================================
+// Init
 function initEscortMode(chapter) {
   _escortChapter  = chapter;
   var npcCfg      = chapter.escortNPC || {};
@@ -70,7 +62,6 @@ function initEscortMode(chapter) {
   escortNPCColor  = npcCfg.color || '#66aaff';
   escortActive    = true;
 
-  // ── Create NPC Fighter ──────────────────────────────────
   // isAI=false: no AI logic runs, pure physics. We control vx manually.
   var p1 = players[0];
   var spawnX = p1 ? p1.x + 70 : 150;
@@ -79,7 +70,7 @@ function initEscortMode(chapter) {
   escortNPC = new Fighter(
     spawnX, spawnY,
     escortNPCColor,
-    'sword',                          // weapon key (won't attack — no target set)
+    'sword',                          // weapon key (won't attack, no target set)
     { left: null, right: null, jump: null, attack: null, ability: null, super: null },
     false,                            // isAI = false → pure physics only
     'easy'
@@ -91,12 +82,10 @@ function initEscortMode(chapter) {
   escortNPC.invincible  = 90;         // spawn grace
   escortNPC.target      = null;
   escortNPC._isEscortNPC = true;
-  escortNPC.playerNum   = -99;        // sentinel — not a real player slot
+  escortNPC.playerNum   = -99;        // sentinel, not a real player slot
   escortNPC._hideWeapon = true;       // she is not a fighter here
-  // On the player's side: every hit loop scans players/trainingDummies/minions,
-  // so the NPC has to live in minions[] to be hittable at all, and the faction
-  // stamps keep the player's own swings (and target pickers) off it. The minion
-  // loop also runs its physics and draws it.
+  // On the player's side, hit loops scan players/trainingDummies/minions, so the NPC lives in minions[].
+  // Faction stamps keep the player's swings and target pickers off it. The minion loop runs its physics and draws it.
   escortNPC.storyFaction = 'player';
   escortNPC._teamId      = 1;
   escortNPC.isStoryAlly  = true;
@@ -105,8 +94,7 @@ function initEscortMode(chapter) {
   if (p1 && p1._teamId === undefined) { p1._teamId = 1; p1.storyFaction = 'player'; }
   _escortStuck = 0;
   _escortLastX = escortNPC.x;
-  // A checkpoint resume (or backtrack entry) starts mid-map: waves behind the
-  // spawn point already happened.
+  // Resuming a checkpoint starts mid-map, so waves behind the spawn point already happened.
   for (var _wi = 0; _wi < escortWaveDefs.length; _wi++) {
     if ((escortWaveDefs[_wi].triggerX || 0) < spawnX - 100) escortWaveFired[_wi] = true;
   }
@@ -115,9 +103,7 @@ function initEscortMode(chapter) {
     setObjective('Escort ' + escortNPCName + ' to safety');
 }
 
-// ============================================================
-// PER-FRAME UPDATE  (called from game loop)
-// ============================================================
+// Per-frame update, called from the game loop
 function updateEscortMode() {
   if (_escortPending) {
     var _pc = _escortPending;
@@ -129,7 +115,7 @@ function updateEscortMode() {
   }
   if (!escortActive || !gameRunning || escortState === 'idle' || escortState === 'done') return;
 
-  // Outcome banner countdown — then trigger endGame
+        // Outcome banner countdown, then endGame
   if (escortState === 'success' || escortState === 'fail') {
     if (--escortBanner <= 0) {
       var _wasFail = (escortState === 'fail');
@@ -145,10 +131,8 @@ function updateEscortMode() {
     return;
   }
 
-  // ── NPC is alive ──────────────────────────────────────────
   if (!escortNPC) return;
 
-  // Detect NPC death before anything else
   if (escortNPC.health <= 0 && escortNPC.invincible <= 0) {
     _escortFail('NPC fell in combat.');
     return;
@@ -157,24 +141,19 @@ function updateEscortMode() {
   // Physics runs in the minion loop (the NPC lives in minions[]).
   if (escortInExplore) { _escortExploreTick(); return; }
 
-  // Decide NPC movement: stop if any enemy is close
   var enemies  = minions.filter(function(m) { return m.health > 0 && !m._isEscortNPC && !areAlliedEntities(m, escortNPC); });
   var tooClose = enemies.some(function(e) {
     return Math.abs(e.cx() - escortNPC.cx()) < escortStopRange;
   });
   escortNPC.vx = tooClose ? 0 : escortSpeed;
 
-  // NPC facing direction
   if (!tooClose) escortNPC.facing = 1;
 
-  // Check wave triggers
   _escortCheckWaves();
 
-  // Keep enemies targeting NPC
   enemies.forEach(function(e) { if (e.target !== escortNPC) e.target = escortNPC; });
 
-  // Win condition: NPC reached goal. Delivery is the objective, but the level is
-  // only finished when the area is clear too — see storyLevelClearBlocker().
+  // Win: NPC reached goal. The area must also be clear (see storyLevelClearBlocker()).
   if (escortNPC.cx() >= escortGoalX) {
     var _blk = (typeof storyLevelClearBlocker === 'function' && typeof exploreActive !== 'undefined' && exploreActive)
       ? storyLevelClearBlocker() : null;
@@ -192,7 +171,7 @@ function updateEscortMode() {
   }
 }
 
-// ── Explore escort: follow the player through the world ───────
+// Explore escort: follows the player through the world.
 function _escortExploreTick() {
   var npc = escortNPC, p1 = players[0];
   if (!p1) return;
@@ -207,7 +186,7 @@ function _escortExploreTick() {
   _escortLastX = npc.x;
   if (fell || _escortStuck > 240) _escortRejoin(p1.x - 50 * (p1.facing || 1), floorY);
 
-  // The duel's arena lock walls off the fight — pull her in rather than strand her outside.
+  // The duel's arena lock walls off the fight, pull her in rather than strand her outside.
   if (typeof exploreArenaLock !== 'undefined' && exploreArenaLock &&
       (npc.x < exploreArenaLock.left + 10 || npc.x + npc.w > exploreArenaLock.right - 10)) {
     _escortRejoin(Math.max(exploreArenaLock.left + 40, Math.min(exploreArenaLock.right - 80, Math.min(escortGoalX, p1.x - 60))), floorY);
@@ -237,8 +216,7 @@ function _escortExploreTick() {
       };
       if (typeof SoundManager !== 'undefined' && SoundManager.phaseUp) SoundManager.phaseUp();
     }
-    // escortLines: [{ after: frames since arrival, text, color }] — beats tied to
-    // the NPC's arrival instead of the fight-script clock (which runs from level start).
+    // escortLines: [{ after, text, color }], with 'after' counted from NPC arrival.
     var lines = ch.escortLines || [];
     for (var li = 0; li < lines.length; li++) {
       var ln = lines[li];
@@ -285,7 +263,7 @@ function _escortRejoin(x, floorY) {
   if (typeof spawnParticles === 'function') spawnParticles(npc.cx(), npc.cy(), escortNPCColor, 12);
 }
 
-// ── Wave check ────────────────────────────────────────────────
+// Wave check
 function _escortCheckWaves() {
   for (var i = 0; i < escortWaveDefs.length; i++) {
     if (escortWaveFired[i]) continue;
@@ -324,7 +302,6 @@ function _escortSpawnWave(wave) {
   var colors  = ['#ff4455','#ff6633','#ff3388','#cc3322','#ff5500'];
 
   for (var i = 0; i < count; i++) {
-    // Spawn on a platform on the appropriate side
     var spawnX, spawnY;
     if (plats.length > 0) {
       var side = plats.filter(function(p) {
@@ -359,7 +336,6 @@ function _escortSpawnWave(wave) {
     damageTexts.push(new DamageText(GAME_W / 2, 95, 'Attackers incoming!', '#ff4422'));
 }
 
-// ── Outcome helpers ───────────────────────────────────────────
 function _escortSuccess() {
   if (escortState !== 'playing') return;
   escortState  = 'success';
@@ -383,9 +359,7 @@ function escortOnPlayerDeath() {
   return true; // handled
 }
 
-// ============================================================
-// DRAW — WORLD SPACE  (called while camera transform is active)
-// ============================================================
+// Draw: world space (camera transform active)
 function drawEscortNPC() {
   if (!escortActive || !escortNPC || escortState === 'idle' || escortState === 'done') return;
 
@@ -394,7 +368,6 @@ function drawEscortNPC() {
 
   // Fighter.draw() already renders her name tag and health bar.
 
-  // Goal flag marker
   _drawEscortGoalFlag();
 }
 
@@ -408,41 +381,34 @@ function _drawEscortGoalFlag() {
   }
 
   ctx.save();
-  // Flag pole
   ctx.strokeStyle = '#ffdd44'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(gx, floorY); ctx.lineTo(gx, floorY - 70); ctx.stroke();
-  // Flag pennant
   ctx.fillStyle = '#ffdd44'; ctx.globalAlpha = 0.85;
   ctx.beginPath();
   ctx.moveTo(gx, floorY - 70);
   ctx.lineTo(gx + 28, floorY - 58);
   ctx.lineTo(gx, floorY - 46);
   ctx.closePath(); ctx.fill();
-  // "GOAL" text
   ctx.globalAlpha = 1;
   ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
   ctx.fillStyle = '#1a1a00';
   ctx.fillText('GOAL', gx + 10, floorY - 55);
-  // Vertical guide line
   ctx.strokeStyle = 'rgba(255,221,68,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
   ctx.beginPath(); ctx.moveTo(gx, floorY); ctx.lineTo(gx, floorY - 400); ctx.stroke();
   ctx.setLineDash([]);
   ctx.restore();
 }
 
-// ============================================================
-// DRAW — HUD / SCREEN SPACE  (called after camera transform is reset)
-// ============================================================
+// Draw: HUD, screen space
 function drawEscortHUD() {
   if (!escortActive || !gameRunning || escortState === 'idle' || escortState === 'done') return;
   ctx.save();
-  // Pin to screen
   var bsX = canvas.width / GAME_W, bsY = canvas.height / GAME_H;
   ctx.setTransform(bsX, 0, 0, bsY, 0, 0);
 
   var _fc = typeof frameCount !== 'undefined' ? frameCount : 0;
 
-  // ── Outcome banners ───────────────────────────────────────
+  // Outcome banners
   if (escortState === 'success') {
     var a = Math.min(1, escortBanner / 60);
     ctx.globalAlpha = a;
@@ -466,7 +432,7 @@ function drawEscortHUD() {
     ctx.restore(); return;
   }
 
-  // ── NPC health bar (top — below story subtitle area) ──────
+  // NPC health bar, below the story subtitle
   if (escortNPC && escortNPC.health > 0) {
     var barW = 200, barH = 14;
     var barX = (GAME_W - barW) / 2;
@@ -483,24 +449,22 @@ function drawEscortHUD() {
     ctx.fillRect(barX, barY, barW * hFrac, barH);
     ctx.shadowBlur = 0;
 
-    // Label
     ctx.font = 'bold 9px Arial'; ctx.textAlign = 'left';
     ctx.fillStyle = '#cceeff';
     ctx.fillText('🛡 ' + escortNPCName, barX, barY - 3);
 
-    // HP text
     ctx.font = '8px Arial'; ctx.textAlign = 'right'; ctx.fillStyle = '#aaa';
     ctx.fillText(Math.max(0, Math.ceil(escortNPC.health)) + ' / ' + escortNPC.maxHealth, barX + barW, barY - 3);
   }
 
-  // ── Progress arrow: distance to goal ─────────────────────
+  // Progress arrow: distance to goal
   if (escortNPC) {
     var dist    = Math.max(0, escortGoalX - escortNPC.cx());
     var total   = escortGoalX - 100;
     var prog    = Math.max(0, Math.min(1, 1 - dist / total));
     var trW     = 180, trH = 8;
     var trX     = GAME_W - trW - 8, trY = 82;
-    // Explore: the top-right corner shows the nearest enemy's name — stack under her HP bar.
+    // Explore: nearest enemy's name sits under her HP bar.
     if (escortInExplore) { trW = 150; trH = 6; trX = 14; trY = 132; }
 
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(trX - 2, trY - 2, trW + 4, trH + 4);
@@ -525,9 +489,7 @@ function drawEscortHUD() {
   ctx.restore();
 }
 
-// ============================================================
-// CLEANUP (called when game ends or mode resets)
-// ============================================================
+// Cleanup, when the game ends or the mode resets
 function escortCleanup() {
   escortActive   = false;
   escortInExplore = false;

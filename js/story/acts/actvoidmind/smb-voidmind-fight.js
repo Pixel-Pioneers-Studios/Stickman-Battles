@@ -1,21 +1,10 @@
-// Void Mind arc — The Fight: chapters 167, 168, 169
-//
-// The assessment is over. The Void Mind has a complete map of everything Kael carries
-// and how firmly he carries it. Now it acts — not with threats, but with an argument.
-// The argument is the attack: the dimensions were not worth protecting.
-// If the argument holds, there is nothing left worth defending.
+// Void Mind arc, the fight: chapters 167, 168, 169.
+// The Void Mind has a full map of what Kael carries. It acts with an argument, not threats:
+// the dimensions were not worth protecting. If the argument holds, nothing is left to defend.
 // If it doesn't, the Void Mind will know why, and so will Kael.
-//
-// 167 — "The Verdict"           — narrative/branch: the Void Mind makes its move
-// 168 — "Against Erasure"       — fight: the confrontation made physical
-// 169 — "What Cannot Be Erased" — epilogue: what the fragment was always going home to
 STORY_CHAPTER_REGISTRY.push(
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // CH. 167 — "The Verdict"
-  // The assessment is complete. The Void Mind has its map. It uses it.
-  // Not with erasure — with argument. The argument is more dangerous.
-  // ────────────────────────────────────────────────────────────────────────────
+  // Ch. 167: the Void Mind has its map and argues with it. Not erasure, argument.
   {
     id: 183, title: 'The Verdict',
     world: '⬛ The Substrate — The Decision',
@@ -83,7 +72,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'In answer.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the erasure begins at the edges; hold the signal that cannot hold itself.
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js). Erasure starts at the edges.
     beat: {
       type: 'exploration', exploreMode: 'defense',
       arena: 'void', style: 'void', worldLength: 900,
@@ -115,14 +104,8 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Void Mind received the answer. It did not change its position — it logged the counterargument the way a system logs input. The argument is not resolved by a sentence. It is resolved by what happens next. The Preserved exist. You carry the testimony of everything the fracture system touched. The fragment knows where it is. The Void Mind\'s verdict is not final until the confrontation is.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // CH. 168 — "Against Erasure"
-  // The Void Mind makes its argument physical. A confrontation.
-  // Not an assessment. Not a stripped-powers trial. A fight with everything Kael has.
-  // The fightScript plays out the memory-as-weapon resolution:
-  //   — Void Mind argument in erasure-purple
-  //   — Kael's counter (via the fragment, the classes, the Preserved) in amber
-  // ────────────────────────────────────────────────────────────────────────────
+  // Ch. 168: the Void Mind's argument made physical. A fight with everything Kael has.
+  // Erasure-purple is the Void Mind's argument, amber is Kael's counter (fragment, classes, Preserved).
   {
     id: 184, title: 'Against Erasure',
     world: '⬛ The Substrate — The Confrontation',
@@ -144,8 +127,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentColor:  '#220033',
     weaponKey:  'combat',
     classKey:   null,
-    aiDiff:     'expert',   // was 9 — see ch179; numeric aiDiff silently
-                            // de-tuned the final fight's tactical weighting
+    aiDiff:     'expert',   // a string on purpose: a number silently de-tunes the fight (see ch179)
     playerLives: 2,
     arena:      'void',
     tokenReward:    200,
@@ -153,13 +135,8 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The construct dissolved. Not destroyed — the way an argument stops when the counterargument holds and the person making it knows it. The Void Mind had come with a hypothesis: everything you protected was always going to be erased. It had a complete map of your counterargument before the fight began. It knew what you would use against it. It fought anyway — because a hypothesis that cannot survive its counterargument in direct contact is not a hypothesis. It is a preference. The Void Mind does not have preferences. It has data. The data says: the argument failed. The fragment pulsed once. Steady. Like something arriving.',
   },
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // CH. 169 — "What Cannot Be Erased"
-  // The true epilogue. The Void Mind recedes — not defeated, resolved.
-  // The fragment is crystallized Void Mind radiation that carried itself home
-  // inside the one bearer the Void Mind could not dissolve.
-  // The Void Mind cannot erase what was built from its own failures.
-  // ────────────────────────────────────────────────────────────────────────────
+  // Ch. 169: the true epilogue. The Void Mind recedes, resolved rather than defeated.
+  // The fragment carried itself home inside the one bearer it could not dissolve.
   {
     id: 185, title: 'What Cannot Be Erased',
     world: '⬛ The Substrate — The Threshold',

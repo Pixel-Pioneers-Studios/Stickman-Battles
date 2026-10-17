@@ -1,33 +1,19 @@
 'use strict';
 /*
- * smb-sov-telemetry.js — causal combat telemetry for the VECTOR research loop.
+ * Causal combat telemetry for the Sovereign research loop.
  *
- * WHY THIS EXISTS
- * The replay recorder (smb-replay.js) logs damage as { amount, resulting hp,
- * guessed attacker }. That is enough to rebuild a match and nowhere near enough
- * to explain one. The best sentence anything can write from it is "P1 took 14
- * damage around 0:40, probably from P2" — true, and worth nothing to a model
- * asked to find out WHY Sovereign keeps losing.
+ * The replay recorder (smb-replay.js) logs damage without enough context to explain
+ * a match. Each field below is needed for some explanation:
  *
- * Every field below exists because some explanation is impossible without it:
- *
- *   airborne / landing / stun / shield  — 126 of 127 hits Sovereign took in the
- *       Sep 10 replay set landed while he was airborne or in landing recovery.
- *       That finding is invisible unless victim state is sampled AT the hit.
- *   fromBehind                          — distinguishes "he gets read" from
- *       "he gets flanked", which have opposite fixes.
- *   sinceLast / chain                   — lockout comes from CHAINED hits, not
- *       big ones (measured: damage 2.2x -> 5x moved lockout 5.7% -> 4.1%).
- *       Chain depth is the causal variable; raw damage is not.
- *   attackers                           — every anti-juggle guard in dealDamage
- *       is `attacker.`-keyed, so two attackers defeat all of them at once. A
- *       per-hit attacker count is what makes that pattern legible.
- *   dist / dy / sit                     — the same 9-cell situation key the
- *       tactic grid uses, so telemetry and Sovereign's own learning speak the
- *       same coordinates and a finding can name a cell he can actually act on.
+ *   airborne / landing / stun / shield  victim state sampled at the moment of the hit.
+ *   fromBehind                          flanked vs read, which need different fixes.
+ *   sinceLast / chain                   lockout comes from chained hits, not big ones.
+ *   attackers                           anti-juggle guards are keyed on one attacker,
+ *                                       so two attackers defeat all of them.
+ *   dist / dy / sit                     the same 9-cell key the tactic grid uses.
  *
  * Nothing here mutates game state. It wraps dealDamage, records, and forwards.
- * Recording is OFF by default and costs nothing until SovTelemetry.start().
+ * Recording is off until SovTelemetry.start().
  */
 
 const SovTelemetry = (function () {
@@ -58,16 +44,14 @@ const SovTelemetry = (function () {
     return (d < 90 ? 'c' : d < 220 ? 'm' : 'f') + (dy < -40 ? 'a' : dy > 40 ? 'b' : 'l');
   }
 
-  // Victim state AT the moment of the hit — read before dealDamage mutates it.
+  // Victim state at the moment of the hit, read before dealDamage mutates it.
   function _victimState(v) {
     if (!v) return {};
     const air = !v.onGround;
     return {
       air,
-      // "Landing" is the window a fighter is committed to touching down in and
-      // cannot act out of. No engine flag marks it, so it is inferred: falling
-      // fast and close to the ground. Coarse on purpose — the signal is whether
-      // hits CLUSTER here, not the exact boundary.
+      // No engine flag marks the landing window, so it is inferred: falling fast and near the ground.
+      // It is coarse on purpose. What matters is whether hits cluster here.
       landing:  air && v.vy > 3,
       stunned:  (v.stunTimer || 0) > 0 || (v.ragdollTimer || 0) > 0,
       hurt:     (v.hurtTimer || 0) > 0,
@@ -76,9 +60,7 @@ const SovTelemetry = (function () {
     };
   }
 
-  // How many DISTINCT living attackers are currently inside striking distance of
-  // the victim. The anti-juggle guards cannot see this; it is the whole reason a
-  // 2v1 feels illegal.
+  // Distinct living attackers in striking distance of the victim. The anti-juggle guards cannot see this.
   function _pressure(v) {
     if (!v || typeof players === 'undefined') return 1;
     let n = 0;
@@ -122,10 +104,8 @@ const SovTelemetry = (function () {
     if (_events.length > RING) _events.splice(0, _events.length - RING);
   }
 
-  // ── Rollup ────────────────────────────────────────────────────────────────
-  // What actually goes to the model. Raw events are for drilling in; a 900-hit
-  // log handed to a 3B model is exactly the long-context dilution that makes
-  // small models worse. The digest is ~40 lines and carries the causal shape.
+  // Rollup: what goes to the model. Raw events are for drilling in. A long raw log
+  // dilutes a small model, so the digest (~40 lines) carries the causal shape.
   function digest(subject) {
     const S = subject || 'SOVEREIGN';
     const taken = _events.filter(e => e.vic === S);
@@ -148,7 +128,7 @@ const SovTelemetry = (function () {
       };
     }
 
-    // Longest unbroken chain on the subject — the juggle length, in hits.
+    // Longest unbroken chain on the subject, in hits (the juggle length).
     let worstChain = 0, cur = 0;
     for (const e of taken) { if (e.chain) { cur++; worstChain = Math.max(worstChain, cur + 1); } else cur = 0; }
 
@@ -172,7 +152,7 @@ const SovTelemetry = (function () {
       worstChain,
       takenBySituation: bySit,
       takenByWeapon: byWep,
-      // Single biggest exchange against the subject — the moment worth explaining.
+      // Biggest single exchange against the subject.
       worstBurst: (() => {
         let best = null, run = [], acc = 0;
         for (const e of taken) {
@@ -185,10 +165,8 @@ const SovTelemetry = (function () {
     };
   }
 
-  // ── dealDamage wrap ───────────────────────────────────────────────────────
-  // Wrapping rather than editing smb-combat.js keeps the damage pipeline the
-  // single source of truth and means telemetry can never change an outcome:
-  // we read state, call through, and return whatever it returned.
+  // dealDamage wrap. Wrapping, not editing smb-combat.js, means telemetry cannot change
+  // an outcome: it reads state, calls through, and returns the result.
   function _wrap() {
     if (_wrapped) return;
     const g = (typeof window !== 'undefined') ? window : globalThis;
@@ -208,7 +186,7 @@ const SovTelemetry = (function () {
     get on()     { return _on; },
     events()     { return _events.slice(); },
     digest,
-    // Raw slice for drill-down once the digest has pointed somewhere.
+    // Raw slice for drilling in after the digest points somewhere.
     around(frame, span) {
       const s = span || 90;
       return _events.filter(e => Math.abs(e.f - frame) <= s);

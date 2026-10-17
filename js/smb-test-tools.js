@@ -1,19 +1,9 @@
-// ============================================================
-// SMB TEST HARNESS  —  smb-test-tools.js
-// Dev/testing utilities. All functionality is gated behind:
-//   window.DEBUG_MODE = true;
-// NEVER affects production gameplay.
-//
-// Usage:
-//   window.DEBUG_MODE = true;
-//   smbTest.help();
-//   smbTest.loadCreator();
-// ============================================================
+// Dev test harness. Gated behind window.DEBUG_MODE, never affects production gameplay.
+// Usage: window.DEBUG_MODE = true; smbTest.help(); smbTest.loadCreator();
 'use strict';
 
 (function () {
 
-  // ── Guard ─────────────────────────────────────────────────────────────────
   function _guard(label) {
     if (!window.DEBUG_MODE) {
       console.warn(`[smbTest:${label}] DEBUG_MODE is not enabled. Set window.DEBUG_MODE = true first.`);
@@ -22,7 +12,6 @@
     return true;
   }
 
-  // ── Entity helpers ────────────────────────────────────────────────────────
   function _player()  {
     if (typeof players === 'undefined') return null;
     return players.find(p => p && !p.isAI && !p.isBoss && !p.isDummy) || null;
@@ -41,7 +30,6 @@
     return players.find(p => p && (p.isAdaptive || p.isSovereignMk2)) || null;
   }
 
-  // ── Quick-start helper ────────────────────────────────────────────────────
   // Sets gameMode (and optional arena), runs an optional pre-launch callback,
   // then calls startGame(). If a game is already running, goes to menu first.
   function _quickStart(mode, arenaKey, preCallback) {
@@ -60,7 +48,6 @@
     }
   }
 
-  // ── Wait-for-game helper ──────────────────────────────────────────────────
   // Polls until gameRunning is true, then fires callback.
   function _waitForGame(cb, timeout) {
     const start = Date.now();
@@ -77,9 +64,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 1.  STORY SKIP
-  // ════════════════════════════════════════════════════════════════════════════
+  // Story skip
   function loadStoryFight(id) {
     if (!_guard('loadStoryFight')) return;
     const _launch = () => {
@@ -88,9 +73,7 @@
         storyCurrentLevel = Math.min(8, Math.floor(id / 5) + 1);
       }
       if (typeof _beginChapter2 === 'function') {
-        // Second call in the same session bypasses the narrative panel
-        // (the engine skips to fight when the chapter id is already in _seenNarrativeIds).
-        // We call once now; if the narrative panel pops up the dev can click Fight.
+        // A repeat call skips the narrative panel once the chapter id is seen. Call once, then click Fight if it shows.
         _beginChapter2(id);
       } else {
         console.warn('[smbTest] _beginChapter2 not found — story engine may not be loaded.');
@@ -107,9 +90,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 2.  BOSS DIRECT LOADERS
-  // ════════════════════════════════════════════════════════════════════════════
+  // Boss direct loaders
   function loadSovereign() {
     if (!_guard('loadSovereign')) return;
     console.log('[smbTest] Loading Sovereign (Neural AI) fight…');
@@ -132,7 +113,7 @@
     if (!_guard('loadTrueForm3D')) return;
     console.log('[smbTest] Loading Cosmic Axiom → 3D phase…');
     _quickStart('trueform', null, () => {
-      // After the game loop is live, skip intro cinematic and force 3D
+      // Skip the intro cinematic and force 3D once the loop is live.
       _waitForGame(() => {
         setTimeout(() => {
           if (typeof tfCinematicState !== 'undefined') {
@@ -146,22 +127,20 @@
           } else {
             console.warn('[smbTest] tfDimensionIs3D global not found.');
           }
-        }, 1200); // let game settle one second before forcing 3D
+        }, 1200); // let the game settle first
       });
     });
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 3.  PHASE CONTROL
-  // ════════════════════════════════════════════════════════════════════════════
+  // Phase control
   function setBossPhase(phaseNumber) {
     if (!_guard('setBossPhase')) return;
     if (typeof players === 'undefined') { console.warn('[smbTest] No players array.'); return; }
 
     const boss = _boss();
 
-    // ── Creator boss ──────────────────────────────────────────────────────────
+    // Creator boss
     if (boss && boss.isBoss && !boss.isTrueForm) {
       // getPhase(): health > 2000 → 1, health > 1000 → 2, else → 3
       const hp = ({ 1: Math.min(boss.maxHealth, 2500), 2: 1500, 3: 800 })[phaseNumber];
@@ -171,7 +150,7 @@
       return;
     }
 
-    // ── True Form ─────────────────────────────────────────────────────────────
+    // True Form
     if (boss && boss.isTrueForm) {
       const maxHp = boss.maxHealth || 5000;
       const hp = ({
@@ -189,7 +168,7 @@
       return;
     }
 
-    // ── Sovereign / AdaptiveAI ────────────────────────────────────────────────
+    // Sovereign / AdaptiveAI
     const ai = _adaptiveAI();
     if (ai) {
       const cycleMap = { 1: 0, 2: 15, 3: 35 };
@@ -213,9 +192,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 4.  PLAYER STATE CONTROL
-  // ════════════════════════════════════════════════════════════════════════════
+  // Player state
   function setPlayerHP(value) {
     if (!_guard('setPlayerHP')) return;
     const p = _player();
@@ -259,9 +236,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 5.  AI DEBUG OVERLAY
-  // ════════════════════════════════════════════════════════════════════════════
+  // AI debug overlay
   let _aiOverlayEl  = null;
   let _aiOverlayRunning = false;
 
@@ -361,9 +336,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 6.  HITBOX DEBUG
-  // ════════════════════════════════════════════════════════════════════════════
+  // Hitbox debug
   function debugHitboxes(enabled) {
     if (!_guard('debugHitboxes')) return;
     if (typeof showHitboxes !== 'undefined') {
@@ -375,9 +348,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 7.  MINIGAME LOADER
-  // ════════════════════════════════════════════════════════════════════════════
+  // Minigame loader
   function loadMinigame(modeName) {
     if (!_guard('loadMinigame')) return;
     const modeMap = {
@@ -401,14 +372,11 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // 8.  FREE CAMERA
-  //
+  // Free camera
   // Controls (while free camera is active):
-  //   I / K  — pan up / down
-  //   J / L  — pan left / right
-  //   U / O  — zoom in / out
-  // ════════════════════════════════════════════════════════════════════════════
+  //   I / K : pan up / down
+  //   J / L : pan left / right
+  //   U / O : zoom in / out
   let _freeCamActive = false;
   let _freeCamKeys   = {};
   const _FREE_CAM_SPEED = 8;
@@ -448,9 +416,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // HELP
-  // ════════════════════════════════════════════════════════════════════════════
+  // Help
   function help() {
     console.log(
       '%c╔══════════════════════════════════════════════════════╗\n' +
@@ -492,9 +458,7 @@
   }
 
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // PUBLIC API
-  // ════════════════════════════════════════════════════════════════════════════
+  // Public API
   window.smbTest = {
     loadStoryFight,
     loadSovereign,

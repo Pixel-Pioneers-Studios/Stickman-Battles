@@ -1,18 +1,9 @@
 'use strict';
-// js/story/levels/ch184.js — Chapter 184 map (story ARENA). See smb-story-levels.js.
+// Chapter 184 map (story arena). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 184 — Against Erasure (duel vs the Erasure Construct)
-// The Confrontation: the Trial Ground again, but now the Void Mind's argument
-// is being made physical. The plane is being erased from the edges inward —
-// the dark eats the glass in ragged bites that grow while the fight goes on,
-// and the grid of the Substrate under it dissolves line by line. The eight
-// reckoning slabs are still standing, half-erased, and where each one held
-// it glows: thin threads of light run from them to the middle of the arena,
-// to you ("You carry everything"). The more the construct is hurt, the more
-// the erasure recedes. Built on the void arena's rules and its
-// stepping-stone layout.
-// ═════════════════════════════════════════════════════════════════════════════
+// Against Erasure: duel vs the Erasure Construct on the Trial Ground. The plane is
+// erased from the edges inward and the eight reckoning slabs glow where they held.
+// The more the construct is hurt, the less the erasure reaches. Void arena rules.
 (function () {
   const G = 460;
   const STONES = [[350, 225, 200], [80, 295, 140], [680, 295, 140], [205, 378, 110], [585, 378, 110], [150, 152, 110], [640, 152, 110]];
@@ -32,10 +23,8 @@
   function backdrop(v) {
     _slSkyAbove(v, '#000000');
     const r = reach();
-    // The Substrate's grid, dissolving line by line from the edges
     ctx.strokeStyle = 'rgba(200,200,230,0.12)'; ctx.lineWidth = 1;
     for (let x = 0; x <= 900; x += 30) { const d = Math.abs(x - 450) / 450; if (d > 1 - r * 0.7) continue; ctx.beginPath(); ctx.moveTo(x, v.y); ctx.lineTo(x, G); ctx.stroke(); }
-    // The reckoning slabs, half erased, glowing where they held; threads to the centre
     const p1 = (typeof players !== 'undefined' && players[0]) || null;
     for (let k = 0; k < 8; k++) {
       const x = 40 + k * 117, h = 140 + _slHash(k + 1810) * 80, keep = 1 - r * (0.3 + 0.5 * _slHash(k + 1840));
@@ -48,7 +37,6 @@
   }
 
   function back(v) {
-    // The dark eating the space in ragged bites from both edges
     const r = reach();
     ctx.fillStyle = '#000000';
     for (const side of [-1, 1]) {

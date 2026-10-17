@@ -1,6 +1,5 @@
 // Depends on: smb-globals.js
 //   globals used: ctx, GAME_W, GAME_H, frameCount, currentArena,
-//                 players, bossFloorState, bossFloorType, tfFloorRemoved
 
 let _sdFloor = { active: false, warned: false, y: GAME_H + 40, _floorDisabled: false, frames: 0 };
 
@@ -8,13 +7,11 @@ function drawSuddenDeathFloor() {
   if (!_sdFloor.active) return;
   const y = _sdFloor.y;
   ctx.save();
-  // glow above the floor
   const glowGrad = ctx.createLinearGradient(0, y - 30, 0, y);
   glowGrad.addColorStop(0, 'rgba(255,60,0,0)');
   glowGrad.addColorStop(1, 'rgba(255,60,0,0.22)');
   ctx.fillStyle = glowGrad;
   ctx.fillRect(0, y - 30, GAME_W, 30);
-  // wavy lava surface
   const lg = ctx.createLinearGradient(0, y, 0, GAME_H + 60);
   lg.addColorStop(0,   '#ff5500');
   lg.addColorStop(0.2, '#cc1100');
@@ -29,7 +26,6 @@ function drawSuddenDeathFloor() {
   ctx.lineTo(0, GAME_H + 60);
   ctx.closePath();
   ctx.fill();
-  // surface shimmer
   ctx.shadowColor = '#ff4400';
   ctx.shadowBlur  = 16;
   ctx.fillStyle   = `rgba(255,100,0,${0.18 + Math.abs(Math.sin(frameCount * 0.06)) * 0.1})`;
@@ -38,14 +34,8 @@ function drawSuddenDeathFloor() {
   ctx.restore();
 }
 
-// ── Stadium background ────────────────────────────────────────────────────
-// The old version filled the ENTIRE screen with flat green, sky included, so the
-// map read as a solid colour swatch. The pitch is now the lower band and the
-// stadium bowl sits above it.
-//
-// Every Y is derived from the floor platform, not hardcoded: this arena renders
-// under a live camera (zoom ~1.15, camY ~307), so absolute screen constants put
-// the roof and floodlights outside the visible crop.
+// Stadium background. The pitch is the lower band, the bowl sits above it.
+// Y values are offsets from the floor platform. Absolute screen constants push the roof off-screen under the live camera.
 const _SOC = {
   roof:      -352,   // offsets from the floor line
   upperTop:  -340, upperH: 102,
@@ -96,21 +86,19 @@ function drawSoccerArena() {
 
   ctx.save();
 
-  // ── Night sky through the open roof ───────────────────────────────────────
   const skyG = ctx.createLinearGradient(0, roofY - 220, 0, roofY + 14);
   skyG.addColorStop(0, '#070b1c');
   skyG.addColorStop(1, '#1b2447');
   ctx.fillStyle = skyG;
   ctx.fillRect(X0, roofY - 260, XW, 274);
 
-  // ── Bowl structure ────────────────────────────────────────────────────────
   ctx.fillStyle = '#0d1020';  ctx.fillRect(X0, roofY, XW, 14);                 // roof lip
   ctx.fillStyle = '#171c30';  ctx.fillRect(X0, upperY, XW, _SOC.upperH);       // upper tier
   ctx.fillStyle = '#10142a';  ctx.fillRect(X0, upperY + _SOC.upperH, XW, 14);  // concourse gap
   ctx.fillStyle = '#1e2440';  ctx.fillRect(X0, lowerY, XW, _SOC.lowerH);       // lower tier
   ctx.fillStyle = '#12162a';  ctx.fillRect(X0, wallY, XW, _SOC.wallH);         // front wall
 
-  // Advertising hoardings — cycle hue so the ring reads as lit signage
+  // Advertising hoardings, hue cycles so the ring reads as lit signage
   for (let i = 0; i < 16; i++) {
     const hx  = X0 + 4 + i * 64;
     const hue = (i * 47 + Math.floor(f * 0.5)) % 360;
@@ -120,8 +108,7 @@ function drawSoccerArena() {
     ctx.fillRect(hx, wallY + 4, 56, 5);
   }
 
-  // ── Crowd — idle bob, and it jumps on a big hit (the cue drawColosseumArena
-  //    already uses), so the stands react to the fight instead of sitting still
+  // Crowd bobs when idle and jumps on a big hit, so the stands react to the fight.
   const hype = screenShake > 4 ? 1 : 0;
   ctx.globalAlpha = 0.58;
   for (const c of bg.crowd) {
@@ -133,7 +120,6 @@ function drawSoccerArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Floodlight pylons on the roof line, beams raking the pitch ────────────
   for (const lx of [110, 360, 540, 790]) {
     ctx.fillStyle = '#0a0d18';
     ctx.fillRect(lx - 3, roofY - 26, 6, 28);
@@ -157,7 +143,6 @@ function drawSoccerArena() {
     ctx.fill();
   }
 
-  // ── Scoreboard hung on the upper tier ─────────────────────────────────────
   const sbY = upperY + 16;
   ctx.fillStyle = '#080b16';
   ctx.fillRect(374, sbY, 152, 58);
@@ -171,7 +156,6 @@ function drawSoccerArena() {
     }
   }
 
-  // ── Pitch — recedes from the hoardings down to the player plane ───────────
   ctx.fillStyle = '#2d6b1e';
   ctx.fillRect(X0, pitchY, XW, GAME_H - pitchY + 80);
   // Mowed stripes, slightly splayed so the field reads as receding
@@ -187,8 +171,7 @@ function drawSoccerArena() {
     ctx.closePath();
     ctx.fill();
   }
-  // Markings foreshortened into the ground plane. The Sports Arena draws its own
-  // goals / hoops / net (smb-sports.js), so the pitch lines only belong to soccer.
+  // Pitch lines are foreshortened. Sports Arena draws its own goals (smb-sports.js), so these are soccer only.
   const _sportsCourt = typeof isSportsMode === 'function' && isSportsMode();
   if (!_sportsCourt || sportsType === 'soccer') {
   ctx.strokeStyle = 'rgba(255,255,255,0.28)';
@@ -198,11 +181,9 @@ function drawSoccerArena() {
   ctx.beginPath(); ctx.ellipse(GAME_W / 2, pitchY + 46, 4, 2, 0, 0, Math.PI * 2); ctx.stroke();
   ctx.strokeRect(X0 + 10, pitchY + 12, 168, 74);
   ctx.strokeRect(GAME_W - 118, pitchY + 12, 168, 74);
-  // touchline along the top of the pitch
   ctx.beginPath(); ctx.moveTo(X0, pitchY + 2); ctx.lineTo(X0 + XW, pitchY + 2); ctx.stroke();
   }
 
-  // ── Goals standing on the pitch at both ends ──────────────────────────────
   if (!_sportsCourt) for (const side of [0, 1]) {
     const gx  = side ? GAME_W - 8 : 8;
     const dir = side ? -1 : 1;
@@ -230,7 +211,7 @@ function drawSoccerArena() {
 }
 
 function drawVoidArena() {
-  // Faint light at the centre of the void, so the black has depth instead of reading as unlit canvas
+  // Faint light at the centre of the void, so the black has depth
   ctx.save();
   if (!drawVoidArena._glow) {
     const g = ctx.createRadialGradient(GAME_W / 2, GAME_H * 0.46, 0, GAME_W / 2, GAME_H * 0.46, GAME_W * 0.62);
@@ -242,7 +223,6 @@ function drawVoidArena() {
   ctx.fillStyle = drawVoidArena._glow;
   ctx.fillRect(-GAME_W, -GAME_H, GAME_W * 3, GAME_H * 3);
 
-  // Receding horizon lines — a floor plane that goes nowhere
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 1;
   for (let i = 0; i < 6; i++) {
@@ -251,7 +231,7 @@ function drawVoidArena() {
     ctx.beginPath(); ctx.moveTo(-GAME_W, y); ctx.lineTo(GAME_W * 2, y); ctx.stroke();
   }
 
-  // Slow drifting motes (positions are a pure function of frame + index)
+  // Motes are a pure function of frame and index, so there is no state
   const t = frameCount || 0;
   ctx.fillStyle = '#ffffff';
   for (let i = 0; i < 38; i++) {
@@ -267,7 +247,6 @@ function drawVoidArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // Subtle void distortion rings
   ctx.save();
   for (let i = 0; i < 4; i++) {
     const pulse = (frameCount * 0.008 + i * 1.4) % (Math.PI * 2);
@@ -283,7 +262,7 @@ function drawVoidArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // Draw lava on floor if boss floor hazard is active (same as creator arena)
+  // Boss floor lava hazard
   if (bossFloorState === 'hazard' && bossFloorType === 'lava') {
     _drawLavaFloor(460, 0.22, 20);
   }
@@ -345,7 +324,7 @@ function drawVoidArena() {
 function drawSovereignArena() {
   const t = (frameCount || 0);
 
-  // Slow horizontal scan line that sweeps top-to-bottom every ~8 seconds
+  // Scan line sweeps top to bottom every ~8 s
   const scanY = ((t * 0.35) % (GAME_H + 40)) - 20;
   ctx.save();
   const scanG = ctx.createLinearGradient(0, scanY - 18, 0, scanY + 18);
@@ -356,7 +335,7 @@ function drawSovereignArena() {
   ctx.fillRect(0, scanY - 18, GAME_W, 36);
   ctx.restore();
 
-  // Faint grid dots — 60px spacing, very subtle
+  // Faint grid dots, 60px spacing
   ctx.save();
   ctx.fillStyle = 'rgba(120,0,20,0.12)';
   const gSpacing = 60;
@@ -369,7 +348,6 @@ function drawSovereignArena() {
   }
   ctx.restore();
 
-  // Corner brackets — forensic/test-chamber aesthetic
   ctx.save();
   const bLen = 28, bThick = 1.5;
   const bAlpha = 0.28 + 0.10 * Math.sin(t * 0.022);
@@ -387,7 +365,6 @@ function drawSovereignArena() {
   }
   ctx.restore();
 
-  // Pulsing dim crosshair centered on arena
   const pulse = 0.06 + 0.04 * Math.sin(t * 0.018);
   ctx.save();
   ctx.strokeStyle = `rgba(150,5,5,${pulse.toFixed(3)})`;
@@ -400,19 +377,14 @@ function drawSovereignArena() {
   ctx.setLineDash([]);
   ctx.restore();
 
-  // The voids in the plate — drawn as background so the platform pass paints over
-  // the standable spans and leaves the shafts showing through.
+  // Voids in the plate. Drawn first so the platform pass paints over the standable spans.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.draw();
 }
 
 function drawCreatorArena() {
-  // Dramatic purple lightning during phase 2 and 3
   const boss = players.find(p => p.isBoss);
   if (boss && boss.health > 0) {
-    // Ask the boss for its phase rather than re-deriving it from absolute HP —
-    // this copy of the 2000/1000 thresholds only agreed with Boss.getPhase() at
-    // exactly 3000 max HP, so on True Creator (4500) the storm visuals came in at
-    // a different point than the actual phase change they are meant to signal.
+    // Use the boss phase, not absolute HP. These thresholds only match Boss.getPhase() at 3000 max HP.
     const bPhase = typeof boss.getPhase === 'function' ? boss.getPhase() : 1;
     if (bPhase >= 2) {
       // Each lightning bolt: random jagged line from top to mid-screen
@@ -445,8 +417,7 @@ function drawCreatorArena() {
     }
   }
 
-  // Pulsing void portals in the background — gradient cached per portal index
-  // Invalidated when center/radius moves more than ~2px to avoid per-frame alloc.
+  // Portal gradients are cached per index, rebuilt when the radius moves ~2px.
   if (!drawCreatorArena._portalGradCache) drawCreatorArena._portalGradCache = [];
   for (let i = 0; i < 6; i++) {
     const bx = (i * 160 + Math.sin(frameCount * 0.007 + i * 1.1) * 55) % 900;
@@ -466,12 +437,11 @@ function drawCreatorArena() {
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(bx, by, r, 0, Math.PI * 2); ctx.fill();
   }
-  // Draw lava on floor if active hazard
   if (bossFloorState === 'hazard' && bossFloorType === 'lava') {
     _drawLavaFloor(460, 0.22, 20);
   }
 
-  // Invisible walls — glowing neon energy barriers on left and right
+  // Invisible walls: glowing neon energy barriers on left and right
   const wallPulse = 0.35 + Math.abs(Math.sin(frameCount * 0.04)) * 0.45;
   ctx.save();
   for (const wallX of [0, GAME_W]) {
@@ -487,18 +457,15 @@ function drawCreatorArena() {
   ctx.restore();
 }
 
-// ── Deep Space background ─────────────────────────────────────────────────
-// bgStars alone left the middle of the map as empty black. Everything added here
-// is behind the platforms and purely decorative. Cached like _lavaBg/_iceBg.
+// Deep space backdrop, cached like _lavaBg and _iceBg.
+// bgStars alone left the middle empty. Everything here is behind the platforms and decorative.
 function _spaceBg() {
   if (_spaceBg._c) return _spaceBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const c = {
-    // A dim far layer behind bgStars, so the field has depth rather than one plane
     dust: Array.from({ length: 130 }, () => ({
       x: rnd(-40, 960), y: rnd(0, 520), r: rnd(0.25, 0.8), a: rnd(0.10, 0.34),
     })),
-    // Soft nebula blooms
     nebulae: [
       { x: 170, y: 150, r: 260, h: 275, a: 0.16 },   // violet
       { x: 720, y: 300, r: 300, h: 205, a: 0.13 },   // blue
@@ -528,7 +495,6 @@ function drawStars() {
 
   ctx.save();
 
-  // ── Nebula blooms ─────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.02, 0);
   for (const nb of bg.nebulae) {
@@ -542,7 +508,6 @@ function drawStars() {
   }
   ctx.restore();
 
-  // ── Far dust layer (behind bgStars) ───────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.03, 0);
   ctx.fillStyle = '#ffffff';
@@ -553,24 +518,21 @@ function drawStars() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Ringed planet ─────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.06, 0);
   const px = 774, py = 106, pr = 45;
-  // back half of the ring, drawn before the body so the planet occludes it
+  // Back half of the ring, drawn before the body so the planet covers it
   ctx.strokeStyle = 'rgba(190,170,220,0.42)';
   ctx.lineWidth   = 7;
   ctx.beginPath();
   ctx.ellipse(px, py, pr * 1.85, pr * 0.42, -0.34, Math.PI, Math.PI * 2);
   ctx.stroke();
-  // body with a terminator: lit from the upper left
   const pg = ctx.createRadialGradient(px - pr * 0.42, py - pr * 0.42, pr * 0.1, px, py, pr);
   pg.addColorStop(0,   '#8f7fc4');
   pg.addColorStop(0.5, '#5b4d8c');
   pg.addColorStop(1,   '#221b3c');
   ctx.fillStyle = pg;
   ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.fill();
-  // banding
   ctx.save();
   ctx.beginPath(); ctx.arc(px, py, pr, 0, Math.PI * 2); ctx.clip();
   ctx.globalAlpha = 0.16;
@@ -582,13 +544,11 @@ function drawStars() {
     ctx.fill();
   }
   ctx.restore();
-  // front half of the ring
   ctx.strokeStyle = 'rgba(210,192,240,0.60)';
   ctx.lineWidth   = 7;
   ctx.beginPath();
   ctx.ellipse(px, py, pr * 1.85, pr * 0.42, -0.34, 0, Math.PI);
   ctx.stroke();
-  // small moon on a slow orbit
   const ma = f * 0.0032;
   const mx = px + Math.cos(ma) * pr * 2.5, my = py + Math.sin(ma) * pr * 0.72;
   ctx.fillStyle = '#9a94b4';
@@ -597,7 +557,6 @@ function drawStars() {
   ctx.beginPath(); ctx.arc(mx + 2.5, my + 1, 6, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
-  // ── Distant spiral galaxy ─────────────────────────────────────────────────
   ctx.save();
   ctx.translate(176, 316);
   ctx.rotate(-0.42);
@@ -620,7 +579,6 @@ function drawStars() {
   ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
 
-  // ── Existing twinkling star field ─────────────────────────────────────────
   for (const s of bgStars) {
     const alpha = 0.3 + Math.abs(Math.sin(f * s.speed + s.phase)) * 0.7;
     ctx.globalAlpha = alpha;
@@ -631,7 +589,6 @@ function drawStars() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Drifting asteroids ────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.09, 0);
   for (const rk of bg.rocks) {
@@ -654,7 +611,6 @@ function drawStars() {
   }
   ctx.restore();
 
-  // ── Occasional shooting star ──────────────────────────────────────────────
   const sh = bg.shoot;
   if (sh.life > 0) {
     sh.life--;
@@ -682,11 +638,7 @@ function drawStars() {
   ctx.restore();
 }
 
-// ── Meadow (the `grass` arena's decoration layer) ─────────────────────────
-// Was three 3-arc puffs and a row of grass blades. The arcs overlapped into a
-// visible notch and the sky was otherwise empty. This makes it a summer
-// meadow: a sun, three parallax depths of cumulus, a hedgerow and treeline on
-// the hills, wildflowers, pollen motes, birds, and the grass tufts kept.
+// Meadow: the grass arena decoration layer. A summer meadow with sun, cloud banks, treeline, hedgerow, flowers and pollen.
 function _meadowBg() {
   if (_meadowBg._c) return _meadowBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -706,16 +658,14 @@ function _meadowBg() {
   });
   _meadowBg._c = {
     bands: [band(6, 130, 190, 0.5, 0.5, 0.04), band(5, 70, 140, 0.8, 0.75, 0.07), band(4, 30, 95, 1.15, 0.95, 0.11)],
-    // Treeline on the far hills. Spans well past the arena so a zoomed-out
-    // camera never sees where it stops, and packed tightly enough (spacing
-    // under the smallest crown's diameter) that no sky shows between crowns.
+    // Treeline spans past the arena so a zoomed-out camera never sees its end.
+    // Crowns are packed tighter than their diameter, so no sky shows between them.
     trees: Array.from({ length: 64 }, (_, i) => ({
       x: -600 + i * 34 + rnd(-8, 8),
       r: rnd(15, 24),
       h: rnd(6, 20),
     })),
-    // Hedgerow: irregular RUNS of overlapping lobes with open ground between
-    // them. One evenly spaced dome per 70px read as a row of turtle shells.
+    // Hedgerow: runs of overlapping lobes, with open ground between them.
     bushes: (() => {
       const out = [];
       let x = -600 + rnd(0, 60);
@@ -730,16 +680,13 @@ function _meadowBg() {
       }
       return out;
     })(),
-    // Wildflowers: fewer and muted. The old set was 34 candy-bright blooms
-    // (hot pink, violet, saturated yellow) which read as a children's level.
-    // A real meadow is overwhelmingly green with sparse, desaturated colour.
+    // Muted wildflowers. Saturated colour reads as a children's level.
     flowers: Array.from({ length: 16 }, () => ({
       x: rnd(-10, 910), y: rnd(452, 476), h: rnd(5, 11),
       col: ['#d8c97e', '#c9a2ac', '#e2e0d4', '#b0a8c0'][Math.floor(Math.random() * 4)],
       phase: rnd(0, 6.28),
     })),
-    // Drifting pollen/seed motes replace the butterflies. Same job — keeping
-    // the world alive with small motion — without the saturated cartoon insect.
+    // Drifting pollen motes, instead of butterflies
     motes: Array.from({ length: 18 }, () => ({
       x: rnd(0, 900), y: rnd(300, 458), rx: rnd(16, 52), ry: rnd(10, 30),
       spd: rnd(0.004, 0.011), phase: rnd(0, 6.28), r: rnd(0.8, 1.9),
@@ -754,13 +701,8 @@ function _meadowBg() {
   return _meadowBg._c;
 }
 
-// Trace a set of lobes as ONE compound path.
-//
-// This is the whole trick behind the clouds and the treeline. Filling lobes
-// individually — at any alpha, with any gradient — always shows each lobe,
-// because every overlap blends twice and every rim is a visible arc. A single
-// compound path fills the UNION once, so the shape reads as one mass and the
-// only edge in it is the outer silhouette.
+// Trace a set of lobes as ONE compound path, so overlaps fill once.
+// Filling lobes one by one shows every overlap and rim as an arc. A single path fills the union once.
 function _lobeUnion(lobes, ox, oy, k) {
   ctx.beginPath();
   for (const lo of lobes) {
@@ -778,7 +720,6 @@ function drawClouds() {
 
   ctx.save();
 
-  // ── Sun ──────────────────────────────────────────────────────────────────
   const sunX = 764, sunY = 74;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -792,33 +733,19 @@ function drawClouds() {
   ctx.fillStyle = 'rgba(255,253,238,0.95)';
   ctx.beginPath(); ctx.arc(sunX, sunY, 22, 0, Math.PI * 2); ctx.fill();
 
-  // ── Treeline and hedgerow on the hills ───────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.06, 0);
-  // A band first, then overlapping crowns on top of it. Free-floating pale
-  // ellipses read as a row of eggs hovering over the hills, not as woodland.
-  // AERIAL PERSPECTIVE. The far treeline used to be DARKER and more saturated
-  // than the hedgerow in front of it, which is backwards: air between the
-  // viewer and a distant object washes it toward the sky, lowering contrast and
-  // chroma. Getting this the right way round is most of why the hills now read
-  // as being a long way off rather than as a green stripe.
-  // Understorey band behind the crowns. Feathered at the top — a flat fillRect
-  // left a hard horizontal rule running the width of the screen. It is also
-  // far wider than the arena and feathered at the BOTTOM: a GAME_W-wide rect
-  // showed its left/right/bottom edges as a box whenever the camera zoomed out.
+  // A band first, then overlapping crowns on top. Free-floating ellipses read as eggs, not woodland.
+  // Aerial perspective: distant trees are paler and less saturated than the hedgerow in front.
   const _bandX = -3000, _bandW = GAME_W + 6000;
   const _ub = ctx.createLinearGradient(0, 394, 0, 470);
   _ub.addColorStop(0,    'rgba(104,134,118,0)');
-  _ub.addColorStop(0.22, 'rgba(104,134,118,0.55)');
-  _ub.addColorStop(0.62, 'rgba(98,128,112,0.62)');
+  _ub.addColorStop(0.22, 'rgba(92,150,112,0.55)');
+  _ub.addColorStop(0.62, 'rgba(84,140,104,0.62)');
   _ub.addColorStop(1,    'rgba(98,128,112,0)');
   ctx.fillStyle = _ub;
   ctx.fillRect(_bandX, 394, _bandW, 76);
-  // The whole treeline as ONE compound path — a distant wood is a single ragged
-  // mass, not thirty individually readable crowns. Drawing each tree separately
-  // is what produced the row of green circles. See _lobeUnion(). A base rect is
-  // part of the same union so the crowns grow out of the wood instead of
-  // hovering over the band as a row of puffs.
+  // Whole treeline as one compound path, so it reads as one ragged mass. See _lobeUnion().
   ctx.beginPath();
   for (const t of bg.trees) {
     const ch = t.r * 0.7 + t.h * 0.25;
@@ -830,16 +757,14 @@ function drawClouds() {
     }
   }
   ctx.rect(bg.trees[0].x, 398, bg.trees[bg.trees.length - 1].x - bg.trees[0].x, 30);
-  // Light from above as a gradient across the whole mass. The old per-tree
-  // highlight ellipses drew a second circle inside every crown.
+  // Light from above as one gradient across the mass
   const _tg = ctx.createLinearGradient(0, 372, 0, 428);
-  _tg.addColorStop(0,   'rgba(120,148,130,0.84)');
-  _tg.addColorStop(0.5, 'rgba(92,122,106,0.84)');
-  _tg.addColorStop(1,   'rgba(92,122,106,0)');
+  _tg.addColorStop(0,   'rgba(104,162,124,0.86)');
+  _tg.addColorStop(0.5, 'rgba(76,138,98,0.86)');
+  _tg.addColorStop(1,   'rgba(76,138,98,0)');
   ctx.fillStyle = _tg;
   ctx.fill();
-  // Haze band sitting ON the treeline, thickest at its base — the standard
-  // landscape-painting cue for distance.
+  // Haze band on the treeline, thickest at its base, for distance
   const _hz = ctx.createLinearGradient(0, 388, 0, 452);
   _hz.addColorStop(0,   'rgba(196,216,228,0)');
   _hz.addColorStop(0.5, 'rgba(196,216,228,0.17)');
@@ -849,11 +774,8 @@ function drawClouds() {
   ctx.restore();
   ctx.save();
   ctx.translate(-camOff * 0.11, 0);
-  // Hedgerow, same language as the treeline — unioned round lobes lit from
-  // above — so the two rows read as one landscape. Nearer, so it keeps more
-  // contrast and chroma. Lobes are full circles sunk below their base line and
-  // the fill fades out at the bottom, so each run sits IN the grass rather than
-  // on a ruled edge.
+  // Hedgerow uses the same lit lobes as the treeline, nearer, so it keeps more contrast.
+  // Lobes sink below their base line and the fill fades at the bottom, so runs sit in the grass.
   ctx.beginPath();
   for (const b of bg.bushes) {
     const cy = 452 + b.dy;
@@ -864,38 +786,33 @@ function drawClouds() {
     ctx.arc(b.x + b.r * 0.55, cy - b.r * 0.35, b.r * k, 0, Math.PI * 2);
   }
   const _hg = ctx.createLinearGradient(0, 424, 0, 470);
-  _hg.addColorStop(0,    'rgba(84,112,74,0.9)');
-  _hg.addColorStop(0.45, 'rgba(62,88,60,0.88)');
-  _hg.addColorStop(0.75, 'rgba(62,88,60,0.55)');
-  _hg.addColorStop(1,    'rgba(62,88,60,0)');
+  _hg.addColorStop(0,    'rgba(78,146,64,0.92)');
+  _hg.addColorStop(0.45, 'rgba(52,116,52,0.9)');
+  _hg.addColorStop(0.75, 'rgba(52,116,52,0.55)');
+  _hg.addColorStop(1,    'rgba(52,116,52,0)');
   ctx.fillStyle = _hg;
   ctx.fill();
   ctx.restore();
 
-  // ── Cumulus banks, far to near ───────────────────────────────────────────
-  // Each lobe is a radial gradient that fades out at its own rim, not a hard
-  // filled circle. Hard-edged white discs stacked together is exactly the
-  // "bubble cloud" look; a real cloud has no outline anywhere on it.
+  // Each lobe is a radial gradient that fades at its rim. Hard-edged discs look like a bubble cloud.
   for (const bd of bg.bands) {
     for (const cl of bd.clouds) {
       const cx2 = (((cl.x + cl.off + f * bd.spd) % 1200) + 1200) % 1200 - 160;
       const bob = Math.sin(f * 0.006 + cl.off) * 2.5;
-      // Far bands sit closer to the sky value — aerial perspective again, so a
-      // distant bank does not punch out brighter than a near one.
+      // Far bands sit closer to the sky value (aerial perspective)
       const depth = bd.alpha;
       const cy2 = cl.y + bob;
       // Shadowed underside, offset down.
       ctx.globalAlpha = depth * 0.45;
       ctx.fillStyle   = '#b3c3d6';
       _lobeUnion(cl.lobes, cx2, cy2 + 6, 0.97); ctx.fill();
-      // Body, in three union passes of decreasing radius. Stacking the union
-      // rather than blurring gives a soft rim with no internal seams at all.
+      // Body: three union passes of decreasing radius, for a soft rim with no seams
       ctx.fillStyle = '#f3f7fc';
       for (const [k, a2] of [[1.00, 0.26], [0.955, 0.40], [0.90, 1.00]]) {
         ctx.globalAlpha = depth * a2;
         _lobeUnion(cl.lobes, cx2, cy2, k); ctx.fill();
       }
-      // Sunlit cap riding the top of the mass.
+      // Sunlit cap on top of the mass
       ctx.globalAlpha = depth * 0.42;
       ctx.fillStyle   = '#fffdf3';
       _lobeUnion(cl.lobes, cx2 + 2, cy2 - 7, 0.62); ctx.fill();
@@ -903,7 +820,6 @@ function drawClouds() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Birds ────────────────────────────────────────────────────────────────
   ctx.strokeStyle = 'rgba(52,66,90,0.55)';
   ctx.lineWidth = 1.8;
   ctx.lineCap = 'round';
@@ -927,7 +843,6 @@ function drawClouds() {
   }
   ctx.lineCap = 'butt';
 
-  // ── Wildflowers ──────────────────────────────────────────────────────────
   for (const fw of bg.flowers) {
     const sway = Math.sin(f * 0.02 + fw.phase) * 2;
     ctx.strokeStyle = 'rgba(62,84,52,0.65)';
@@ -947,9 +862,7 @@ function drawClouds() {
     ctx.globalAlpha = 1;
   }
 
-  // ── Drifting pollen ──────────────────────────────────────────────────────
-  // Backlit motes catching the sun. Same liveliness the butterflies gave, with
-  // none of the saturated storybook read.
+  // Backlit motes catching the sun
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const mo of bg.motes) {
@@ -962,7 +875,6 @@ function drawClouds() {
   }
   ctx.restore();
 
-  // ── Grass tufts along the ground (kept) ──────────────────────────────────
   for (let i = 0; i < 40; i++) {
     const tx   = 8 + i * 23 + Math.sin(i * 73.1) * 6;
     const sway = Math.sin(f * 0.022 + i * 1.1) * 4.5;
@@ -983,10 +895,8 @@ function drawClouds() {
   ctx.restore();
 }
 
-// ── Shared lava-floor helper ──────────────────────────────────────────────
-// Draws the standard animated lava surface at canvas y-position `ly`.
-// glowAlpha: opacity of the shimmer glow rect (default 0.28).
-// glowBlur:  shadow blur radius for the shimmer (default 22).
+// Shared lava-floor helper. Draws the animated lava surface at canvas y `ly`.
+// glowAlpha: shimmer glow opacity (default 0.28). glowBlur: shimmer shadow radius (default 22).
 function _drawLavaFloor(ly, glowAlpha, glowBlur) {
   if (glowAlpha === undefined) glowAlpha = 0.28;
   if (glowBlur  === undefined) glowBlur  = 22;
@@ -1005,7 +915,6 @@ function _drawLavaFloor(ly, glowAlpha, glowBlur) {
   ctx.lineTo(0, GAME_H);
   ctx.closePath();
   ctx.fill();
-  // shimmer glow
   ctx.shadowColor = '#ff4400';
   ctx.shadowBlur  = glowBlur;
   ctx.fillStyle   = `rgba(255,80,0,${glowAlpha})`;
@@ -1013,18 +922,12 @@ function _drawLavaFloor(ly, glowAlpha, glowBlur) {
   ctx.restore();
 }
 
-// ── Lava Fields background ────────────────────────────────────────────────
-// Was a bare call to _drawLavaFloor(), which left the whole middle of the map as
-// flat dark brown. Everything below is BEHIND the platforms (drawBackground runs
-// before drawPlatforms) and is purely decorative — no hitboxes, no state.
-//
-// Random data is generated ONCE and cached, the same way bgStars is, because
-// re-rolling per frame makes the whole field strobe.
+// Lava Fields backdrop. Behind the platforms and purely decorative.
+// Random data is generated once and cached. Re-rolling per frame makes the field strobe.
 function _lavaBg() {
   if (_lavaBg._c) return _lavaBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const c = {
-    // Rising embers — the main "this place is alive" layer
     embers: Array.from({ length: 46 }, () => ({
       x:     rnd(-40, 960),
       y:     rnd(0, 520),
@@ -1035,7 +938,7 @@ function _lavaBg() {
       phase: rnd(0, Math.PI * 2),
       warm:  Math.random() < 0.35,       // a third burn yellow-white, rest deep orange
     })),
-    // Ash flecks falling the other way — the counter-motion is what sells depth
+    // Ash flecks falling the other way. The counter-motion sells depth.
     ash: Array.from({ length: 30 }, () => ({
       x:     rnd(-40, 960),
       y:     rnd(0, 520),
@@ -1045,14 +948,12 @@ function _lavaBg() {
       amp:   rnd(4, 16),
       phase: rnd(0, Math.PI * 2),
     })),
-    // Far volcano cones: [centre x, base y, half-width, height, erupting]
     cones: [
       { x: 118, w:  92, h:  84, smoke: true,  glow: 0.55 },
       { x: 352, w:  64, h:  54, smoke: false, glow: 0.30 },
       { x: 640, w: 112, h: 104, smoke: true,  glow: 0.80 },
       { x: 838, w:  70, h:  62, smoke: false, glow: 0.38 },
     ],
-    // Mid-ground basalt spires, and which of them bleed a lava vein
     spires: Array.from({ length: 15 }, (_, i) => ({
       x:    -30 + i * 68 + rnd(-12, 12),
       w:    rnd(20, 44),
@@ -1060,7 +961,6 @@ function _lavaBg() {
       lean: rnd(-0.16, 0.16),
       vein: Math.random() < 0.45,
     })),
-    // Cracks glowing through the back wall — fills the dead space above the ridge
     fissures: Array.from({ length: 9 }, () => {
       const x = rnd(-20, 940), y = rnd(70, 300);
       const segs = [{ x, y }];
@@ -1069,7 +969,6 @@ function _lavaBg() {
       }
       return { segs, w: rnd(1.1, 2.6), phase: rnd(0, Math.PI * 2) };
     }),
-    // Obsidian teeth hanging from the top of the cavern
     teeth: Array.from({ length: 11 }, (_, i) => ({
       x: -10 + i * 88 + rnd(-18, 18),
       w: rnd(16, 40),
@@ -1081,17 +980,15 @@ function _lavaBg() {
 }
 
 function drawLava() {
-  // Fallback matches the volcano drawer: an arena inheriting the lava look
-  // (explore worlds) carries the palette but not the hazard's lavaY.
+  // Fallback for arenas that inherit the lava look (explore worlds) without a lavaY.
   const ly  = currentArena.lavaY || 442;
   const bg  = _lavaBg();
   const f   = frameCount;
-  // Mild parallax off the camera when there is one; static maps just get 0.
   const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
 
   ctx.save();
 
-  // ── 1. Horizon glow — a sea of lava beyond the ridges lighting the sky ──────
+  // Horizon glow: lava beyond the ridges lights the sky
   const glowTop = ly - 300;
   const hg = ctx.createLinearGradient(0, glowTop, 0, ly);
   hg.addColorStop(0,    'rgba(120,20,0,0)');
@@ -1100,9 +997,7 @@ function drawLava() {
   ctx.fillStyle = hg;
   ctx.fillRect(-200, glowTop, GAME_W + 400, ly - glowTop);
 
-  // ── 1b. Back wall: glowing fissures in the rock the arena is carved out of ──
-  // The dead black band between the platforms and the ridge was the whole reason
-  // this map read as unfinished. These are slow-pulsing cracks, no motion.
+  // Back wall fissures. Without them the dead band between platforms and ridge reads as unfinished.
   ctx.save();
   ctx.translate(-camOff * 0.03, 0);
   for (const fs of bg.fissures) {
@@ -1119,7 +1014,6 @@ function drawLava() {
   }
   ctx.restore();
 
-  // ── 1c. Cavern ceiling with obsidian teeth ─────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.03, 0);
   ctx.fillStyle = '#150502';
@@ -1131,7 +1025,6 @@ function drawLava() {
     ctx.lineTo(t.x + t.w * 0.5, 26);
     ctx.closePath();
     ctx.fill();
-    // hot underlit edge — the lava below is the light source
     ctx.strokeStyle = 'rgba(255,90,20,0.20)';
     ctx.lineWidth   = 1.3;
     ctx.beginPath();
@@ -1141,7 +1034,6 @@ function drawLava() {
   }
   ctx.restore();
 
-  // ── 2. Far volcano cones ────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.05, 0);
   const coneBase = ly - 30;
@@ -1155,7 +1047,6 @@ function drawLava() {
     ctx.lineTo(c.x + c.w, coneBase);
     ctx.closePath();
     ctx.fill();
-    // Crater glow — pulses so the mountains read as active, not scenery
     const pulse = 0.72 + Math.sin(f * 0.03 + c.x) * 0.28;
     ctx.save();
     ctx.shadowColor = '#ff5500';
@@ -1165,7 +1056,6 @@ function drawLava() {
     ctx.ellipse(c.x, peakY + 1, c.w * 0.17, 3.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    // Lava streaks running down the flank from the crater
     if (c.glow > 0.4) {
       ctx.strokeStyle = `rgba(255,90,10,${0.30 * pulse})`;
       ctx.lineWidth = 2;
@@ -1177,7 +1067,6 @@ function drawLava() {
         ctx.stroke();
       }
     }
-    // Smoke plume drifting off the big cones
     if (c.smoke) {
       for (let i = 0; i < 7; i++) {
         const t  = ((f * 0.006) + i * 0.143) % 1;
@@ -1192,10 +1081,7 @@ function drawLava() {
   }
   ctx.restore();
 
-  // ── 2b. Basalt shore shelf ──────────────────────────────────────────────────
-  // drawBackground fills groundColor ('#ff4500') from y460 down, which put a flat
-  // bright slab right where the shoreline should be. Cover it with rock so the
-  // lava sea starts at lavaY and the spires have something to stand on.
+  // Rock covers the flat ground colour so the lava sea starts at lavaY.
   const shelfTop = ly - 42;
   const sg = ctx.createLinearGradient(0, shelfTop, 0, ly + 10);
   sg.addColorStop(0,   '#3a1608');
@@ -1210,7 +1096,6 @@ function drawLava() {
   ctx.lineTo(GAME_W + 200, ly + 12);
   ctx.closePath();
   ctx.fill();
-  // hot rim where the rock meets the lava light
   ctx.strokeStyle = 'rgba(255,110,25,0.30)';
   ctx.lineWidth   = 2;
   ctx.beginPath();
@@ -1220,7 +1105,6 @@ function drawLava() {
   }
   ctx.stroke();
 
-  // ── 3. Mid-ground basalt spires with hot backlit rims ───────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.12, 0);
   const spBase = ly + 4;
@@ -1235,15 +1119,13 @@ function drawLava() {
     ctx.lineTo(sp.x + sp.w * 0.5, spBase);
     ctx.closePath();
     ctx.fill();
-    // Rim light on the lit edge — the single cheapest thing that makes a
-    // silhouette read as a solid object instead of a hole in the screen.
+    // Rim light: makes a silhouette read as a solid object
     ctx.strokeStyle = 'rgba(255,110,25,0.42)';
     ctx.lineWidth   = 1.6;
     ctx.beginPath();
     ctx.moveTo(sp.x + sp.w * 0.5, spBase);
     ctx.lineTo(tipX + sp.w * 0.12, topY);
     ctx.stroke();
-    // A glowing crack down the rock face
     if (sp.vein) {
       const vp = 0.55 + Math.sin(f * 0.045 + sp.x * 0.1) * 0.45;
       ctx.strokeStyle = `rgba(255,70,0,${0.30 + vp * 0.30})`;
@@ -1257,7 +1139,6 @@ function drawLava() {
   }
   ctx.restore();
 
-  // ── 4. Lava falls pouring off the ridge into the sea ────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.12, 0);
   for (const lf of [{ x: 196, top: ly - 40 }, { x: 704, top: ly - 46 }]) {
@@ -1275,7 +1156,6 @@ function drawLava() {
     ctx.lineTo(lf.x - 9 + wob, ly);
     ctx.closePath();
     ctx.fill();
-    // splash bloom where it lands
     ctx.fillStyle = `rgba(255,150,40,${0.20 + Math.abs(Math.sin(f * 0.11 + lf.x)) * 0.18})`;
     ctx.beginPath();
     ctx.ellipse(lf.x + wob, ly, 20, 6, 0, 0, Math.PI * 2);
@@ -1284,10 +1164,8 @@ function drawLava() {
   }
   ctx.restore();
 
-  // ── 5. The lava sea itself (unchanged shared helper) ────────────────────────
   _drawLavaFloor(ly);
 
-  // ── 6. Heat shimmer sitting on the surface ─────────────────────────────────
   ctx.globalAlpha = 0.16;
   ctx.strokeStyle = '#ffbb55';
   ctx.lineWidth   = 2;
@@ -1301,9 +1179,8 @@ function drawLava() {
   }
   ctx.globalAlpha = 1;
 
-  // ── 7. Rising embers ────────────────────────────────────────────────────────
   for (const e of bg.embers) {
-    // loop upward through the full height, so they never pop in mid-screen
+    // Embers loop through the full height so none pop in mid-screen
     const ey = ((e.y - f * e.spd) % 560 + 560) % 560 - 40;
     const ex = e.x + Math.sin(f * e.drift + e.phase) * e.amp;
     const fade = ey < 60 ? Math.max(0, ey / 60) : (ey > ly - 20 ? 1 : 1);
@@ -1313,7 +1190,6 @@ function drawLava() {
     ctx.beginPath();
     ctx.arc(ex, ey, e.r, 0, Math.PI * 2);
     ctx.fill();
-    // faint trailing streak behind the bigger ones
     if (e.r > 1.8) {
       ctx.globalAlpha = 0.22 * flick * fade;
       ctx.fillRect(ex - e.r * 0.35, ey, e.r * 0.7, e.r * 4);
@@ -1321,7 +1197,6 @@ function drawLava() {
   }
   ctx.globalAlpha = 1;
 
-  // ── 8. Falling ash ──────────────────────────────────────────────────────────
   ctx.fillStyle = '#6b5a52';
   for (const a of bg.ash) {
     const ay = ((a.y + f * a.spd) % 560 + 560) % 560 - 20;
@@ -1336,18 +1211,8 @@ function drawLava() {
   ctx.restore();
 }
 
-// ── City skyline ──────────────────────────────────────────────────────────
-// `bgBuildings` (from generateBgElements) is one flat band of towers. This adds
-// what a night skyline needs around it: a moon and its glow, a dim far band of
-// towers behind, rooftop clutter — water tanks, AC units, antennas with warning
-// lamps — on the near band, a couple of aircraft, and haze at street level.
-// ── Static background layer cache ─────────────────────────────────────────
-// Paints a layer that never animates (towers, windows, panels) ONCE into an
-// offscreen canvas and blits it each frame. paint(c) receives the context to
-// draw on (shadow the global `ctx` inside it). Cache key: layer key + arena +
-// a caller `sig` (data identity) + the current canvas scale bucket, so a resize
-// or zoom change re-renders. Set window._noBgCache = true to bypass (A/B, debug).
-// Falls back to painting live when the layer would be oversized.
+// City skyline: moon, far towers, rooftop clutter, aircraft and street haze.
+// Static layer cache. paint(c) draws to c (shadow the global ctx inside it). Cache key is layer + arena + sig + canvas scale bucket.
 const _bgLayerCache = new Map();
 function _bgStaticLayer(key, sig, x, y, w, h, paint) {
   if (window._noBgCache) { paint(ctx); return; }
@@ -1378,7 +1243,7 @@ function _cityBg() {
       h: rnd(120, 300),
       lit: Array.from({ length: 90 }, () => Math.random() < 0.3),
     })),
-    // Rooftop clutter, keyed to a building index so it stays put
+    // Rooftop clutter, keyed to building index so it stays put
     roof: Array.from({ length: 40 }, () => ({
       kind: Math.floor(Math.random() * 3),      // 0 tank, 1 AC unit, 2 antenna
       u:    Math.random(),                      // position across the roof
@@ -1403,7 +1268,6 @@ function drawCityBuildings() {
 
   ctx.save();
 
-  // ── Stars, thinned out toward the light dome ─────────────────────────────
   for (const st of bg.stars) {
     ctx.globalAlpha = (0.15 + Math.abs(Math.sin(f * 0.03 + st.phase)) * 0.45) * (1 - st.y / 300);
     ctx.fillStyle = '#cfe0ff';
@@ -1411,7 +1275,6 @@ function drawCityBuildings() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Moon (static: cached) ────────────────────────────────────────────────
   _bgStaticLayer('city-moon', 0, 20, -70, 320, 310, (ctx) => {
     const mX = 178, mY = 82;
     const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 140);
@@ -1429,7 +1292,6 @@ function drawCityBuildings() {
 
   });
 
-  // ── Aircraft crossing high up ────────────────────────────────────────────
   for (const pl of bg.planes) {
     const span = 1600;
     const raw = ((f * Math.abs(pl.spd) + pl.off) % span + span) % span;
@@ -1440,7 +1302,6 @@ function drawCityBuildings() {
     ctx.fillRect(px - (pl.spd > 0 ? 16 : 0), pl.y - 0.5, 16, 1);
   }
 
-  // ── Far band of towers (static: cached, parallax applied at blit) ────────
   ctx.save();
   ctx.translate(-camOff * 0.04, 0);
   _bgStaticLayer('city-far', bg.far, -60, GAME_H - 320, 1120, 320, (ctx) => {
@@ -1461,10 +1322,7 @@ function drawCityBuildings() {
   });
   ctx.restore();
 
-  // ── Near band (bgBuildings) with rooftop clutter ─────────────────────────
-  // Static pass (cached): towers, windows, clutter. Live pass: antenna lamps and
-  // neon flicker. Draw order between the two only differs where a tower overlaps
-  // a neighbour's parapet line.
+  // Near band: towers and clutter are cached. Antenna lamps and neon flicker are live.
   let _nx0 = Infinity, _nx1 = -Infinity, _nh = 0;
   for (const b of bgBuildings) { _nx0 = Math.min(_nx0, b.x); _nx1 = Math.max(_nx1, b.x + b.w); _nh = Math.max(_nh, b.h); }
   if (_nx1 > _nx0) {
@@ -1477,14 +1335,13 @@ function drawCityBuildings() {
         const top = GAME_H - b.h;
         ctx.fillStyle = `rgb(${shade},${shade},${shade + 12})`;
         ctx.fillRect(b.x, top, b.w, b.h);
-        // Lit face down one edge so the towers aren't flat slabs
+        // Lit face down one edge so the towers are not flat slabs
         ctx.fillStyle = 'rgba(255,255,255,0.035)';
         ctx.fillRect(b.x, top, Math.min(8, b.w * 0.16), b.h);
         for (const w of b.wins) {
           ctx.fillStyle = w.on ? 'rgba(255,245,160,0.65)' : 'rgba(40,40,60,0.5)';
           ctx.fillRect(w.x, w.y, 7, 9);
         }
-        // Rooftop clutter — two items per building, taken off a fixed list
         for (let k = 0; k < 2; k++) {
           const it = bg.roof[(ri * 2 + k) % bg.roof.length];
           const ix = b.x + 8 + it.u * Math.max(4, b.w - 20);
@@ -1530,7 +1387,6 @@ function drawCityBuildings() {
       ctx.shadowBlur = 0;
     }
     ri++;
-    // Neon sign flicker on the taller buildings (kept)
     if (b.h > 120) {
       const neonPhase = Math.sin(f * 0.07 + b.x * 0.03);
       const flicker   = neonPhase > 0.85 ? 0 : (0.5 + neonPhase * 0.5);
@@ -1551,7 +1407,6 @@ function drawCityBuildings() {
     }
   }
 
-  // ── Street-level light haze, so the towers sit in air ────────────────────
   const haze = ctx.createLinearGradient(0, GAME_H - 220, 0, GAME_H);
   haze.addColorStop(0, 'rgba(90,80,150,0)');
   haze.addColorStop(1, 'rgba(120,96,170,0.20)');
@@ -1561,17 +1416,10 @@ function drawCityBuildings() {
   ctx.restore();
 }
 
-// ── Deep Woodland background ──────────────────────────────────────────────
-// The old version was 7 circle-stack "trees" on a flat green wash, which read
-// as clip art next to drawIce(). This builds the same kind of layered depth:
-// three parallaxed trunk bands, a canopy ceiling that actually occludes the
-// sky, god rays through the gaps, undergrowth on the horizon, and weather
-// (falling leaves + fireflies + pollen). Cached like _iceBg — the geometry is
-// static, only the sway/drift phases move.
+// Deep woodland backdrop. Parallaxed trunk bands, canopy, god rays, undergrowth. Cached like _iceBg.
 function _forestBg() {
   if (_forestBg._c) return _forestBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
-  // Three trunk bands: 0 = far/thin/hazy, 2 = near/thick/dark
   const bands = [
     { n: 16, par: 0.05, wMin: 5,  wMax: 10, tint: 'rgba(28,62,34,0.55)', bark: 'rgba(18,44,24,0.45)', spread: 62 },
     { n: 11, par: 0.11, wMin: 11, wMax: 19, tint: 'rgba(34,26,16,0.72)', bark: 'rgba(20,15,9,0.55)',  spread: 92 },
@@ -1584,17 +1432,13 @@ function _forestBg() {
         x:     -70 + i * b.spread + rnd(-b.spread * 0.3, b.spread * 0.3),
         w:     rnd(b.wMin, b.wMax),
         lean:  rnd(-0.06, 0.06),
-        // Root flare width multiplier and how high the buttress climbs
         flare: rnd(1.5, 2.4),
         rootH: rnd(24, 52),
         phase: rnd(0, Math.PI * 2),
-        // Bark striations, as fractions of trunk width
         bark:  Array.from({ length: 3 + (bi > 0 ? 2 : 0) }, () => ({ o: rnd(-0.34, 0.34), y0: rnd(0, 0.5), y1: rnd(0.55, 1) })),
-        // Branch stubs, only on the near bands
         limbs: bi === 0 ? [] : Array.from({ length: bi }, () => ({ y: rnd(0.12, 0.5), dir: Math.random() < 0.5 ? -1 : 1, len: rnd(28, 70), drop: rnd(-14, 6) })),
       })),
     })),
-    // Canopy ceiling: overlapping leaf lobes hanging off the top edge
     canopy: Array.from({ length: 34 }, (_, i) => ({
       x:     -50 + i * 30 + rnd(-14, 14),
       y:     rnd(-34, 44),
@@ -1604,7 +1448,6 @@ function _forestBg() {
       phase: rnd(0, Math.PI * 2),
       spd:   rnd(0.004, 0.011),
     })),
-    // Ferns / bushes along the ground line
     under: Array.from({ length: 22 }, (_, i) => ({
       x:     -40 + i * 46 + rnd(-16, 16),
       w:     rnd(26, 58),
@@ -1612,7 +1455,6 @@ function _forestBg() {
       a:     rnd(0.35, 0.7),
       phase: rnd(0, Math.PI * 2),
     })),
-    // Hanging vines from the canopy
     vines: Array.from({ length: 9 }, () => ({
       x:     rnd(-20, 920),
       len:   rnd(70, 210),
@@ -1621,7 +1463,6 @@ function _forestBg() {
       spd:   rnd(0.008, 0.018),
       leaves: Math.floor(rnd(2, 6)),
     })),
-    // Light shafts angling down from upper-right
     rays: Array.from({ length: 5 }, (_, i) => ({
       x:     120 + i * 175 + rnd(-40, 40),
       w:     rnd(26, 62),
@@ -1675,8 +1516,7 @@ function drawForest() {
 
   ctx.save();
 
-  // ── Light pouring in from above, before anything else, so the sky between
-  //    the trunks glows rather than sitting flat.
+  // Light from above first, so the sky between the trunks glows
   const sky = ctx.createRadialGradient(660, -60, 20, 660, -60, 520);
   sky.addColorStop(0,   'rgba(206,238,150,0.34)');
   sky.addColorStop(0.4, 'rgba(140,196,96,0.13)');
@@ -1684,7 +1524,6 @@ function drawForest() {
   ctx.fillStyle = sky;
   ctx.fillRect(-200, -120, GAME_W + 400, 520);
 
-  // ── Trunk bands, far to near ──────────────────────────────────────────────
   const CANOPY_SHADES = ['rgba(22,54,26,0.95)', 'rgba(30,74,34,0.9)', 'rgba(40,96,42,0.85)'];
   for (let bi = 0; bi < bg.bands.length; bi++) {
     const band = bg.bands[bi];
@@ -1696,7 +1535,6 @@ function drawForest() {
       const halfB = t.w * 0.5 * t.flare;      // base half-width (root flare)
       const halfT = t.w * 0.35;               // half-width at the top of frame
 
-      // Trunk body — tapered, flared at the base
       ctx.fillStyle = band.tint;
       ctx.beginPath();
       ctx.moveTo(t.x - halfB, groundY + 6);
@@ -1706,7 +1544,6 @@ function drawForest() {
       ctx.closePath();
       ctx.fill();
 
-      // Bark striations — vertical shadow lines give the cylinder its round
       ctx.strokeStyle = band.bark;
       ctx.lineWidth   = Math.max(1, t.w * 0.09);
       for (const b of t.bark) {
@@ -1716,7 +1553,6 @@ function drawForest() {
         ctx.stroke();
       }
 
-      // Root buttresses splaying into the ground
       ctx.fillStyle = band.tint;
       for (const s of [-1, 1]) {
         ctx.beginPath();
@@ -1728,7 +1564,6 @@ function drawForest() {
         ctx.fill();
       }
 
-      // Branch stubs reaching toward the canopy
       ctx.strokeStyle = band.tint;
       ctx.lineCap     = 'round';
       for (const lm of t.limbs) {
@@ -1746,7 +1581,6 @@ function drawForest() {
     ctx.restore();
   }
 
-  // ── God rays angling down through the canopy gaps ─────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.08, 0);
   ctx.globalCompositeOperation = 'lighter';
@@ -1767,14 +1601,12 @@ function drawForest() {
   }
   ctx.restore();
 
-  // ── Undergrowth along the horizon ─────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.16, 0);
   for (const u of bg.under) {
     const sw = Math.sin(f * 0.012 + u.phase) * 2.5;
     ctx.globalAlpha = u.a;
     ctx.fillStyle   = '#1d4a22';
-    // Fan of fronds rather than a blob
     for (let k = -2; k <= 2; k++) {
       const ang = k * 0.28;
       ctx.beginPath();
@@ -1790,7 +1622,6 @@ function drawForest() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Canopy ceiling — leaf lobes hanging off the top edge ──────────────────
   ctx.save();
   ctx.translate(-camOff * 0.06, 0);
   for (const cp of bg.canopy) {
@@ -1804,7 +1635,6 @@ function drawForest() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Hanging vines ─────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.09, 0);
   ctx.strokeStyle = 'rgba(38,84,38,0.75)';
@@ -1829,7 +1659,6 @@ function drawForest() {
   ctx.lineCap = 'butt';
   ctx.restore();
 
-  // ── Pollen motes drifting in the light ────────────────────────────────────
   ctx.fillStyle = '#e6f7b8';
   for (const m of bg.motes) {
     const my = ((m.y - f * m.spd) % 560 + 560) % 560 - 20;
@@ -1841,7 +1670,6 @@ function drawForest() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Falling leaves — tumbling, not just translating ───────────────────────
   for (const lf of bg.leaves) {
     const ly = ((lf.y + f * lf.spd) % 660 + 660) % 660 - 130;
     const lx = lf.x + Math.sin(f * lf.drift + lf.phase) * lf.amp;
@@ -1851,14 +1679,12 @@ function drawForest() {
     ctx.globalAlpha = lf.a;
     ctx.fillStyle   = lf.col;
     ctx.beginPath();
-    // Leaf: two arcs meeting at a point, squashed by the tumble
     ctx.ellipse(0, 0, lf.r, lf.r * (0.35 + 0.45 * Math.abs(Math.cos(f * lf.spin))), 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
   ctx.globalAlpha = 1;
 
-  // ── Fireflies — orbiting, with a real glow rather than a flat dot ─────────
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const fl of bg.flies) {
@@ -1877,7 +1703,6 @@ function drawForest() {
   }
   ctx.restore();
 
-  // ── Forest floor darkening — the ground plane should fall into shade ──────
   const flr = ctx.createLinearGradient(0, groundY - 70, 0, groundY + 30);
   flr.addColorStop(0, 'rgba(6,20,8,0)');
   flr.addColorStop(1, 'rgba(6,20,8,0.42)');
@@ -1887,15 +1712,11 @@ function drawForest() {
   ctx.restore();
 }
 
-// ── Frozen Peaks background ───────────────────────────────────────────────
-// The generic ARENA_DEPTH ridges are invisible here because the sky (#cce8f8)
-// and the ground (#b8d8ee) are nearly the same value, so this map needs its own
-// silhouettes with real contrast. Cached like _lavaBg — no per-frame rerolling.
+// Frozen Peaks backdrop. Needs its own silhouettes: the generic ridges vanish against the pale sky.
 function _iceBg() {
   if (_iceBg._c) return _iceBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const c = {
-    // Snow, in three depth bands: far/small/slow through near/large/fast
     flakes: Array.from({ length: 70 }, () => {
       const depth = Math.random();
       return {
@@ -1909,14 +1730,12 @@ function _iceBg() {
         a:     0.22 + depth * 0.55,
       };
     }),
-    // Fir tree line along the horizon
     firs: Array.from({ length: 26 }, (_, i) => ({
       x: -20 + i * 37 + rnd(-9, 9),
       h: rnd(20, 46),
       w: rnd(9, 17),
     })),
-    // High cirrus bands. An aurora was tried here first and is simply invisible
-    // against a #cce8f8 daylit sky; white-on-pale-blue is what actually reads.
+    // High cirrus. An aurora was tried and is invisible on this pale sky. White on pale blue reads.
     cirrus: Array.from({ length: 4 }, (_, i) => ({
       y:     44 + i * 34,
       amp:   9 + i * 5,
@@ -1938,7 +1757,6 @@ function drawIce() {
 
   ctx.save();
 
-  // ── Pale low sun + its glow ────────────────────────────────────────────────
   const sunX = 690, sunY = 96;
   const sunG = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, 130);
   sunG.addColorStop(0,   'rgba(255,252,240,0.85)');
@@ -1949,7 +1767,6 @@ function drawIce() {
   ctx.fillStyle = 'rgba(255,255,250,0.9)';
   ctx.beginPath(); ctx.arc(sunX, sunY, 15, 0, Math.PI * 2); ctx.fill();
 
-  // ── High cirrus drifting across the sky ───────────────────────────────────
   for (const ci of bg.cirrus) {
     const slide = (f * ci.spd) % 1200;
     ctx.save();
@@ -1969,7 +1786,6 @@ function drawIce() {
     ctx.restore();
   }
 
-  // ── Two mountain ranges: far hazy, near sharper, both snow-capped ─────────
   const ranges = [
     { base: horizon - 34, amp: 74, seed: 1.7, fill: 'rgba(150,178,204,0.55)', cap: 'rgba(255,255,255,0.60)', par: 0.04, step: 150 },
     { base: horizon - 10, amp: 52, seed: 4.3, fill: 'rgba(112,146,180,0.72)', cap: 'rgba(255,255,255,0.80)', par: 0.09, step: 110 },
@@ -1989,9 +1805,7 @@ function drawIce() {
     ctx.lineTo(pts[pts.length - 1].x, rg.base + 80);
     ctx.closePath();
     ctx.fill();
-    // Snow caps. These must be derived from the ACTUAL neighbouring ridge points —
-    // a fixed-size wedge hung off the peak detaches from the slope and reads as a
-    // white flag floating in the sky, because the segment step here is 110-150px.
+    // Snow caps are derived from the real neighbouring ridge points. A fixed wedge detaches and floats.
     ctx.fillStyle = rg.cap;
     for (let i = 1; i < pts.length - 1; i++) {
       if (!(pts[i].y < pts[i - 1].y && pts[i].y < pts[i + 1].y)) continue;
@@ -2003,7 +1817,6 @@ function drawIce() {
       ctx.moveTo(lx, lyy);
       ctx.lineTo(pk.x, pk.y);
       ctx.lineTo(rx, ryy);
-      // ragged snow line back across the face
       ctx.lineTo(rx - (rx - pk.x) * 0.35, ryy - 5);
       ctx.lineTo(pk.x + (rx - pk.x) * 0.10, ryy - 1);
       ctx.lineTo(pk.x - (pk.x - lx) * 0.22, lyy - 6);
@@ -2013,7 +1826,6 @@ function drawIce() {
     ctx.restore();
   }
 
-  // ── Fir tree line at the horizon ──────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.13, 0);
   ctx.fillStyle = 'rgba(56,86,92,0.62)';
@@ -2031,7 +1843,6 @@ function drawIce() {
   }
   ctx.restore();
 
-  // ── Wind gusts skimming the snow ──────────────────────────────────────────
   ctx.globalAlpha = 0.18;
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth   = 2;
@@ -2046,7 +1857,6 @@ function drawIce() {
   ctx.globalAlpha = 1;
   ctx.lineWidth   = 1;
 
-  // ── Ice crystals on the ground (kept from the original pass) ──────────────
   ctx.globalAlpha = 0.55;
   ctx.strokeStyle = '#aaddff';
   ctx.lineWidth   = 1.5;
@@ -2068,7 +1878,7 @@ function drawIce() {
   ctx.globalAlpha = 1;
   ctx.lineWidth   = 1;
 
-  // ── Snow — was 12 flakes, which read as a rendering glitch rather than weather
+  // Snow: 12 flakes read as a glitch, so this is a denser field
   ctx.fillStyle = '#ffffff';
   for (const fl of bg.flakes) {
     const fy = ((fl.y + f * fl.spd) % 560 + 560) % 560 - 20;
@@ -2083,22 +1893,14 @@ function drawIce() {
   ctx.restore();
 }
 
-// ── Sunken Ruins background ───────────────────────────────────────────────
-// Was six grey rectangles and five dust dots. This gives the map its subject:
-// a ruined temple facade in parallax behind fluted columns with real cracks,
-// broken tops and ivy, rubble on the slabs, warm light through the collapsed
-// roof, and dark chasms in the two floor gaps (the arena's slabs stop at
-// x260-320 and x580-640, but drawBackground fills the ground flat across the
-// whole width, so the gaps only read as pits if this layer digs them back out).
+// Sunken Ruins backdrop. Pits in the floor gaps are dug here, since drawBackground fills the ground flat.
 function _ruinsBg() {
   if (_ruinsBg._c) return _ruinsBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const c = {
-    // Far temple facade silhouette
     facade: Array.from({ length: 9 }, (_, i) => ({
       x: 20 + i * 108, w: rnd(26, 40), h: rnd(150, 250), broken: Math.random() < 0.45,
     })),
-    // Foreground columns
     cols: [50, 200, 360, 540, 700, 850].map((x, i) => ({
       x,
       h:      i % 3 === 0 ? rnd(170, 235) : rnd(250, 300),
@@ -2111,14 +1913,11 @@ function _ruinsBg() {
       ivy: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({
         y: rnd(0.1, 0.7), side: Math.random() < 0.5 ? -1 : 1, len: rnd(30, 90), phase: rnd(0, 6.28),
       })),
-      // Rubble at the base of broken columns
       chunks: Array.from({ length: 3 }, () => ({ dx: rnd(-34, 34), w: rnd(10, 26), h: rnd(7, 15), rot: rnd(-0.4, 0.4) })),
     })),
-    // Fallen column drums lying on the slabs
     drums: Array.from({ length: 7 }, () => ({
       x: rnd(10, 880), y: 440 - rnd(0, 6), w: rnd(28, 62), h: rnd(13, 20), rot: rnd(-0.12, 0.12),
     })),
-    // Warm shafts through the collapsed roof
     rays: [ { x: 210, w: 46, a: 0.09 }, { x: 470, w: 66, a: 0.12 }, { x: 730, w: 38, a: 0.08 } ],
     motes: Array.from({ length: 26 }, () => ({
       x: rnd(-20, 920), y: rnd(60, 460), r: rnd(0.8, 2.4), spd: rnd(0.04, 0.20),
@@ -2137,11 +1936,7 @@ function drawRuins() {
 
   ctx.save();
 
-  // ── Collapsed vault overhead ──────────────────────────────────────────────
-  // The top third of this map was an empty brown field and the light shafts
-  // below arrived from nowhere. This is a solid ceiling with holes punched
-  // through it — an earlier version drew the ceiling as a dark band with a
-  // ragged BOTTOM edge and bright sky under it, which read as a mountain range.
+  // Solid ceiling with holes punched through it. A dark band with a ragged bottom reads as a mountain range.
   ctx.save();
   ctx.translate(-camOff * 0.04, 0);
 
@@ -2154,17 +1949,14 @@ function drawRuins() {
   ctx.moveTo(-260, -20);
   ctx.lineTo(GAME_W + 260, -20);
   ctx.lineTo(GAME_W + 260, vaultBot);
-  // Ragged, crumbling underside
   for (let x = GAME_W + 240; x >= -260; x -= 40) {
     ctx.lineTo(x, vaultBot + Math.sin(x * 0.031) * 7 + Math.sin(x * 0.077) * 4);
   }
   ctx.closePath();
   ctx.fill();
 
-  // Broken holes, one per light shaft
   for (const ry of bg.rays) {
     const hw = ry.w * 0.6, hh = 21, hy = 48;
-    // Sky beyond
     const hg = ctx.createRadialGradient(ry.x, hy, 2, ry.x, hy, hw * 1.7);
     hg.addColorStop(0,   'rgba(255,246,220,0.92)');
     hg.addColorStop(0.5, 'rgba(252,222,166,0.7)');
@@ -2179,13 +1971,11 @@ function drawRuins() {
     ctx.lineTo(ry.x - hw * 0.5,  hy + hh * 0.8);
     ctx.closePath();
     ctx.fill();
-    // Lit stone rim on the underside of the break
     ctx.strokeStyle = 'rgba(206,170,116,0.6)';
     ctx.lineWidth   = 2;
     ctx.stroke();
   }
 
-  // Broken ribs hanging off the ceiling
   ctx.fillStyle = 'rgba(38,25,15,0.95)';
   for (const rb of [[80, 30], [340, 22], [618, 34], [830, 26]]) {
     ctx.beginPath();
@@ -2197,16 +1987,13 @@ function drawRuins() {
   }
   ctx.restore();
 
-  // ── Far temple facade ─────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.05, 0);
   for (const fc of bg.facade) {
     const top = groundY - fc.h;
     ctx.fillStyle = 'rgba(58,44,32,0.5)';
     if (fc.broken) {
-      // The snapped top has to be part of the SHAFT path. Painting a wedge of
-      // flat background colour over a graded sky left dark arrowheads hanging
-      // in mid-air wherever the two didn't match.
+      // The snapped top must be part of the shaft path. A flat wedge leaves dark arrowheads on the sky.
       ctx.beginPath();
       ctx.moveTo(fc.x, groundY);
       ctx.lineTo(fc.x, top + 4);
@@ -2217,14 +2004,12 @@ function drawRuins() {
       ctx.fill();
     } else {
       ctx.fillRect(fc.x, top, fc.w, fc.h);
-      // Intact columns still carry a length of entablature
       ctx.fillStyle = 'rgba(66,50,36,0.5)';
       ctx.fillRect(fc.x - 12, top - 16, fc.w + 24, 16);
     }
   }
   ctx.restore();
 
-  // ── Light shafts through the collapsed roof ───────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.09, 0);
   ctx.globalCompositeOperation = 'lighter';
@@ -2244,7 +2029,6 @@ function drawRuins() {
   }
   ctx.restore();
 
-  // ── Foreground columns ────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.14, 0);
   for (const cl of bg.cols) {
@@ -2252,7 +2036,7 @@ function drawRuins() {
     const top  = base - cl.h;
     const hw   = cl.w * 0.5;
 
-    // Shaft, graded left-to-right so it reads round instead of flat
+    // Shaft graded left to right so it reads round
     const sg = ctx.createLinearGradient(cl.x - hw, 0, cl.x + hw, 0);
     sg.addColorStop(0,    'rgba(64,52,38,0.85)');
     sg.addColorStop(0.34, 'rgba(112,94,68,0.85)');
@@ -2272,7 +2056,6 @@ function drawRuins() {
       ctx.fillRect(cl.x - hw, top, cl.w, cl.h);
     }
 
-    // Flutes
     ctx.strokeStyle = 'rgba(40,30,20,0.35)';
     ctx.lineWidth   = 1.4;
     for (let k = 1; k <= cl.flutes; k++) {
@@ -2280,7 +2063,6 @@ function drawRuins() {
       ctx.beginPath(); ctx.moveTo(fx, top + 20); ctx.lineTo(fx, base - 14); ctx.stroke();
     }
 
-    // Cracks
     ctx.strokeStyle = 'rgba(28,18,10,0.6)';
     ctx.lineWidth   = 1.2;
     for (const ck of cl.cracks) {
@@ -2293,7 +2075,6 @@ function drawRuins() {
     }
 
     if (cl.broken) {
-      // Rubble scattered at its foot, on the slab
       ctx.fillStyle = 'rgba(96,80,58,0.7)';
       for (const ch of cl.chunks) {
         ctx.save();
@@ -2303,17 +2084,14 @@ function drawRuins() {
         ctx.restore();
       }
     } else {
-      // Capital + abacus
       ctx.fillStyle = 'rgba(120,100,72,0.85)';
       ctx.fillRect(cl.x - hw - 5, top + 6, cl.w + 10, 9);
       ctx.fillRect(cl.x - hw - 9, top - 4, cl.w + 18, 11);
     }
 
-    // Base plinth
     ctx.fillStyle = 'rgba(118,98,70,0.85)';
     ctx.fillRect(cl.x - hw - 7, base - 14, cl.w + 14, 14);
 
-    // Ivy trailing down the shaft
     ctx.strokeStyle = 'rgba(52,92,44,0.55)';
     ctx.lineWidth   = 2;
     for (const iv of cl.ivy) {
@@ -2335,7 +2113,6 @@ function drawRuins() {
   }
   ctx.restore();
 
-  // ── Chasms in the two floor gaps ──────────────────────────────────────────
   for (const gap of [{ x: 260, w: 60 }, { x: 580, w: 60 }]) {
     const pg = ctx.createLinearGradient(0, groundY, 0, groundY + 130);
     pg.addColorStop(0,   'rgba(10,5,2,0.95)');
@@ -2343,13 +2120,12 @@ function drawRuins() {
     pg.addColorStop(1,   'rgba(0,0,0,1)');
     ctx.fillStyle = pg;
     ctx.fillRect(gap.x, groundY, gap.w, GAME_H + 200 - groundY);
-    // Crumbled lip so the edge isn't a ruler-straight cut
+    // Crumbled lip so the edge is not ruler-straight
     ctx.fillStyle = 'rgba(122,100,69,0.9)';
     for (let k = 0; k < 6; k++) {
       const bx = gap.x + (k < 3 ? -5 + k * 5 : gap.w - 10 + (k - 3) * 5);
       ctx.fillRect(bx, groundY + Math.abs(Math.sin(k * 2.1)) * 7, 6, 5);
     }
-    // Mist welling up out of the pit
     ctx.globalAlpha = 0.10 + Math.sin(f * 0.014 + gap.x) * 0.05;
     ctx.fillStyle   = '#9ec0d8';
     ctx.beginPath();
@@ -2358,9 +2134,7 @@ function drawRuins() {
     ctx.globalAlpha = 1;
   }
 
-  // ── Fallen drums resting on the slabs ─────────────────────────────────────
   for (const d of bg.drums) {
-    // Skip anything that would float over a chasm
     if ((d.x > 240 && d.x < 340) || (d.x > 560 && d.x < 660)) continue;
     ctx.save();
     ctx.translate(d.x, d.y - d.h * 0.5);
@@ -2374,7 +2148,6 @@ function drawRuins() {
     ctx.restore();
   }
 
-  // ── Dust hanging in the shafts ────────────────────────────────────────────
   ctx.fillStyle = '#d8b878';
   for (const m of bg.motes) {
     const my = ((m.y - f * m.spd) % 520 + 520) % 520;
@@ -2387,23 +2160,13 @@ function drawRuins() {
   ctx.restore();
 }
 
-// ============================================================
-// TERRAIN HELPERS — platforms drawn as connected ground, not blocks
-// ============================================================
-// Platforms are authored as plain rects. Drawing each rect with its own full
-// outline is what makes them read as "blocks": a crate resting on the floor
-// shows a seam where it meets the ground, and two touching ledges look like
-// two objects instead of one shelf. These helpers work out which parts of each
-// platform edge are actually exposed to open air, so only those get an outline,
-// a rounded corner, or a top surface layer.
+// Terrain helpers: platforms drawn as connected ground, not blocks.
+// Each rect drawn with its own outline reads as a block. These find the edge parts exposed to open air
 
 const _PLAT_EPS = 1.5;   // slop for "these two rects are touching"
 
 function _platRGB(hex) {
-  // rgb()/rgba() must be handled explicitly: parseInt() on one returns NaN and
-  // the fallback below is a neutral grey, so an unparsed colour repaints the
-  // whole platform set grey without any error. Use SMBPal.gradeHex() upstream,
-  // but accept the other form here too rather than fail silently.
+  // rgb()/rgba() must be parsed explicitly. parseInt() gives NaN and the fallback repaints the platform grey, silently.
   const _rgbm = (typeof hex === 'string' && hex[0] === 'r')
     ? hex.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/) : null;
   if (_rgbm) return { r: +_rgbm[1], g: +_rgbm[2], b: +_rgbm[3] };
@@ -2425,13 +2188,13 @@ function _platShade(hex, amt, alpha) {
   return alpha === undefined ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${alpha})`;
 }
 
-// Deterministic 0..1 hash so surface texture never crawls between frames
+// Deterministic 0..1 hash so surface texture does not crawl between frames
 function _platNoise(a, b) {
   const s = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
   return s - Math.floor(s);
 }
 
-// Subtract covered ranges from [lo,hi]; returns the exposed [start,end] spans
+// Subtract covered ranges from [lo,hi]. Returns the exposed [start,end] spans.
 function _platSpans(lo, hi, covers) {
   let spans = [[lo, hi]];
   for (const cv of covers) {
@@ -2447,7 +2210,7 @@ function _platSpans(lo, hi, covers) {
   return spans.filter(sp => sp[1] - sp[0] > 1.5);
 }
 
-// Cached per-arena; rebuilt only when a platform actually moves.
+// Cached per arena, rebuilt only when a platform moves.
 function _platBuildSeams(pls) {
   let key = (currentArena.name || '') + '|' + pls.length + '|';
   for (const p of pls) key += `${p.x | 0},${p.y | 0},${p.w | 0},${p.h | 0},${p.isFloorDisabled ? 1 : 0};`;
@@ -2462,10 +2225,8 @@ function _platBuildSeams(pls) {
     for (const b of live) {
       if (b === a) continue;
       const bx2 = b.x + b.w, by2 = b.y + b.h;
-      // horizontal edges: does b's body straddle this y line?
       if (b.y <= a.y + _PLAT_EPS && by2 >= a.y - _PLAT_EPS) topC.push([b.x, bx2]);
       if (b.y <= ay2 + _PLAT_EPS && by2 >= ay2 - _PLAT_EPS) botC.push([b.x, bx2]);
-      // vertical edges: does b's body straddle this x line?
       if (b.x <= a.x + _PLAT_EPS && bx2 >= a.x - _PLAT_EPS) leftC.push([b.y, by2]);
       if (b.x <= ax2 + _PLAT_EPS && bx2 >= ax2 - _PLAT_EPS) rightC.push([b.y, by2]);
     }
@@ -2474,7 +2235,7 @@ function _platBuildSeams(pls) {
     a._segLeft  = _platSpans(a.y, ay2, leftC);
     a._segRight = _platSpans(a.y, ay2, rightC);
 
-    // A corner only rounds when both of its edges run out to open air there
+    // A corner rounds only when both of its edges are open air
     const startsAt = (segs, v) => segs.some(sp => near(sp[0], v));
     const endsAt   = (segs, v) => segs.some(sp => near(sp[1], v));
     a._rnTL = startsAt(a._segTop, a.x)  && startsAt(a._segLeft,  a.y);
@@ -2490,26 +2251,18 @@ function _platPath(x, y, w, h, rad) {
   else ctx.rect(x, y, w, h);
 }
 
-// Draws one platform as a chunk of terrain: gradient body, exposed-only top
-// surface layer, bevels and outline. Seam data must already be built.
+// Draw one platform as terrain: gradient body, exposed-only top layer, bevels, outline. Seam data must be built first.
 function _platDrawTerrain(pl, baseColor, edgeColor) {
-  // Runtime-built arenas (battle royale, custom maps) may omit platColor/platEdge.
-  // addColorStop/strokeStyle throw on undefined, so fall back to neutral stone.
+  // Runtime-built arenas (battle royale, custom maps) may omit platColor or platEdge.
+  // addColorStop and strokeStyle throw on undefined, so fall back to neutral stone.
   if (typeof baseColor !== 'string') baseColor = '#5a6070';
   if (typeof edgeColor !== 'string') edgeColor = _platShade(baseColor, -0.45);
 
-  // ── GROUNDED GRADE ────────────────────────────────────────────────────────
-  // Authored arena colours are poster-saturated, which is what made the terrain
-  // look cheap next to the shaded figures and weapons. Grading here rather than
-  // rewriting ~80 hex literals in ARENAS also covers Battle Royale and custom
-  // maps, which build their palettes at runtime and have no authored colours to
-  // edit. See SMBPal.grade().
+  // Grade the authored colours. The authored hex is poster-saturated and clashes with the shaded figures.
   const _emissive = SMBPal.isEmissiveEdge(edgeColor, baseColor);
   baseColor = SMBPal.gradeHex(baseColor);
-  // A neon rim is an authored light source (cyberpunk, matrix, void, Circuit),
-  // not a keyline — grade it only lightly or those levels lose their identity.
-  // A dark rim IS a keyline, and a hard black keyline around every platform is
-  // the cartoon tell; pull it toward the body so it reads as a shadowed edge.
+  // A neon rim is an authored light source, so grade it lightly or those arenas lose their identity.
+  // A hard black keyline around every platform is the cartoon tell. Pull dark rims toward the body.
   edgeColor = _emissive ? SMBPal.gradeHex(edgeColor, 0.30)
                         : _platShade(baseColor, -0.34);
   const _edgeW = _emissive ? 2 : 1.2;
@@ -2523,7 +2276,7 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   const rad = [pl._rnTL ? r : 0, pl._rnTR ? r : 0, pl._rnBR ? r : 0, pl._rnBL ? r : 0];
   const capH = Math.max(3, Math.min(7, pl.h * 0.42));
 
-  // Contact shadow (skipped on moving platforms — avoids ghost trails)
+  // Contact shadow, skipped on moving platforms to avoid ghost trails
   if (!pl.ox && !pl.oy) {
     ctx.save();
     ctx.globalAlpha = 0.26;
@@ -2533,7 +2286,7 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
     ctx.restore();
   }
 
-  // Body — light near the surface, dark underside so it reads as depth
+  // Body: light near the surface, dark underside for depth
   const gKey = `${pl.y | 0},${pl.h | 0},${baseColor}`;
   if (!pl._terrGrad || pl._terrGradKey !== gKey) {
     pl._terrGrad = ctx.createLinearGradient(0, pl.y, 0, y2);
@@ -2549,7 +2302,7 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   ctx.save();
   ctx.clip();   // everything below stays inside the body silhouette
 
-  // Speckled mineral texture — deterministic, so it sits still
+  // Speckled mineral texture, deterministic so it sits still
   const grains = Math.max(4, Math.round(pl.w / 22));
   for (let i = 0; i < grains; i++) {
     const nx = _platNoise(pl.x + i * 3.7, pl.y);
@@ -2562,8 +2315,7 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   }
   ctx.globalAlpha = 1;
 
-  // Top surface layer — only where nothing is resting on this platform.
-  // The lower boundary waves slightly so the cap isn't a straight band.
+  // Top layer only where nothing rests on the platform. The lower edge waves so it is not a straight band.
   for (const sp of segTop) {
     ctx.beginPath();
     ctx.moveTo(sp[0], pl.y - 1);
@@ -2575,12 +2327,10 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
     ctx.closePath();
     ctx.fillStyle = _platShade(baseColor, 0.26);
     ctx.fill();
-    // gleam along the very top
     ctx.fillStyle = _platShade(baseColor, 0.62, 0.55);
     ctx.fillRect(sp[0], pl.y, sp[1] - sp[0], 1.6);
   }
 
-  // Bevels on exposed sides / underside
   for (const sp of segLeft) {
     ctx.fillStyle = _platShade(baseColor, 0.34, 0.35);
     ctx.fillRect(pl.x, sp[0], 1.8, sp[1] - sp[0]);
@@ -2595,8 +2345,7 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   }
   ctx.restore();
 
-  // Small nubs breaking the top silhouette — kills the flat-rect read.
-  // Purely decorative: they sit above pl.y and are never collided with.
+  // Small nubs break the flat top. They are decorative and never collide.
   for (const sp of segTop) {
     const span = sp[1] - sp[0];
     const nubs = Math.floor(span / 46);
@@ -2611,8 +2360,7 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
     }
   }
 
-  // Outline — clipped to the exposed edges only. A platform sitting flush on
-  // the floor gets no line where the two meet, so they read as one mass.
+  // Outline clipped to the exposed edges. A platform flush on the floor gets no line at the seam.
   ctx.save();
   ctx.beginPath();
   for (const sp of segTop)   ctx.rect(sp[0], pl.y - 4, sp[1] - sp[0], 8);
@@ -2631,6 +2379,8 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   ctx.lineJoin    = 'round';
   ctx.stroke();
   ctx.restore();
+
+  if (typeof _platDress === 'function') _platDress(pl, baseColor);
 }
 
 function drawPlatforms() {
@@ -2647,7 +2397,7 @@ function drawPlatforms() {
     if (pl.isFloorDisabled || pl.noDraw) continue;
 
     if (isVoid) {
-      // Void arena: solid black with white outline, lit from the top edge only
+      // Void arena: solid black, white outline, lit from the top edge only
       ctx.save();
       ctx.fillStyle = '#000000';
       ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
@@ -2664,13 +2414,11 @@ function drawPlatforms() {
     }
 
     if (isGodArea) {
-      // God Domain: crystalline ivory-gold slabs that glow with divine light.
-      // Not stone. Condensed divine energy made temporarily solid.
+      // God Domain slabs: condensed divine energy, not stone
       const gsPulse = 0.5 + 0.5 * Math.sin(frameCount * 0.038 + pl.x * 0.007);
       const isFloor = !!pl.isFloor;
       ctx.save();
 
-      // Soft drop shadow (divine space still has depth)
       if (!pl.ox && !pl.oy) {
         ctx.globalAlpha = 0.14;
         ctx.fillStyle   = 'rgba(0,0,0,1)';
@@ -2678,7 +2426,6 @@ function drawPlatforms() {
         ctx.globalAlpha = 1;
       }
 
-      // Body fill — ivory to warm gold gradient (cached per platform; invalidated on position change)
       const _pfKey = `${pl.x|0},${pl.y|0},${pl.h|0}`;
       if (!pl._godGradFill || pl._godGradFillKey !== _pfKey) {
         pl._godGradFill = ctx.createLinearGradient(pl.x, pl.y, pl.x, pl.y + pl.h);
@@ -2690,7 +2437,6 @@ function drawPlatforms() {
       ctx.fillStyle = pl._godGradFill;
       ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
 
-      // Top highlight — bright white-gold gleam (cached per platform)
       const _hlKey = `${pl.x|0},${pl.y|0},${pl.w|0}`;
       if (!pl._godGradHL || pl._godGradHLKey !== _hlKey) {
         pl._godGradHL = ctx.createLinearGradient(pl.x, pl.y, pl.x + pl.w, pl.y + 3);
@@ -2702,7 +2448,6 @@ function drawPlatforms() {
       ctx.fillStyle = pl._godGradHL;
       ctx.fillRect(pl.x, pl.y, pl.w, 3);
 
-      // Divine rune marks on surface (subtle horizontal tick marks)
       const runeAlpha = 0.22 + gsPulse * 0.12;
       ctx.strokeStyle = `rgba(180,140,30,${runeAlpha})`;
       ctx.lineWidth   = 0.7;
@@ -2713,14 +2458,13 @@ function drawPlatforms() {
         ctx.beginPath(); ctx.moveTo(rx, pl.y + 3); ctx.lineTo(rx, pl.y + pl.h - 3); ctx.stroke();
       }
 
-      // Gold border with glow — pulsing
       ctx.shadowColor = `rgba(220,170,40,${0.55 + gsPulse * 0.30})`;
       ctx.shadowBlur  = isFloor ? 6 : (10 + gsPulse * 6);
       ctx.strokeStyle = `rgba(${200 + (gsPulse*30)|0},${155 + (gsPulse*20)|0},${30 + (gsPulse*15)|0},0.85)`;
       ctx.lineWidth   = isFloor ? 1.2 : 1.8;
       ctx.strokeRect(pl.x, pl.y, pl.w, pl.h);
 
-      // Moving platforms: extra bright pulsing gold edge (they drift — alive)
+      // Moving platforms get a brighter pulsing edge
       if (pl.ox !== undefined || pl.oy !== undefined) {
         ctx.save();
         ctx.shadowColor = 'rgba(255,205,50,0.9)';
@@ -2731,7 +2475,6 @@ function drawPlatforms() {
         ctx.restore();
       }
 
-      // Floor hazard warning flash
       if (pl.isFloor && bossFloorState === 'warning') {
         const flash = Math.sin(frameCount * 0.35) > 0;
         if (flash) {
@@ -2744,13 +2487,9 @@ function drawPlatforms() {
       continue;
     }
 
-    // Per-platform colour override. Nothing in ARENAS sets `color` on a platform,
-    // so every authored arena is unchanged; Battle Royale uses it to give each
-    // landmark band its own terrain (volcanic rock, cave stone, ice) instead of
-    // painting the whole 12000px world in one arena's palette.
+    // Per-platform colour override. Battle Royale uses it for landmark bands (volcanic rock, cave stone, ice).
     _platDrawTerrain(pl, pl.color || currentArena.platColor, pl.edge || currentArena.platEdge);
 
-    // Boss arena: purple glow on moving platforms
     if (isBoss && (pl.ox !== undefined || pl.oy !== undefined)) {
       ctx.save();
       ctx.strokeStyle = 'rgba(200,0,255,0.7)';
@@ -2761,7 +2500,6 @@ function drawPlatforms() {
       ctx.restore();
     }
 
-    // Floor hazard flash during warning
     if (isBoss && pl.isFloor && bossFloorState === 'warning') {
       const flash = Math.sin(frameCount * 0.35) > 0;
       if (flash) {
@@ -2773,7 +2511,6 @@ function drawPlatforms() {
     }
   }
 
-  // Floor hazard countdown banner
   if (isBoss && bossFloorState === 'warning') {
     const secs = Math.ceil(bossFloorTimer / 60);
     const isLava = bossFloorType === 'lava';
@@ -2788,21 +2525,14 @@ function drawPlatforms() {
   }
 }
 
-// ============================================================
-// STORY MODE VOID FOG
-// ============================================================
+// Story mode void fog
 function drawStoryVoidFog() {
   if (!storyModeActive || !currentArena) return;
-  // Battle Royale builds its own 9000x2800 arena with no `deathY` — it uses
-  // BR_DEATH_Y and its own closing zone instead. Without this the fog maths
-  // below went NaN and createLinearGradient threw, taking the whole game loop
-  // down through the error boundary.
+  // Battle Royale has no deathY (it uses BR_DEATH_Y). Without this guard the fog maths goes NaN and throws.
   if (gameMode === 'battleroyale') return;
-  // Worlds whose below-floor space is a visible hazard (a lava field) opt out: the
-  // fog would paint the melt black.
+  // Worlds with a visible hazard below the floor (lava) opt out, or the fog paints the melt black.
   if (currentArena.noVoidFog) return;
 
-  // Find floor top: prefer isFloor-tagged platform, fall back to lowest platform
   let floorTopY = currentArena.deathY - 60;
   if (currentArena.platforms) {
     const floorPl = currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
@@ -2818,12 +2548,11 @@ function drawStoryVoidFog() {
   const fogStartY = floorTopY;
   const fogEndY   = currentArena.deathY + 80;
   const fogHeight = fogEndY - fogStartY;
-  // A custom arena without deathY makes every one of these NaN. Bail rather
-  // than throw — one bad arena field must not be able to kill the frame.
+  // A custom arena without deathY makes these NaN. Bail rather than throw.
   if (!Number.isFinite(fogStartY) || !Number.isFinite(fogEndY) || !(fogHeight > 0)) return;
 
-  // Cover full world width — no void peeks through on wide maps
-  // mapLeft is a camera clamp, not the world edge (900px defense worlds set 450).
+  // Cover full world width so no void shows on wide maps
+  // mapLeft is a camera clamp, not the world edge.
   const fogX = Math.min(0, currentArena.mapLeft !== undefined ? currentArena.mapLeft : 0) - 200;
   const fogW  = (currentArena.worldWidth ? currentArena.worldWidth + 400 : GAME_W + 400);
 
@@ -2838,7 +2567,6 @@ function drawStoryVoidFog() {
   ctx.fillRect(fogX, fogStartY, fogW, fogHeight);
 }
 
-// ── Ability unlock toast (story mode) ────────────────────────────────────
 function drawAbilityUnlockToast() {
   if (!abilityUnlockToast || abilityUnlockToast.timer <= 0) return;
   abilityUnlockToast.timer--;
@@ -2877,7 +2605,6 @@ function drawAbilityUnlockToast() {
   ctx.restore();
 }
 
-// ── Exploration HUD ───────────────────────────────────────────────────────
 function drawExploreHUD() {
   if (!exploreActive || !players[0]) return;
   const p1 = players[0];
@@ -2912,13 +2639,9 @@ function drawExploreHUD() {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(`FIND: ${exploreGoalName}`, barX, barY + barH + 4);
-  // Clear-the-area counter. The rule has to be visible from the START of the
-  // level — learning about it by bouncing off the exit turns it into a hunt
-  // across the whole world. Edge arrows (drawEdgeIndicators) already point at
-  // offscreen minions, so the count is the only missing half.
+  // Clear-the-area counter. Must be visible from the start, or the rule turns into a hunt.
   if (!exploreGoalFound && typeof exploreFoesRemaining !== 'undefined' && exploreFoesRemaining > 0) {
-    // Appended to the FIND label rather than centred on the same line — the bar
-    // is only 280px and the phase indicator already owns the right end.
+    // Appended to the FIND label. The bar is only 280px.
     const _lw = ctx.measureText(`FIND: ${exploreGoalName}`).width;
     ctx.fillStyle = exploreGoalBlockReason ? '#ff9977' : '#ffcc88';
     ctx.fillText(`  ·  ⚔ ${exploreFoesRemaining}`, barX + _lw, barY + barH + 4);
@@ -2929,7 +2652,6 @@ function drawExploreHUD() {
     ctx.fillText(`PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total}  ${storyPhaseIndicator.label}`, barX + barW, barY + barH + 4);
   }
 
-  // Survival wave indicator (replaces goal arrow; shown when wave defence is active)
   if (storeSurvivalState && (storeSurvivalState.active || storeSurvivalState.state === 'victory')) {
     const ss   = storeSurvivalState;
     const waveY = barY + 36;
@@ -2965,7 +2687,6 @@ function drawExploreHUD() {
     ctx.fillText(dots, barX + barW, waveY + barH + 4);
   }
 
-  // Chase phase countdown bar (shown when storyChaseMaxTimer > 0)
   if (storyChaseMaxTimer > 0) {
     const pct      = Math.max(0, storyChaseTimer / storyChaseMaxTimer);
     const secsLeft = Math.ceil(storyChaseTimer / 60);
@@ -2996,8 +2717,7 @@ function drawExploreHUD() {
     ctx.fillText(`${secsLeft}s`, barX + barW, cbY + barH + 4);
   }
 
-  // Sealed-exit banner: why the mark is not taking. Sits where the distance
-  // arrow would be so the player reads it at the moment they bounce off.
+  // Sealed-exit banner: why the mark is not taking. Sits where the distance arrow would be.
   if (!exploreGoalFound && typeof exploreGoalBlockReason !== 'undefined' && exploreGoalBlockReason) {
     ctx.globalAlpha = 1;
     ctx.font = 'bold 13px Arial';
@@ -3005,8 +2725,7 @@ function drawExploreHUD() {
     ctx.textBaseline = 'middle';
     const _msg = '🔒 ' + exploreGoalBlockReason.toUpperCase();
     const _tw  = ctx.measureText(_msg).width;
-    // Sits just below the objective bar — overlapping it hid the very counter
-    // the player needs to read.
+    // Below the objective bar, so it does not hide the counter
     const _bx  = cw / 2, _by = ch * 0.245;
     ctx.fillStyle = 'rgba(30,8,6,0.78)';
     ctx.beginPath(); ctx.roundRect(_bx - _tw / 2 - 14, _by - 14, _tw + 28, 28, 7); ctx.fill();
@@ -3016,7 +2735,6 @@ function drawExploreHUD() {
     ctx.fillText(_msg, _bx, _by);
   }
 
-  // Distance hint (arrow on right side of screen when goal is ahead)
   if (!exploreGoalFound && p1.x < exploreGoalX - 150) {
     const arrowX = cw * 0.92, arrowY = ch / 2;
     ctx.globalAlpha = 0.6 + 0.3 * Math.sin(frameCount * 0.08);
@@ -3060,11 +2778,10 @@ function drawStoryPhaseHUD() {
   ctx.restore();
 }
 
-// Draw goal object in WORLD space (called from gameLoop before HUD reset)
+// Goal object, drawn in world space (called from gameLoop before HUD reset)
 function drawExploreGoalObject() {
   if (!exploreActive) return;
   if (exploreArenaLock) {
-    // Rises over ~18 frames so the lock reads as slamming shut rather than blinking on
     const slam = Math.min(1, (frameCount - (exploreArenaLock.bornFrame || 0)) / 18);
     const pulseL = Math.sin(frameCount * 0.12) * 0.2 + 0.8;
     const wallH = GAME_H * slam;
@@ -3120,8 +2837,7 @@ function drawExploreGoalObject() {
     }
     ctx.restore();
   }
-  // Rest checkpoints: a standing brazier on the surface. Cold until reached,
-  // then lit — the lit ones are where a game-over Retry brings you back.
+  // Rest checkpoints: cold brazier until reached, then lit. Game-over Retry returns you to a lit one.
   for (const cp of (exploreCheckpoints || [])) {
     if (!cp.rest) continue;
     const bx = cp.x, by = 440;
@@ -3158,9 +2874,8 @@ function drawExploreGoalObject() {
   for (const it of (explorePickups || [])) {
     if (it.collected) continue;
     if (it.type === 'chest') {
-      // Underground chests stay invisible while their chamber is fog-covered
+      // Underground chests stay hidden while their chamber is fog-covered
       if (it.underground && (window._ugRevealCur || 0) < 0.5) continue;
-      // Hidden-loot chest on its perch: tier-colored glow, lock icon while guarded
       const locked = typeof _chestGuardAlive === 'function' && _chestGuardAlive(it);
       const cGlow = it.tier === 'elite' ? '#ffaa22' : '#88ccff';
       const pulseC = Math.sin(frameCount * 0.07 + it.x) * 0.25 + 0.75;
@@ -3197,22 +2912,18 @@ function drawExploreGoalObject() {
   const gx = exploreGoalX + 12;
   const gy = 380;
   const pulse = Math.sin(frameCount * 0.08) * 0.4 + 0.6;
-  // Sealed exit: the beacon reads red while the level still has work left, so
-  // the player can see at a glance that the mark will not take them.
+  // Sealed exit beacon is red while the level still has work left.
   const _sealed = (typeof exploreGoalBlocked !== 'undefined' && exploreGoalBlocked > 0)
                || (typeof exploreGoalBlockReason !== 'undefined' && !!exploreGoalBlockReason);
 
-  // Glow
   ctx.save();
   ctx.shadowColor = _sealed ? '#ff6644' : '#ffffaa';
   ctx.shadowBlur  = 20 + pulse * 15;
   ctx.globalAlpha = pulse;
 
-  // Beacon pillar
   ctx.fillStyle = _sealed ? '#ffbbaa' : '#ffffcc';
   ctx.fillRect(gx - 4, gy - 50, 8, 50);
 
-  // Beacon orb
   ctx.beginPath();
   ctx.arc(gx, gy - 54, 14, 0, Math.PI * 2);
   const og = ctx.createRadialGradient(gx, gy - 54, 0, gx, gy - 54, 14);
@@ -3221,7 +2932,6 @@ function drawExploreGoalObject() {
   ctx.fillStyle = og;
   ctx.fill();
 
-  // Outer ring
   ctx.strokeStyle = _sealed ? `rgba(255,110,80,${0.6 * pulse})` : `rgba(255,240,100,${0.6 * pulse})`;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -3233,29 +2943,23 @@ function drawExploreGoalObject() {
   ctx.restore();
 }
 
-// ============================================================
-// DEATH / RESPAWN / WIN
-// ============================================================
 function checkDeaths() {
   for (const p of players) {
     if (p.isRemote) continue; // remote player deaths are managed on their own machine
-    // Battle Royale: out of lives and spectating. Without this, once the 999
-    // invincibility below ran out the corpse re-entered this branch EVERY frame
-    // (no lives-0 path catches it) and SoundManager.death() fired 60x a second.
+    // Battle Royale: out of lives, spectating. Without this, the corpse re-enters every frame after the invincibility ends and death SFX fires 60x/s.
     if (p._brOut) continue;
     if (p.health <= 0 && p.invincible === 0) {
-      // Notify AdaptiveAI of its death so it can adapt immediately
+      // Notify AdaptiveAI of its death
       if (p.isAdaptive && typeof p.onDeath === 'function') p.onDeath();
 
       // Chaos mode: infinite respawn with kill tracking
-      if (typeof chaosMode !== 'undefined' && chaosMode && !p.isBoss) {
+      // Minigames keep their own lives and win rules. Chaos here only adds events and drops.
+      if (typeof chaosMode !== 'undefined' && chaosMode && !p.isBoss && gameMode !== 'minigames') {
         addKillFeed(p);
         if (typeof chaosModeRecordKill === 'function') chaosModeRecordKill(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        // Authored death: three beats, then the beats hand off to the (now
-        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
-        // skeleton here is what used to draw two overlapping bodies.
+        // Authored death: three beats, then a verlet corpse. A collapsed pose plus a skeleton draws two bodies.
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
@@ -3264,14 +2968,11 @@ function checkDeaths() {
         continue;
       }
 
-      // Damnation minion echo death: mark dead and freeze — updateDamnation() handles wave progression
+      // Damnation minion echo death: frozen, updateDamnation() handles the waves
       if (damnationActive && !p.isBoss && !p.isTrueForm && p.isEcho) {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        // Authored death: three beats, then the beats hand off to the (now
-        // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
-        // skeleton here is what used to draw two overlapping bodies.
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.isDead = true;
@@ -3279,15 +2980,13 @@ function checkDeaths() {
         continue;
       }
 
-      // Fracture branch death: mark dead and freeze — updateFractureBranch()
-      // handles wave progression and cleanup. These must NOT respawn, or the
-      // run's "wave cleared" check never fires and the branch can't complete.
+      // Fracture branch death: frozen. updateFractureBranch() owns the wave and cleanup.
+      // Must not respawn, or the wave-cleared check never fires.
       if (fractureBranchActive && !p.isBoss && (p._isFractureGuardian || p._isBranchRuler)) {
         addKillFeed(p);
         spawnParticles(p.cx(), p.cy(), p.color, 20);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
-        // Branch rulers stay on the field for the wave logic — animate the death
-        // but keep the body, so no verlet corpse handoff here.
+        // Ruler animates its death but keeps the body, so no verlet handoff
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p, { verlet: false });
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.isDead = true;
@@ -3295,7 +2994,7 @@ function checkDeaths() {
         continue;
       }
 
-      // Damnation echo death: drop anchor orb, advance wave — do NOT trigger cinematic death scenes
+      // Damnation echo death: drop anchor orb, advance wave: do not trigger cinematic death scenes
       if (damnationActive && p.isBoss && p.isEcho && p.invincible === 0) {
         spawnParticles(p.cx(), p.cy(), p.color, 30);
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
@@ -3343,7 +3042,7 @@ function checkDeaths() {
       // True Form ending fires at 10% HP threshold (not on actual death)
       if (p.isBoss && p.isTrueForm) {
         // During the intro sequence (opening_fight → paradox_death → absorption → punch_transition)
-        // keep TF alive and do NOT fire the ending — the sequence must complete in strict order.
+        // keep TF alive and do not fire the ending: the sequence must complete in strict order.
         const introActive = (typeof tfCinematicState !== 'undefined')
           && tfCinematicState !== 'none'
           && tfCinematicState !== 'backstage';
@@ -3353,7 +3052,7 @@ function checkDeaths() {
         }
         if (!tfEndingScene && !bossDeathScene && !p._tfEndingPrimed
             && p.health > 0 && p.health <= p.maxHealth * 0.10) {
-          // Round 1 end: intro sequence not yet done — route through Paradox return → Code Realm → Round 2
+          // Round 1 end: intro sequence not yet done: route through Paradox return → Code Realm → Round 2
           if (typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired
               && typeof startTFParadoxReturn1000 === 'function') {
             p.invincible = 9999;
@@ -3367,7 +3066,7 @@ function checkDeaths() {
           }
           continue;
         }
-        // health=0 fallthrough — same routing logic
+        // health=0 fallthrough: same routing logic
         if (!tfEndingScene && !bossDeathScene) {
           if (typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired
               && typeof startTFParadoxReturn1000 === 'function') {
@@ -3385,7 +3084,9 @@ function checkDeaths() {
       if (p.isBoss && !bossDeathScene) { startBossDeathScene(p); continue; }
       if (p.isBoss && bossDeathScene)  { continue; } // handled by death scene
       SoundManager.death();
-      const isMgSurvival = gameMode === 'minigames' && (minigameType === 'survival' || minigameType === 'koth' || minigameType === 'chaos') && !p.isBoss;
+      // KotH is scored on zone time, so deaths there only cost time. Survival and
+      // Chaos Match spend real lives (see minigameOnPlayerOut for survival).
+      const isMgSurvival = gameMode === 'minigames' && minigameType === 'koth' && !p.isBoss;
       if ((trainingMode || isMgSurvival) && !p.isBoss) {
         // Training/survival minigame: player respawns infinitely, no game-over
         addKillFeed(p);
@@ -3393,7 +3094,6 @@ function checkDeaths() {
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
         // Authored death: three beats, then the beats hand off to the (now
         // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
-        // skeleton here is what used to draw two overlapping bodies.
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
@@ -3417,7 +3117,6 @@ function checkDeaths() {
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
         // Authored death: three beats, then the beats hand off to the (now
         // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
-        // skeleton here is what used to draw two overlapping bodies.
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
@@ -3436,7 +3135,7 @@ function checkDeaths() {
         p.invincible = 999; // block re-trigger until respawn clears it
         // Clean up any TrueForm size entry so stale scale data doesn't persist past death
         if (typeof tfSizeTargets !== 'undefined') tfSizeTargets.delete(p);
-        // Story event: enemy just died — fire FIRST_KILL for the killer
+        // Story event: enemy just died: fire FIRST_KILL for the killer
         if (storyModeActive && p.isAI && typeof storyOnEnemyDeath === 'function') {
           const killer = players.find(q => q !== p && !q.isAI);
           storyOnEnemyDeath(p, killer || null);
@@ -3450,7 +3149,6 @@ function checkDeaths() {
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
         // Authored death: three beats, then the beats hand off to the (now
         // angle-constrained) verlet corpse. Spawning a collapsed pose AND a
-        // skeleton here is what used to draw two overlapping bodies.
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         if (p.lives > 0) {
@@ -3469,6 +3167,8 @@ function checkDeaths() {
           const boss = players.find(q => q.isBoss);
           if (typeof ladderOnOut === 'function' && ladderOnOut(p)) {
             p.invincible = 9999; // the Fight Ladder shows its own result card, not endGame
+          } else if (typeof minigameOnPlayerOut === 'function' && minigameOnPlayerOut(p)) {
+            // survival decides for itself: sit out, last standing, or wiped out
           } else if (boss && boss.health < boss.maxHealth * 0.33 && !fakeDeath.triggered && gameMode === 'boss') {
             // Use Paradox revive if available, otherwise fall back to standard fake-death
             if (typeof triggerParadoxRevive === 'function') {
@@ -3485,7 +3185,7 @@ function checkDeaths() {
               setTimeout(endGame, 900);
             }
           } else if (storyModeActive && p.isStoryAlly) {
-            // Story ally out of lives: stays down — fight continues while the player lives
+            // Story ally out of lives: stays down: fight continues while the player lives
             const p1StillAlive = players[0] && players[0].lives > 0;
             if (p1StillAlive) {
               p.invincible = 9999; // stay dead, player fights on alone
@@ -3493,7 +3193,7 @@ function checkDeaths() {
               setTimeout(endGame, 900);
             }
           } else if (storyModeActive && storyTwoEnemies && !p.isAI) {
-            // Story two-enemy mode: player just died — always end (player lost)
+            // Story two-enemy mode: player just died: always end (player lost)
             setTimeout(endGame, 900);
           } else if (storyModeActive && storyTwoEnemies && p.isAI) {
             // Story two-enemy mode: when one bot dies, only end if the player is also dead
@@ -3501,7 +3201,7 @@ function checkDeaths() {
             const p1Alive = players[0] && players[0].lives > 0;
             const otherEnemyAlive = players.some(q => q !== p && q.isAI && q.lives > 0);
             if (p1Alive && otherEnemyAlive) {
-              p.invincible = 9999; // stay dead — fight continues
+              p.invincible = 9999; // stay dead: fight continues
             } else {
               setTimeout(endGame, 900);
             }
@@ -3515,10 +3215,9 @@ function checkDeaths() {
               if (typeof brStoryBearers !== 'undefined' && brStoryBearers) {
                 // Story bearer field: dying IS the chapter failing, so go to the
                 // retry screen promptly. Spectating ninety-odd bearers fight it
-                // out is a casual-mode pleasure and a story-mode punishment.
                 setTimeout(endGame, 900);
               } else {
-                // Enter spectate instead of ending — game continues until 1 survivor
+                // Enter spectate instead of ending: game continues until 1 survivor
                 p._brOut = true;
                 if (typeof _brEnterSpectate === 'function') _brEnterSpectate(p);
               }
@@ -3591,12 +3290,11 @@ function endGame() {
   document.getElementById('hud').style.display = 'none';
   const isBossModeEnd = gameMode === 'boss' || gameMode === 'trueform';
   const alive  = players.filter(p => p.lives > 0 && !(isBossModeEnd && p.isBoss));
-  // Boss death scene removes human players from the array — check health directly to detect victory
+  // Boss death scene removes human players from the array: check health directly to detect victory
   const bossEntity   = players.find(p => p.isBoss);
   const bossDefeated = isBossModeEnd && bossEntity && bossEntity.health <= 0;
-  // In two-enemy story mode, multiple bots may still be alive — the winner is the surviving human
+  // In two-enemy story mode, multiple bots may still be alive: the winner is the surviving human
   // F7 possession flips the human's fighter to isAI=true while the human still owns the slot,
-  // so "human" must mean human-OWNED, not !isAI (otherwise a possessed win scores as a loss).
   const _isHumanOwned = p => !!p && (!p.isAI || (typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === p));
   const _aliveHuman = alive.find(p => _isHumanOwned(p) && !p.isBoss);
   // God fight lives in minions[], so when every human is out, God (not a DRAW) took the match.
@@ -3617,7 +3315,10 @@ function endGame() {
   // Sports Arena: nobody loses a life, so the scoreboard decides
   const _sportsWin = gameMode === 'minigames' && minigameType === 'sports' && typeof sportsWinnerIdx !== 'undefined' && sportsWinnerIdx >= 0
     ? players[sportsWinnerIdx] || null : null;
-  const winner = bossDefeated                              ? null   // human win — handled in bossDefeated block
+  // Survival / Nexus Defense / KotH decide their own outcome (smb-minigames.js)
+  const _mgRes = gameMode === 'minigames' && typeof minigameResult !== 'undefined' ? minigameResult : null;
+  const winner = bossDefeated                              ? null   // human win: handled in bossDefeated block
+               : _mgRes                                    ? _mgRes.winner
                : _kothWin                                  ? _kothWin
                : _sportsWin                                ? _sportsWin
                : ((storyTwoEnemies || _allyInMatch) && _aliveHuman) ? _aliveHuman
@@ -3632,11 +3333,10 @@ function endGame() {
   const _anyCustomWeapon = players.some(p => !p.isBoss && p.weapon && p.weapon._isCustom);
   // For 2P boss co-op win, treat any survivor as the "winner" for achievements
   // alive may be empty after boss death scene (startBossDeathScene strips human players)
-  // so use a sentinel achiever object for boss-defeat achievements if no human ref available
   const _bossDefeatedAchiever = bossDefeated ? (alive[0] || { isBoss: false, health: 1, maxHealth: 1, weaponKey: null, kills: 0 }) : null;
   const achievWinner = _anyCustomWeapon ? null : (winner || _bossDefeatedAchiever);
 
-  // ── Coin rewards ──────────────────────────────────────────────────────────
+  // Coin rewards
   let _adOfferCoins = 0;
   if (typeof awardCoins === 'function') {
     const _humanPlayers = players.filter(p => !p.isAI && !p.isBoss);
@@ -3686,7 +3386,6 @@ function endGame() {
     if (achievWinner.weaponKey === 'hammer') unlockAchievement('hammer_time');
     // Boss slayer / True Form unlock in their death scenes (smb-drawing-scenes.js,
     // smb-trueform-ending-update.js); the TF isn't at 0 HP by the time endGame runs
-    // SOVEREIGN beaten — unlock the SOVEREIGN mode card
     if (gameMode === 'adaptive' && !sovereignBeaten) {
       if (typeof setAccountFlagWithRuntime === 'function') {
         setAccountFlagWithRuntime(['unlocks', 'sovereignBeaten'], true, function(v) { sovereignBeaten = v; });
@@ -3708,7 +3407,7 @@ function endGame() {
     if (onlineMode) unlockAchievement('online_winner');
     // Win count milestones
     if (_achStats.totalWins >= 50) unlockAchievement('legend');
-    // Class variety — track unique winning classes per session
+    // Class variety: track unique winning classes per session
     if (!_achStats.classWins) _achStats.classWins = new Set();
     const _wClass = achievWinner.charClass;
     if (_wClass && _wClass !== 'none') {
@@ -3731,6 +3430,9 @@ function endGame() {
       wt.textContent = (humanWinner ? humanWinner.name : 'PLAYER') + ' WINS!';
       wt.style.color  = humanWinner ? humanWinner.color : '#ffffff';
     }
+  } else if (_mgRes) {
+    wt.textContent = _mgRes.text;
+    wt.style.color = _mgRes.color;
   } else if (winner) {
     wt.textContent = winner.name + ' WINS!';
     wt.style.color = winner.color;
@@ -3742,6 +3444,7 @@ function endGame() {
   const _matchDur  = _matchSecs >= 60 ? `${Math.floor(_matchSecs / 60)}m ${_matchSecs % 60}s` : `${_matchSecs}s`;
   const _showablePlayers = players.filter(p => !p.isMinion);
   let statsHtml = '<div style="font-size:11px;color:#778899;letter-spacing:1px;margin-bottom:8px">MATCH SUMMARY  &bull;  ' + _matchDur + '</div>';
+  if (_mgRes && _mgRes.sub) statsHtml += '<div style="font-size:13px;color:#ccd;margin-bottom:8px">' + _mgRes.sub + '</div>';
   statsHtml += _showablePlayers.map(p => {
     const _dmg = Math.round(p.totalDamageDealt || 0);
     const _kos  = p.kills || 0;
@@ -3807,9 +3510,7 @@ function endGame() {
   if (_isRematchable) _startRematchCountdown();
 }
 
-// ============================================================
 // SECRET LETTER HUNT SYSTEM
-// ============================================================
 function syncCodeInput() {
   const inp  = document.getElementById('codeInput');
   const hint = document.getElementById('trueFormHint');
@@ -3916,8 +3617,6 @@ function replayTFEnding() {
 
   // Called from two places. On the game-over screen the TrueForm is still in
   // players[], so the ending restarts in place. From the Replays browser there
-  // is no fight at all — that path used to find no boss and silently do nothing,
-  // which read as a dead button.
   const live = (typeof players !== 'undefined' && players)
     ? players.find(p => p.isTrueForm) : null;
   if (live) { _tfEndingRestartInPlace(live); return; }
@@ -3937,7 +3636,7 @@ function replayTFEnding() {
   }, 1200);
 }
 
-// ── Rematch countdown ────────────────────────────────────────────────────────
+// Rematch countdown
 let _rematchInterval = null;
 
 function _cancelRematchCountdown() {
@@ -3995,6 +3694,8 @@ function backToMenu() {
   gameRunning  = false;
   paused       = false;
   exploreActive = false;
+  if (typeof _godWasAlive !== 'undefined') _godWasAlive = false;
+  window._absoluteAxiomWasAlive = false;
   trainingMode      = false;
   trainingChaosMode = false;
   trainingPlayerOnly = true;
@@ -4018,7 +3719,6 @@ function backToMenu() {
   if (chatElBTM) chatElBTM.style.display = 'none';
   // Online: the chat widget only belongs to a live match. If the room is already
   // gone (peer dropped, host closed, kicked) tear the rest of the session down
-  // here — otherwise onlineMode stays true and poisons the next offline match.
   if (typeof NetworkManager !== 'undefined') {
     if (typeof onlineMode !== 'undefined' && onlineMode && !NetworkManager.connected) {
       NetworkManager.disconnect();
@@ -4083,13 +3783,8 @@ function resumeGame() {
   if (typeof cgSdk !== 'undefined') cgSdk.gameplayStart();
 }
 
-// ============================================================
 // HUD
-// ============================================================
 // updateHUD runs every frame. Rewriting innerHTML/textContent/style with an
-// unchanged value still rebuilds nodes and dirties style+layout, and the canvas
-// HUD then reads #hud's rect, forcing that layout synchronously each frame.
-// Write only when the value actually changed.
 function _hudSet(el, prop, val) {
   const k = '_hudLast_' + prop;
   if (el[k] === val) return;
@@ -4123,9 +3818,6 @@ function updateHUD() {
 
   // Hide the p2 HUD panel whenever there is no second entity to display.
   // Story mode also hides it: those levels are one continuous map with several
-  // enemies, so a fixed second panel describes the wrong one — the on-canvas
-  // opponent banner (drawStoryOpponentHUD) tracks the live enemy instead.
-  // Boss fights keep it: the boss is the one enemy that matters.
   const _storyHidesP2 = (typeof storyModeActive !== 'undefined' && storyModeActive) && !boss;
   // visibility (not display) keeps the flex slot, so the centre Menu button
   // stays centred on screen instead of sliding to the right edge.
@@ -4146,8 +3838,6 @@ function updateHUD() {
       _hudSet(hEl, 'width', pct + '%');
       // Hue still runs red -> green with health, but at 100% saturation this
       // inline style was overriding the stylesheet and painting a pure lime
-      // slab — the single loudest cartoon note on the screen. Same hue ramp,
-      // material chroma, and a lit top edge so it reads as an instrument.
       const _hHue = pct * 1.2;
       _hudSet(hEl, 'background',
         `linear-gradient(180deg, hsl(${_hHue},38%,62%) 0%, hsl(${_hHue},36%,52%) 45%, hsl(${_hHue},40%,34%) 100%)`);
@@ -4160,14 +3850,13 @@ function updateHUD() {
         const phase = p.getPhase ? p.getPhase() : 1;
         _hudSet(lEl, 'html', `<span style="font-size:10px;letter-spacing:1px;color:#cc00ee">PHASE ${phase}</span>`);
       } else if (infiniteMode || p.isDummy || p.lives >= 50 ||
-                 (gameMode === 'minigames' && (minigameType === 'survival' || minigameType === 'koth' || minigameType === 'chaos'))) {
+                 (gameMode === 'minigames' && minigameType === 'koth')) {
         _hudSet(lEl, 'html', '∞');
       } else {
         const capped    = Math.min(p.lives, 10);
         const cappedMax = Math.min(p._maxLives !== undefined ? p._maxLives : chosenLives, 10);
         // Drawn pips rather than '\u2665' text. The heart glyph rendered in
         // whatever the system font felt like, which is both inconsistent across
-        // machines and the most storybook mark in the HUD.
         const full  = '<i class="life-pip"></i>'.repeat(Math.max(0, capped));
         const empty = '<i class="life-pip spent"></i>'.repeat(Math.max(0, cappedMax - capped));
         _hudSet(lEl, 'html', full + empty);
@@ -4220,7 +3909,6 @@ function updateHUD() {
       _hudSet(shEl, 'width', shPct + '%');
       // Recharging stays a dim blue; ready brightens to near-white. Both were a
       // full step hotter than everything else in the HUD, so "shield is up"
-      // read as the most urgent thing on screen even at rest.
       _hudSet(shEl, 'background', p.shieldCooldown > 0
         ? 'linear-gradient(90deg, #3a5f8c, #5f87ad)'
         : 'linear-gradient(90deg, #6fa8bf, #cfe2ea)');
@@ -4306,15 +3994,12 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     const ammoY = sy + 12;
     const bx = sx - barW / 2, by = sy - barH / 2;
 
-    // ── DELAYED-DAMAGE GHOST ────────────────────────────────────────────────
+    // DELAYED-DAMAGE GHOST
     // The classic fighting-game trailing bar: the real value snaps, a pale
-    // ghost drains down to meet it over the next half second. It is the single
-    // cheapest way to make a hit read as a hit — you SEE how much that cost
-    // instead of comparing two bar lengths across a frame.
     if (ent._hpGhost === undefined || pct > ent._hpGhost) ent._hpGhost = pct;  // heal / respawn snaps up
     else if (pct < ent._hpGhost) ent._hpGhost = Math.max(pct, ent._hpGhost - 0.012);
 
-    // Name — a soft drop shadow rather than a 3px black keyline around every
+    // Name: a soft drop shadow rather than a 3px black keyline around every
     // glyph, which was the chunkiest thing on screen.
     ctx.font = '600 10px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
     ctx.shadowColor = 'rgba(0,0,0,0.9)';
@@ -4332,7 +4017,7 @@ function drawEntityOverlays(scX, scY, camX, camY) {
       else ctx.rect(x, y, w, h);
     };
 
-    // Trough — a recess, not a black box.
+    // Trough: a recess, not a black box.
     ctx.shadowColor = 'rgba(0,0,0,0.75)';
     ctx.shadowBlur  = 4;
     ctx.shadowOffsetY = 1;
@@ -4345,7 +4030,7 @@ function drawEntityOverlays(scX, scY, camX, camY) {
       ctx.fillStyle = 'rgba(232,214,196,0.55)';
       _round(bx, by, barW * ent._hpGhost, barH, barH / 2); ctx.fill();
     }
-    // Desaturated states — a pure lime bar is the loudest cartoon note in the
+    // Desaturated states: a pure lime bar is the loudest cartoon note in the
     // frame, and it competes with the fighters for attention.
     const hpTop = pct > 0.55 ? '#7ec27a' : pct > 0.28 ? '#d7b35c' : '#d8705e';
     const hpBot = pct > 0.55 ? '#4a8a52' : pct > 0.28 ? '#a07a32' : '#933f36';
@@ -4354,7 +4039,7 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     hg.addColorStop(1, hpBot);
     ctx.fillStyle = hg;
     _round(bx, by, Math.max(0, barW * pct), barH, barH / 2); ctx.fill();
-    // Thin gleam along the top of the fill — reads as a lit surface.
+    // Thin gleam along the top of the fill: reads as a lit surface.
     if (pct > 0.02) {
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       _round(bx + 1, by + 0.8, Math.max(0, barW * pct - 2), 1.4, 0.7); ctx.fill();
@@ -4386,9 +4071,7 @@ function drawEntityOverlays(scX, scY, camX, camY) {
   ctx.restore();
 }
 
-// ============================================================
 // FRACTURE HOMESCREEN OVERLAY
-// ============================================================
 
 // Jagged crack waypoints relative to fracture center (game-space coords, 900×520 canvas)
 const _FRAC_CRACKS = [
@@ -4407,7 +4090,7 @@ let _fracPtcl = []; // ambient particle pool
 function _drawFractureOverlay(ctx, W, H, t) {
   const cx = W / 2, cy = H * 0.34;
 
-  // Vignette (replaces the flat dark overlay — arenas bleed through at center)
+  // Vignette (replaces the flat dark overlay: arenas bleed through at center)
   const vg = ctx.createRadialGradient(cx, cy, W * 0.04, cx, cy, W * 0.72);
   vg.addColorStop(0,   'rgba(10,4,22,0.42)');
   vg.addColorStop(0.45,'rgba(6,2,14,0.62)');
@@ -4495,7 +4178,7 @@ function _drawFractureOverlay(ctx, W, H, t) {
   }
   ctx.restore();
 
-  // Hero is drawn on homeCanvas (z-index 9) instead — see _initHomeCanvas in smb-menu-ui.js
+  // Hero is drawn on homeCanvas (z-index 9) instead: see _initHomeCanvas in smb-menu-ui.js
 }
 
 function _drawFractureHero(ctx, cx, baseY, t) {
@@ -4535,7 +4218,7 @@ function _drawFractureHero(ctx, cx, baseY, t) {
   const glow = 'rgba(180,120,255,0.42)';
   const core = 'rgba(230,210,255,0.90)';
 
-  // Head — glow ring then dark fill
+  // Head: glow ring then dark fill
   ctx.beginPath(); ctx.arc(cx, headY, headR+4, 0, Math.PI*2);
   ctx.fillStyle = 'rgba(160,90,255,0.18)'; ctx.fill();
   ctx.beginPath(); ctx.arc(cx, headY, headR, 0, Math.PI*2);
@@ -4554,7 +4237,7 @@ function _drawFractureHero(ctx, cx, baseY, t) {
   glowLine(cx, hipY, cx-13, baseY, glow, core, 5, 2);
   glowLine(cx, hipY, cx+13, baseY-1, glow, core, 5, 2);
 
-  // Sword — bright red glow then core
+  // Sword: bright red glow then core
   const hx = cx+17, hy = shouldY+20-aSwing;
   glowLine(hx, hy, hx+36, hy-40, 'rgba(255,80,80,0.35)', 'rgba(220,70,70,0.95)', 7, 2);
 
@@ -4571,9 +4254,7 @@ function _drawFractureHero(ctx, cx, baseY, t) {
   ctx.restore();
 }
 
-// ============================================================
 // STATIC FRACTURE SCENE  (replaces arena cycling on homescreen)
-// ============================================================
 function _drawFractureScene(ctx, W, H, t) {
   // Deep void gradient base
   const bg = ctx.createLinearGradient(0, 0, 0, H);
@@ -4585,10 +4266,10 @@ function _drawFractureScene(ctx, W, H, t) {
 
   // Realm color zones in corners (lava, architects, void, true-form)
   const zones = [
-    { zx:0, zy:0, r:200, g:45,  b:8   },  // lava — top-left
-    { zx:W, zy:0, r:40,  g:85,  b:220 },  // architects — top-right
-    { zx:0, zy:H, r:15,  g:25,  b:160 },  // void — bottom-left
-    { zx:W, zy:H, r:150, g:15,  b:25  },  // true form — bottom-right
+    { zx:0, zy:0, r:200, g:45,  b:8   },  // lava: top-left
+    { zx:W, zy:0, r:40,  g:85,  b:220 },  // architects: top-right
+    { zx:0, zy:H, r:15,  g:25,  b:160 },  // void: bottom-left
+    { zx:W, zy:H, r:150, g:15,  b:25  },  // true form: bottom-right
   ];
   for (const { zx, zy, r, g, b } of zones) {
     const rg = ctx.createRadialGradient(zx, zy, 0, zx, zy, W * 0.50);
@@ -4598,7 +4279,7 @@ function _drawFractureScene(ctx, W, H, t) {
     ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   }
 
-  // Floating reality shards (deterministic — no state array needed)
+  // Floating reality shards (deterministic: no state array needed)
   ctx.save();
   for (let i = 0; i < 22; i++) {
     const s1 = ((i * 137.508) % 1 + 1) % 1;
@@ -4625,9 +4306,7 @@ function _drawFractureScene(ctx, W, H, t) {
   ctx.restore();
 }
 
-// ============================================================
 // MENU BACKGROUND LOOP  (static fracture scene behind the menu)
-// ============================================================
 function menuBgLoop() {
   if (!menuLoopRunning) return;
 
@@ -4649,9 +4328,7 @@ function menuBgLoop() {
   requestAnimationFrame(menuBgLoop);
 }
 
-// ============================================================
 // PLAYER CONFIG PREVIEW  (animated stickman in side panels)
-// ============================================================
 const _previewParticles = { p1: [], p2: [] };
 
 const _CLASS_AURA_COLORS = {
@@ -4692,8 +4369,6 @@ function _drawPlayerPreview(pid, frame) {
 
   // The canvas is laid out by CSS (100% wide, fixed height) but the figure
   // below is drawn in absolute pixels against a 110px-tall design space. Match
-  // the backing store to the real box and scale into that design space, or the
-  // stickman stretches horizontally and squashes vertically with the panel.
   const dpr = window.devicePixelRatio || 1;
   const cw  = cvs.clientWidth  || 120;
   const ch  = cvs.clientHeight || 110;
@@ -4793,7 +4468,7 @@ function _drawPlayerPreview(pid, frame) {
   const armLen   = 20;
   const legLen   = 23;
 
-  // Idle arm sway — weapons with a carry stance hold it, same as the in-match idle
+  // Idle arm sway: weapons with a carry stance hold it, same as the in-match idle
   const armSw = Math.sin(t * 0.045) * 0.04;
   const _carry = (typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[weaponVal]) ? WEAPON_SWINGS[weaponVal].carry : null;
   const rAng  = (_carry ? _carry.arm : Math.PI * 0.58) + armSw;
@@ -4854,9 +4529,7 @@ function _drawPlayerPreview(pid, frame) {
   pc.restore();
 }
 
-// ============================================================
 // BOSS DIALOGUE  (speech bubble above boss)
-// ============================================================
 function showBossDialogue(text, dur = 220) {
   bossDialogue.text  = text;
   bossDialogue.timer = dur;
@@ -4943,13 +4616,13 @@ function drawBossDialogue(scX, scY, camX, camY) {
   ctx.restore();
 }
 
-// ── Eternal Damnation visual effects ─────────────────────────────────────────
+// Eternal Damnation visual effects
 
 function drawDamnationEffects() {
   if (!damnationActive) return;
   ctx.save();
 
-  // Heartbeat fog overlay — pulses red at the edges
+  // Heartbeat fog overlay: pulses red at the edges
   const pulse = 0.08 + 0.06 * Math.sin(damnationPulse * Math.PI / 60);
   const grad = ctx.createRadialGradient(GAME_W / 2, GAME_H / 2, GAME_H * 0.3, GAME_W / 2, GAME_H / 2, GAME_H * 0.9);
   grad.addColorStop(0, 'rgba(0,0,0,0)');
@@ -5034,9 +4707,8 @@ function drawGodDomainArena() {
   const slowP = Math.sin(t * 0.007);
   const midP  = Math.sin(t * 0.016);
 
-  // ── 1. Base background: divine gold-white from above, deep void below ─────
+  // 1. Base background: divine gold-white from above, deep void below
   // The sky gradient goes top=blinding gold-white, bottom=cosmic black.
-  // This is the OPPOSITE of creator/void — the light source is GOD ABOVE YOU.
   const bgGr = ctx.createLinearGradient(0, 0, 0, GH);
   bgGr.addColorStop(0,   `rgba(${(255*(1-chaos*0.65))|0},${(238*(1-chaos*0.8))|0},${(130*(1-chaos*0.92))|0},0.32)`);
   bgGr.addColorStop(0.38, `rgba(${(180*(1-chaos*0.7))|0},${(140*(1-chaos*0.85))|0},${(40*(1-chaos))|0},0.12)`);
@@ -5054,9 +4726,8 @@ function drawGodDomainArena() {
   }
   ctx.restore();
 
-  // ── 2. Overwhelming divine radiance shaft from above ──────────────────────
-  // A blinding column of light descending from God — like looking up at a sun
-  // you were NEVER meant to see. Radiates from top-center and widens downward.
+  // 2. Overwhelming divine radiance shaft from above
+  // A blinding column of light descending from God: like looking up at a sun
   ctx.save();
   const shaftW = (180 + Math.abs(slowP) * 60) * (1 - chaos * 0.55);
   const shaftA = (0.18 + Math.abs(slowP) * 0.10) * (1 - chaos * 0.6);
@@ -5066,7 +4737,7 @@ function drawGodDomainArena() {
     sGr.addColorStop(0.38, `rgba(255,240,160,${shaftA})`);
     sGr.addColorStop(1,   'rgba(255,220,80,0)');
     ctx.fillStyle = sGr; ctx.fillRect(0, 0, GW, GH);
-    // Narrow core beam — the eye of the radiance
+    // Narrow core beam: the eye of the radiance
     const cGr = ctx.createLinearGradient(0, 0, 0, GH * 0.72);
     cGr.addColorStop(0,   `rgba(255,255,245,${0.40 + Math.abs(slowP)*0.18})`);
     cGr.addColorStop(0.42, `rgba(255,248,190,0.07)`);
@@ -5077,10 +4748,8 @@ function drawGodDomainArena() {
   }
   ctx.restore();
 
-  // ── 3. Scale columns — impossibly tall divine architecture ────────────────
+  // 3. Scale columns: impossibly tall divine architecture
   // Five enormous pillar-beams extending from floor to above the visible screen.
-  // The player can never see their tops or bases clearly. This establishes that
-  // this place was built for something far larger than a stickman.
   ctx.save();
   const PILLAR_N = 5;
   for (let pi = 0; pi < PILLAR_N; pi++) {
@@ -5105,11 +4774,8 @@ function drawGodDomainArena() {
   }
   ctx.restore();
 
-  // ── 4 & 5. Ophanim Wheels (Ezekiel 1:16) — wheel within a wheel ──────────
+  // 4 & 5. Ophanim Wheels (Ezekiel 1:16): wheel within a wheel
   // These are so enormous the player can only see a fraction of each one.
-  // 24 eyes along their rims watch everything. Rotating at different speeds.
-  // Left wheel: center ~(-95, 200), radius 345 → right arc visible from x=0..250
-  // Right wheel: center ~(GW+80, 230), radius 290 → left arc visible from x=650..GW
   const _drawOphanWheel = (wcx, wcy, r, rot, alpha) => {
     const SPOKES = 12;
     ctx.save();
@@ -5167,14 +4833,14 @@ function drawGodDomainArena() {
       ctx.shadowBlur  = 16;
       ctx.fillStyle   = `rgba(${rgb},${eyeA})`;
       ctx.beginPath(); ctx.arc(ex, ey, eyeR, 0, Math.PI*2); ctx.fill();
-      // Pupil — a void of absolute black
+      // Pupil: a void of absolute black
       ctx.fillStyle = 'rgba(0,0,0,0.92)';
       ctx.shadowBlur = 0;
       ctx.beginPath(); ctx.arc(ex, ey, eyeR * 0.38, 0, Math.PI*2); ctx.fill();
       ctx.restore();
     }
 
-    // Center hub — a blinding singularity
+    // Center hub: a blinding singularity
     ctx.shadowColor = sc;
     ctx.shadowBlur  = 28;
     const hubGr = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 0.09);
@@ -5203,9 +4869,8 @@ function drawGodDomainArena() {
     0.52 + Math.abs(slowP) * 0.10
   );
 
-  // ── 6. Sacred geometry lattice — the structure of this realm ─────────────
+  // 6. Sacred geometry lattice: the structure of this realm
   // A vast hexagonal tiling, barely visible, rotates so slowly it seems still.
-  // Makes the space feel DESIGNED — not organic, not chaotic — divine architecture.
   ctx.save();
   ctx.globalAlpha = (0.038 + Math.abs(slowP) * 0.018) * (1 - chaos * 0.7);
   ctx.save();
@@ -5232,9 +4897,8 @@ function drawGodDomainArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── 7. Ground — divine energy upwelling ───────────────────────────────────
-  // Rays of light shoot upward from the floor. The ground is not stone — it is
-  // condensed divine light. Upward light is wrong. It unsettles.
+  // 7. Ground: divine energy upwelling
+  // Rays of light shoot upward from the floor. The ground is not stone: it is
   const groundY = 460;
   ctx.save();
   const RAY_N = 18;
@@ -5252,7 +4916,7 @@ function drawGodDomainArena() {
     ctx.shadowBlur  = 9;
     ctx.fillRect(rx - rW/2, groundY - rH, rW, rH);
   }
-  // Ground glow-line (undulating — the ground itself is alive)
+  // Ground glow-line (undulating: the ground itself is alive)
   ctx.strokeStyle = chaos < 0.5
     ? `rgba(255,215,75,${0.58 + Math.abs(midP)*0.28})`
     : `rgba(255,${(90*(1-chaos))|0},0,${0.60 + Math.abs(midP)*0.28})`;
@@ -5268,9 +4932,8 @@ function drawGodDomainArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── 8. Fractures in divine order (chaos only) ─────────────────────────────
+  // 8. Fractures in divine order (chaos only)
   // The sacred geometry CRACKS. Reality bleeds through in crimson.
-  // As God weakens, his domain tears itself apart around you.
   if (chaos > 0.22) {
     const fPower = (chaos - 0.22) / 0.78;
     const fSeed  = (t / 72) | 0;
@@ -5310,7 +4973,7 @@ function drawGodDomainArena() {
     ctx.restore();
   }
 
-  // ── 9. Void darkness eating in from all sides at high chaos ───────────────
+  // 9. Void darkness eating in from all sides at high chaos
   // The domain is collapsing. The edges go dark as God loses control.
   if (chaos > 0.42) {
     const dPow  = (chaos - 0.42) / 0.58;
@@ -5337,7 +5000,7 @@ function drawGodDomainArena() {
     ctx.restore();
   }
 
-  // ── 10. Side energy walls — golden, not purple ────────────────────────────
+  // 10. Side energy walls: golden, not purple
   const wP = 0.38 + Math.abs(Math.sin(t * 0.04)) * 0.48;
   ctx.save();
   for (const wallX of [0, GW]) {
@@ -5385,9 +5048,8 @@ function drawDamnationAnchors() {
   ctx.restore();
 }
 
-// ── Absolute Axiom Domain — "The Fracture Point" ─────────────────────────────
+// Absolute Axiom Domain: "The Fracture Point"
 // Seven horizontal biome zones (3600px world): grass → city → forest → ice →
-// lava → ruins → void/space. Drawn in world coordinates (camera pre-applied).
 function drawAbsoluteAxiomArena() {
   if (typeof ctx === 'undefined') return;
   const GH  = GAME_H;
@@ -5415,7 +5077,7 @@ function drawAbsoluteAxiomArena() {
 
   ctx.save();
 
-  // ── 1. Per-zone sky tint strips ──────────────────────────────────────────
+  // 1. Per-zone sky tint strips
   for (const z of ZONES) {
     const zW = z.x1 - z.x0;
     // Vertical gradient for this zone
@@ -5443,7 +5105,7 @@ function drawAbsoluteAxiomArena() {
     ctx.fillRect(z.x1 - seamW, 0, seamW * 2, GH);
   }
 
-  // ── 2. Zone-specific background elements ────────────────────────────────
+  // 2. Zone-specific background elements
 
   // GRASS: rolling hills, swaying trees
   ctx.save();
@@ -5568,7 +5230,7 @@ function drawAbsoluteAxiomArena() {
   }
   ctx.restore();
 
-  // ── 3. Stars (visible across the whole world, concentrated in void zone) ─
+  // 3. Stars (visible across the whole world, concentrated in void zone)
   ctx.save();
   for (let i = 0; i < 300; i++) {
     const sx  = WL + ((i * 6217 + 911) % WW);
@@ -5587,7 +5249,7 @@ function drawAbsoluteAxiomArena() {
   }
   ctx.restore();
 
-  // ── 4. Zone-border dimension rifts (6 cracks, one per seam) ─────────────
+  // 4. Zone-border dimension rifts (6 cracks, one per seam)
   const seamXs = [-400, 100, 600, 1100, 1600, 2100];
   ctx.save();
   for (let ri = 0; ri < seamXs.length; ri++) {
@@ -5616,7 +5278,7 @@ function drawAbsoluteAxiomArena() {
   }
   ctx.restore();
 
-  // ── 5. Global chaos overlay (last 40% of fight) ──────────────────────────
+  // 5. Global chaos overlay (last 40% of fight)
   if (chaos > 0.6) {
     const distA = (chaos - 0.6) / 0.4 * 0.07;
     const dGr   = ctx.createLinearGradient(WL, 0, WR, GH);
@@ -5637,15 +5299,13 @@ function drawAbsoluteAxiomArena() {
   ctx.restore();
 }
 
-// ============================================================
-// THE STUDIO — dev recording / showcase stage
-// ============================================================
+// the STUDIO: dev recording / showcase stage
 function drawStudioArena() {
   const t = frameCount || 0;
   const W = GAME_W;
   const H = GAME_H;
 
-  // ── 1. Soft radial vignette — darkens outer edges for cinematic framing ──
+  // 1. Soft radial vignette: darkens outer edges for cinematic framing
   ctx.save();
   const vig = ctx.createRadialGradient(W * 0.5, H * 0.44, H * 0.20, W * 0.5, H * 0.44, H * 0.82);
   vig.addColorStop(0, 'rgba(0,0,0,0)');
@@ -5654,7 +5314,7 @@ function drawStudioArena() {
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 
-  // ── 2. Distant background pillars — faint marble columns at canvas edges ─
+  // 2. Distant background pillars: faint marble columns at canvas edges
   ctx.save();
   ctx.globalAlpha = 0.11 + Math.sin(t * 0.008) * 0.02;
   const pillarXs = [68, 162, W - 162, W - 68];
@@ -5673,7 +5333,7 @@ function drawStudioArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── 3. Two spotlight beams from top, angling inward to centre stage ───────
+  // 3. Two spotlight beams from top, angling inward to centre stage
   ctx.save();
   const beamA = 0.038 + Math.sin(t * 0.012) * 0.009;
   const bLG = ctx.createLinearGradient(233, 0, 340, 285);
@@ -5692,7 +5352,7 @@ function drawStudioArena() {
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
-  // ── 4. Centre stage glow pool — soft radial halo beneath main platform ────
+  // 4. Centre stage glow pool: soft radial halo beneath main platform
   ctx.save();
   const stageG = ctx.createRadialGradient(W * 0.5, 308, 0, W * 0.5, 308, 240);
   stageG.addColorStop(0,   `rgba(75,115,225,${0.065 + Math.sin(t * 0.018) * 0.018})`);
@@ -5702,7 +5362,7 @@ function drawStudioArena() {
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 
-  // ── 5. Floor reflection — horizontal shimmer at floor level ──────────────
+  // 5. Floor reflection: horizontal shimmer at floor level
   ctx.save();
   const reflG = ctx.createLinearGradient(0, 456, 0, 522);
   reflG.addColorStop(0, `rgba(65,105,205,${0.10 + Math.sin(t * 0.022) * 0.016})`);
@@ -5711,7 +5371,7 @@ function drawStudioArena() {
   ctx.fillRect(0, 456, W, 66);
   ctx.restore();
 
-  // ── 6. Floating dust motes — 24 particles drifting slowly upward ─────────
+  // 6. Floating dust motes: 24 particles drifting slowly upward
   ctx.save();
   for (let i = 0; i < 24; i++) {
     const baseX  = ((Math.sin(i * 374.3 + 1.1) * 0.5 + 0.5) * (W - 60)) + 30;
@@ -5730,14 +5390,14 @@ function drawStudioArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── 7. Stage lip — thin luminous line at the top of the floor ────────────
+  // 7. Stage lip: thin luminous line at the top of the floor
   ctx.save();
   ctx.strokeStyle = `rgba(95,135,235,${0.13 + Math.sin(t * 0.025) * 0.04})`;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(0, 459); ctx.lineTo(W, 459); ctx.stroke();
   ctx.restore();
 
-  // ── 8. Centre ring — elliptical halo centred on main stage ───────────────
+  // 8. Centre ring: elliptical halo centred on main stage
   ctx.save();
   ctx.strokeStyle = `rgba(110,155,250,${0.06 + Math.sin(t * 0.02) * 0.022})`;
   ctx.lineWidth = 1;
@@ -5746,7 +5406,7 @@ function drawStudioArena() {
   ctx.stroke();
   ctx.restore();
 
-  // ── 9. Camera viewfinder brackets at canvas corners ──────────────────────
+  // 9. Camera viewfinder brackets at canvas corners
   ctx.save();
   const brkA = 0.19 + Math.sin(t * 0.016) * 0.05;
   ctx.strokeStyle = `rgba(115,155,250,${brkA.toFixed(3)})`;
@@ -5764,7 +5424,7 @@ function drawStudioArena() {
   }
   ctx.restore();
 
-  // ── 10. REC indicator — pulsing red dot, top-right corner ────────────────
+  // 10. REC indicator: pulsing red dot, top-right corner
   ctx.save();
   const recSin = Math.sin(t * 0.045);
   if (recSin > -0.15) {
@@ -5782,11 +5442,8 @@ function drawStudioArena() {
   ctx.restore();
 }
 
-// ── Nexus Bastion (Nexus Defense minigame) ─────────────────────────────────
+// Nexus Bastion (Nexus Defense minigame)
 // A walled courtyard at dusk: a far curtain wall with buttresses, and a stone
-// gate at each end of the floor. The gates are where rushers come from, so
-// they carry the telegraph — the gate glows while its side has rushers queued.
-// Gate centres must match NEXUS_GATE_L_X / NEXUS_GATE_R_X in smb-minigames.js.
 function drawNexusArena() {
   const floorPl = currentArena.platforms.find(pl => pl.isFloor);
   const groundY = floorPl ? floorPl.y : 460;
@@ -5803,7 +5460,7 @@ function drawNexusArena() {
     ctx.fillRect(x, wallTop - 30, 44, groundY - wallTop + 30);
     ctx.fillRect(x - 4, wallTop - 36, 52, 8);
   }
-  // Mortar courses — faint, just enough to read as masonry
+  // Mortar courses: faint, just enough to read as masonry
   ctx.strokeStyle = 'rgba(255,255,255,0.035)';
   ctx.lineWidth = 1;
   for (let y = wallTop + 18; y < groundY; y += 18) {

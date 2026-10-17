@@ -1,25 +1,19 @@
 'use strict';
-// smb-cheats.js — Cheat code logic (_cheatUnlockAll, applyCode) and secret letter codes
-// Depends on: smb-globals.js, smb-camera.js
-// ============================================================
-// CHEAT: UNLOCK ALL
-// ============================================================
+// Cheat codes: _cheatUnlockAll, applyCode, and secret letter codes.
+// Depends on smb-globals.js and smb-camera.js.
 function _cheatUnlockAll() {
-  // Boss
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'bossBeaten'], true, function(v) { bossBeaten = v; });
   } else { bossBeaten = true; }
   const bossCard = document.getElementById('modeBoss');
   if (bossCard) bossCard.style.display = '';
 
-  // Boss Rush
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'bossRushUnlocked'], true, function(v) { bossRushUnlocked = v; });
   } else { bossRushUnlocked = true; }
   const brCard = document.getElementById('modeBossRush');
   if (brCard) brCard.style.display = '';
 
-  // True Form
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'trueform'], true, function(v) { unlockedTrueBoss = v; });
     [0,1,2,3,4,5,6,7].forEach(function(id) { if (typeof addLetter === 'function') addLetter(id); });
@@ -31,7 +25,6 @@ function _cheatUnlockAll() {
   const tfCard = document.getElementById('modeTrueForm');
   if (tfCard) tfCard.style.display = '';
 
-  // Sovereign
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'sovereignBeaten'], true, function(v) { sovereignBeaten = v; });
   } else { sovereignBeaten = true; }
@@ -40,30 +33,25 @@ function _cheatUnlockAll() {
   if (_adCard)  _adCard.style.display  = '';
   if (_sovCard) _sovCard.style.display = '';
 
-  // Knight
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'megaknight'], true, function(v) { unlockedMegaknight = v; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); });
   } else { unlockedMegaknight = true; if (typeof refreshMegaknightClassOption === 'function') refreshMegaknightClassOption(); }
 
-  // Absolute Axiom
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'absoluteAxiomUnlocked'], true, function(v) { absoluteAxiomUnlocked = v; });
   } else if (typeof absoluteAxiomUnlocked !== 'undefined') { absoluteAxiomUnlocked = true; }
   const _aaCard = document.getElementById('modeAbsoluteAxiom');
   if (_aaCard) _aaCard.style.display = '';
 
-  // All achievements
   if (typeof ACHIEVEMENTS !== 'undefined') {
     ACHIEVEMENTS.forEach(a => {
       if (typeof unlockAchievement === 'function') unlockAchievement(a.id);
     });
   }
 
-  // Story: mark all chapters beaten + max tokens
   if (typeof _story2 !== 'undefined' && typeof STORY_CHAPTERS2 !== 'undefined') {
     STORY_CHAPTERS2.forEach(ch => {
       if (!_story2.defeated.includes(ch.id)) _story2.defeated.push(ch.id);
-      // Unlock all blueprints that chapters drop
       if (ch.blueprintDrop && !_story2.blueprints.includes(ch.blueprintDrop)) {
         _story2.blueprints.push(ch.blueprintDrop);
       }
@@ -73,13 +61,11 @@ function _cheatUnlockAll() {
     _story2.exp     = 99999;
     _story2.storyComplete = true;
 
-    // Max out meta upgrades (shop items with ranks)
     if (!_story2.metaUpgrades) _story2.metaUpgrades = {};
     _story2.metaUpgrades.damage        = 6;
     _story2.metaUpgrades.survivability = 6;
-    _story2.metaUpgrades.healUses      = 0; // not a rank cap, skip
+    _story2.metaUpgrades.healUses      = 0;
 
-    // Purchase all story abilities
     if (typeof STORY_ABILITIES2 !== 'undefined') {
       if (!Array.isArray(_story2.unlockedAbilities)) _story2.unlockedAbilities = [];
       Object.keys(STORY_ABILITIES2).forEach(key => {
@@ -87,7 +73,7 @@ function _cheatUnlockAll() {
       });
     }
 
-    // Max out skill tree (unlock every node, ignoring cost/prereq order)
+    // Unlocks every node, ignoring cost and prereq order.
     if (typeof STORY_SKILL_TREE !== 'undefined') {
       if (!_story2.skillTree) _story2.skillTree = {};
       for (const branch of Object.values(STORY_SKILL_TREE)) {
@@ -97,8 +83,7 @@ function _cheatUnlockAll() {
       }
     }
 
-    // Max out per-weapon mastery — lives in _story2.weaponSkills, a SEPARATE
-    // structure from skillTree, so the loop above does not cover it.
+    // Per-weapon mastery lives in _story2.weaponSkills, not skillTree, so the loop above misses it.
     if (typeof STORY_WEAPON_MASTERY !== 'undefined' && typeof WEAPON_KEYS !== 'undefined') {
       if (!_story2.weaponSkills) _story2.weaponSkills = {};
       for (const wKey of WEAPON_KEYS) {
@@ -113,10 +98,9 @@ function _cheatUnlockAll() {
     if (typeof _updateStoryCloseBtn === 'function') _updateStoryCloseBtn();
   }
 
-  // Persist immediately so a page reload doesn't lose the unlocks
+  // Save now so a reload keeps the unlocks.
   if (typeof saveGame === 'function') saveGame();
 
-  // Notify
   const notif = document.createElement('div');
   notif.textContent = '★ EVERYTHING UNLOCKED ★';
   notif.style.cssText = 'position:fixed;top:20%;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,rgba(160,0,255,0.95),rgba(255,150,0,0.95));color:#fff;padding:16px 40px;border-radius:12px;font-size:1.25rem;font-weight:900;letter-spacing:3px;z-index:9999;pointer-events:none;text-align:center;box-shadow:0 0 50px #ff8800,0 0 20px #cc00ff;';
@@ -124,9 +108,7 @@ function _cheatUnlockAll() {
   setTimeout(() => notif.remove(), 3500);
 }
 
-// ============================================================
-// EXPERIMENTAL CODE SYSTEM
-// ============================================================
+// Experimental cheat codes.
 function applyCode(val) {
   const code  = (val || '').trim().toUpperCase();
   const msgEl = document.getElementById('codeMessage');
@@ -210,8 +192,7 @@ function applyCode(val) {
       const boss = players.find(p => p.isBoss);
       if (boss) {
         boss.health = 1;
-        // Mark every HP-threshold cinematic/QTE as already fired — dropping HP
-        // past unfired checkpoints used to leave the fight in a broken state.
+        // Marks every HP-threshold cinematic as fired, so a jump past checkpoints can't break the fight.
         if (!boss._cinematicFired) boss._cinematicFired = new Set();
         ['entry','75','qte75','50','paradox50','40','paradox1000','qte25','15','10']
           .forEach(k => boss._cinematicFired.add(k));
@@ -219,19 +200,17 @@ function applyCode(val) {
       ok('Boss is nearly dead!');
     } else { err('Enter KILLBOSS while in-game.'); }
   } else if (code.startsWith('SETHP:')) {
-    // SETHP:<n> — set TrueForm (Axion) HP and bypass all cinematics above that threshold.
-    // Example: SETHP:1001  →  boss at 1001 HP, paradox1000 cinematic ready to fire.
+    // SETHP:<n> sets TrueForm HP and skips cinematics above it. SETHP:1001 leaves paradox1000 ready to fire.
     if (!gameRunning) { err('Enter SETHP: while in a TrueForm fight.'); return; }
     const _targetHp = parseInt(code.slice(6), 10);
     if (isNaN(_targetHp) || _targetHp < 1) { err('Usage: SETHP:<number>  e.g. SETHP:1001'); return; }
     const _tfBoss = players.find(p => p.isBoss && p.isTrueForm);
     if (!_tfBoss) { err('No TrueForm boss found. Start a Cosmic Axiom fight first.'); return; }
 
-    // ── 1. Set HP ────────────────────────────────────────────────────────────
     _tfBoss.health    = Math.min(_targetHp, _tfBoss.maxHealth);
-    _tfBoss.invincible = 90; // brief invincibility so the HP set doesn't immediately trigger death
+    _tfBoss.invincible = 90; // brief invincibility
 
-    // ── 2. Mark all cinematics that would have fired above _targetHp ─────────
+    // Pre-mark cinematics that would have fired above the target HP.
     if (!_tfBoss._cinematicFired) _tfBoss._cinematicFired = new Set();
     // 'entry' always fires at fight start
     _tfBoss._cinematicFired.add('entry');
@@ -243,28 +222,25 @@ function applyCode(val) {
     if (_targetHp <= 1000) _tfBoss._cinematicFired.add('paradox1000');
     // false victory no longer HP-triggered; never pre-mark it
 
-    // ── 3. Reset in-flight cinematic state ──────────────────────────────────
-    // Stop opening fight if it was running
     if (typeof tfOpeningFightActive !== 'undefined') tfOpeningFightActive = false;
     if (typeof _tfOpeningTFRef     !== 'undefined') _tfOpeningTFRef      = null;
     if (typeof paradoxEntity       !== 'undefined' && paradoxEntity) {
       paradoxEntity.done = true;
       paradoxEntity = null;
     }
-    // Reset absorption / paradox death flags so the 1000-HP sequence can run clean
+    // So the 1000-HP sequence can run clean.
     if (typeof paradoxDeathComplete !== 'undefined') paradoxDeathComplete = false;
     if (typeof absorptionComplete   !== 'undefined') absorptionComplete   = false;
     if (typeof _tfAbsorptionState   !== 'undefined') _tfAbsorptionState   = null;
     if (typeof tfAbsorptionScene    !== 'undefined') tfAbsorptionScene    = null;
     if (typeof tfFinalParadoxFired  !== 'undefined') tfFinalParadoxFired  = false;
 
-    // Cancel any active cinematic / QTE
     if (typeof activeCinematic !== 'undefined') activeCinematic = null;
     if (typeof isCinematic     !== 'undefined') isCinematic     = false;
     if (typeof slowMotion      !== 'undefined') slowMotion       = 1.0;
     if (typeof gameFrozen      !== 'undefined') gameFrozen       = false;
     if (typeof cinematicCamOverride !== 'undefined') cinematicCamOverride = false;
-    // Hard-reset combatLock so no phase leaks across game sessions
+    // Hard reset of combatLock, so no phase leaks across sessions.
     if (typeof combatLock !== 'undefined') {
       combatLock.phase    = 'normal';
       combatLock.priority = 0;
@@ -275,21 +251,19 @@ function applyCode(val) {
       else activeQTE = null;
     }
 
-    // Ensure fight state is 'none' (or 'backstage' if we're past the Code Realm)
+    // Fight state must be 'none', or 'backstage' past the Code Realm.
     if (typeof tfCinematicState !== 'undefined') {
       tfCinematicState = (_targetHp <= 50) ? 'backstage' : 'none';
     }
 
-    // Reset free-phase timer so it doesn't block AI
     _tfBoss._freePhaseTimer = 9999;
 
-    // Reposition hero next to boss for easy testing
     const _hero = players.find(p => !p.isBoss && !p.isRemote);
     if (_hero) {
       _hero.x  = Math.max(40, _tfBoss.x - 160);
       _hero.y  = _tfBoss.y;
       _hero.vx = 0; _hero.vy = 0;
-      _hero.health = _hero.maxHealth; // full HP so player doesn't die during test
+      _hero.health = _hero.maxHealth; // full HP for testing
     }
 
     ok('TrueForm HP → ' + _tfBoss.health + '. Cinematics above this threshold bypassed.');

@@ -58,16 +58,9 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 147, title: 'The Constructs',
     world: '🕳️ The Void — Construct Layer',
-    // Converted from a 3-round gauntlet to the bearer battle royale — the
-    // reframe docs/TRIALS_DESIGN.md asked for ("include only if reframed: if the
-    // field is the 94 bearers who came before Kael"). The chapter already said
-    // exactly that in prose — "echoes of absorbed fragment bearers", "they fight
-    // like you" — it just staged it as three constructs in a row. Now it is all
-    // ninety-four at once, which is the only staging that earns the line.
-    //
-    // CONVERTED, not inserted: the registry stays contiguous 0-185 and no save
-    // migration is needed. The field itself is built by _brSpawnBots(), which
-    // derives bearer mode from this `type`.
+    // A bearer battle royale: the field is the 94 bearers who came before Kael.
+    // This replaced a 3-round gauntlet in place, so the registry stays contiguous
+    // and no save migration is needed. _brSpawnBots() derives bearer mode from `type`.
     type: 'battleroyale',
     preText: 'Cosmic Axiom kept every bearer it ever took. Ninety-four of them stand between you and its core — not three, not in waves. All of them, at once. Only one thing walks out of the construct layer.',
     opponentName: 'Fragment Bearer',

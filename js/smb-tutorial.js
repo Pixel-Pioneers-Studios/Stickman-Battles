@@ -1,19 +1,12 @@
 'use strict';
-// smb-tutorial.js — First-run fight (the guided tutorial)
-// -------------------------------------------------------
-// A first launch skips the menu entirely. The player drops into rung 1 of the
-// Fight Ladder (smb-ladder.js) with the starter kit, and this file layers the
-// controls over that live fight as prompts. The ladder owns the match and its
-// result card; the Tutorial button replays the run.
-//
-// Nothing here mutates health directly. The bot fights from the first frame and
-// both fighters spawn close together (smb-ladder.js), so the first hit is seconds in.
-//
+// smb-tutorial.js: the guided first-run fight.
+// First launch drops the player into ladder rung 1 (smb-ladder.js) with prompts on top.
+// The ladder owns the match and its result card.
+// Never mutate health here. The bot fights from frame one; spawns are close (smb-ladder.js).
 // Depends on: smb-globals.js, smb-fighter.js, smb-ladder.js, smb-input.js (keysDown)
 // Ticked by:  smb-loop-core.js  → updateTutorial()
 // Drawn by:   smb-loop-core.js  → drawTutorial(ctx)
 // Hooked by:  index.html dismissSplash() → maybeStartFirstRun()
-// -------------------------------------------------------
 
 let tutorialActive   = false;  // true while the first-run prompts are running
 let tutorialStep     = 0;      // index into TUTORIAL_STEPS
@@ -29,9 +22,8 @@ let _tutMeterGranted  = false; // super meter topped up once for the super step
 let _tutPrevVy        = 0;     // previous-frame vy, for jump-launch detection
 let _tutFightInit     = false; // bot held for the opening steps
 
-// Each step: `need` progress units to clear. `check` runs once per frame and
-// returns how much progress to ADD this frame (0 for none). The steps prompt;
-// they never gate the fight — the bot fights back from the ATTACK step on.
+// Each step: `need` progress units to clear. `check` runs each frame and returns progress
+// to add. Steps only prompt. They never gate the fight.
 const TUTORIAL_STEPS = [
   {
     id: 'attack',
@@ -51,8 +43,7 @@ const TUTORIAL_STEPS = [
     hint: 'Press  W  to jump, and again in mid-air to double jump.',
     need: 2,     // two launches
     check(p1) {
-      // Count any upward launch, not just ground takeoffs — the hint teaches the
-      // double jump, so a mid-air jump has to register too.
+      // Count any upward launch, not just ground takeoffs, since the hint teaches the double jump.
       const launched = p1.vy < -4 && _tutPrevVy >= -1;
       _tutPrevVy = p1.vy;
       return launched ? 1 : 0;
@@ -73,8 +64,7 @@ const TUTORIAL_STEPS = [
     hint: 'Press  Q  for your weapon ability. Every weapon has its own.',
     need: 1,
     check(p1) {
-      // Ability fired = cooldown rose this frame. A rising edge is required so a
-      // cooldown left running by an earlier step can't auto-clear this one.
+      // Cooldown rose this frame. Require a rising edge so a leftover cooldown cannot clear this step.
       const rose = p1.abilityCooldown > _tutPrevAbilityCd;
       _tutPrevAbilityCd = p1.abilityCooldown;
       return rose ? 1 : 0;
@@ -106,8 +96,7 @@ const TUTORIAL_STEPS = [
 
 /** Launch the first-run fight: ladder rung 1 with the control prompts on top. */
 function startTutorial() {
-  // Starting counts as having seen it: a player who quits partway is not thrown
-  // back in on the next launch. The Tutorial nav button replays it.
+  // Starting counts as seen, so quitting partway does not re-trigger it. The Tutorial button replays it.
   markTutorialSeen();
   tutorialStep      = 0;
   tutorialDone      = false;
@@ -131,8 +120,7 @@ function updateTutorial() {
   _tipTick();
   if (!tutorialActive) return;
   if (!gameRunning) {
-    // The ladder stops the match itself and ends the prompts from its result
-    // card; anything else stopping it (the Menu button) abandons the tutorial.
+    // The ladder ends the match and the prompts from its result card. Menu abandons the tutorial.
     if (!(typeof ladderActive !== 'undefined' && ladderActive)) endTutorial(false);
     return;
   }
@@ -149,8 +137,7 @@ function _tutUpdateFight() {
 
   if (!_tutFightInit) {
     _tutFightInit = true;
-    // No hold: the bot engages straight away so the first hit lands in seconds.
-    // It is the Easy rung-1 opponent, and the prompts never gate the fight.
+    // No hold: the bot engages at once so the first hit lands in seconds.
     _tutBotHp    = bot.health;
     _tutBotLives = bot.lives;
   }
@@ -160,16 +147,14 @@ function _tutUpdateFight() {
   if (!step) return;
   _tutStepFrames++;
 
-  // Top the meter up ONCE so the super step is reachable regardless of how the
-  // fight went. Granting every frame would mask the spend this step detects.
+  // Top the meter up once so the super step is reachable. Every frame would hide the spend it detects.
   if (step.grantMeter && !_tutMeterGranted) { p1.superMeter = 100; _tutMeterGranted = true; }
 
   let gained = 0;
   try { gained = step.check(p1, bot) || 0; } catch (e) { gained = 0; }
   _tutProgress += gained;
 
-  // Track HP and lives every frame so a step that doesn't read them can't hand
-  // a stale snapshot to the step that does.
+  // Read HP and lives every frame so no step gets a stale snapshot.
   if (step.id !== 'attack') _tutBotHp = bot.health;
   if (step.id !== 'finish') _tutBotLives = bot.lives;
 
@@ -205,7 +190,6 @@ function endTutorial(completed) {
   if (typeof unlockAchievement === 'function') unlockAchievement('tutorial_done');
 }
 
-// ── Persistence ──────────────────────────────────────────────────────────────
 
 function _tutReadFlag(key, lsKey) {
   try {
@@ -234,7 +218,7 @@ function markTutorialSeen() { _tutWriteFlag('tutorialSeen', 'smb_tutorialSeen');
  * the first-run fight instead of the menu, unless something else already owns
  * the session (an invite link, a running match).
  */
-// A first-time player does not need the full 3s splash: clear it early so the
+// A first-timer skips the 3s splash so the fight starts sooner. dismissSplash() is idempotent.
 // fight starts sooner. dismissSplash() is idempotent, so the 3s timer is harmless.
 try {
   if (!hasSeenTutorial()) setTimeout(function () { if (typeof window.dismissSplash === 'function') window.dismissSplash(); }, 900);
@@ -251,7 +235,6 @@ function maybeStartFirstRun() {
   startTutorial();
 }
 
-// ── HUD ──────────────────────────────────────────────────────────────────────
 
 /** Draw the prompt panel. Called from the game loop after the world draws. */
 function drawTutorial(ctx) {
@@ -261,20 +244,17 @@ function drawTutorial(ctx) {
   const step = TUTORIAL_STEPS[tutorialStep];
   if (!step) return;
 
-  // Drawn in screen pixels (identity transform), so centre on the real canvas
-  // width, not GAME_W. y clears the player HUD band, which is ~115px tall.
-  // Width fits the longest hint at 13px monospace (~7.8px/char) without spilling.
-  // Compact on short frames (the portal's 918x470): the panel must not eat the arena.
+  // Screen pixels, so centre on the real canvas width, not GAME_W. y clears the ~115px HUD band.
+  // Width fits the longest hint at 13px monospace.
+  // Compact on short frames so the panel does not eat the arena.
   const ch = ctx.canvas.height;
   const compact = ch < 600;
   const w = Math.min(compact ? 560 : 640, cw - 24), h = compact ? 52 : 82;
   const x = (cw - w) / 2, y = compact ? 84 : 124;
-  // The KO is the payoff: once the deciding blow lands (finisher playing, result
-  // card pending) the prompts get out of the way.
+  // Once the deciding blow lands, the prompts get out of the way.
   if ((typeof activeFinisher !== 'undefined' && activeFinisher) ||
       (typeof _ladderOver !== 'undefined' && _ladderOver)) return;
-  // This is a live fight, so a fighter can jump up behind the panel: fade it out
-  // of the way rather than hide the opponent behind the instructions.
+  // A jumping fighter can hide behind the panel, so fade it out of the way.
   const panelAlpha = _tutFighterBehind(x, y, w, h) ? 0.5 : 1;
 
   ctx.save();
@@ -299,7 +279,6 @@ function drawTutorial(ctx) {
   ctx.font = compact ? '12.5px monospace' : '13px monospace';
   ctx.fillText(step.hint, cw / 2, y + hY);
 
-  // Progress bar
   const pct = Math.max(0, Math.min(1, _tutProgress / step.need));
   const bw = w - 60, bx = x + 30, by = y + (compact ? 43 : 58);
   ctx.fillStyle = 'rgba(255,255,255,0.14)';
@@ -334,11 +313,10 @@ function _tutFighterBehind(x, y, w, h) {
   return false;
 }
 
-// ── Contextual tips ──────────────────────────────────────────────────────────
-// Toast-only (never a modal, never pauses). Each tip fires once, the first time
-// it is relevant, and is remembered per account (localStorage fallback). They
-// stay silent during the first-run fight and ladder first run, so that flow is
-// untouched. Tap a toast to dismiss; "tips off" silences the rest.
+// Toast-only, never a modal or a pause. Each tip fires once, when first relevant.
+// Remembered per account (localStorage fallback).
+// Silent during the first-run fight and ladder first run.
+// Tap a toast to dismiss; "tips off" silences the rest.
 
 const CONTEXT_TIPS = {
   class:    { text: 'CLASS PERK: your class changes health, speed and passive perks. Read its card in the loadout screen.' },
@@ -384,7 +362,7 @@ function _tipTick() {
   if (_tipHide && _tipFrames > _tipHide && _tipEl) { _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0; }
   if (!gameRunning || (typeof gameLoading !== 'undefined' && gameLoading)) return;
   _tipFrames++;
-  if (typeof _mp !== 'undefined' && _mp) return; // move preview (smb-move-preview.js) stays tip-free
+  if (typeof _mp !== 'undefined' && _mp) return; // move preview stays tip-free
   if (tutorialActive || (typeof ladderActive !== 'undefined' && ladderActive && !hasSeenTutorial())) return;
   if (typeof onlineMode !== 'undefined' && onlineMode) return;
   if ((typeof activeCinematic !== 'undefined' && activeCinematic) || (typeof isCinematic !== 'undefined' && isCinematic)) return;

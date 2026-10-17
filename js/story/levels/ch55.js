@@ -1,16 +1,7 @@
 'use strict';
-// js/story/levels/ch55.js — Chapter 55 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch55.js: chapter 55 map (puzzle, 3 sequence locks). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 55 — The Hidden Page (puzzle, 3 sequence locks)
-// The neutral dimension's archive vault: grey stacks that rise out of frame,
-// memory crystals shelved like books, rolling ladders. The three sequence
-// locks are out of spatial order (positions mirrored in the chapter's
-// puzzleSwitchDefs): 1 at the top of the tall shelf, 2 down in the sunken
-// reading pit, 3 on the far gallery. Each lock that opens lights a line of
-// the hidden page on the vault door: "The original protocol requires two
-// fragment bearers. Not one."
-// ═════════════════════════════════════════════════════════════════════════════
+// Archive vault. The locks sit at the tall shelf top, the sunken reading pit, and the far gallery.
 (function () {
   const G = 440;
   const FLOOR = [[0, 700, 440], [700, 1000, 500], [1000, 3200, 440]];

@@ -1,16 +1,9 @@
 'use strict';
-// smb-corpse.js — what a body looks like once the death animation lets go of it.
-//
-// VerletRagdoll (smb-verlet.js) owns the physics; this file owns the look. A
-// corpse is drawn with the fighter's own skin (FigureSkin: dark body, outline
-// in the fighter's colour, eyes shut) and carries the mark of what killed it:
-// a blade finisher leaves it in pieces, fire leaves it charred and smoking, a
-// hammer leaves it flat.
-//
-// The style comes from the finisher that landed (corpseStampFinisher, called by
-// triggerFinisher) and falls back to the killer's weapon for an ordinary kill,
-// where the destructive styles are toned down (CORPSE_MILD): a plain sword hit
-// scars, only a sword finisher cuts in half.
+// smb-corpse.js: how a body looks once the death animation lets go of it.
+// VerletRagdoll (smb-verlet.js) owns the physics, this file owns the look.
+// Depends on smb-verlet.js, smb-figure-skin.js and smb-globals.js.
+// The style comes from the finisher that landed (corpseStampFinisher, via triggerFinisher),
+// or from the killer's weapon for ordinary kills, where destructive styles are toned down (CORPSE_MILD).
 //
 // A style: { k, color, cuts, n, shaft }
 //   k      plain look when absent; else char | sliced | shattered | blast | shock |
@@ -18,10 +11,6 @@
 //   cuts   for sliced / shattered / blast: any of head, armR, armL, legR, legL, waist
 //   n      how many shafts / holes / scars
 //   shaft  for pierced: arrow | bolt | knife | spear | plane
-//
-// Depends on: smb-verlet.js (VerletPoint, VerletStick), smb-figure-skin.js,
-//   smb-globals.js (ctx, FIG_LINE_W, frameCount).
-// ============================================================
 
 const CORPSE_LIFE_STYLED = 380;     // frames a marked corpse stays (plain: VerletRagdoll's 240)
 
@@ -136,7 +125,6 @@ function corpseStyleFor(f) {
 
 const Corpse = {
 
-  // ── Setup ─────────────────────────────────────────────────────────────────
   /** Give a fresh VerletRagdoll its fighter's look and its killer's mark. */
   dress(vr, f) {
     vr.fig = { facing: f.facing >= 0 ? 1 : -1 };
@@ -244,7 +232,6 @@ const Corpse = {
     vr.angles = (vr.angles || []).filter(c => g(c.a) === g(c.pivot) && g(c.b) === g(c.pivot));
   },
 
-  // ── Per frame ─────────────────────────────────────────────────────────────
   update(vr) {
     vr.age++;
     if (vr.cut.head) vr.headRot += (vr.head.x - vr.head.ox) / Math.max(4, vr.headR);
@@ -289,7 +276,6 @@ const Corpse = {
     }
   },
 
-  // ── Drawing ───────────────────────────────────────────────────────────────
   _pos(vr, m) {
     if (m.t === 'head') return { x: vr.head.x, y: vr.head.y, ang: 0 };
     let a = m.a, b = m.b;
@@ -350,7 +336,6 @@ const Corpse = {
       ctx.strokeStyle = 'rgba(8,8,14,0.9)';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
-      // Fanned into the ground under the body, with one kink each.
       for (const [a, len, bend] of c.r) {
         const L = len * fx.sq, ca = Math.cos(a), sa = Math.sin(a) * 0.4;
         ctx.moveTo(c.x + ca * 5, c.y + 1);
@@ -573,7 +558,6 @@ const Corpse = {
     ctx.restore();
   },
 
-  // Everything that has left the body: embers, smoke, motes, arcs, stars.
   _air(vr, A) {
     const fx = vr.fx, k = fx.k;
     ctx.save();

@@ -1,11 +1,7 @@
 'use strict';
-// smb-transition.js — authored scene transitions for the story funnel.
-//
-// Runs on its own overlay canvas with its own rAF loop, so it keeps drawing
-// while _startGameCore() tears the world down and rebuilds it.
-//
-// Depends on: smb-anim-core.js (animEase).
-// ============================================================
+// Authored scene transitions for the story funnel.
+// Own overlay canvas and rAF loop, so it keeps drawing while _startGameCore()
+// rebuilds the world. Depends on smb-anim-core.js (animEase).
 
 const StoryTransition = {
 
@@ -34,7 +30,7 @@ const StoryTransition = {
   /**
    * opts: { kind:'ink'|'act', coverMs, holdMs, revealMs, color, accent,
    *         title, subtitle, onCovered, onDone }
-   * onCovered fires on the first fully-opaque frame — swap the world there.
+   * onCovered fires on the first opaque frame, where the world gets swapped.
    */
   play(opts) {
     const o = opts || {};
@@ -101,11 +97,7 @@ const StoryTransition = {
     this._raf = requestAnimationFrame(() => StoryTransition._frame());
   },
 
-  /**
-   * A front sweeping across with sine lobes and droplets running ahead of it,
-   * so the edge reads as ink rather than a wipe bar. 'in' fills behind the
-   * front as it advances; 'out' empties behind it.
-   */
+  /** Ink front with sine lobes and droplets ahead of it. 'in' fills behind, 'out' empties. */
   _ink(c, w, h, p, mode, r) {
     const dpr  = window.devicePixelRatio || 1;
     const lead = w * 0.30;

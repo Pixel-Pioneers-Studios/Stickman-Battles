@@ -1,14 +1,11 @@
 'use strict';
-// smb-paradox-effects.js — resetParadoxState body, updateParadoxEffects — particle/text/strike effects
-// Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
+// resetParadoxState and updateParadoxEffects: particle, text and strike effects.
+// Depends on smb-globals.js and smb-paradox-class.js.
 
-// ============================================================
-// RESET  (call from _startGameCore to clear state)
-// ============================================================
+// Called from _startGameCore to clear state.
 function resetParadoxState() {
-  // Kill the opening-fight GSAP timeline: it is wall-clock, and its queued
-  // callbacks (camera override, dialogue, shake) otherwise fire into the next
-  // game after a mid-opening quit/restart.
+  // Kill the opening-fight GSAP timeline. It runs on wall-clock time, and its queued
+  // callbacks (camera, dialogue, shake) would fire into the next game after a quit.
   if (typeof _tfOpeningGSAPTL !== 'undefined' && _tfOpeningGSAPTL) {
     try { _tfOpeningGSAPTL.kill(); } catch (e) {}
     _tfOpeningGSAPTL = null;
@@ -36,7 +33,6 @@ function resetParadoxState() {
   bossParadoxForeshadow.timer      = 0;
   bossParadoxForeshadow.cooldown   = 0;
   bossParadoxForeshadow.punchFired = false;
-  // Phase 0 / False Victory state
   tfFalseVictoryFired = false;
   tfFalseVictoryState = null;
   tfParadoxFused      = false;
@@ -55,9 +51,7 @@ function resetParadoxState() {
   _paradoxCommandTexts   = [];
 }
 
-// ============================================================
-// PARADOX ABILITIES SYSTEM
-// ============================================================
+// Paradox abilities.
 const PARADOX_ABILITIES = {
   microTeleport: {
     name: 'Micro-Teleport',
@@ -273,17 +267,13 @@ const PARADOX_ABILITIES = {
   }
 };
 
-// Active pending effect arrays
 let _paradoxPendingStrikes = [];
 let _paradoxEchoHits       = [];
 let _paradoxNullFields     = [];
 let _paradoxCommandTexts   = [];
 
-// ============================================================
-// updateParadoxEffects — called each game frame
-// ============================================================
+// Runs once per frame.
 function updateParadoxEffects() {
-  // Future Strike: wait then hit
   for (let i = _paradoxPendingStrikes.length - 1; i >= 0; i--) {
     const s = _paradoxPendingStrikes[i];
     s.timer++;
@@ -307,7 +297,6 @@ function updateParadoxEffects() {
     if (s.timer > s.maxTimer + 5) _paradoxPendingStrikes.splice(i, 1);
   }
 
-  // Echo Combo: delayed afterimage hits
   for (let i = _paradoxEchoHits.length - 1; i >= 0; i--) {
     const e = _paradoxEchoHits[i];
     e.timer--;
@@ -328,7 +317,6 @@ function updateParadoxEffects() {
     if (e.fired) _paradoxEchoHits.splice(i, 1);
   }
 
-  // Null Field: destroy projectiles in zone, apply slow to targets
   for (let i = _paradoxNullFields.length - 1; i >= 0; i--) {
     const nf = _paradoxNullFields[i];
     nf.timer++;
@@ -358,7 +346,6 @@ function updateParadoxEffects() {
     if (nf.timer >= nf.maxTimer) _paradoxNullFields.splice(i, 1);
   }
 
-  // Command Injection slow decay
   for (const p of players) {
     if (p._pdxSlow > 0) {
       p._pdxSlow--;
@@ -370,7 +357,6 @@ function updateParadoxEffects() {
     }
   }
 
-  // Command text decay
   for (let i = _paradoxCommandTexts.length - 1; i >= 0; i--) {
     const ct = _paradoxCommandTexts[i];
     ct.timer++;
@@ -380,5 +366,4 @@ function updateParadoxEffects() {
   }
 }
 
-// ============================================================
-// drawParadoxEffects — called each game frame (world-space)
+// World space, once per frame.

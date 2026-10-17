@@ -1,7 +1,4 @@
-// Appends chapters for act6/smb-act6-arc3.js.
-// The Fallen God's final revelations before the player enters the multiverse.
-// Delivers: Axiom's origin, the Fragment's true nature, and the hint of God.
-// Slots at IDs 75–77, after the Fallen God trial arc (69–74).
+// Chapters 75-77 (act6 arc 3): the Fallen God's last revelations before the multiverse. Follows the arc 2 trial (69-74).
 STORY_CHAPTER_REGISTRY.push(
 
   {

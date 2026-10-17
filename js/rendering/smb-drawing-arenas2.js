@@ -1,18 +1,10 @@
 'use strict';
-// smb-drawing-arenas2.js — Cave, mirror, underwater, volcano, colosseum, cyberpunk, haunted, clouds, neon grid, mushroom arena draw functions
+// Arena backdrops: cave, mirror, reef, volcano, colosseum and others.
 // Depends on: smb-globals.js, smb-data-arenas.js, smb-particles-core.js
 
-// ============================================================
-// NEW ARENA DRAW FUNCTIONS
-// ============================================================
 
-// ── Crystal Cave ──────────────────────────────────────────────────────────
-// The arena is called Crystal Cave and had no crystals in it — just ten brown
-// triangles hanging off the ceiling. This adds the actual subject: faceted
-// glowing clusters on the walls, floor and ceiling, each casting a coloured
-// pool of light onto the rock, plus a layered rock backdrop, a shaft of
-// daylight through a ceiling crack, drips, and dust. Static geometry is cached
-// (same pattern as _iceBg) so nothing rerolls per frame.
+// Crystal Cave
+// Crystal cave: faceted glowing clusters on the walls, floor and ceiling, each lighting the rock around it. Static geometry is cached.
 function _caveBg() {
   if (_caveBg._c) return _caveBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -28,23 +20,22 @@ function _caveBg() {
     spd:   rnd(0.012, 0.032),
     shards: Array.from({ length: 2 + Math.floor(Math.random() * 3) }, () => ({
       len:  rnd(30, 72) * scale,
-      // Thin shards read as glowing reeds, not crystal — these need real mass
+      // Thin shards read as reeds, not crystal, so they need mass.
       w:    rnd(16, 34) * scale,
       lean: rnd(-0.30, 0.30),
-      // facet split, as a fraction of the half-width — off-centre reads faceted
+      // Facet split, as a fraction of the half-width.
       split: rnd(-0.35, 0.35),
       a:    rnd(0.72, 1),
     })),
   });
   const c = {
-    // Rock strata behind everything, two parallax bands
+    // Rock strata, two parallax bands
     strata: [0, 1].map(i => ({
       par:  0.05 + i * 0.07,
       fill: i === 0 ? 'rgba(19,12,9,0.92)' : 'rgba(28,18,12,0.9)',
       pts:  Array.from({ length: 34 }, (_, k) => ({
         x: -60 + k * 32,
-        // Low, broad rock shelves. Tall peaks here looked like a mountain
-        // range seen through the cave rather than the far wall of it.
+        // Low, broad shelves. Tall peaks read as mountains outside the cave.
         y: (i === 0 ? 196 : 248) + Math.sin(k * 0.5 + i * 2.1) * (14 - i * 4)
                                  + Math.sin(k * 1.3 + i) * (6 - i * 2),
       })),
@@ -114,7 +105,7 @@ function _drawCrystalCluster(cl, f) {
     const by   = cl.y;
     const hw   = s.w * 0.5;
 
-    // Body — dark face and lit face split along the crystal's long axis
+    // Body: dark face and lit face split along the crystal's long axis
     const mid = bx + s.split * hw;
     ctx.globalAlpha = s.a;
     ctx.fillStyle = h.deep;
@@ -143,8 +134,7 @@ function _drawCrystalCluster(cl, f) {
     ctx.lineTo(tipX, tipY);
     ctx.stroke();
 
-    // Facet highlight running down the lit flank — a round tip bead read as a
-    // pin stuck on a stem, this reads as a polished face catching light.
+    // Facet highlight down the lit flank. A round tip bead looked like a pin.
     ctx.globalAlpha = s.a * pulse * 0.75;
     ctx.fillStyle   = h.core;
     ctx.beginPath();
@@ -165,7 +155,6 @@ function drawCaveArena() {
 
   ctx.save();
 
-  // ── Rock strata behind everything ─────────────────────────────────────────
   for (const st of bg.strata) {
     ctx.save();
     ctx.translate(-camOff * st.par, 0);
@@ -179,7 +168,7 @@ function drawCaveArena() {
     ctx.restore();
   }
 
-  // ── Daylight shaft through a crack in the ceiling ─────────────────────────
+  // Daylight shaft through a crack in the ceiling
   const shaftPulse = 0.8 + Math.sin(f * 0.006) * 0.2;
   const sg = ctx.createLinearGradient(392, ceilY, 300, floorY);
   sg.addColorStop(0,   `rgba(214,232,255,${0.16 * shaftPulse})`);
@@ -192,7 +181,7 @@ function drawCaveArena() {
   ctx.closePath();
   ctx.fill();
 
-  // ── Stalactites — tapered with a lit left edge, not flat triangles ────────
+  // Stalactites: tapered with a lit left edge, not flat triangles
   for (const s of bg.tites) {
     const tipX = s.x + s.lean, tipY = ceilY + s.h;
     ctx.fillStyle = '#3a2418';
@@ -221,7 +210,7 @@ function drawCaveArena() {
     } else {
       const fall = (cyc - 130) / 70;
       const dy = tipY + fall * (floorY - tipY);
-      // A 10px dash mid-air read as a rendering artifact; a stretched bead does not
+      // A stretched bead. A short mid-air dash looked like an artifact.
       ctx.globalAlpha = 0.4 * (1 - fall * 0.5);
       ctx.fillStyle   = '#8fd8ff';
       ctx.beginPath();
@@ -239,7 +228,7 @@ function drawCaveArena() {
     ctx.globalAlpha = 1;
   }
 
-  // ── Stalagmites rising from the floor ─────────────────────────────────────
+  // Stalagmites rising from the floor
   for (const s of bg.mites) {
     ctx.fillStyle = '#331e12';
     ctx.beginPath();
@@ -250,10 +239,8 @@ function drawCaveArena() {
     ctx.fill();
   }
 
-  // ── The crystals ──────────────────────────────────────────────────────────
   for (const cl of bg.crystals) _drawCrystalCluster(cl, f);
 
-  // ── Motes catching crystal light ──────────────────────────────────────────
   for (const m of bg.motes) {
     const my = ((m.y - f * m.spd) % 540 + 540) % 540;
     const mx = m.x + Math.sin(f * m.drift + m.phase) * m.amp;
@@ -265,16 +252,19 @@ function drawCaveArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Cave-edge vignette: the walls swallow light toward the corners ────────
+  // Cave-edge vignette: the walls swallow light toward the corners
   const vg = ctx.createRadialGradient(450, 250, 180, 450, 250, 620);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.55)');
   ctx.fillStyle = vg;
-  ctx.fillRect(-200, -100, GAME_W + 400, GAME_H + 200);
+  // Covers the whole visible rect. A fixed box showed nested edges when the camera pulled back.
+  const _cv = typeof arenaViewRect === 'function' ? arenaViewRect() : null;
+  if (_cv) ctx.fillRect(_cv.x - 10, _cv.y - 10, _cv.w + 20, _cv.h + 20);
+  else ctx.fillRect(-200, -100, GAME_W + 400, GAME_H + 200);
 
   ctx.restore();
 
-  // ── Falling stalactites from the map perk (kept as-is, now shaped) ────────
+  // Falling stalactites from the map perk.
   if (mapPerkState.stalactites) {
     for (const st of mapPerkState.stalactites) {
       const warn = st.warnTimer > 0;
@@ -295,17 +285,13 @@ function drawCaveArena() {
   }
 }
 
-// ── Mirror Realm ──────────────────────────────────────────────────────────
-// Was five rotating wireframe polygons at 7-12% alpha, which is close to
-// invisible. Rebuilt around the thing the map is named for: a mirror plane
-// with an inverted reflected world under it, drifting glass shards that each
-// carry a shifted reflection, a kaleidoscope bloom at the centre, expanding
-// ripple rings, and a chromatic split along the seam.
+// Mirror Realm
+// Mirror arena: a mirror plane with an inverted world below it, glass shards with shifted reflections, ripples and a chromatic seam.
 function _mirrorBg() {
   if (_mirrorBg._c) return _mirrorBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   _mirrorBg._c = {
-    // Floating glass shards — irregular triangles/quads that catch the light
+    // Floating glass shards: irregular triangles/quads that catch the light
     shards: Array.from({ length: 16 }, () => ({
       x:     rnd(-30, 930),
       y:     rnd(20, 460),
@@ -315,8 +301,7 @@ function _mirrorBg() {
       drift: rnd(0.004, 0.012),
       amp:   rnd(8, 34),
       phase: rnd(0, 6.28),
-      // Array.from's map fn gets (value, index) only — never the array — so the
-      // vertex count has to be captured before the map, not read off `arr`.
+      // Array.from's map fn only gets (value, index), so take the vertex count before the map.
       pts:   ((n) => Array.from({ length: n }, (_, i) => ({
         a: (i / n) * Math.PI * 2 + rnd(-0.4, 0.4),
         d: rnd(0.55, 1),
@@ -346,7 +331,6 @@ function drawMirrorArena() {
 
   ctx.save();
 
-  // ── Kaleidoscope bloom behind everything ─────────────────────────────────
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.translate(450, seam);
@@ -365,9 +349,7 @@ function drawMirrorArena() {
   }
   ctx.restore();
 
-  // ── Spire skyline, and its inversion under the plane ─────────────────────
-  // Drawing the same silhouette twice — once flipped about `seam` — is what
-  // makes the plane read as a mirror rather than as a horizon line.
+  // Spire skyline, drawn twice (flipped about the seam) so the plane reads as a mirror.
   for (const flip of [1, -1]) {
     ctx.save();
     ctx.translate(-camOff * 0.06, 0);
@@ -389,7 +371,7 @@ function drawMirrorArena() {
     ctx.restore();
   }
 
-  // ── The plane itself: a bright seam with a sheen sliding along it ────────
+  // The plane itself: a bright seam with a sheen sliding along it
   const sheen = ((f * 1.6) % 1400) - 250;
   const sg = ctx.createLinearGradient(sheen - 180, 0, sheen + 180, 0);
   sg.addColorStop(0,   'rgba(180,225,255,0)');
@@ -405,7 +387,7 @@ function drawMirrorArena() {
   ctx.fillStyle = 'rgba(80,220,255,0.13)';
   ctx.fillRect(-200, seam + 3, GAME_W + 400, 2);
 
-  // ── Ripple rings spreading across the plane ──────────────────────────────
+  // Ripple rings spreading across the plane
   ctx.strokeStyle = 'rgba(170,220,255,0.5)';
   for (const rp of bg.ripples) {
     const t2 = (((f * 0.9 + rp.off) % 320) / 320);
@@ -417,7 +399,6 @@ function drawMirrorArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Floating shards ──────────────────────────────────────────────────────
   for (const sh of bg.shards) {
     const sx = sh.x + Math.sin(f * sh.drift + sh.phase) * sh.amp - camOff * 0.10;
     const sy = sh.y + Math.cos(f * sh.drift * 0.8 + sh.phase) * sh.amp * 0.5;
@@ -425,7 +406,6 @@ function drawMirrorArena() {
     ctx.save();
     ctx.translate(sx, sy);
     ctx.rotate(rot);
-    // Glass body
     ctx.beginPath();
     sh.pts.forEach((p, i) => {
       const px = Math.cos(p.a) * sh.r * p.d, py = Math.sin(p.a) * sh.r * p.d;
@@ -455,7 +435,6 @@ function drawMirrorArena() {
     ctx.restore();
   }
 
-  // ── Drifting motes ───────────────────────────────────────────────────────
   ctx.fillStyle = '#cfe8ff';
   for (const m of bg.motes) {
     const my = ((m.y - f * m.spd) % 560 + 560) % 560;
@@ -468,7 +447,7 @@ function drawMirrorArena() {
   ctx.restore();
 }
 
-// ── Mirror arena gimmick: invert controls every 20s ───────────────────────────
+// Mirror arena gimmick: invert controls every 20s
 const MIRROR_FLIP_INTERVAL = 1200; // 20 seconds at 60fps
 const MIRROR_WARN_FRAMES   = 90;   // 1.5s warning before flip
 
@@ -515,7 +494,7 @@ function drawMirrorGimmickOverlay() {
     ctx.fillRect(0, 0, cw, ch);
   }
 
-  // Persistent "MIRRORED" indicator when controls are inverted
+  // Persistent "mirrored" indicator when controls are inverted
   if (mirrorFlipped) {
     ctx.globalAlpha = 0.7;
     ctx.font = `bold ${Math.round(ch * 0.022)}px sans-serif`;
@@ -530,12 +509,8 @@ function drawMirrorGimmickOverlay() {
   ctx.restore();
 }
 
-// ── Sunken Reef ───────────────────────────────────────────────────────────
-// The ocean map had eight caustic ellipses, some bubbles and nothing alive in
-// it. This gives it the things that make water read as water — a lit surface,
-// crepuscular rays, a caustic net on the seabed, kelp, coral — and, more to the
-// point, inhabitants: two schools of fish that move as a shoal, solitary
-// cruisers, pulsing jellyfish, and a whale silhouette in the far haze.
+// Sunken Reef
+// Reef: lit surface, rays, caustics, kelp, coral, and inhabitants (two shoals, cruisers, jellyfish, a far whale).
 function _uwBg() {
   if (_uwBg._c) return _uwBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -568,8 +543,7 @@ function _uwBg() {
       col:   ['#ff7ab0', '#ffa86b', '#9d7dff', '#5fd8c8'][Math.floor(Math.random() * 4)],
       phase: rnd(0, Math.PI * 2),
     })),
-    // Two shoals. Each fish keeps a fixed offset from the shoal's leader path,
-    // so the group turns together instead of scattering.
+    // Two shoals. Fish hold a fixed offset from the leader so the group turns together.
     shoals: [
       { n: 24, cx: 300, cy: 190, rx: 330, ry: 80, spd: 0.0055, phase: 0.0, size: 7,   col: FISH_COL[0] },
       { n: 18, cx: 560, cy: 350, rx: 280, ry: 60, spd: 0.0080, phase: 2.1, size: 5.5, col: FISH_COL[2] },
@@ -597,7 +571,6 @@ function _uwBg() {
       pulse: rnd(0.04, 0.08),
       col:   ['160,120,255', '120,220,255', '255,150,200'][Math.floor(Math.random() * 3)],
     })),
-    // Marine snow
     snow: Array.from({ length: 46 }, () => ({
       x: rnd(-20, 920), y: rnd(0, 520), r: rnd(0.6, 2.0), spd: rnd(0.05, 0.22),
       drift: rnd(0.004, 0.013), amp: rnd(5, 22), phase: rnd(0, 6.28), a: rnd(0.08, 0.26),
@@ -612,9 +585,7 @@ function _uwBg() {
   return c;
 }
 
-// Darken a #rrggbb toward black by k (0..1). Fish fins were drawn in
-// rgba(0,0,0,0.35), which is invisible against deep water — every fish read as
-// a plain oval with no tail.
+// Darken a #rrggbb toward black by k (0..1). Fins need this: rgba black vanishes in deep water.
 function _uwShade(hex, k) {
   const h = String(hex).replace('#', '');
   const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
@@ -624,14 +595,13 @@ function _uwShade(hex, k) {
   return `rgb(${r},${g},${b})`;
 }
 
-// One fish: body, tail that wags, dorsal and pectoral fins, eye. `dir` is +1
-// swimming right, -1 left.
+// One fish. dir is +1 for swimming right, -1 for left.
 function _uwFish(x, y, len, dir, col, wag, dark) {
   const h = len * 0.52;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(dir, 1);
-  // Tail — hinged at the body, so the wag reads as propulsion
+  // Tail: hinged at the body, so the wag reads as propulsion
   ctx.fillStyle = dark;
   ctx.beginPath();
   ctx.moveTo(-len * 0.75, 0);
@@ -640,7 +610,6 @@ function _uwFish(x, y, len, dir, col, wag, dark) {
   ctx.lineTo(-len * 1.25, h * 0.62 + wag * h * 0.5);
   ctx.closePath();
   ctx.fill();
-  // Dorsal + pelvic fins
   ctx.beginPath();
   ctx.moveTo(-len * 0.1, -h * 0.5);
   ctx.lineTo(-len * 0.45, -h * 1.05 - wag * 2);
@@ -653,17 +622,14 @@ function _uwFish(x, y, len, dir, col, wag, dark) {
   ctx.lineTo(-len * 0.55, h * 0.3);
   ctx.closePath();
   ctx.fill();
-  // Body
   ctx.fillStyle = col;
   ctx.beginPath();
   ctx.ellipse(-len * 0.15, 0, len * 0.78, h, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Belly lift
   ctx.fillStyle = 'rgba(255,255,255,0.28)';
   ctx.beginPath();
   ctx.ellipse(-len * 0.2, h * 0.28, len * 0.5, h * 0.36, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Eye
   ctx.fillStyle = '#06121e';
   ctx.beginPath(); ctx.arc(len * 0.38, -h * 0.16, Math.max(0.9, len * 0.10), 0, Math.PI * 2); ctx.fill();
   ctx.restore();
@@ -677,7 +643,7 @@ function drawUnderwaterArena() {
 
   ctx.save();
 
-  // ── Depth grade: light pools near the surface, blue-black at the seabed ───
+  // Depth grade: light pools near the surface, blue-black at the seabed
   const dep = ctx.createLinearGradient(0, 0, 0, floorY + 40);
   dep.addColorStop(0,    'rgba(56,150,208,0.42)');
   dep.addColorStop(0.28, 'rgba(20,84,142,0.20)');
@@ -685,7 +651,7 @@ function drawUnderwaterArena() {
   ctx.fillStyle = dep;
   ctx.fillRect(-200, 0, GAME_W + 400, floorY + 60);
 
-  // ── The surface, seen from below ─────────────────────────────────────────
+  // The surface, seen from below
   ctx.fillStyle = 'rgba(150,220,255,0.22)';
   ctx.beginPath();
   ctx.moveTo(-200, 0);
@@ -704,7 +670,7 @@ function drawUnderwaterArena() {
   }
   ctx.stroke();
 
-  // ── Crepuscular rays from the surface ────────────────────────────────────
+  // Crepuscular rays from the surface
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.translate(-camOff * 0.06, 0);
@@ -726,7 +692,7 @@ function drawUnderwaterArena() {
   }
   ctx.restore();
 
-  // ── Whale, far off in the haze — the map's sense of scale ────────────────
+  // Whale, far off in the haze: the map's sense of scale
   const whX = ((f * 0.16 + 300) % 1700) - 400;
   ctx.save();
   ctx.globalAlpha = 0.16;
@@ -750,7 +716,6 @@ function drawUnderwaterArena() {
   ctx.fill();
   ctx.restore();
 
-  // ── Reef ridges ──────────────────────────────────────────────────────────
   for (const rf of bg.reef) {
     ctx.save();
     ctx.translate(-camOff * rf.par, 0);
@@ -767,7 +732,6 @@ function drawUnderwaterArena() {
     ctx.restore();
   }
 
-  // ── Kelp forest ──────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.11, 0);
   for (const k of bg.kelp) {
@@ -780,7 +744,6 @@ function drawUnderwaterArena() {
     ctx.moveTo(k.x, floorY + 6);
     ctx.quadraticCurveTo(k.x + sway * 10, floorY - k.h * 0.55, topX, floorY - k.h);
     ctx.stroke();
-    // Blades along the stipe
     ctx.fillStyle = k.col;
     for (let b = 1; b <= k.blades; b++) {
       const p  = b / (k.blades + 1);
@@ -795,7 +758,7 @@ function drawUnderwaterArena() {
   ctx.lineCap = 'butt';
   ctx.restore();
 
-  // ── Coral heads on the seabed ────────────────────────────────────────────
+  // Coral heads on the seabed
   ctx.save();
   ctx.translate(-camOff * 0.14, 0);
   for (const co of bg.coral) {
@@ -856,7 +819,7 @@ function drawUnderwaterArena() {
   }
   ctx.restore();
 
-  // ── Caustic net on the seabed ────────────────────────────────────────────
+  // Caustic net on the seabed
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   ctx.strokeStyle = 'rgba(120,210,255,0.13)';
@@ -873,7 +836,6 @@ function drawUnderwaterArena() {
   }
   ctx.restore();
 
-  // ── Jellyfish ────────────────────────────────────────────────────────────
   for (const j of bg.jellies) {
     const jy = ((j.y - f * j.spd) % 560 + 560) % 560;
     const jx = j.x + Math.sin(f * j.drift + j.phase) * j.amp;
@@ -885,7 +847,6 @@ function drawUnderwaterArena() {
     g.addColorStop(1, `rgba(${j.col},0)`);
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(jx, jy, j.r * 2.4, 0, Math.PI * 2); ctx.fill();
-    // Bell
     ctx.fillStyle = `rgba(${j.col},0.55)`;
     ctx.beginPath();
     ctx.ellipse(jx, jy, j.r * pu, j.r * (1.6 - pu) * 0.72, 0, Math.PI, 0);
@@ -908,7 +869,6 @@ function drawUnderwaterArena() {
     ctx.restore();
   }
 
-  // ── Shoals ───────────────────────────────────────────────────────────────
   for (const sh of bg.shoals) {
     const ang  = f * sh.spd + sh.phase;
     const lead = { x: sh.cx + Math.cos(ang) * sh.rx, y: sh.cy + Math.sin(ang * 1.7) * sh.ry };
@@ -924,7 +884,6 @@ function drawUnderwaterArena() {
     void lead;
   }
 
-  // ── Solitary cruisers ────────────────────────────────────────────────────
   for (const l of bg.loners) {
     const span = 1200;
     const raw  = ((f * l.spd + l.off) % span + span) % span;
@@ -934,7 +893,7 @@ function drawUnderwaterArena() {
             Math.sin(f * 0.14 + l.off) * 1.2, _uwShade(l.col, 0.42));
   }
 
-  // ── Vent bubble columns off the reef ─────────────────────────────────────
+  // Vent bubble columns off the reef
   ctx.strokeStyle = 'rgba(190,235,255,0.4)';
   ctx.lineWidth = 1;
   for (const v of bg.vents) {
@@ -948,7 +907,7 @@ function drawUnderwaterArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Perk bubbles (kept — these are gameplay state, not decoration) ───────
+  // Perk bubbles (gameplay state, not decoration)
   const bubbles = (mapPerkState.bubbles) ? mapPerkState.bubbles : [];
   if ((typeof gameFrozen === 'undefined' || !gameFrozen) && (typeof paused === 'undefined' || !paused)) {
     for (const b of bubbles) {
@@ -972,7 +931,6 @@ function drawUnderwaterArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Marine snow ──────────────────────────────────────────────────────────
   ctx.fillStyle = '#dff2ff';
   for (const s of bg.snow) {
     const sy = ((s.y + f * s.spd) % 560 + 560) % 560 - 20;
@@ -985,17 +943,12 @@ function drawUnderwaterArena() {
   ctx.restore();
 }
 
-// ── Volcanic Caldera ──────────────────────────────────────────────────────
-// Was the shared lava floor, seven flat black triangles and nothing above the
-// horizon. This adds what an active caldera actually looks like: erupting cones
-// in parallax with lava running down their flanks, an ash column with volcanic
-// lightning in it, heat haze over the lava, obsidian outcrops veined with
-// magma, and falling ash.
+// Volcanic Caldera
+// Caldera: erupting cones with lava on the flanks, an ash column with lightning, heat haze, magma-veined obsidian.
 function _volcBg() {
   if (_volcBg._c) return _volcBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const c = {
-    // Cones, far to near
     cones: [
       { x: 175, base: 470, w: 300, h: 250, fill: 'rgba(38,14,8,0.75)', par: 0.04, glow: 0.5, streams: 2 },
       { x: 690, base: 470, w: 250, h: 190, fill: 'rgba(30,10,6,0.8)',  par: 0.06, glow: 0.35, streams: 1 },
@@ -1047,7 +1000,7 @@ function drawVolcanoArena() {
 
   ctx.save();
 
-  // ── Ash sky: a hot glow near the ground fading to soot overhead ──────────
+  // Ash sky: a hot glow near the ground fading to soot overhead
   const sky = ctx.createLinearGradient(0, 0, 0, ly + 40);
   sky.addColorStop(0,    'rgba(18,6,4,0.55)');
   sky.addColorStop(0.55, 'rgba(64,16,6,0.28)');
@@ -1055,7 +1008,7 @@ function drawVolcanoArena() {
   ctx.fillStyle = sky;
   ctx.fillRect(-200, 0, GAME_W + 400, ly + 60);
 
-  // ── Ash column boiling out of the main cone ──────────────────────────────
+  // Ash column boiling out of the main cone
   ctx.save();
   ctx.translate(-camOff * 0.04, 0);
   for (const p of bg.plume) {
@@ -1071,7 +1024,7 @@ function drawVolcanoArena() {
     ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
-  // Volcanic lightning — a rare crack inside the column
+  // Volcanic lightning: a rare crack inside the column
   const strike = (f % 220);
   if (strike < 7) {
     ctx.globalAlpha = (1 - strike / 7) * 0.85;
@@ -1093,7 +1046,6 @@ function drawVolcanoArena() {
   }
   ctx.restore();
 
-  // ── Cones ────────────────────────────────────────────────────────────────
   for (const k of bg.cones) {
     ctx.save();
     ctx.translate(-camOff * k.par, 0);
@@ -1107,8 +1059,7 @@ function drawVolcanoArena() {
     ctx.lineTo(k.x + k.w * 0.5, k.base);
     ctx.closePath();
     ctx.fill();
-    // Lit flank — the crater throws light down one side. Without it the cones
-    // are the same value as the sky and the whole silhouette disappears.
+    // Lit flank. Without it the cone matches the sky value and vanishes.
     ctx.fillStyle = `rgba(140,54,20,${0.30 + k.glow * 0.25})`;
     ctx.beginPath();
     ctx.moveTo(k.x + craterHW, apexY);
@@ -1116,8 +1067,7 @@ function drawVolcanoArena() {
     ctx.lineTo(k.x + k.w * 0.16, k.base);
     ctx.closePath();
     ctx.fill();
-    // Rim light, confined to the crater lip. Run down the full flank it drew a
-    // bright wireframe 'A' over the cone instead of catching an edge.
+    // Rim light, kept to the crater lip. Down the full flank it looked like a wireframe.
     const lipT = 0.14;
     ctx.strokeStyle = `rgba(255,150,60,${0.35 * k.glow + 0.15})`;
     ctx.lineWidth = 2;
@@ -1127,7 +1077,6 @@ function drawVolcanoArena() {
     ctx.lineTo(k.x + craterHW, apexY);
     ctx.lineTo(k.x + craterHW + (k.w * 0.5 - craterHW) * lipT, apexY + k.h * lipT);
     ctx.stroke();
-    // Crater mouth glow
     const cg = ctx.createRadialGradient(k.x, apexY, 1, k.x, apexY, k.w * 0.3);
     cg.addColorStop(0, `rgba(255,180,60,${0.85 * k.glow})`);
     cg.addColorStop(0.4, `rgba(255,90,10,${0.35 * k.glow})`);
@@ -1138,15 +1087,14 @@ function drawVolcanoArena() {
     ctx.beginPath();
     ctx.ellipse(k.x, apexY + 2, craterHW * 0.9, 4, 0, 0, Math.PI * 2);
     ctx.fill();
-    // Lava running down a flank — bright at the crater, cooling as it falls
+    // Lava running down a flank: bright at the crater, cooling as it falls
     for (const lv of k.lava) {
       const grd = ctx.createLinearGradient(k.x, apexY, k.x + lv.side * k.w * 0.5, k.base);
       grd.addColorStop(0,   'rgba(255,232,150,0.95)');
       grd.addColorStop(0.4, 'rgba(255,120,20,0.8)');
       grd.addColorStop(1,   'rgba(150,26,0,0.25)');
       ctx.strokeStyle = grd;
-      // Two passes: a soft wide glow, then a hot narrow core. One 3.5px stroke
-      // arcing off the cone read as a wire strung across the sky.
+      // Two passes (soft glow, hot core). One thick stroke looked like a wire.
       const sx0 = k.x + lv.side * craterHW * 0.7, sy0 = apexY + 3;
       const ex0 = k.x + lv.side * k.w * 0.40, ey0 = k.base;
       const mx0 = k.x + lv.side * k.w * (0.16 + lv.off * 0.22) + Math.sin(f * lv.wob + lv.phase) * 4;
@@ -1161,10 +1109,10 @@ function drawVolcanoArena() {
     ctx.restore();
   }
 
-  // ── Lava floor (shared helper — gameplay-relevant, keep it) ──────────────
+  // Lava floor (shared helper, gameplay-relevant)
   _drawLavaFloor(ly);
 
-  // ── Heat haze over the lava ──────────────────────────────────────────────
+  // Heat haze over the lava
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < 12; i++) {
@@ -1183,7 +1131,7 @@ function drawVolcanoArena() {
   }
   ctx.restore();
 
-  // ── Obsidian outcrops, veined with magma ─────────────────────────────────
+  // Obsidian outcrops, veined with magma
   for (const r of bg.rocks) {
     const top = ly + 18 - r.h;
     ctx.fillStyle = '#180402';
@@ -1197,7 +1145,6 @@ function drawVolcanoArena() {
     ctx.lineTo(r.x, GAME_H + 60);
     ctx.closePath();
     ctx.fill();
-    // Lit left face
     ctx.fillStyle = 'rgba(84,26,12,0.55)';
     ctx.beginPath();
     ctx.moveTo(r.x, ly + 26);
@@ -1206,7 +1153,6 @@ function drawVolcanoArena() {
     ctx.lineTo(r.x + r.w * 0.34, ly + 26);
     ctx.closePath();
     ctx.fill();
-    // Magma seams, breathing
     const seamA = 0.5 + Math.sin(f * 0.03 + r.x) * 0.3;
     ctx.strokeStyle = `rgba(255,110,26,${seamA * 0.6})`;
     ctx.shadowColor = '#ff6a10';
@@ -1224,7 +1170,7 @@ function drawVolcanoArena() {
     ctx.shadowBlur = 0;
   }
 
-  // ── Geyser visuals from perk state (gameplay — kept) ─────────────────────
+  // Geyser visuals from perk state
   if (mapPerkState.geysers) {
     for (const gy of mapPerkState.geysers) {
       const h = Math.min(gy.timer * 1.2, 220);
@@ -1241,7 +1187,6 @@ function drawVolcanoArena() {
     }
   }
 
-  // ── Ash falling, embers rising ───────────────────────────────────────────
   ctx.fillStyle = '#6b625e';
   for (const a of bg.ash) {
     const ay = ((a.y + f * a.spd) % 560 + 560) % 560 - 20;
@@ -1270,11 +1215,7 @@ function drawVolcanoArena() {
   ctx.restore();
 }
 
-// ── Colosseum ─────────────────────────────────────────────────────────────
-// Was flat rectangles with a row of dots for a crowd. Rebuilt as an actual
-// amphitheatre: a shaded arcade with recessed arches, two banked tiers of
-// seating with an individually-coloured crowd that reacts to screen shake,
-// hanging banners, a velarium (sun awning) along the top edge, and raked sand.
+// Colosseum: arcade, banked crowd tiers that react to shake, banners, velarium, raked sand.
 function _coloBg() {
   if (_coloBg._c) return _coloBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1320,7 +1261,7 @@ function drawColosseumArena() {
 
   ctx.save();
 
-  // ── Velarium: sun awning slung across the top of the bowl ─────────────────
+  // Velarium: sun awning slung across the top of the bowl
   for (const v of bg.velum) {
     const sag = 16 + Math.sin(f * 0.012 + v.phase) * 3;
     ctx.fillStyle = 'rgba(226,196,148,0.30)';
@@ -1339,22 +1280,19 @@ function drawColosseumArena() {
     ctx.stroke();
   }
 
-  // ── Banked seating: two shaded tiers behind the crowd ─────────────────────
+  // Banked seating: two shaded tiers behind the crowd
   const tier = ctx.createLinearGradient(0, 20, 0, 136);
   tier.addColorStop(0,   'rgba(96,74,48,0.55)');
   tier.addColorStop(0.6, 'rgba(132,104,68,0.55)');
   tier.addColorStop(1,   'rgba(160,128,86,0.55)');
   ctx.fillStyle = tier;
   ctx.fillRect(-200, 20, GAME_W + 400, 116);
-  // Step lines
   ctx.strokeStyle = 'rgba(70,52,32,0.35)';
   ctx.lineWidth   = 1;
   for (let y = 34; y < 136; y += 17) {
     ctx.beginPath(); ctx.moveTo(-200, y); ctx.lineTo(GAME_W + 200, y); ctx.stroke();
   }
-  // Vomitoria — stairway mouths cut into the stands. These have to stay low and
-  // faint: at full height and opacity they punched through the (translucent)
-  // crowd drawn over them and read as dark spikes standing in the seating.
+  // Vomitoria (stairway mouths). Keep them low and faint or they read as dark spikes in the crowd.
   ctx.fillStyle = 'rgba(24,14,6,0.26)';
   for (let i = 0; i < 6; i++) {
     const vx = 40 + i * 160;
@@ -1365,7 +1303,6 @@ function drawColosseumArena() {
     ctx.fill();
   }
 
-  // ── Crowd ─────────────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.03, 0);
   for (let ri = 0; ri < bg.rows.length; ri++) {
@@ -1378,7 +1315,6 @@ function drawColosseumArena() {
       ctx.fillStyle   = p.col;
       ctx.beginPath(); ctx.arc(p.x, y, p.r * 0.62, 0, Math.PI * 2); ctx.fill();
       ctx.fillRect(p.x - p.r * 0.55, y + p.r * 0.4, p.r * 1.1, p.r * 1.7);
-      // Arms up while roaring
       if (roar > 0.35 && (p.x | 0) % 3 === 0) {
         ctx.strokeStyle = p.col;
         ctx.lineWidth   = Math.max(1, p.r * 0.28);
@@ -1392,7 +1328,7 @@ function drawColosseumArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Arcade wall with recessed arches ──────────────────────────────────────
+  // Arcade wall with recessed arches
   ctx.save();
   ctx.translate(-camOff * 0.07, 0);
   const wall = ctx.createLinearGradient(0, 136, 0, 480);
@@ -1400,13 +1336,10 @@ function drawColosseumArena() {
   wall.addColorStop(1, 'rgba(108,86,58,0.62)');
   ctx.fillStyle = wall;
   ctx.fillRect(-200, 136, GAME_W + 400, 344);
-  // Cornice
   ctx.fillStyle = 'rgba(178,146,102,0.7)';
   ctx.fillRect(-200, 130, GAME_W + 400, 13);
 
   for (let i = 0; i < bg.arches.length; i++) {
-    // abot used to be 480 — the recesses ran straight into the sand and left
-    // the whole lower two-thirds of the wall as one empty tan field.
     const ax = bg.arches[i], aw = 86, atop = 210, abot = 398;
     // Recess: dark interior
     ctx.fillStyle = 'rgba(26,16,8,0.62)';
@@ -1423,20 +1356,17 @@ function drawColosseumArena() {
     ig.addColorStop(1, 'rgba(255,190,110,0)');
     ctx.fillStyle = ig;
     ctx.fillRect(ax - aw * 0.5, atop - 40, aw, 130);
-    // Voussoir ring
     ctx.strokeStyle = 'rgba(196,162,112,0.75)';
     ctx.lineWidth   = 7;
     ctx.beginPath();
     ctx.arc(ax, atop, aw * 0.5 + 3, Math.PI, 0);
     ctx.stroke();
-    // Pilasters flanking it
     ctx.fillStyle = 'rgba(186,152,104,0.6)';
     ctx.fillRect(ax - aw * 0.5 - 11, atop, 9, abot - atop);
     ctx.fillRect(ax + aw * 0.5 + 2,  atop, 9, abot - atop);
   }
 
-  // Podium wall the arcade stands on — coursed masonry, then a shading pass so
-  // the arena floor sits in the bowl's shadow rather than in flat light.
+    // Podium wall the arcade stands on. The shading keeps the floor in the bowl's shadow.
   const pod = ctx.createLinearGradient(0, 396, 0, 486);
   pod.addColorStop(0, 'rgba(168,138,96,0.85)');
   pod.addColorStop(1, 'rgba(112,88,58,0.85)');
@@ -1461,7 +1391,6 @@ function drawColosseumArena() {
   ctx.fillStyle = shade;
   ctx.fillRect(-200, 240, GAME_W + 400, 246);
 
-  // ── Hanging banners ───────────────────────────────────────────────────────
   for (const b of bg.banners) {
     const sw = Math.sin(f * 0.018 + b.phase) * 4;
     ctx.fillStyle = b.col;
@@ -1474,7 +1403,6 @@ function drawColosseumArena() {
     ctx.lineTo(b.x - b.w * 0.5 + sw, 150 + b.h);
     ctx.closePath();
     ctx.fill();
-    // Emblem
     ctx.globalAlpha = 0.35;
     ctx.fillStyle   = '#e8d8a8';
     ctx.beginPath();
@@ -1484,7 +1412,7 @@ function drawColosseumArena() {
   }
   ctx.restore();
 
-  // ── Raked sand on the arena floor ─────────────────────────────────────────
+  // Raked sand on the arena floor
   ctx.save();
   ctx.strokeStyle = '#8a6438';
   ctx.lineWidth   = 2;
@@ -1508,12 +1436,8 @@ function drawColosseumArena() {
   ctx.restore();
 }
 
-// ── Neon District ─────────────────────────────────────────────────────────
-// Was a flat 45px grid and six neon strokeRects. Rebuilt as a rain-soaked
-// street under a cyberpunk skyline: three parallax bands of towers with lit
-// window grids, holographic billboards running scanlines, vertical sign
-// strips, traffic streaking between the buildings, rain, and neon smeared
-// across the wet floor.
+// Neon district
+// Rain-soaked street under a cyberpunk skyline: parallax towers, billboards, signs, traffic, rain, and neon on the wet floor.
 function _cyberBg() {
   if (_cyberBg._c) return _cyberBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1582,7 +1506,7 @@ function drawCyberpunkArena() {
 
   ctx.save();
 
-  // ── Smog glow above the city ─────────────────────────────────────────────
+  // Smog glow above the city
   const smog = ctx.createLinearGradient(0, 90, 0, floorY);
   smog.addColorStop(0,   'rgba(20,0,44,0)');
   smog.addColorStop(0.55, 'rgba(58,0,86,0.30)');
@@ -1590,9 +1514,8 @@ function drawCyberpunkArena() {
   ctx.fillStyle = smog;
   ctx.fillRect(-200, 90, GAME_W + 400, floorY - 90);
 
-  // ── Tower bands, far to near ─────────────────────────────────────────────
-  // Towers, window grids, crowns and mast poles never animate: each band is
-  // cached (parallax applied at blit). Only the aircraft-warning lamps stay live.
+  // Tower bands, far to near
+    // Towers, grids and mast poles are cached per band (parallax at blit). Only the warning lamps animate.
   for (let bi = 0; bi < bg.bands.length; bi++) {
     const bd = bg.bands[bi];
     ctx.save();
@@ -1602,7 +1525,7 @@ function drawCyberpunkArena() {
         const top = floorY - tw.h;
         ctx.fillStyle = bd.fill;
         ctx.fillRect(tw.x, top, tw.w, tw.h);
-        // Window grid — a static lit/dark mask, so nothing strobes
+        // Window grid: a static lit/dark mask, so nothing strobes
         const cols = Math.max(2, Math.floor(tw.w / 11));
         const rows = Math.max(3, Math.floor(tw.h / 15));
         for (let r = 0; r < rows; r++) {
@@ -1621,7 +1544,6 @@ function drawCyberpunkArena() {
           ctx.beginPath(); ctx.moveTo(tw.x, top); ctx.lineTo(tw.x + tw.w, top); ctx.stroke();
           ctx.shadowBlur = 0;
         }
-        // Antenna mast
         if (tw.mast) {
           ctx.strokeStyle = 'rgba(40,52,80,0.9)';
           ctx.lineWidth = 2;
@@ -1645,11 +1567,9 @@ function drawCyberpunkArena() {
     ctx.restore();
   }
 
-  // ── Holographic billboards ───────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.09, 0);
   for (const b of bg.boards) {
-    // Panel
     ctx.globalAlpha = 0.16;
     ctx.fillStyle = b.col;
     ctx.fillRect(b.x, b.y, b.w, b.h);
@@ -1660,7 +1580,7 @@ function drawCyberpunkArena() {
     ctx.lineWidth   = 1.6;
     ctx.strokeRect(b.x, b.y, b.w, b.h);
     ctx.shadowBlur = 0;
-    // Glyph block — reads as advertising copy without being any real language
+    // Glyph block: reads as advertising copy without being any real language
     const gw = b.w / 6, gh = b.h / b.rows;
     for (let r = 0; r < b.rows; r++) {
       for (let cN = 0; cN < 6; cN++) {
@@ -1677,13 +1597,11 @@ function drawCyberpunkArena() {
       ctx.fillStyle = 'rgba(255,255,255,0.22)';
       ctx.fillRect(b.x, scan, b.w, 3);
     }
-    // Static interlace
     ctx.fillStyle = 'rgba(0,0,0,0.18)';
     for (let y = b.y; y < b.y + b.h; y += 4) ctx.fillRect(b.x, y, b.w, 1);
   }
   ctx.restore();
 
-  // ── Vertical sign strips ─────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.11, 0);
   for (const sg of bg.signs) {
@@ -1703,7 +1621,7 @@ function drawCyberpunkArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Traffic streaking between the towers ─────────────────────────────────
+  // Traffic streaking between the towers
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const tr of bg.traffic) {
@@ -1722,13 +1640,12 @@ function drawCyberpunkArena() {
   }
   ctx.restore();
 
-  // ── Wet floor: neon smeared into vertical reflections ───────────────────
+  // Wet floor: neon smeared into vertical reflections
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const pl of bg.pools) {
     const wob = Math.sin(f * 0.03 + pl.phase) * 3;
-    // Upward from the floor line: the floor platform is opaque and drawn after
-    // the background, so anything below floorY is simply never seen.
+            // Drawn upward from the floor line. Anything below floorY is never seen.
     const g = ctx.createLinearGradient(0, floorY, 0, floorY - 54);
     g.addColorStop(0, pl.col);
     g.addColorStop(1, 'rgba(0,0,0,0)');
@@ -1745,7 +1662,6 @@ function drawCyberpunkArena() {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // ── Rain ─────────────────────────────────────────────────────────────────
   ctx.strokeStyle = '#9fd8ff';
   ctx.lineWidth = 1;
   for (const r of bg.rain) {
@@ -1759,7 +1675,7 @@ function drawCyberpunkArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Zap visual from perk state (gameplay — kept) ─────────────────────────
+    // Zap visual from perk state
   if (mapPerkState.zapActive) {
     const pulse = 0.4 + Math.abs(Math.sin(f * 0.35)) * 0.6;
     ctx.globalAlpha = pulse * 0.7;
@@ -1789,11 +1705,7 @@ function drawCyberpunkArena() {
   ctx.restore();
 }
 
-// ── Haunted Cathedral ─────────────────────────────────────────────────────
-// Was five rectangles with a yellow fill for "windows" plus four fog ellipses.
-// Rebuilt as a ruined churchyard: a broken cathedral facade with tracery in the
-// windows and a rose window, dead trees clawing at a clouded moon, gravestones,
-// bats crossing, layered ground fog and drifting will-o'-wisps.
+// Haunted cathedral: ruined churchyard with a broken facade, dead trees, gravestones, bats, fog and wisps.
 function _hauntBg() {
   if (_hauntBg._c) return _hauntBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1850,7 +1762,6 @@ function drawHauntedArena() {
 
   ctx.save();
 
-  // ── Moon behind ragged cloud ─────────────────────────────────────────────
   const moonX = 742, moonY = 78;
   const mg = ctx.createRadialGradient(moonX, moonY, 6, moonX, moonY, 150);
   mg.addColorStop(0,    'rgba(196,206,240,0.34)');
@@ -1873,11 +1784,9 @@ function drawHauntedArena() {
     ctx.fill();
   }
 
-  // ── Cathedral facade ─────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.05, 0);
   ctx.fillStyle = 'rgba(18,12,26,0.88)';
-  // Broken roofline
   ctx.beginPath();
   ctx.moveTo(-200, groundY);
   ctx.lineTo(-200, 128);
@@ -1887,7 +1796,6 @@ function drawHauntedArena() {
   ctx.lineTo(1100, groundY);
   ctx.closePath();
   ctx.fill();
-  // Buttresses
   ctx.fillStyle = 'rgba(30,20,44,0.85)';
   for (const bx of [10, 165, 385, 605, 765, 890]) {
     ctx.beginPath();
@@ -1898,10 +1806,8 @@ function drawHauntedArena() {
     ctx.closePath();
     ctx.fill();
   }
-  // Gothic windows with tracery
   for (const w of bg.windows) {
     const glow = w.lit ? 0.35 + Math.abs(Math.sin(f * w.spd + w.phase)) * 0.55 : 0.06;
-    // Reveal
     ctx.fillStyle = 'rgba(10,6,16,0.95)';
     ctx.beginPath();
     ctx.moveTo(w.x - w.w * 0.5 - 4, w.y + w.h);
@@ -1910,7 +1816,6 @@ function drawHauntedArena() {
     ctx.lineTo(w.x + w.w * 0.5 + 4, w.y + w.h);
     ctx.closePath();
     ctx.fill();
-    // Candlelight inside
     const wg = ctx.createLinearGradient(w.x, w.y + w.h, w.x, w.y - w.w);
     wg.addColorStop(0, `rgba(255,168,60,${glow})`);
     wg.addColorStop(1, `rgba(255,220,140,${glow * 0.5})`);
@@ -1922,7 +1827,7 @@ function drawHauntedArena() {
     ctx.lineTo(w.x + w.w * 0.5, w.y + w.h);
     ctx.closePath();
     ctx.fill();
-    // Mullions — the detail that makes it a window and not a lit slot
+        // Mullions make it read as a window, not a lit slot
     ctx.strokeStyle = 'rgba(14,8,20,0.9)';
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(w.x, w.y - w.w * 0.5); ctx.lineTo(w.x, w.y + w.h); ctx.stroke();
@@ -1930,7 +1835,6 @@ function drawHauntedArena() {
       const yy = w.y + (w.h * k) / 4;
       ctx.beginPath(); ctx.moveTo(w.x - w.w * 0.5, yy); ctx.lineTo(w.x + w.w * 0.5, yy); ctx.stroke();
     }
-    // Spill onto the stone
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const sg = ctx.createRadialGradient(w.x, w.y + w.h * 0.4, 2, w.x, w.y + w.h * 0.4, 78);
@@ -1956,7 +1860,6 @@ function drawHauntedArena() {
   }
   ctx.restore();
 
-  // ── Dead trees ───────────────────────────────────────────────────────────
   for (const tr of bg.trees) {
     ctx.save();
     ctx.translate(-camOff * tr.par, 0);
@@ -1979,7 +1882,7 @@ function drawHauntedArena() {
       ctx.moveTo(lx2, ly2);
       ctx.quadraticCurveTo(lx2 + lm.dir * lm.len * 0.6, ly2 + lm.rise * 0.3, ex, ey);
       ctx.stroke();
-      // Fork at the tip — bare branches need to split or they read as spikes
+      // Fork at the tip: bare branches need to split or they read as spikes
       ctx.lineWidth = Math.max(1, tr.w * 0.24);
       ctx.beginPath();
       ctx.moveTo(ex, ey);
@@ -1992,7 +1895,6 @@ function drawHauntedArena() {
     ctx.restore();
   }
 
-  // ── Gravestones ──────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.16, 0);
   for (const g of bg.graves) {
@@ -2018,7 +1920,6 @@ function drawHauntedArena() {
   }
   ctx.restore();
 
-  // ── Bats ─────────────────────────────────────────────────────────────────
   ctx.fillStyle = 'rgba(10,6,16,0.85)';
   for (const b of bg.bats) {
     const a2 = f * b.spd + b.phase;
@@ -2043,12 +1944,11 @@ function drawHauntedArena() {
     ctx.restore();
   }
 
-  // ── Ground fog, in layered banks ─────────────────────────────────────────
+  // Ground fog, in layered banks
   for (const fg of bg.fog) {
     const fx = (((fg.off + f * fg.spd) % 1300) + 1300) % 1300 - 200;
     const fy = fg.y + Math.sin(f * 0.01 + fg.off) * 4;
-    // Squash the SPACE, not the path: a flat fill in a squashed ellipse leaves a
-    // visible hard rim where a fog bank should have none.
+        // Squash the space, not the path, or the fog bank gets a hard rim.
     ctx.save();
     ctx.translate(fx, fy);
     ctx.scale(1, fg.ry / fg.rx);
@@ -2061,7 +1961,6 @@ function drawHauntedArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Will-o'-wisps ────────────────────────────────────────────────────────
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const w of bg.wisps) {
@@ -2080,7 +1979,7 @@ function drawHauntedArena() {
   }
   ctx.restore();
 
-  // ── Ghost sprites from perk state (gameplay — kept) ──────────────────────
+    // Ghost sprites from perk state
   if (mapPerkState.ghosts) {
     for (const gh of mapPerkState.ghosts) {
       const ga = 0.35 + Math.sin(f * 0.08 + gh.x * 0.02) * 0.2;
@@ -2095,7 +1994,7 @@ function drawHauntedArena() {
       ctx.quadraticCurveTo(gh.x - 7,  gh.y + 6,  gh.x - 14, gh.y + 12);
       ctx.closePath();
       ctx.fill();
-      // Hollow eyes so it reads as a ghost rather than a blob
+                  // Hollow eyes so it reads as a ghost, not a blob
       ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(40,10,60,0.8)';
       ctx.beginPath(); ctx.arc(gh.x - 5, gh.y - 12, 2.6, 0, Math.PI * 2); ctx.fill();
@@ -2107,16 +2006,11 @@ function drawHauntedArena() {
   ctx.restore();
 }
 
-// ── Skyward ───────────────────────────────────────────────────────────────
-// Was five three-circle puffs and a flat golden wash. Rebuilt as a proper sky:
-// a low sun with rays, three parallax depths of cumulus banks that are lit on
-// top and shadowed underneath, mountain peaks breaking through the cloud sea,
-// birds in formation, and wind streaks.
+// Skyward: low sun, parallax cumulus with lit tops, mountain peaks through the clouds, birds and wind streaks.
 function _cloudsBg() {
   if (_cloudsBg._c) return _cloudsBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
-  // A cumulus is a cluster of lobes; storing the lobes lets it be lit from
-  // above and shaded below instead of being one flat blob.
+    // Lobes are stored so each cloud can be lit from above and shaded below.
   const puff = (scale) => ({
     lobes: Array.from({ length: 5 + Math.floor(Math.random() * 4) }, (_, i) => ({
       dx: rnd(-1, 1) * 46 * scale,
@@ -2168,7 +2062,7 @@ function drawCloudsArena() {
 
   ctx.save();
 
-  // ── Low sun and its rays ─────────────────────────────────────────────────
+  // Low sun and its rays
   const sunX = 726, sunY = 118;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -2178,7 +2072,6 @@ function drawCloudsArena() {
   sg.addColorStop(1,    'rgba(255,200,110,0)');
   ctx.fillStyle = sg;
   ctx.fillRect(sunX - 240, sunY - 240, 480, 480);
-  // Radial shafts
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 + f * 0.0012;
     const len = 210 + Math.sin(f * 0.02 + i) * 40;
@@ -2197,14 +2090,14 @@ function drawCloudsArena() {
   ctx.fillStyle = 'rgba(255,252,238,0.95)';
   ctx.beginPath(); ctx.arc(sunX, sunY, 26, 0, Math.PI * 2); ctx.fill();
 
-  // ── Warm haze toward the horizon ─────────────────────────────────────────
+  // Warm haze toward the horizon
   const haze = ctx.createLinearGradient(0, 200, 0, GAME_H);
   haze.addColorStop(0, 'rgba(255,220,140,0)');
   haze.addColorStop(1, 'rgba(255,198,110,0.26)');
   ctx.fillStyle = haze;
   ctx.fillRect(-200, 200, GAME_W + 400, GAME_H - 160);
 
-  // ── Peaks breaking the cloud sea ─────────────────────────────────────────
+  // Peaks breaking the cloud sea
   ctx.save();
   ctx.translate(-camOff * 0.05, 0);
   for (const p of bg.peaks) {
@@ -2228,7 +2121,6 @@ function drawCloudsArena() {
   }
   ctx.restore();
 
-  // ── Wind streaks ─────────────────────────────────────────────────────────
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   for (const st of bg.streaks) {
@@ -2241,14 +2133,13 @@ function drawCloudsArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Cumulus banks, far to near ───────────────────────────────────────────
+  // Cumulus banks, far to near
   for (const bd of bg.bands) {
     ctx.save();
     ctx.translate(-camOff * bd.par, 0);
     for (const cl of bd.clouds) {
       const cx2 = (((cl.x + cl.off + f * bd.spd) % 1240) + 1240) % 1240 - 170;
       const bob = Math.sin(f * 0.006 + cl.off) * 3;
-      // Shadowed underside first
       ctx.globalAlpha = bd.alpha * 0.55;
       ctx.fillStyle = '#b9c9e6';
       for (const lo of cl.lobes) {
@@ -2256,7 +2147,6 @@ function drawCloudsArena() {
         ctx.arc(cx2 + lo.dx, cl.y + lo.dy + bob + lo.r * 0.30, lo.r, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Body
       ctx.globalAlpha = bd.alpha;
       ctx.fillStyle = '#eef4ff';
       for (const lo of cl.lobes) {
@@ -2264,8 +2154,7 @@ function drawCloudsArena() {
         ctx.arc(cx2 + lo.dx, cl.y + lo.dy + bob, lo.r, 0, Math.PI * 2);
         ctx.fill();
       }
-      // Sunlit crown — a small cap high on each lobe. A large offset disc read
-      // as a cream ring on the far band's little puffs.
+            // Sunlit crown: a small cap high on each lobe. A large offset disc reads as a cream ring.
       ctx.globalAlpha = bd.alpha * 0.6;
       ctx.fillStyle = '#fff6df';
       for (const lo of cl.lobes) {
@@ -2278,7 +2167,6 @@ function drawCloudsArena() {
     ctx.restore();
   }
 
-  // ── Birds ────────────────────────────────────────────────────────────────
   ctx.strokeStyle = 'rgba(32,44,72,0.7)';
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
@@ -2305,11 +2193,7 @@ function drawCloudsArena() {
   ctx.restore();
 }
 
-// ── Neon Grid ─────────────────────────────────────────────────────────────
-// Was a flat 50px screen-space grid. A grid only reads as a floor if it has
-// perspective, so this rebuilds it as a synthwave plane: lines converging on a
-// vanishing point, horizontal rungs spaced by depth and scrolling toward the
-// camera, a banded sun on the horizon, wireframe ridges, and a starfield.
+// Neon grid: a synthwave plane with perspective, scrolling rungs, a banded sun, wireframe ridges and stars.
 function _neonBg() {
   if (_neonBg._c) return _neonBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -2344,7 +2228,6 @@ function drawNeonGridArena() {
 
   ctx.save();
 
-  // ── Starfield above the horizon ──────────────────────────────────────────
   for (const st of bg.stars) {
     ctx.globalAlpha = 0.2 + Math.abs(Math.sin(f * st.spd + st.phase)) * 0.6;
     ctx.fillStyle = '#9dffc4';
@@ -2352,7 +2235,7 @@ function drawNeonGridArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Banded sun sitting on the horizon ────────────────────────────────────
+  // Banded sun sitting on the horizon
   const sunR = 96;
   ctx.save();
   ctx.beginPath();
@@ -2373,7 +2256,6 @@ function drawNeonGridArena() {
     gap = Math.max(1.5, gap - 0.35);
   }
   ctx.restore();
-  // Sun bloom
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const bl = ctx.createRadialGradient(vpX, horizon - 10, 8, vpX, horizon - 10, 220);
@@ -2383,7 +2265,7 @@ function drawNeonGridArena() {
   ctx.fillRect(vpX - 230, horizon - 240, 460, 300);
   ctx.restore();
 
-  // ── Wireframe ridges on the horizon ──────────────────────────────────────
+  // Wireframe ridges on the horizon
   for (const rg of bg.ridges) {
     ctx.save();
     ctx.translate(-camOff * rg.par, 0);
@@ -2407,7 +2289,6 @@ function drawNeonGridArena() {
     ctx.restore();
   }
 
-  // ── Horizon glow bar ─────────────────────────────────────────────────────
   ctx.strokeStyle = `rgba(0,255,68,${0.55 * pulse})`;
   ctx.shadowColor = '#00ff44';
   ctx.shadowBlur  = 18;
@@ -2415,10 +2296,7 @@ function drawNeonGridArena() {
   ctx.beginPath(); ctx.moveTo(-200, horizon); ctx.lineTo(GAME_W + 200, horizon); ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // ── Perspective floor grid ───────────────────────────────────────────────
-  // Rungs are placed by depth d in (0,1]; screen y = horizon + k/d puts them
-  // closer together near the horizon and scrolling them by fract(t) makes the
-  // plane appear to move under the player.
+    // Rung placement by depth; scrolling them by fract(t) makes the floor move under the player.
   ctx.save();
   ctx.strokeStyle = `rgba(0,255,68,${0.30 * pulse})`;
   ctx.lineWidth = 1;
@@ -2442,7 +2320,7 @@ function drawNeonGridArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Speed-boost pad indicators (gameplay — kept) ─────────────────────────
+    // Speed-boost pads (gameplay)
   if (MAP_PERK_DEFS.neonGrid && MAP_PERK_DEFS.neonGrid.boostPads) {
     ctx.save();
     for (const pad of MAP_PERK_DEFS.neonGrid.boostPads) {
@@ -2467,7 +2345,7 @@ function drawNeonGridArena() {
     ctx.restore();
   }
 
-  // ── Data streams falling through the scene ───────────────────────────────
+  // Data streams falling through the scene
   for (const s of bg.streams) {
     const sy = ((s.y + f * s.spd) % 560 + 560) % 560 - 30;
     ctx.globalAlpha = s.a;
@@ -2480,18 +2358,13 @@ function drawNeonGridArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── CRT scanlines over everything ────────────────────────────────────────
   ctx.fillStyle = 'rgba(0,0,0,0.14)';
   for (let y = 0; y < GAME_H; y += 3) ctx.fillRect(-200, y, GAME_W + 400, 1);
 
   ctx.restore();
 }
 
-// ── Bioluminescent Grove ──────────────────────────────────────────────────
-// Was seven flat-shaded toadstools on a purple wash. Rebuilt as a glowing
-// fungal forest: three parallax bands of caps whose gills actually emit light
-// onto the ground, a mycelium web on the floor, drifting spore clouds, rising
-// glow motes and a slow colour pulse through the whole grove.
+// Bioluminescent grove: fungal caps that light the ground, mycelium threads, spores and a slow colour pulse.
 function _mushBg() {
   if (_mushBg._c) return _mushBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -2523,8 +2396,7 @@ function _mushBg() {
   });
   const c = {
     bands: [
-      // Far band is deliberately over-scaled: at grove scale the whole cavern
-      // was empty above the horizon, so these tall caps fill the upper screen.
+            // Far band is over-scaled so the caps fill the upper screen.
       band(7, 0.04, 1.9, 3.1, 0.20),
       band(9, 0.07, 0.42, 0.8, 0.36),
       band(7, 0.13, 0.7, 1.05, 0.62),
@@ -2541,7 +2413,6 @@ function _mushBg() {
       drift: rnd(0.006, 0.020), amp: rnd(10, 44), phase: rnd(0, 6.28),
       a: rnd(0.18, 0.55), pal: PAL[Math.floor(Math.random() * PAL.length)],
     })),
-    // Fat, slow spore clouds
     clouds: Array.from({ length: 5 }, () => ({
       x: rnd(-40, 940), y: rnd(120, 400), rx: rnd(60, 140), ry: rnd(22, 52),
       spd: rnd(0.06, 0.18), phase: rnd(0, 6.28), pal: PAL[Math.floor(Math.random() * PAL.length)],
@@ -2559,19 +2430,18 @@ function drawMushroomArena() {
 
   ctx.save();
 
-  // ── Slow chromatic wash through the cavern air ────────────────────────────
+  // Slow chromatic wash through the cavern air
   const wash = ctx.createRadialGradient(450, 250, 40, 450, 250, 560);
   wash.addColorStop(0, `rgba(170,80,255,${0.10 + Math.sin(f * 0.005) * 0.04})`);
   wash.addColorStop(1, 'rgba(120,40,180,0)');
   ctx.fillStyle = wash;
   ctx.fillRect(-200, -100, GAME_W + 400, GAME_H + 200);
 
-  // ── Drifting spore clouds, behind the caps ────────────────────────────────
+  // Drifting spore clouds, behind the caps
   for (const cd of bg.clouds) {
     const cx = ((cd.x + f * cd.spd) % 1100 + 1100) % 1100 - 100;
     const cy = cd.y + Math.sin(f * 0.008 + cd.phase) * 14;
-    // Filling a SQUASHED ellipse path with a circular gradient cuts the falloff
-    // off early along y and leaves a hard rim; squash the space instead.
+        // A circular gradient in a squashed ellipse cuts the falloff early. Squash the space instead.
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(1, cd.ry / cd.rx);
@@ -2583,7 +2453,7 @@ function drawMushroomArena() {
     ctx.restore();
   }
 
-  // ── Mushroom bands, far to near ───────────────────────────────────────────
+  // Mushroom bands, far to near
   for (const bnd of bg.bands) {
     ctx.save();
     ctx.translate(-camOff * bnd.par, 0);
@@ -2605,7 +2475,7 @@ function drawMushroomArena() {
 
       ctx.globalAlpha = bnd.alpha;
 
-      // Stem — tapered, graded so it reads round, with a flared base
+      // Stem: tapered, graded so it reads round, with a flared base
       const sg = ctx.createLinearGradient(tipX - m.stemW, 0, tipX + m.stemW, 0);
       sg.addColorStop(0,    'rgba(150,132,150,0.85)');
       sg.addColorStop(0.35, 'rgba(238,224,232,0.9)');
@@ -2621,8 +2491,7 @@ function drawMushroomArena() {
 
       // Gills glowing under the cap, drawn before the cap so it overlaps them
       ctx.save();
-      // Clipped to the underside of the cap. Unclipped, the fan's outer spokes
-      // ran past the rim and read as whiskers sticking out of the mushroom.
+            // Clipped to the cap underside, or the gill spokes stick out past the rim.
       ctx.beginPath();
       ctx.ellipse(tipX, topY, m.capR * 0.72, m.capR * 0.26, 0, 0, Math.PI);
       ctx.clip();
@@ -2638,7 +2507,7 @@ function drawMushroomArena() {
       }
       ctx.restore();
 
-      // Cap — domed, lit from the crown
+      // Cap: domed, lit from the crown
       const cg = ctx.createLinearGradient(tipX, topY - m.capR * 0.6, tipX, topY + m.capR * 0.1);
       cg.addColorStop(0, m.pal.lit);
       cg.addColorStop(1, m.pal.cap);
@@ -2646,13 +2515,11 @@ function drawMushroomArena() {
       ctx.beginPath();
       ctx.ellipse(tipX, topY, m.capR, m.capR * 0.62, 0, Math.PI, 0);
       ctx.fill();
-      // Rim lip
       ctx.fillStyle = m.pal.cap;
       ctx.beginPath();
       ctx.ellipse(tipX, topY, m.capR, m.capR * 0.12, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Glowing spots
       for (const sp of m.spots) {
         const sx = tipX + sp.o * m.capR * 0.86;
         const sy = topY - Math.cos(sp.o * 1.4) * m.capR * sp.h * 0.62;
@@ -2669,7 +2536,7 @@ function drawMushroomArena() {
     ctx.restore();
   }
 
-  // ── Mycelium threads creeping across the floor ────────────────────────────
+  // Mycelium threads creeping across the floor
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const my of bg.myco) {
@@ -2683,7 +2550,6 @@ function drawMushroomArena() {
   }
   ctx.restore();
 
-  // ── Rising spores ─────────────────────────────────────────────────────────
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const s of bg.spores) {
@@ -2705,12 +2571,7 @@ function drawMushroomArena() {
   ctx.restore();
 }
 
-// ── Desert ────────────────────────────────────────────────────────────────
-// The sun and heat shimmer were fine; everything else was an empty orange wash
-// with five flat dune blobs at 28% alpha. This gives the map a landscape:
-// layered dunes with lit crests and cast shadows, mesas on the horizon,
-// saguaro cacti, scrub and bones in the foreground, vultures circling, and
-// blowing sand.
+// Desert: lit dune bands, mesas, saguaro cacti, scrub, a skull, vultures and blowing sand.
 function _desertBg() {
   if (_desertBg._c) return _desertBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -2759,7 +2620,6 @@ function drawDesertArena() {
 
   ctx.save();
 
-  // ── Sun, high and hard ───────────────────────────────────────────────────
   const sunX = GAME_W * 0.82, sunY = 62;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -2784,7 +2644,6 @@ function drawDesertArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Vultures circling ────────────────────────────────────────────────────
   ctx.strokeStyle = 'rgba(70,42,20,0.5)';
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
@@ -2802,7 +2661,6 @@ function drawDesertArena() {
   }
   ctx.lineCap = 'butt';
 
-  // ── Mesas on the horizon ─────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.03, 0);
   for (const m of bg.mesas) {
@@ -2817,14 +2675,12 @@ function drawDesertArena() {
     ctx.lineTo(m.x + m.w, 400);
     ctx.closePath();
     ctx.fill();
-    // Strata bands
     ctx.fillStyle = 'rgba(190,124,74,0.35)';
     ctx.fillRect(m.x + m.w * 0.14, top + m.h * 0.35, m.w * 0.72, 5);
     ctx.fillRect(m.x + m.w * 0.16, top + m.h * 0.62, m.w * 0.68, 4);
   }
   ctx.restore();
 
-  // ── Dunes ────────────────────────────────────────────────────────────────
   const duneY = (d, x) => d.base
     - Math.sin(x * 0.0042 + d.seed) * d.amp
     - Math.sin(x * 0.0113 + d.seed * 2.1) * d.amp * 0.42;
@@ -2838,7 +2694,7 @@ function drawDesertArena() {
     ctx.lineTo(GAME_W + 260, groundY + 60);
     ctx.closePath();
     ctx.fill();
-    // Lit crest — a hairline of sun along the ridge is what gives a dune form
+    // Lit crest: a hairline of sun along the ridge is what gives a dune form
     ctx.strokeStyle = d.crest;
     ctx.lineWidth = 2.5;
     ctx.beginPath();
@@ -2860,7 +2716,6 @@ function drawDesertArena() {
     ctx.restore();
   }
 
-  // ── Saguaro cacti ────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.17, 0);
   for (const c of bg.cacti) {
@@ -2876,10 +2731,7 @@ function drawDesertArena() {
     ctx.lineTo(c.x + c.w * 0.5, groundY + 4);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
-    // Arms
-    // Arm = an elbow drawn as one thick round-capped stroke out of the trunk and
-    // up. The previous arc-based outline detached from the trunk and rendered as
-    // a free-floating green rectangle beside the cactus.
+        // Arms: one thick round-capped stroke from the trunk, so they stay attached.
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     for (let k = 0; k < c.arms; k++) {
@@ -2904,7 +2756,6 @@ function drawDesertArena() {
     }
     ctx.lineCap = 'butt';
     ctx.lineJoin = 'miter';
-    // Ribs
     ctx.strokeStyle = 'rgba(20,64,32,0.5)';
     ctx.lineWidth = 1.2;
     for (let k = -1; k <= 1; k++) {
@@ -2921,7 +2772,7 @@ function drawDesertArena() {
   }
   ctx.restore();
 
-  // ── Scrub bushes and a bleached skull ────────────────────────────────────
+  // Scrub bushes and a bleached skull
   ctx.save();
   ctx.translate(-camOff * 0.2, 0);
   for (const s of bg.scrub) {
@@ -2951,7 +2802,6 @@ function drawDesertArena() {
   ctx.stroke();
   ctx.restore();
 
-  // ── Blowing sand ─────────────────────────────────────────────────────────
   ctx.strokeStyle = '#ffe6b0';
   ctx.lineWidth = 1.5;
   for (const s of bg.sand) {
@@ -2964,7 +2814,7 @@ function drawDesertArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Heat shimmer rising off the sand ─────────────────────────────────────
+  // Heat shimmer rising off the sand
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const shimmerAmt = Math.sin(f * 0.03) * 2;
@@ -2984,7 +2834,7 @@ function drawDesertArena() {
   }
   ctx.restore();
 
-  // ── Quicksand zone indicator (gameplay — kept) ───────────────────────────
+    // Quicksand zone indicator (gameplay)
   if (currentArena && currentArena.hasQuicksand) {
     const qsX = currentArena.quicksandX || 280;
     const qsW = currentArena.quicksandW || 340;

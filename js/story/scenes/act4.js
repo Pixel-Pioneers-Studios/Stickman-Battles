@@ -1,17 +1,13 @@
 'use strict';
-// js/story/scenes/act4.js — cinematic scene specs for act4.
-// Split out of the former single-file js/smb-story-scenes.js; content unchanged.
-// Every file here merges into the shared window.STORY_SCENE_SPECS, so load order
-// AMONG these files does not matter — only that they all load BEFORE
-// js/smb-story-narrative-scene.js, which reads the table.
-//
-// 8 specs — chapter ids: 128, 129, 131, 135, 138, 141, 143, 144
+// Cinematic scene specs for act4. Split out of the old js/smb-story-scenes.js.
+// Each file merges into window.STORY_SCENE_SPECS, so load all of them before js/smb-story-narrative-scene.js.
+// Chapter ids: 128, 129, 131, 135, 138, 141, 143, 144.
 
 window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
 (function (S) {
 
-  // ─── Chapter 128 — The Architecture ───────────────────────────────────────
+  // Chapter 128: The Architecture
   S[128] = {
     bg: 'city',
     npcColor: '#334455',
@@ -98,7 +94,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 129 — Architecture Soldiers ──────────────────────────────────
+  // Chapter 129: Architecture Soldiers
   S[129] = {
     bg: 'city',
     npcColor: '#336688',
@@ -170,7 +166,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 131 — Twin Enforcers ──────────────────────────────────────────
+  // Chapter 131: Twin Enforcers
   S[131] = {
     bg: 'city',
     npcColor: '#cc2244',
@@ -244,7 +240,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 135 — Purge Sequence ─────────────────────────────────────────
+  // Chapter 135: Purge Sequence
   S[135] = {
     bg: 'city',
     npcColor: '#336688',
@@ -319,7 +315,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 138 — First Form ─────────────────────────────────────────────
+  // Chapter 138: First Form
   S[138] = {
     bg: 'city',
     npcColor: '#ff8822',
@@ -400,7 +396,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 141 — Second Form ────────────────────────────────────────────
+  // Chapter 141: Second Form
   S[141] = {
     bg: 'city',
     npcColor: '#ff4400',
@@ -492,7 +488,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 143 — SOVEREIGN ─────────────────────────────────────────────
+  // Chapter 143: SOVEREIGN
   S[143] = {
     bg: 'city',
     npcColor: '#cc44ff',
@@ -587,7 +583,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 144 — The Creator's Gate ────────────────────────────────────
+  // Chapter 144: The Creator's Gate
   S[144] = {
     bg: 'city',
     npcColor: '#ff8822',

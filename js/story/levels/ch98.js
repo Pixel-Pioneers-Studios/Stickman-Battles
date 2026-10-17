@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch98.js — Chapter 98 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch98.js: chapter 98 map (scavenge, 4 relics). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 98 — The Scale of Things (scavenge, 4 relics)
-// Titan World's outer ruins: the city of the civilization before the current
-// King, built at a scale you only reach the ankles of. Columns you can't see
-// the tops of; a staircase whose every step is taller than you (the climbs);
-// glyphs cut into the walls the size of doors. The relics lie where the
-// titans left them: the civilization record on the ground at the first gate,
-// the record of the First Wall's collapse on a toppled tablet, the record of
-// isolation on the rim of a giant's cup, and the Last King's failure in the
-// open palm of his own fallen statue — the statue's head lies further on, on
-// its side, crown still on. "They grew larger and refused to bend."
-// ═════════════════════════════════════════════════════════════════════════════
+// Titan World ruins at giant scale. The relics lie on a tablet, a cup rim, and a fallen statue's palm.
 (function () {
   const G = 440;
   const TABLET = [1150, 370, 110], CUP = [1950, 390, 100], PALM = [2740, 375, 120];

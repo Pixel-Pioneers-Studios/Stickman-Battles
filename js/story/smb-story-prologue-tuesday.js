@@ -1,18 +1,8 @@
 'use strict';
-// smb-story-prologue-tuesday.js — the playable cold open.
-//
-// Ported from the Axiom Prequel's chapters 0-1 ("BEFORE / Tuesday" and the alley
-// ambush). Two deliberate deviations from that source:
-//
-//   1. The scene stays UNATTRIBUTED. The prequel names him on its final beat;
-//      here that would spoil the main game's twist, and canon.md wants the
-//      ambiguity anyway ("the player cannot tell this is not Kael").
-//   2. The ambush is not playable. Canon: "He does not decide to fight — his
-//      body refuses... He should lose. He does not lose." Handing the player a
-//      fight would contradict the one thing the scene is about.
-//
-// Fully self-contained: own canvas, own loop, own input. Touches no game state,
-// so it cannot perturb gameLoop or the story engine.
+// smb-story-prologue-tuesday.js: the playable cold open.
+// Ported from the Axiom Prequel's chapters 0-1. Stays unattributed, since naming him would spoil the twist.
+// Canon: he should lose, and he does not, so the ambush is not playable.
+// Self-contained: own canvas and loop, touches no game state.
 
 const TUES_W = 900, TUES_H = 520;
 const TUES_WORLD = 1320;
@@ -48,10 +38,7 @@ var TuesdayPrologue = (function () {
   let phase = 'walk';          // 'walk' | 'ambush' | 'after' | 'out'
   let ambT = 0, afterIdx = 0, shake = 0, flash = 0, fade = 0;
   let mugX = 0, mugKb = 0, mugDown = 0, bagGone = false;
-  // The phone spills from the torn bag, wakes, and the camera pushes into its
-  // screen until the screen is the whole frame. The home screen behind this
-  // canvas is diegetically that screen, so the cold open hands off to the menu
-  // instead of launching a chapter.
+  // The camera pushes into the phone screen until it fills the frame. The home screen behind is that screen, so the cold open hands off to the menu.
   let phoneX = 0, phoneY = 0, phoneRot = 0;
   let phT = 0, phWake = 0, phZoom = 1, phFlood = 0;
   const PH_ZOOM_MAX = 60;
@@ -60,7 +47,7 @@ var TuesdayPrologue = (function () {
 
   function seedBuildings() {
     buildings = [];
-    // Three parallax depths; deterministic so the walk looks the same every run.
+    // Deterministic, so the walk looks the same each run.
     let s = 20260724;
     const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
     for (const layer of [{ d: 0.25, n: 26, hi: 210, col: '#141a2c' },
@@ -80,9 +67,7 @@ var TuesdayPrologue = (function () {
 
   function onKeyDown(e) {
     keys[e.code] = true;
-    // Escape alone is not enough: CrazyGames' guidelines call out keys with
-    // default browser behaviour, and a portal reviewer will reach for a click
-    // before a hotkey. Enter/Space and a click on the overlay all skip too.
+    // Escape alone isn't enough: a portal reviewer clicks before trying a hotkey.
     if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'NumpadEnter') { finish(true); return; }
     if (['ArrowLeft', 'ArrowRight', 'Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
   }
@@ -109,14 +94,12 @@ var TuesdayPrologue = (function () {
       if (px >= 1155) { phase = 'ambush'; ambT = 0; mugX = px - 300; caption = null; }
     } else if (phase === 'ambush') {
       ambT++;
-      // He closes from the left, unhurried, then the scene takes over.
       if (ambT < 90) { mugX += (px - 58 - mugX) * 0.045; pvx *= 0.8; px += pvx; }
       if (ambT === 90) { say(TUES_AFTER[0].text); afterIdx = 1; shake = 5; flash = 0.5; }
       if (ambT > 90) { phase = 'after'; ambT = 0; }
     } else if (phase === 'after') {
       ambT++;
-      // Impacts land on him, not by him — three beats, then it is over.
-      // He should lose. He does not lose — so the impacts land on the other man.
+      // Impacts land on the other man. He should lose, and does not.
       if (ambT === 90 || ambT === 200 || ambT === 330) { shake = 7; flash = 0.55; mugKb = 26; }
       if (ambT === 330) mugDown = 1;
       if (mugKb > 0) { mugX -= mugKb * 0.35; mugKb *= 0.86; }
@@ -135,11 +118,9 @@ var TuesdayPrologue = (function () {
       if (phT > 45) phWake = Math.min(1, phWake + 0.025);
       if (phT > 85) {
         if (phT === 86) caption = null;
-        // Smoothstep push: slow off the pavement, then it takes the whole frame.
         const k = Math.min(1, (phT - 85) / 150);
         phZoom = 1 + (PH_ZOOM_MAX - 1) * (k * k * (3 - 2 * k));
-        // Square the screen up as it fills, so it hands off level to the menu
-        // rather than cutting from a tilted frame to an upright one.
+        // Level the frame as it fills, so the handoff to the menu isn't tilted.
         phoneRot += (0 - phoneRot) * 0.05;
       }
       if (phT > 232) phFlood = Math.min(1, phFlood + 0.06);
@@ -160,15 +141,15 @@ var TuesdayPrologue = (function () {
     const sw = Math.sin(phaseV) * 5;
     cx.strokeStyle = col; cx.lineWidth = 2.6; cx.lineCap = 'round';
     cx.beginPath();
-    cx.moveTo(0, -30); cx.lineTo(0, -12);                      // spine
-    cx.moveTo(0, -24); cx.lineTo(7 + sw * 0.3, -16);           // arm (bag side)
+    cx.moveTo(0, -30); cx.lineTo(0, -12);
+    cx.moveTo(0, -24); cx.lineTo(7 + sw * 0.3, -16);
     cx.moveTo(0, -24); cx.lineTo(-7, -16);
-    cx.moveTo(0, -12); cx.lineTo(sw * 0.7, 0);                 // legs
+    cx.moveTo(0, -12); cx.lineTo(sw * 0.7, 0);
     cx.moveTo(0, -12); cx.lineTo(-sw * 0.7, 0);
     cx.stroke();
     cx.fillStyle = isMug ? '#6b6b74' : '#d8c9a8';
     cx.beginPath(); cx.arc(0, -36, 5.6, 0, Math.PI * 2); cx.fill();
-    if (!isMug && !bagGone) {                                  // the bag
+    if (!isMug && !bagGone) {
       cx.fillStyle = '#8a7f66';
       cx.fillRect(6, -15, 8, 10);
     }
@@ -185,8 +166,7 @@ var TuesdayPrologue = (function () {
     cx.closePath();
   }
 
-  // Drawn in world units — the camera push scales this up until the screen fills
-  // the canvas, so the type on it only becomes legible late in the move.
+  // Drawn in world units. The camera push scales it up, so the text only reads late in the move.
   function drawPhone() {
     cx.save();
     cx.translate(phoneX - camX, phoneY);
@@ -240,7 +220,6 @@ var TuesdayPrologue = (function () {
     sky.addColorStop(1, '#1d2438');
     cx.fillStyle = sky; cx.fillRect(-20, -20, TUES_W + 40, TUES_H + 40);
 
-    // Moon + halo
     const mx = 700 - camX * 0.06, my = 96;
     const halo = cx.createRadialGradient(mx, my, 0, mx, my, 130);
     halo.addColorStop(0, 'rgba(200,215,255,0.20)');
@@ -262,13 +241,11 @@ var TuesdayPrologue = (function () {
       }
     }
 
-    // Haze band over the skyline
     const hz = cx.createLinearGradient(0, TUES_GROUND - 120, 0, TUES_GROUND);
     hz.addColorStop(0, 'rgba(90,110,160,0)');
     hz.addColorStop(1, 'rgba(90,110,160,0.20)');
     cx.fillStyle = hz; cx.fillRect(0, TUES_GROUND - 120, TUES_W, 120);
 
-    // Wet road + reflections
     cx.fillStyle = '#0f1220'; cx.fillRect(0, TUES_GROUND, TUES_W, TUES_H - TUES_GROUND);
     cx.fillStyle = 'rgba(120,140,190,0.05)';
     cx.fillRect(0, TUES_GROUND, TUES_W, 46);
@@ -294,7 +271,6 @@ var TuesdayPrologue = (function () {
     }
     cx.restore();
 
-    // Vignette
     const vg = cx.createRadialGradient(TUES_W / 2, TUES_H / 2, TUES_H * 0.35, TUES_W / 2, TUES_H / 2, TUES_H * 0.95);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
     vg.addColorStop(1, 'rgba(0,0,0,0.72)');
@@ -312,8 +288,7 @@ var TuesdayPrologue = (function () {
       cx.globalAlpha = 1;
     }
 
-    // The way out is advertised from the first frame. Gating it behind "has the
-    // player walked yet" hid it from exactly the player who wanted it.
+    // Always shown. Gating it behind 'has walked' hid the exit from players who wanted it.
     if (phase !== 'out' && phFlood <= 0) {
       cx.fillStyle = 'rgba(220,220,235,' + (0.20 + Math.sin(t * 0.05) * 0.08) + ')';
       cx.font = '11px "Segoe UI", Arial, sans-serif';
@@ -341,9 +316,7 @@ var TuesdayPrologue = (function () {
     raf = requestAnimationFrame(frame);
   }
 
-  // Hands the frame to the home screen underneath: a glass edge that recedes, so
-  // the menu reads as the screen the camera just pushed into. Transitional only —
-  // nothing is left behind once it fades.
+  // Glass edge recedes, so the menu reads as the screen the camera pushed into.
   function bezelDissolve() {
     const d = document.createElement('div');
     d.style.cssText = [

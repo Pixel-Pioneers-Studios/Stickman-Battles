@@ -41,8 +41,8 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Data Caches',
     preText: 'Collector terminals are scattered through the node. Access all five data caches before the network purges them.',
     scavengeItemDefs: [
-      // Placed on the junction map (js/story/levels/ch25.js): terminal tower
-      // top, sorting trench, lift upper stop, main conduit, routing core.
+      // Placed on the junction map (ch25.js): terminal tower top, sorting trench,
+      // lift upper stop, main conduit, routing core.
       { wx: 650,  y: 180, name: 'Collector Log A', icon: '📂' },
       { wx: 1420, y: 500, name: 'Collector Log B', icon: '📂' },
       { wx: 2400, y: 250, name: 'Origin Data',     icon: '💾' },
@@ -111,8 +111,7 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Creator\'s Seal',
     preText: 'The Creator\'s mark locks the threshold. Activate all four mechanisms in sequence to break the seal.',
     puzzleSwitchDefs: [
-      // Zig-zag order across the warp chamber (js/story/levels/ch27.js):
-      // pit, high tower, lift top stop, west wall shelf.
+      // Zig-zag order across the warp chamber (ch27.js): pit, high tower, lift top, west wall.
       { wx: 1630, y: 540, label: '1' },
       { wx: 2370, y: 120, label: '2' },
       { wx: 2990, y: 220, label: '3' },
@@ -143,8 +142,8 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Bearer Records',
     preText: 'Veran needs the records of the previous forty-seven fragment bearers to map the Crucible champion\'s absorbed signatures. Collect all four data fragments.',
     scavengeItemDefs: [
-      // Placed on the Crucible approach map (js/story/levels/ch28.js): low
-      // niche, obsidian spire top, chain bridge, the Crucible's outer wall.
+      // Placed on the Crucible approach map (ch28.js): low niche, obsidian spire top,
+      // chain bridge, the Crucible's outer wall.
       { wx: 380,  y: 400, name: 'Bearer Log I',    icon: '📄' },
       { wx: 1235, y: 180, name: 'Bearer Log II',   icon: '📄' },
       { wx: 1990, y: 270, name: 'Fragment Map',    icon: '🗺️' },
@@ -283,11 +282,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Eye dissolves. The door opens. Beyond it: the rift entity. The first fragment bearer. Ten thousand years of waiting. And behind it, somehow — the beginning of everything that comes next.',
   },
 
-  // ══════════════════════════════════════════════════════════════════
-  // ACT III — THE ARCHITECTS (ids 28–44)
-  // The Multiversal Core, Forest & Ice, Ruins. The four Architects.
-  // ══════════════════════════════════════════════════════════════════
+  // Act III: the Architects (ids 28-44)
 
-  // ─────── Arc 2-0: Multiversal Core (ids 28–34) ───────────────────
 
 );

@@ -1,16 +1,13 @@
 'use strict';
-// smb-menu-startcore.js — _startGameCore: full game initialisation sequence
-// Depends on: smb-globals.js, smb-fighter.js, smb-enemies.js, smb-menu-spawn.js
-// Must load AFTER smb-menu-spawn.js, BEFORE smb-menu-utils.js
+// smb-menu-startcore.js: _startGameCore, the full game init sequence.
+// Depends on smb-globals.js, smb-fighter.js, smb-enemies.js and smb-menu-spawn.js.
+// Loads after smb-menu-spawn.js and before smb-menu-utils.js.
 
 function _startGameCore() {
   // Every match starts escort-free; escort chapters re-arm it after this returns.
   if (typeof escortCleanup === 'function') escortCleanup();
-  // Stale online state must never leak into an offline match. Leaving a room
-  // without reloading the page used to leave onlineMode true, which forced
-  // training2P on and flagged a fighter isRemote with nothing driving it: an
-  // invulnerable, motionless clone of the last online opponent, plus the online
-  // chat log floating over a solo session.
+  // Online state must not leak into an offline match. Without a reload, a left room kept onlineMode on,
+  // which forced training2P and left a remote fighter with no driver (an invulnerable clone).
   if (onlineMode && !(typeof NetworkManager !== 'undefined' && NetworkManager.connected)) {
     onlineMode = false;
     onlineLocalSlot = 0;
@@ -29,16 +26,12 @@ function _startGameCore() {
   const isAbsoluteAxiomMode = gameMode === 'absoluteaxiom';
   const isDamnationMode    = gameMode === 'damnation';
   const isTrainingMode     = gameMode === 'training';
-  // Online: force 2P-compatible variants so guest doesn't get assigned to boss/dummy
-  // A hosted room with nobody in it is NOT a multiplayer match. Both the forced
-  // 2P layout and the isRemote hand-off below have to key off a real peer, or an
-  // empty room produces a second fighter with no driver: the motionless,
-  // damage-proof clone players saw after a friend left.
+  // A hosted room with nobody in it is not a multiplayer match. The forced 2P layout and the isRemote
+  // hand-off must key off a real peer, or an empty room makes a driverless second fighter.
   const _onlinePeerPresent = onlineMode
     && typeof NetworkManager !== 'undefined' && NetworkManager.connected
     && (typeof NetworkManager.getSlotCount !== 'function' || NetworkManager.getSlotCount() > 1);
-  // The chat widget is an in-match overlay and only earns its screen space when
-  // there is somebody to talk to.
+  // Chat is an in-match overlay, so only show it when someone is there to talk to.
   const chatEl = document.getElementById('onlineChat');
   if (chatEl) chatEl.style.display = _onlinePeerPresent ? 'flex' : 'none';
   if (_onlinePeerPresent && isBossMode && bossPlayerCount !== 2) bossPlayerCount = 2;
@@ -50,15 +43,12 @@ function _startGameCore() {
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
   const isSovereignMode    = gameMode === 'sovereign';
   const isCompleteRandMode = gameMode === '2p' && completeRandomizer;
-  // Quick Fight: one-shot "everything random" for this match only — arena, weapon
-  // and class are rolled fresh and the player's 1v1 menu selections are ignored.
-  // Unlike Complete Randomizer it does not reroll the arena on every death.
+  // Quick Fight: randomise arena, weapon and class for this match only, ignoring the 1v1 selects.
+  // Unlike Complete Randomizer, the arena is not rerolled on each death.
   const isQuickFightRand   = gameMode === '2p' && !!window._quickFightRandomNext;
   window._quickFightRandomNext = false;
-  // Fight Ladder rung (smb-ladder.js): the opponent, arena and difficulty are
-  // fixed per rung. P1 gets the starter kit (sword, Warrior) on the first-run
-  // fight, and on every rung unless they picked a real loadout (anything but
-  // Random) in Versus, so a run keeps one identity from fight to fight.
+  // Fight Ladder rung: opponent, arena and difficulty are fixed per rung. P1 gets the starter kit
+  // (sword, Warrior) on the first fight, and on later rungs unless they picked a real loadout in Versus.
   const ladderDef          = gameMode === '2p' ? (window._ladderNext || null) : null;
   window._ladderNext = null;
   const _p1PicksRandom     = (document.getElementById('p1Weapon')?.value || 'random') === 'random'
@@ -85,7 +75,7 @@ function _startGameCore() {
   }
 
   trainingMode = isTrainingMode;
-  tutorialMode = false; // tutorial mode removed
+  tutorialMode = false;
   if (isSovereignMode) {
     currentArenaKey = 'sovereign'; // Sovereign's dedicated melee-only arena
   } else if (isAbsoluteAxiomMode) {
@@ -97,31 +87,34 @@ function _startGameCore() {
     const mvWorld = (typeof MultiverseManager !== 'undefined') ? MultiverseManager.getActiveWorld() : null;
     currentArenaKey = (mvWorld && mvWorld.arenaKey) ? mvWorld.arenaKey : 'homeAlley';
   } else if (isBossMode) {
-    // A story chapter's authored arena (storyLevelArenaKey) keeps the Creator
-    // arena's boss rules via isBossArena; any other boss match is 'creator'.
+    // An authored story arena keeps the Creator boss rules via isBossArena. Other boss matches use 'creator'.
     currentArenaKey = (storyModeActive && selectedArena === '__storyarena__' && ARENAS.__storyarena__ && ARENAS.__storyarena__.isBossArena) ? '__storyarena__' : 'creator';
   } else if (isTrainingMode) {
     currentArenaKey = 'training';
   } else if (isTrueFormMode) {
     currentArenaKey = 'void';
   } else if (isDamnationMode) {
-    // Story arenas built on 'damnation' keep its six platforms in order — the
-    // fall-removal sequence (damnationRemovalOrder) is index-based.
+    // Story arenas built on 'damnation' keep their six platforms in order (the fall sequence is index-based).
     currentArenaKey = (storyModeActive && selectedArena === '__storyarena__' && ARENAS.__storyarena__ && ARENAS.__storyarena__.isDamnationArena) ? '__storyarena__' : 'damnation';
     if (typeof resetDamnationState === 'function') resetDamnationState();
   } else if (isExploreMode) {
     currentArenaKey = '__explore__';
   } else if (isBattleRoyaleMode) {
     currentArenaKey = '__br__';
-    if (typeof _makeBRArena === 'function') ARENAS['__br__'] = _makeBRArena(); // ensure ARENAS lookup works at line 83
+    if (typeof _makeBRArena === 'function') ARENAS['__br__'] = _makeBRArena();
   } else if (isMinigamesMode) {
     if (minigameType === 'sports') {
       currentArenaKey = 'soccer';
     } else if (minigameType === 'defense') {
       currentArenaKey = 'nexus';
     } else {
-      // Pick a random arena from the standard PvP selection
-      const arenaPool = ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly);
+      // Random arena from the standard PvP pool. Only screen-wide ones with a solid centre floor:
+      // KotH's zone sits there, and survival waves drop in at the sides.
+      const arenaPool = ARENA_KEYS_ORDERED.filter(k => {
+        const a = ARENAS[k];
+        if (!a || a.isStoryOnly || (a.worldWidth && a.worldWidth > GAME_W)) return false;
+        return (a.platforms || []).some(pl => pl.isFloor && pl.x <= GAME_W / 2 && pl.x + pl.w >= GAME_W / 2);
+      });
       currentArenaKey = randChoice(arenaPool);
     }
   } else if (ladderDef && ARENAS[ladderDef.arena]) {
@@ -166,11 +159,9 @@ function _startGameCore() {
     NetworkManager.sendGameStateSync(syncState);
   }
 
-  // Resolve weapons & classes together — handles 50/50 when both are 'random'
-  // Complete Randomizer is a 1v1 modifier: force random arena + weapon + class
-  // Story uses its own saved pick (story loadout menu), not the Versus selects.
-  // Random rolls skip anything the mode would strip afterwards, so a rolled
-  // class is never left holding a substituted sword.
+  // Weapons and classes resolve together, so a 50/50 works when both are random.
+  // Complete Randomizer forces random arena, weapon and class (1v1 only). Story uses its loadout menu.
+  // Rolls skip anything the mode strips later, so a class never ends up holding a substituted sword.
   const _p1StoryLoadout = (storyModeActive && typeof storyLoadoutValues === 'function') ? storyLoadoutValues() : null;
   const _isBossRoll = isBossMode || isTrueFormMode || isGodMode || isAbsoluteAxiomMode || isDamnationMode || isSovereignMode;
   const _rollFilter = (storyModeActive && typeof _storyWeaponAllowed === 'function') ? _storyWeaponAllowed
@@ -191,17 +182,13 @@ function _startGameCore() {
     if (_isMeleeOnly(w1)) w1 = 'sword';
     if (_isMeleeOnly(w2)) w2 = 'sword';
   }
-  // ── RANGED BAN (all boss fights) ────────────────────────────────────────
-  // Every boss encounter is melee-only for the player side. Ranged weapons let
-  // the player kite from outside the boss's engage range, which bypasses the
-  // read-and-punish adaptation systems (Sovereign) and the telegraph/counter
-  // design of the phase bosses. Substitute a sword for any ranged pick.
-  // Boss entities themselves are constructed separately and are unaffected.
+  // RANGED BAN (boss fights): the player side is melee-only. Ranged weapons let the player kite from
+  // outside engage range, which skips the read-and-punish systems and boss telegraphs. Picks become a sword.
+  // Boss entities are built elsewhere and are unaffected.
   const _isBossFight = isBossMode || isTrueFormMode || isGodMode ||
                        isAbsoluteAxiomMode || isDamnationMode || isSovereignMode;
   if (_isBossFight) {
-    // Custom weapons are keyed '_custom_*' and live in CUSTOM_WEAPONS, not WEAPONS —
-    // resolve both so a hand-built ranged weapon can't slip past the ban.
+    // Custom weapons ('_custom_*', in CUSTOM_WEAPONS) are checked too, so a ranged one can't slip past.
     const _wDef = (key) => (key && String(key).startsWith('_custom_') && window.CUSTOM_WEAPONS)
       ? window.CUSTOM_WEAPONS[key]
       : (typeof WEAPONS !== 'undefined' ? WEAPONS[key] : null);
@@ -220,14 +207,9 @@ function _startGameCore() {
   if (ladderDef) _p2ResolvedClass = ladderDef.cls;
   if (ladderDef && ladderDef.p1Class && CLASSES[ladderDef.p1Class]) _p1ResolvedClass = ladderDef.p1Class;
 
-  // ── TROLL CLASS BAR (boss fights) ───────────────────────────────────────
-  // Knight is a joke class with deliberately absurd stats — a 30-damage
-  // launcher on a 22-frame cooldown, a free AoE on every landing, and a super
-  // that grants 2s of invincibility. That is fine as a toy in versus and
-  // training, and completely trivialises a boss fight: it beat Sovereign 10-8
-  // in a measured full match while every other loadout tested lost badly.
-  // Rather than balance the joke into something it was never meant to be, it is
-  // simply barred from boss encounters and rerolled to an ordinary class.
+  // Knight is barred from boss fights. It has deliberately absurd stats (a 30-damage launcher on a 22-frame
+  // cooldown, a free AoE on landing, 2s of invincibility in its super). It beat Sovereign 10-8 in a measured
+  // match, so it is rerolled to an ordinary class rather than balanced into a toy.
   if (_isBossFight) {
     const _reroll = (cls) => {
       if (cls !== 'megaknight') return cls;
@@ -242,10 +224,7 @@ function _startGameCore() {
     };
     _p1ResolvedClass = _reroll(_p1ResolvedClass);
     _p2ResolvedClass = _reroll(_p2ResolvedClass);
-    // The class selector locks the weapon to mkgauntlet while Knight is
-    // picked, so rerolling the class alone would leave the player holding a
-    // 30-damage 22-frame gauntlet under an ordinary class — the stats that made
-    // it a problem, minus the identity. Reroll the weapon with it.
+    // Knight locks the weapon to mkgauntlet, so rerolling only the class would leave a 30-damage gauntlet. Reroll the weapon too.
     const _rerollW = (wk) => {
       if (wk !== 'mkgauntlet' && wk !== 'gauntlet') return wk;
       const _wp = (typeof WEAPON_KEYS !== 'undefined' && WEAPON_KEYS.length)
@@ -263,10 +242,8 @@ function _startGameCore() {
   const diff   = p2Diff; // legacy alias used below for p2
   const isBot  = p2IsBot; // bot determined by P2 toggle, not separate mode
 
-  // Generate bg elements fresh each game
   generateBgElements();
 
-  // Reset state — stop menu background loop
   menuLoopRunning    = false;
   frameCount         = 0; // reset per-game frame counter (used for yeti min-spawn delay)
   projectiles        = [];
@@ -278,14 +255,15 @@ function _startGameCore() {
   damageTexts        = [];
   respawnCountdowns  = [];
   minions            = [];
+  if (typeof _godWasAlive !== 'undefined') _godWasAlive = false;
+  window._absoluteAxiomWasAlive = false;
   forestBeast        = null;
   forestBeastCooldown = 0;
   yeti               = null;
   yetiCooldown       = 0;
   bossBeams          = [];
   bossSpikes         = [];
-  // Unconditional TF/boss global reset — clears all attack state arrays regardless of mode
-  // so hazards from a previous game never carry damage into the next one.
+  // Clear boss and TF attack state so hazards from a previous game can't hit the next one.
   if (typeof resetBossWarnings === 'function') resetBossWarnings();
   if (typeof resetTFState === 'function') resetTFState();
   if (typeof DomainManager !== 'undefined') DomainManager.reset();
@@ -296,11 +274,8 @@ function _startGameCore() {
   bossDeathScene     = null;
   fakeDeath          = { triggered: false, active: false, timer: 0, player: null };
   if (typeof resetParadoxState === 'function') resetParadoxState();
-  // Re-seed rather than blank-wipe. initMapPerks() clears both globals itself and
-  // then re-spawns the arena's pickups; a bare `mapItems = []` here ran AFTER the
-  // initMapPerks() call above and left every pickup arena (ruins, and now The
-  // Circuit) permanently item-less — crates/meteors/gusts only survived because
-  // their update blocks lazily re-seed their own state, and pickups have no such path.
+  // Re-seed, don't blank-wipe. initMapPerks() clears both globals and re-spawns pickups. A bare reset here
+  // ran after it and left pickup arenas item-less, since pickups have no lazy re-seed path.
   if (typeof initMapPerks === 'function') initMapPerks(currentArenaKey);
   else { mapItems = []; mapPerkState = {}; }
   winsP1             = 0;
@@ -308,21 +283,19 @@ function _startGameCore() {
   screenShake     = 0;
   frameCount      = 0;
   paused          = false;
-  // Reset timing globals — prevent stale slow-motion / hitstop from previous game
+  // Reset timing globals: prevent stale slow-motion / hitstop from previous game
   slowMotion      = 1.0;
   hitStopFrames   = 0;
   hitSlowTimer    = 0;
   storyFreezeTimer = 0;
   gameFrozen      = false; // ensure cinematic freeze is cleared on new game start
-  // Stale-mode leak guards: a quit mid-Damnation or mid-gravity-flip chaos event
-  // must never carry these flags into the next match.
+  // Mid-chaos quits must not carry these flags into the next match.
   damnationActive = false;
   if (typeof tfGravityInverted !== 'undefined') tfGravityInverted = false;
   if (typeof tfControlsInverted !== 'undefined') tfControlsInverted = false;
   if (typeof _lastFrameTime !== 'undefined') _lastFrameTime = 0;
   if (typeof resetDirector === 'function') resetDirector();
 
-  // Reset camera zoom
   camZoomCur = 1; camZoomTarget = 1;
   camXCur = GAME_W / 2; camYCur = GAME_H / 2;
   camXTarget = GAME_W / 2; camYTarget = GAME_H / 2;
@@ -331,7 +304,6 @@ function _startGameCore() {
   // Reset duel-cam state so it doesn't carry stale midpoint from previous match
   if (typeof _duelMidX !== 'undefined') { _duelMidX = GAME_W / 2; _duelMidY = GAME_H / 2; _duelFallDelay = 0; }
   aiTick = 0;
-  // Reset boss floor state for every game start
   bossFloorState = 'normal';
   bossFloorType  = 'lava';
   bossFloorTimer = 1500;
@@ -367,8 +339,7 @@ function _startGameCore() {
   // Story mode: if class is locked for this chapter, ignore player's class selection
   const _storyClassLocked = storyModeActive && storyPlayerOverride && storyPlayerOverride.noClass;
   applyClass(p1, _storyClassLocked ? 'none' : _p1ResolvedClass);
-  // If player explicitly chose a weapon (not random), restore it after applyClass
-  // so archer/paladin class doesn't forcefully override the selected weapon
+  // Keep the player's chosen weapon over applyClass, so archer/paladin classes don't override it.
   const _p1WeaponPick = _p1StoryLoadout ? _p1StoryLoadout.weapon : document.getElementById('p1Weapon')?.value;
   if (_p1WeaponPick && _p1WeaponPick !== 'random' && !isRandLoadout) {
     const _w1Obj = (w1 && w1.startsWith('_custom_') && window.CUSTOM_WEAPONS && window.CUSTOM_WEAPONS[w1])
@@ -387,7 +358,7 @@ function _startGameCore() {
     p1._storyNoAbility    = !!_sc.noAbility;
     p1._storyNoSuper      = !!_sc.noSuper;
     p1._storyNoDoubleJump = !!_sc.noDoubleJump;
-    p1._noDoubleJump      = !!_sc.noDoubleJump;  // unified flag checked in smb-loop.js
+    p1._noDoubleJump      = !!_sc.noDoubleJump;  // checked in smb-loop-core.js
   }
   // Knight spawn fall
   if (p1.charClass === 'megaknight') { p1.y = -120; p1.vy = 2; p1._spawnFalling = true; p1.invincible = 200; SoundManager.megaknightFall && SoundManager.megaknightFall(); }
@@ -400,8 +371,7 @@ function _startGameCore() {
     const boss = (storyBossType === 'fallen_god' && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
     // Online guests: mark boss as remote so loop skips its AI
     if (_guestOnline) { boss.isRemote = true; boss.isAI = false; }
-    // True Creator mode: significantly harder boss (requires TRUEFORM code)
-    // Skipped in story mode — story has its own boss scaling below
+  // True Creator: a much harder boss, needs the TRUEFORM code. Story has its own scaling below.
     if (unlockedTrueBoss && !storyModeActive) {
       boss.health            = 4500;
       boss.maxHealth         = 4500;
@@ -411,8 +381,7 @@ function _startGameCore() {
       boss.name              = 'CREATOR';
       boss.color             = '#ff00ee';
     }
-    // Story mode uses the real, full-power boss (no downscaling) — matches the standalone game mode.
-    // Fallen God: apply health multiplier on top of base stats
+    // Story boss uses full power, matching standalone. Fallen God gets its health multiplier on top of base stats.
     if (boss.isFallenGod && boss._healthMult) {
       boss.health    = Math.round(boss.health    * boss._healthMult);
       boss.maxHealth = Math.round(boss.maxHealth * boss._healthMult);
@@ -427,7 +396,7 @@ function _startGameCore() {
       const w2b  = _p2ResolvedClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[_p2ResolvedClass]?.weapon
                    ? CLASSES[_p2ResolvedClass].weapon : w2;
       const c2b  = document.getElementById('p2Color').value;
-      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, diff);
+      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, p2IsBot, diff);
       p2h.playerNum = 2; p2h.name = p2IsBot ? 'BOT' : 'P2'; p2h.lives = chosenLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y - p2h.h; }
@@ -501,13 +470,11 @@ function _startGameCore() {
     if (typeof MultiverseManager !== 'undefined') MultiverseManager.onFightStart();
 
   } else if (isAdaptiveMode) {
-    // Adaptive AI: P1 vs the learning AdaptiveAI opponent
-    // Sovereign mode uses SovereignMK2 (enhanced); story adaptive uses base AdaptiveAI
+    // Adaptive AI opponent: Sovereign uses SovereignMK2, story adaptive uses base AdaptiveAI.
     p1.isAI  = false;
     p1.lives = isSovereignMode ? Math.max(chosenLives, 10) : chosenLives;
-    // Pick a weapon for the AI — Sovereign always uses nullblade; adaptive uses a random melee set
-    // Story Sovereign chapters use the full SovereignMK2 brain (no-mercy), the same
-    // as the standalone mode — but keep the story's own arena and lives.
+    // Pick a weapon for the AI: Sovereign always uses nullblade; adaptive uses a random melee set
+    // Story Sovereign chapters use the full SovereignMK2, as standalone does, but keep the story arena and lives.
     const _storySovFight = storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && !!_activeStory2Chapter.isSovereignFight;
     const _useSovMK2 = isSovereignMode || _storySovFight;
     const _aiWeapons = ['sword','axe','spear','hammer','scythe','voidblade'];
@@ -516,12 +483,9 @@ function _startGameCore() {
       ? new SovereignMK2(720, 300, '#ff3311', _aiWeapon)
       : new AdaptiveAI(720, 300, '#9955ee', _aiWeapon);
 
-    // Opening kit — his signature loadout (nullblade), as a real LOADOUT rather
-    // than a bare weaponKey so it carries the class identity and the authored
-    // nullblade finisher. It is also the fallback: _ensureMatchLoadout replaces
-    // it with a counter-pick on the first frame he has a target (the pick needs
-    // an opponent to score against, which does not exist yet here), and that kit
-    // is then locked for the whole match.
+    // Opening kit is Sovereign's nullblade, as a real LOADOUT so it keeps the class identity and finisher.
+    // It is only a fallback: _ensureMatchLoadout swaps in a counter-pick on his first frame with a target,
+    // and that kit is then locked for the match.
     if (_useSovMK2 && typeof SMK2_LOADOUTS !== 'undefined' && ai._applyLoadout) {
       const _sig = SMK2_LOADOUTS.find(l => l.key === 'signature');
       if (_sig) ai._applyLoadout(_sig);
@@ -530,15 +494,12 @@ function _startGameCore() {
       ai.weaponKey = 'nullblade';
     }
 
-    // ── Difficulty boosts applied post-construction ───────────────────────────
-    // Sovereign gamemode: start at near-peak intelligence, limiter already broken.
-    // The player faces maximum Sovereign from round 1 — no warm-up phase.
-    // The numbers live in applySovereignPeakTuning (smb-smk2-class.js) so the
-    // possession spirit runs the identical Sovereign — see SovereignControl.
+    // Sovereign starts at near-peak intelligence with the limiter already broken, so round 1 has no warm-up.
+    // Numbers live in applySovereignPeakTuning (smb-smk2-class.js), shared with the possession spirit.
     if (_useSovMK2 && typeof applySovereignPeakTuning === 'function') {
       applySovereignPeakTuning(ai);
     }
-    // Story adaptive: start sharper than default so the fight feels earned, not trivial.
+    // Story adaptive starts sharper than default so the fight feels earned.
     if (storyModeActive && !_useSovMK2) {
       ai.aiMemory.aggression    = 0.88;
       ai.aiMemory.defense       = 0.82;
@@ -550,7 +511,7 @@ function _startGameCore() {
     }
 
     ai.playerNum = 2;
-    // Sovereign needs multiple lives to build pattern data across rounds — minimum 5 regardless of menu pick
+    // Sovereign needs several lives to build pattern data. Minimum 5, whatever the menu pick.
     ai.lives     = isSovereignMode ? Math.max(chosenLives, 10) : chosenLives;
     const _aiSpawn = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
     ai.spawnX = _aiSpawn.x; ai.spawnY = _aiSpawn.y;
@@ -569,11 +530,11 @@ function _startGameCore() {
     damnationActive = true;
     if (typeof spawnDamnationWave === 'function') spawnDamnationWave();
   } else if (isTrueFormMode) {
-    // True Form: solo — P1 vs True Form boss, void arena, no 2P
+    // True Form: solo: P1 vs True Form boss, void arena, no 2P
     p1.isAI = false;
     p1.lives = chosenLives;
     const tf = new TrueForm();
-    // Story mode uses the real, full-power True Form (no downscaling) — matches the standalone game mode.
+    // Story mode uses the real, full-power True Form (no downscaling): matches the standalone game mode.
     tf.target = p1;
     p1.target = tf;
     p2 = tf;
@@ -590,7 +551,7 @@ function _startGameCore() {
   } else if (isTrainingMode) {
     if (training2P) {
       // 2P training: both fighters present, shared dummy
-      p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, diff);
+      p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, p2IsBot, diff);
       p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = 999;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
@@ -613,12 +574,14 @@ function _startGameCore() {
   } else if (isMinigamesMode) {
     // Minigames: P1 always human; survival/koth both support optional P2
     p1.isAI = false;
-    p1.lives = (minigameType === 'survival') ? 1 : 99; // survival: 1 life; koth/chaos/sports: infinite (99)
-    if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'sports' || (minigameType === 'survival' && !p2IsNone)) {
+    // Survival and chaos: 3 stocks (a single ring-out used to end a whole survival run). Koth, sports, defense: 99.
+    const _mgLives = (minigameType === 'survival' || minigameType === 'chaos') ? 3 : 99;
+    p1.lives = _mgLives; p1._maxLives = _mgLives;
+    if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'sports' || ((minigameType === 'survival' || minigameType === 'defense') && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
-        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, p2IsBot, p2Diff);
+        { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, p2IsBot, p2Diff);
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
-      p2mg.lives = (minigameType === 'survival') ? 1 : 99;
+      p2mg.lives = _mgLives; p2mg._maxLives = _mgLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2mg.spawnX = _sp2.x; p2mg.spawnY = _sp2.y; p2mg.x = _sp2.x; p2mg.y = _sp2.y - p2mg.h; }
       p2mg.hat  = document.getElementById('p2Hat')?.value  || 'none';
@@ -631,7 +594,7 @@ function _startGameCore() {
       else if (minigameType === 'sports') {
         p1.lives = 99; p2mg.lives = 99;
         p1.target = p2mg; p2mg.target = p1;
-      } else { p1.target = null; p2mg.target = null; } // survival: both target enemies
+      } else { p1.target = null; p2mg.target = null; } // survival/defense: both target enemies
     } else {
       // Survival solo
       players = [p1];
@@ -645,7 +608,7 @@ function _startGameCore() {
     p1.target = null;
     if (typeof initBattleRoyale === 'function') initBattleRoyale();
   } else if (gameMode === 'escort') {
-    // Escort: single player only — NPC and enemies spawned by initEscortMode() later
+    // Escort: single player only: NPC and enemies spawned by initEscortMode() later
     p1.isAI   = false;
     p1.lives  = (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && _activeStory2Chapter.playerLives) || chosenLives;
     players   = [p1];
@@ -653,9 +616,8 @@ function _startGameCore() {
     minions.length = 0;
     if (typeof escortCleanup === 'function') escortCleanup(); // reset any prior escort state
   } else if (isGodMode) {
-    // God encounter — P1 vs God (in minions), optional Paradox ally.
-    // Story God fight (ch.isGodFight): keep the story's lives, story-scale God's HP,
-    // and spawn the story ally (Axiom) instead of the standalone godslayer loadout.
+    // God encounter: P1 vs God (in minions), optional Paradox ally. Story God fights keep the story's lives,
+    // scale God's HP to story, and spawn the Axiom ally instead of the godslayer loadout.
     const _storyGod = storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && !!_activeStory2Chapter.isGodFight;
     p1.isAI  = false;
     p1.lives = _storyGod ? chosenLives : 10;
@@ -671,7 +633,7 @@ function _startGameCore() {
     }
     players = [p1];
     p1.target = null;
-    // Spawn God into minions — spawnGod() enforces singleton and spawns near player
+    // Spawn God into minions: spawnGod() enforces singleton and spawns near player
     let _godRef = null;
     if (typeof spawnGod === 'function') {
       _godRef = spawnGod(false);
@@ -681,11 +643,8 @@ function _startGameCore() {
         _godRef.maxHealth = _gh; _godRef.health = _gh;
         _godRef._storyGod = true;
         _godRef.target = p1;
-        // Always fight God's full phase-2 form here: _phase is normally derived from
-        // the godEncountered/sovereignBeaten unlocks, and phase 1 carries the
-        // standalone easter-egg stats (1e15 HP, 9999x damage) that instantly kill a
-        // 1-life story player. Damage is rescaled for a ~150-HP story hero — the
-        // authored special-attack base values (85–160) stay lethal-but-dodgeable at 1x.
+        // Always God's phase-2 form. Phase 1 has standalone easter-egg stats (1e15 HP, 9999x damage) that would
+        // kill a 1-life story hero. Damage is rescaled for a ~150-HP hero; special attacks stay lethal but dodgeable.
         _godRef._phase   = 2;
         _godRef.dmgMult  = 1.0;
         _godRef.kbBonus  = 1.2;
@@ -702,7 +661,7 @@ function _startGameCore() {
         const _sad = storyAllyDef;
         const _spA = pickSafeSpawn('left', p1.x) || { x: 250, y: 300 };
         const pA = new Fighter(_spA.x, _spA.y, _sad.color || '#ffd27f', _sad.weaponKey || 'sword',
-          { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, true, _sad.aiDiff || 'expert');
+          { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, true, _sad.aiDiff || 'expert');
         pA.playerNum = 4; pA.name = _sad.name || 'Ally'; pA.lives = 1;
         pA.spawnX = _spA.x; pA.spawnY = _spA.y; pA.y = _spA.y - pA.h;
         if (_sad.classKey) applyClass(pA, _sad.classKey);
@@ -718,7 +677,7 @@ function _startGameCore() {
       minions.push(_ally);
     }
   } else if (isAbsoluteAxiomMode) {
-    // Absolute Axiom encounter — P1 vs Absolute Axiom directly
+    // Absolute Axiom encounter: P1 vs Absolute Axiom directly
     p1.isAI    = false;
     p1._teamId = 1;
     if (!storyModeActive) {
@@ -742,8 +701,7 @@ function _startGameCore() {
       window._absoluteAxiomWasAlive = true;
       if (!storyModeActive && typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
     }
-    // Story: Paradox manifestation ally (ch.paradoxManifest) — the fragment is the
-    // projector, Paradox's remaining energy is the fuel. 'fading' = starts nearly spent.
+    // Story Paradox manifestation: the fragment projects, Paradox's remaining energy fuels it. 'fading' starts nearly spent.
     if (storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter &&
         _activeStory2Chapter.paradoxManifest && typeof ParadoxManifestation !== 'undefined') {
       const _pmEnergy = _activeStory2Chapter.paradoxManifest === 'fading' ? 45 : 100;
@@ -751,19 +709,18 @@ function _startGameCore() {
       minions.push(_pm);
     }
   } else if (isExploreMode) {
-    // Exploration: P1 only — enemies are dynamically spawned as minions
+    // Exploration: P1 only: enemies are dynamically spawned as minions
     players = [p1];
     p1.target = null;
-    // Do NOT set trainingMode — exploration uses its own lives system
+    // Do NOT set trainingMode: exploration uses its own lives system
   } else if (p2IsNone) {
-    // Solo / None mode — only P1 exists, infinite lives, no opponent
+    // Solo / None mode: only P1 exists, infinite lives, no opponent
     p1.lives = 9999;
     players = [p1];
     p1.target = null;
   } else {
-    // Lever 2: late-game named/elite story opponents get the base AdaptiveAI brain
-    // (real-time player profiling). NEVER SovereignMK2 here — that stays Sovereign-only.
-    // Opt out per chapter with `noAdaptive: true`.
+    // Late-game named story opponents get the base AdaptiveAI (real-time profiling). Never SovereignMK2 here.
+    // Opt out per chapter with noAdaptive: true.
     const _l2Ctx = (typeof storyChapterCtx !== 'undefined' && storyChapterCtx) ? storyChapterCtx : null;
     const _l2ElitePhase = typeof storyPendingPhaseConfig !== 'undefined' && storyPendingPhaseConfig
       && (storyPendingPhaseConfig.type === 'elite_wave' || storyPendingPhaseConfig.type === 'mini_boss');
@@ -773,7 +730,7 @@ function _startGameCore() {
       && (!!storyOpponentName || _l2ElitePhase);
     p2 = _storyAdaptiveElite
       ? new AdaptiveAI(720, 300, c2, w2)
-      : new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' }, isBot, diff);
+      : new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, isBot, diff);
     // In story two-enemy fights, cap p2 lives so total enemy lives ≤ player lives
     const _p2StoryLives = (storyModeActive && storyTwoEnemies) ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = _p2StoryLives;
@@ -821,10 +778,9 @@ function _startGameCore() {
       const _p3c = _sed.color || '#cc5500';
       const _p3d = _sed.aiDiff || diff;
       const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
-        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' },
+        { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' },
         true, _p3d);
-      // In story two-enemy fights the player must have lives ≥ total enemy lives.
-      // Cap each enemy at floor(playerLives/2) so 2 enemies never exceed the player's total.
+      // Two-enemy fights need player lives >= total enemy lives, so each enemy is capped at floor(playerLives/2).
       const _p3Lives = storyModeActive ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
       p3.playerNum = 3; p3.name = _sed.name || 'ENEMY B'; p3.lives = _p3Lives;
       p3.spawnX = _sp3.x; p3.spawnY = _sp3.y; p3.y = _sp3.y - p3.h;
@@ -853,7 +809,7 @@ function _startGameCore() {
       const _sad = storyAllyDef;
       const _spA = pickSafeSpawn('left', p2.x) || { x: 250, y: 300 };
       const pA = new Fighter(_spA.x, _spA.y, _sad.color || '#ffd27f', _sad.weaponKey || 'sword',
-        { left:'j', right:'l', jump:'i', attack:'u', shield:'k', ability:'o', super:'[' },
+        { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' },
         true, _sad.aiDiff || 'expert');
       pA.playerNum = 4; pA.name = _sad.name || 'Ally'; pA.lives = 1;
       pA.spawnX = _spA.x; pA.spawnY = _spA.y; pA.y = _spA.y - pA.h;
@@ -866,7 +822,7 @@ function _startGameCore() {
     }
   }
 
-  // Assign bot personalities — each AI fighter gets a random personality
+  // Assign bot personalities: each AI fighter gets a random personality
   const PERSONALITIES = ['aggressive', 'defensive', 'trickster', 'sniper'];
   for (const p of players) {
     if (p.isAI && !p.isBoss && !p.isTrueForm && !p.isMinion) {
@@ -874,14 +830,13 @@ function _startGameCore() {
     }
   }
 
-  // Offline safety net: nothing may stay flagged network-driven once the session
-  // is gone (entities carried over from a previous online match, etc.).
+  // Offline: nothing may stay network-driven once the session is gone.
   if (!_onlinePeerPresent) {
     for (const p of players) { if (p && p.isRemote) p.isRemote = false; }
   }
   // Online mode: mark which player is remote so gameLoop applies network state
   if (_onlinePeerPresent) {
-    // Only remap human (non-boss, non-trueform) players — boss/TrueForm always stay AI
+    // Only remap human (non-boss, non-trueform) players: boss/TrueForm always stay AI
     const humanPlayers = players.filter(p => p && !p.isBoss && !p.isTrueForm);
     const localIdx  = onlineLocalSlot;  // 0 = host, 1 = guest
     const remoteIdx = 1 - localIdx;
@@ -908,7 +863,6 @@ function _startGameCore() {
   const trainingCtrl = document.getElementById('trainingControls');
   if (trainingCtrl) trainingCtrl.style.display = isTrainingMode ? 'flex' : 'none';
 
-  // HUD labels
   document.getElementById('p1HudName').textContent = p1.name;
   if (p2 && ladderDef) {
     p2.name  = ladderDef.name.toUpperCase();
@@ -921,7 +875,6 @@ function _startGameCore() {
   document.getElementById('killFeed').innerHTML = '';
 
   updateHUD();
-  // Reset per-match achievement stats
   _achStats.damageTaken = 0; _achStats.rangedDmg = 0; _achStats.consecutiveHits = 0;
   _achStats.superCount = 0; _achStats.matchStartTime = Date.now();
   _firstDeathFrame  = -1;
@@ -931,8 +884,7 @@ function _startGameCore() {
     initChaosMode();
   }
 
-  // Post-class weapon restore: if player explicitly selected a non-random weapon,
-  // respect that choice over what applyClass may have forced
+  // An explicit non-random weapon pick wins over whatever applyClass forced.
   if (!isRandLoadout) {
     const _p2WeaponEl = document.getElementById('p2Weapon');
     const _p2WeaponVal = _p2WeaponEl?.value;
@@ -964,6 +916,4 @@ function _startGameCore() {
   requestAnimationFrame(_safeLoop);
 }
 
-// ============================================================
-// CHAOS MODE TOGGLE
-// ============================================================
+// Chaos mode toggle.

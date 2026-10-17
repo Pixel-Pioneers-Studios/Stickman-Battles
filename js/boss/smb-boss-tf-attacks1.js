@@ -1,17 +1,12 @@
 'use strict';
-// smb-boss-tf-attacks1.js — Gravity wells, meteor crash, clones, chain/grasp slam, dimension punch, shockwaves, updateBossPendingAttacks
-// Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js, smb-boss-tf-legacy.js
-// Must load AFTER smb-boss-tf-legacy.js, BEFORE smb-boss-tf-attacks2.js
+// Gravity wells, meteor crash, shadow clones, chain and grasp slams, dimension punch, shockwaves, boss pending attacks.
+// Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js, smb-boss-tf-legacy.js. Loads before smb-boss-tf-attacks2.js.
 
-// ============================================================
 function triggerPhaseTransition(entity, phase) {
-  // Reset stagger accumulator so TrueForm doesn't inherit boss-phase stagger state
+  // Reset stagger so TrueForm doesn't inherit boss-phase stagger
   bossStaggerDmg = 0; bossStaggerDecay = 0;
-  // Battle Royale has no room for a phase cutscene. The beast and the yeti are
-  // ambient wildlife there, not the event of the match, and a cinematic freezes
-  // all 100 fighters and the closing storm for several seconds because someone
-  // three landmarks away chipped a beast to half health. Their phase STATS still
-  // apply — only the cutscene is skipped.
+  // Battle Royale skips the phase cutscene: beast and yeti are ambient wildlife there, and a cinematic would freeze 100 fighters.
+  // Phase stats still apply.
   if (typeof gameMode !== 'undefined' && gameMode === 'battleroyale') return;
   if (entity.isTrueForm) {
     startCinematic(phase === 2 ? _makeTFPhase2Cinematic(entity) : _makeTFPhase3Cinematic(entity));
@@ -24,9 +19,6 @@ function triggerPhaseTransition(entity, phase) {
   }
 }
 
-// ============================================================
-// GRAVITY WELLS
-// ============================================================
 function updateTFGravityWells() {
   if (!tfGravityWells.length) return;
   const tf = players.find(p => p.isTrueForm)
@@ -45,7 +37,7 @@ function updateTFGravityWells() {
         p.vx += (dx / dd) * pull;
         p.vy += (dy / dd) * pull;
       }
-      // Damage when very close to well centre — 18 iframes to prevent per-frame drain
+      // Damage up close. 18 iframes stop per-frame drain
       if (dd < 32 && p.invincible <= 0) {
         dealDamage(tf || players[players.length - 1], p, 18, 3, 1.0, false, 18);
         spawnParticles(p.cx(), p.cy(), '#440044', 8);
@@ -59,14 +51,12 @@ function drawTFGravityWells() {
     ctx.save();
     const alpha = gw.timer < 60 ? gw.timer / 60 : 1;
     const pulse = 0.85 + 0.15 * Math.sin(Date.now() * 0.006);
-    // Outer pull haze
     const haze = ctx.createRadialGradient(gw.x, gw.y, gw.r * 0.3, gw.x, gw.y, gw.r);
     haze.addColorStop(0, `rgba(120,0,200,${0.35 * alpha * pulse})`);
     haze.addColorStop(0.5, `rgba(60,0,120,${0.18 * alpha})`);
     haze.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = haze;
     ctx.beginPath(); ctx.arc(gw.x, gw.y, gw.r, 0, Math.PI * 2); ctx.fill();
-    // Spinning vortex rings
     for (let ring = 0; ring < 3; ring++) {
       const rr = gw.r * (0.2 + ring * 0.22);
       const angle = (Date.now() * 0.002 * (ring % 2 === 0 ? 1 : -1)) + ring * Math.PI * 0.67;
@@ -80,7 +70,6 @@ function drawTFGravityWells() {
       ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
-    // Bright core
     ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 20;
     ctx.fillStyle = `rgba(255,100,255,${0.85 * alpha * pulse})`;
     ctx.beginPath(); ctx.arc(gw.x, gw.y, 10, 0, Math.PI * 2); ctx.fill();
@@ -88,9 +77,6 @@ function drawTFGravityWells() {
   }
 }
 
-// ============================================================
-// METEOR CRASH
-// ============================================================
 function updateTFMeteorCrash() {
   if (!tfMeteorCrash) return;
   const mc = tfMeteorCrash;
@@ -98,38 +84,35 @@ function updateTFMeteorCrash() {
   const tf = mc.boss;
 
   if (mc.phase === 'rising') {
-    // Boss flies upward — when it leaves the screen switch to shadow phase
+    // Boss flies up. Once it leaves the screen, switch to the shadow phase
     if (tf.y < -80 || mc.timer > 50) {
       mc.phase = 'shadow';
       mc.timer = 0;
-      tf.x = mc.landX - tf.w / 2;  // reposition off-screen
+      tf.x = mc.landX - tf.w / 2;
       tf.y = -200;
       tf.vx = 0; tf.vy = 0;
-      // The drawn shadow tops out at r=60 while the blast reaches 280, so a player
-      // standing well clear of the only visible marker still took up to 43.
+      // The shadow tops out at r=60 but the blast reaches 280, so players clear of the marker still take up to 43.
       bossWarnings.push({ type: 'circle', x: mc.landX, y: 460, r: 280,
         color: '#8800ff', timer: 80, maxTimer: 80, label: 'METEOR — MOVE!' });
     }
   } else if (mc.phase === 'shadow') {
-    // Shadow circle grows on the ground at landX
     mc.shadowR = Math.min(60, mc.shadowR + 2);
-    if (mc.timer > 80) {  // after ~1.3s of warning, crash down
+    if (mc.timer > 80) {  // ~1.3s warning, then crash
       mc.phase = 'crash';
       mc.timer = 0;
-      tf.vy = 55;  // slam down hard
+      tf.vy = 55;
     }
   } else if (mc.phase === 'crash') {
     if (tf.onGround || mc.timer > 30) {
-      // Impact
       screenShake = Math.max(screenShake, 30);
       spawnParticles(mc.landX, 460, '#000000', 40);
       spawnParticles(mc.landX, 460, '#ffffff', 20);
       spawnParticles(mc.landX, 460, '#8800ff', 16);
-      // Shockwave: massive knockback to nearby players
+      // Shockwave knockback
       for (const p of players) {
         if (p.isBoss || p.health <= 0) continue;
         const sdx = p.cx() - mc.landX;
-        const sdy = (p.y + p.h * 0.5) - 460; // vertical distance from impact floor
+        const sdy = (p.y + p.h * 0.5) - 460;
         const sdd = Math.hypot(sdx, sdy);
         if (sdd < 280) {
           const force = 28 * (1 - sdd / 280);
@@ -148,17 +131,15 @@ function drawTFMeteorCrash() {
   if (!tfMeteorCrash) return;
   const mc = tfMeteorCrash;
   if (mc.phase !== 'shadow') return;
-  // Warning shadow circle on the ground
   ctx.save();
   const pulse = 0.6 + 0.4 * Math.sin(mc.timer * 0.15);
-  const urgency = Math.min(1, mc.timer / 80); // grows more intense over time
+  const urgency = Math.min(1, mc.timer / 80);
   const g = ctx.createRadialGradient(mc.landX, 465, 0, mc.landX, 465, mc.shadowR);
   g.addColorStop(0, `rgba(0,0,0,${0.75 * pulse})`);
   g.addColorStop(0.5, `rgba(80,0,140,${0.4 * urgency})`);
   g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g;
   ctx.beginPath(); ctx.arc(mc.landX, 465, mc.shadowR, 0, Math.PI * 2); ctx.fill();
-  // Warning ring
   ctx.strokeStyle = `rgba(200,0,255,${0.8 * pulse})`;
   ctx.lineWidth   = 2.5;
   ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 12;
@@ -166,9 +147,6 @@ function drawTFMeteorCrash() {
   ctx.restore();
 }
 
-// ============================================================
-// SHADOW CLONES
-// ============================================================
 function updateTFClones() {
   if (!tfClones.length) return;
   const tf = players.find(p => p.isTrueForm)
@@ -183,14 +161,12 @@ function updateTFClones() {
       tfClones.splice(i, 1);
       continue;
     }
-    // Chase nearest human
     if (humanPlayers.length > 0) {
       const target = humanPlayers.reduce((a, b) =>
         Math.abs(b.cx() - (cl.x + cl.w / 2)) < Math.abs(a.cx() - (cl.x + cl.w / 2)) ? b : a);
       const ddx = target.cx() - (cl.x + cl.w / 2);
       cl.facing = ddx > 0 ? 1 : -1;
       if (Math.abs(ddx) > 50) cl.x += cl.facing * 3.2;
-      // Clone attack
       if (cl.attackTimer > 0) {
         cl.attackTimer--;
         if (cl.attackTimer === 0 && Math.abs(ddx) < 55) {
@@ -200,12 +176,12 @@ function updateTFClones() {
         cl.attackTimer = 14;
       }
     }
-    // Clones die in one hit — check if any projectile or player attack hit them
+    // Clones die in one hit. Check projectiles and player attacks.
     for (const p of players) {
       if (p.isBoss || p.health <= 0 || p.attackTimer <= 0) continue;
       const cx = cl.x + cl.w / 2;
       if (Math.abs(p.cx() - cx) < 55 && Math.abs((p.y + p.h / 2) - (cl.y + cl.h / 2)) < 50) {
-        // If it's the real clone, deal damage back to the player
+        // The real clone hits back
         if (cl.isReal) {
           dealDamage(tf || players[players.length - 1], p, 25, 12);
           spawnParticles(cx, cl.y + cl.h * 0.5, '#ffffff', 18);
@@ -230,24 +206,17 @@ function drawTFClones() {
     ctx.shadowColor = '#333333'; ctx.shadowBlur = 6;
     ctx.strokeStyle = '#555555'; ctx.lineWidth = 2; ctx.lineCap = 'round';
     const headR = 9, headCY = ty + headR + 1, shoulderY = headCY + headR + 5, hipY = shoulderY + 24;
-    // Head
     ctx.fillStyle = '#222222';
     ctx.beginPath(); ctx.arc(cx, headCY, headR, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    // Body
     ctx.beginPath(); ctx.moveTo(cx, headCY + headR); ctx.lineTo(cx, hipY); ctx.stroke();
-    // Arms
     ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(cx + Math.cos(Math.PI * 0.58 + sw) * 20, shoulderY + Math.sin(Math.PI * 0.58 + sw) * 20); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx, shoulderY); ctx.lineTo(cx + Math.cos(Math.PI * 0.42 - sw) * 20, shoulderY + Math.sin(Math.PI * 0.42 - sw) * 20); ctx.stroke();
-    // Legs
     ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + Math.cos(Math.PI * 0.5 + sw * 0.9) * 22, hipY + Math.sin(Math.PI * 0.5 + sw * 0.9) * 22); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx, hipY); ctx.lineTo(cx + Math.cos(Math.PI * 0.5 - sw * 0.9) * 22, hipY + Math.sin(Math.PI * 0.5 - sw * 0.9) * 22); ctx.stroke();
     ctx.restore();
   }
 }
 
-// ============================================================
-// CHAIN SLAM COMBO
-// ============================================================
 function updateTFChainSlam() {
   if (!tfChainSlam) return;
   const cs = tfChainSlam;
@@ -256,21 +225,18 @@ function updateTFChainSlam() {
   cs.timer++;
   // Stage timing: 0=grab(0-20f), 1=slam(20-40f), 2=kick(40-60f), 3=shockwave(60-80f)
   if (cs.stage === 0 && cs.timer >= 20) {
-    // Whiff if the target left the telegraphed reach during the wind-up. The
-    // cooldown was already spent at cast time, so bailing here cannot loop.
+    // Whiff if the target left reach during the wind-up. The cooldown is already spent, so this can't loop.
     if (dist(tf, cs.target) > (cs.reach || 260)) {
       spawnParticles(tf.cx(), tf.cy(), '#8800ff', 8);
       tfChainSlam = null;
       return;
     }
-    // Grab: pull target to boss + damage
     cs.target.x = tf.cx() - cs.target.w / 2 + tf.facing * 30;
     cs.target.vy = -8;
     dealDamage(tf, cs.target, 18, 2);
     spawnParticles(tf.cx(), tf.cy(), '#ffffff', 12);
     cs.stage = 1; cs.timer = 0;
   } else if (cs.stage === 1 && cs.timer >= 20) {
-    // Slam: drive target into ground
     cs.target.vy = 22;
     cs.target.vx = 0;
     dealDamage(tf, cs.target, 24, 1);
@@ -278,7 +244,6 @@ function updateTFChainSlam() {
     spawnParticles(cs.target.cx(), cs.target.y + cs.target.h, '#ffffff', 16);
     cs.stage = 2; cs.timer = 0;
   } else if (cs.stage === 2 && cs.timer >= 20) {
-    // Kick: launch target sideways
     const kickDir = tf.facing;
     cs.target.vx = kickDir * 22;
     cs.target.vy = -10;
@@ -287,7 +252,6 @@ function updateTFChainSlam() {
     spawnParticles(cs.target.cx(), cs.target.cy(), '#8800ff', 18);
     cs.stage = 3; cs.timer = 0;
   } else if (cs.stage === 3 && cs.timer >= 20) {
-    // Shockwave: radial blast
     screenShake = Math.max(screenShake, 22);
     spawnParticles(tf.cx(), 460, '#000000', 30);
     spawnParticles(tf.cx(), 460, '#8800ff', 16);
@@ -307,22 +271,19 @@ function updateTFChainSlam() {
   }
 }
 
-// ============================================================
-// VOID GRASP SLAM (deferred hit after pull)
-// ============================================================
 function updateTFGraspSlam() {
   if (!tfGraspSlam) return;
   tfGraspSlam.timer--;
   if (tfGraspSlam.timer <= 0) {
     const tf = players.find(p => p.isTrueForm);
-    // Use position locked at telegraph time so hit zone matches warning circle
+    // Use the position locked at telegraph so the hit zone matches the warning circle
     const _slamCX = tfGraspSlam.slamX !== undefined ? tfGraspSlam.slamX : (tf ? tf.cx() : GAME_W / 2);
     const _slamCY = tfGraspSlam.slamY !== undefined ? tfGraspSlam.slamY : (tf ? tf.cy() : 300);
     for (const p of players) {
       if (p.isBoss || p.health <= 0) continue;
       const dd = Math.hypot(p.cx() - _slamCX, (p.y + p.h * 0.5) - _slamCY);
       if (dd < 120) {
-        p.vy = 22;  // drive into ground
+        p.vy = 22;
         dealDamage(tf || players[players.length - 1], p, 30, 2);
         screenShake = Math.max(screenShake, 20);
         spawnParticles(p.cx(), p.cy(), '#440044', 12);
@@ -333,24 +294,14 @@ function updateTFGraspSlam() {
   }
 }
 
-// ============================================================
-// DIMENSION PUNCH CINEMATIC
-// ============================================================
-// Stage 0  (0–18f):  Boss charges toward player
-// Stage 1  (18–30f): Impact — freeze, shake, flash
-// Stage 2  (30–44f): Launch — very high velocity applied, gravity disabled
-// Stage 3  (44–200f): Dimension travel — player rockets across arena,
-//                     background flashes through dimensions every 30f
-// Stage 4  (200–230f): Gravity restored, player slams into floor
-// Stage 5  (230+):   Cleanup
-// ============================================================
+// Dimension punch. Stages by frame: 0 charge, 1 impact, 2 launch, 3 travel (~156f), 4 slam, 5 cleanup.
 function updateTFDimensionPunch() {
   if (!tfDimensionPunch) return;
   const dp = tfDimensionPunch;
   const tf = dp.boss;
   const t  = dp.target;
 
-  // Abort if entities gone — always clear grav lock so player doesn't float forever
+  // Abort if entities are gone. Clear the gravity lock so the player doesn't float forever.
   if (!tf || !t || t.health <= 0) {
     if (t) t._dimPunchGravLock = false;
     if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
@@ -361,11 +312,10 @@ function updateTFDimensionPunch() {
   dp.timer++;
   dp.bgFlashTimer = Math.max(0, dp.bgFlashTimer - 1);
 
-  // ── Stage 0: Boss charges toward player (0–18 frames) ───────────────────
+  // Stage 0: charge
   if (dp.stage === 0) {
     // Boss keeps charging momentum (set in _doSpecial)
     if (dp.timer >= 18) {
-      // Check if boss is close enough — snap to contact
       const dx = t.cx() - tf.cx();
       if (Math.abs(dx) < 100) {
         tf.x = t.cx() - dp.launchDir * (tf.w + 10) - tf.w / 2;
@@ -376,21 +326,16 @@ function updateTFDimensionPunch() {
     return;
   }
 
-  // ── Stage 1: Impact (frames 0–12) ───────────────────────────────────────
+  // Stage 1: impact
   if (dp.stage === 1) {
     if (dp.timer === 1) {
-      // Freeze frame
       hitStopFrames = Math.max(hitStopFrames, 10);
-      // Shake
       screenShake = Math.max(screenShake, 40);
-      // White flash
       cinScreenFlash = { color: '#ffffff', alpha: 0.90, timer: 16, maxTimer: 16 };
-      // Damage
       dealDamage(tf, t, 28, 3);
       spawnParticles(t.cx(), t.cy(), '#ffffff', 24);
       spawnParticles(t.cx(), t.cy(), '#aa00ff', 16);
       spawnParticles(t.cx(), t.cy(), '#000000', 10);
-      // Boss stops
       tf.vx = 0; tf.vy = 0;
     }
     if (dp.timer >= 12) {
@@ -400,15 +345,12 @@ function updateTFDimensionPunch() {
     return;
   }
 
-  // ── Stage 2: Launch (frames 0–14) ───────────────────────────────────────
+  // Stage 2: launch
   if (dp.stage === 2) {
     if (dp.timer === 1) {
-      // Apply extreme horizontal velocity in the punch direction
       t.vx = dp.launchDir * 48;
       t.vy = -12;
-      // Lock gravity on the target
       t._dimPunchGravLock = true;
-      // Slow motion for dramatic effect
       if (typeof slowMotion !== 'undefined') slowMotion = 0.25;
       screenShake = Math.max(screenShake, 28);
       cinScreenFlash = { color: '#8800ff', alpha: 0.55, timer: 10, maxTimer: 10 };
@@ -419,26 +361,24 @@ function updateTFDimensionPunch() {
       dp.timer = 0;
       dp.travelTimer = 0;
       dp.bgPhase = 0;
-      // Restore slow-mo for travel phase
       if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
     }
     return;
   }
 
-  // ── Stage 3: Dimension travel (frames 0–156) ────────────────────────────
+  // Stage 3: travel
   if (dp.stage === 3) {
     dp.travelTimer++;
 
-    // Sustain high velocity — player travels fast horizontally
     t.vx = dp.launchDir * 46;
-    t.vy = 0;  // gravity locked: keep vertical constant
+    t.vy = 0;
     t._dimPunchGravLock = true;
 
-    // Wrap player across screen edges for "dimension travel" feel
+    // Wrap at the screen edges
     if (t.x + t.w < 0)        t.x = GAME_W - t.w;
     else if (t.x > GAME_W)    t.x = 0;
 
-    // Background flash every 30 frames — cycle through dimension colours
+    // Flash the background every 30 frames
     if (dp.travelTimer % 30 === 0) {
       dp.bgPhase = (dp.bgPhase + 1) % 5;
       dp.bgFlashTimer = 12;
@@ -450,7 +390,6 @@ function updateTFDimensionPunch() {
       };
     }
 
-    // Particle trail behind the player
     if (dp.travelTimer % 4 === 0) {
       spawnParticles(t.cx() - dp.launchDir * 18, t.cy(), '#8800ff', 4);
       spawnParticles(t.cx() - dp.launchDir * 8,  t.cy(), '#ffffff', 2);
@@ -459,7 +398,7 @@ function updateTFDimensionPunch() {
     if (dp.travelTimer >= 156) {
       dp.stage = 4;
       dp.timer = 0;
-      // Bring player back to arena centre-ish for the slam
+      // Pull the player back toward centre for the slam
       t.x = clamp(GAME_W / 2 - t.w / 2 + (Math.random() - 0.5) * 200, 60, GAME_W - 60 - t.w);
       t.y = 80;
       t.vx = 0;
@@ -468,11 +407,10 @@ function updateTFDimensionPunch() {
     return;
   }
 
-  // ── Stage 4: Slam (restore gravity, drive into floor) ───────────────────
+  // Stage 4: slam
   if (dp.stage === 4) {
     if (dp.timer === 1) {
       t._dimPunchGravLock = false;
-      // Blast downward
       t.vy = 32;
       t.vx = 0;
       screenShake = Math.max(screenShake, 36);
@@ -483,7 +421,6 @@ function updateTFDimensionPunch() {
     // Wait until player lands or timer expires
     const landed = t.onGround && dp.timer > 4;
     if (landed || dp.timer >= 40) {
-      // Impact on landing
       if (landed) {
         dealDamage(tf, t, 22, 2);
         screenShake = Math.max(screenShake, 30);
@@ -498,7 +435,7 @@ function updateTFDimensionPunch() {
     return;
   }
 
-  // ── Stage 5: Cleanup ─────────────────────────────────────────────────────
+  // Stage 5: cleanup
   if (dp.stage === 5) {
     t._dimPunchGravLock = false;
     if (typeof slowMotion !== 'undefined') slowMotion = 1.0;
@@ -506,13 +443,13 @@ function updateTFDimensionPunch() {
   }
 }
 
-// ── Dimension Punch — background dimension visuals ────────────────────────────
+// Background visuals for the dimension punch.
 function drawTFDimensionPunch() {
   if (!tfDimensionPunch) return;
   const dp = tfDimensionPunch;
   if (dp.stage !== 3 && dp.stage !== 4) return;
 
-  // During travel: draw coloured dimension overlay stripes
+  // Dimension stripes during travel
   const colours = ['#00ffff','#ff0066','#ffff00','#ff6600','#00ff88'];
   const col     = colours[dp.bgPhase % colours.length];
   const fade    = dp.bgFlashTimer > 0 ? (dp.bgFlashTimer / 12) * 0.22 : 0;
@@ -521,7 +458,6 @@ function drawTFDimensionPunch() {
     ctx.globalAlpha = fade;
     ctx.fillStyle = col;
     ctx.fillRect(0, 0, GAME_W, GAME_H);
-    // Horizontal speed lines to reinforce directionality
     ctx.globalAlpha = fade * 1.8;
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth   = 1.5;
@@ -537,7 +473,7 @@ function drawTFDimensionPunch() {
     ctx.restore();
   }
 
-  // Draw a rift crack centred on the player during travel
+  // Rift crack on the player during travel
   if (dp.target && dp.stage === 3) {
     const t = dp.target;
     ctx.save();
@@ -555,11 +491,10 @@ function drawTFDimensionPunch() {
   }
 }
 
-// ── Shockwave Pulse ──────────────────────────────────────────────────────────
 function updateTFShockwaves() {
   for (const sw of tfShockwaves) {
     if (sw.done) continue;
-    // Air-slam sentinel: wait until boss lands, then spawn real waves
+    // Air-slam sentinel: waits for the boss to land, then spawns the waves.
     if (sw.pendingLanding) {
       if (sw.boss && sw.boss.onGround) {
         sw.pendingLanding = false;
@@ -584,7 +519,6 @@ function updateTFShockwaves() {
     sw.r = Math.min(sw.r + speed, sw.maxR);
     sw.timer--;
     if (sw.timer <= 0 || sw.r >= sw.maxR) { sw.done = true; continue; }
-    // Damage players inside the ring band
     for (const p of players) {
       if (p.isBoss || p.health <= 0 || sw.hit.has(p)) continue;
       const pd = Math.hypot(p.cx() - sw.x, (p.y + p.h * 0.5) - sw.y);
@@ -628,21 +562,17 @@ function updateBossPendingAttacks() {
 
   if (!boss || boss.health <= 0) return;
 
-  // ── Tick bossWarnings (visual only) ─ kept AFTER null guard so TF phase
-  // doesn't double-tick them (updateTFPendingAttacks handles it during TF phase)
+  // Warnings tick here only outside TF phase. updateTFPendingAttacks handles them during TF.
   for (let i = bossWarnings.length - 1; i >= 0; i--) {
     bossWarnings[i].timer--;
     if (bossWarnings[i].timer <= 0) bossWarnings.splice(i, 1);
   }
-  // ── Tick safe zones ────────────────────────────────────────
   for (let i = bossMetSafeZones.length - 1; i >= 0; i--) {
     bossMetSafeZones[i].timer--;
     if (bossMetSafeZones[i].timer <= 0) bossMetSafeZones.splice(i, 1);
   }
-  // ── Desperation flash decay ────────────────────────────────
   if (bossDesperationFlash > 0) bossDesperationFlash--;
 
-  // ── Stagger: accumulate damage taken, trigger stun ────────
   const dmgThisFrame = (boss._prevHealth || boss.health) - boss.health;
   if (dmgThisFrame > 0) {
     bossStaggerDmg   += dmgThisFrame;
@@ -670,7 +600,6 @@ function updateBossPendingAttacks() {
     }
   }
 
-  // ── Desperation mode: health < 25% ───────────────────────
   if (!bossDesperationMode && boss.health / boss.maxHealth < 0.25) {
     bossDesperationMode  = true;
     bossDesperationFlash = 90;
@@ -681,7 +610,6 @@ function updateBossPendingAttacks() {
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.8);
   }
 
-  // ── Pending Ground Slam ───────────────────────────────────
   if (boss._pendingGroundSlam) {
     boss._pendingGroundSlam.timer--;
     if (boss._pendingGroundSlam.timer <= 0) {
@@ -707,7 +635,6 @@ function updateBossPendingAttacks() {
     }
   }
 
-  // ── Pending Gravity Pulse ─────────────────────────────────
   if (boss._pendingGravPulse) {
     boss._pendingGravPulse.timer--;
     if (boss._pendingGravPulse.timer <= 0) {
@@ -723,11 +650,7 @@ function updateBossPendingAttacks() {
         const range  = isEdge ? 500 : 350;
         const force  = isEdge ? 18  : 22;
         if (dd < range && dd > 1) {
-          // The pulse used to be pure displacement, which made the boss's most
-          // frequently fired special a no-op that also cost it a recovery window —
-          // it dragged the player in and then could not punish. The crush scales
-          // with how deep inside the radius they were caught. Damage is applied
-          // before the pull so dealDamage's knockback cannot cancel it.
+          // Damage before the pull, so dealDamage's knockback can't cancel it. Crush scales with depth inside the radius.
           dealDamage(boss, p, Math.round(6 + 10 * (1 - dd / range)), 0);
           const pull = force * (1 - dd / range);
           p.vx = (ddx / dd) * pull;
@@ -740,4 +663,3 @@ function updateBossPendingAttacks() {
   }
 }
 
-// ── TrueForm pending attacks + stagger ───────────────────────────────────────

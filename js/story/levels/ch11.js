@@ -1,15 +1,6 @@
 'use strict';
-// js/story/levels/ch11.js — Chapter 11 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 11 — The Relay Station (walk → duel vs Veran)
-// "The relay station hummed like a living thing. Crystal pillars. Dimensional
-// conduits. Equations scratched on every surface." Off the cooled lava bank
-// (where chapter 10 ended), through the station's blast gate, along the
-// crystal hall — conduits overhead double as catwalks — to the atrium around
-// the great crystal where Veran steps out of the light. Past her: the ring
-// gallery, rising in tiers toward the deep station (chapter 12).
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch11.js: Chapter 11 map (Relay Station, Veran duel). See smb-story-levels.js.
+// Lava bank, then the crystal hall, then the atrium with the great crystal. Conduits double as catwalks.
 (function () {
   const G = 440;
   const GATE = 1250;
@@ -34,7 +25,7 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#140608');
-    // Outside: the lava field glowing behind; inside: the station walls cover it
+    // Outside: lava field. Inside: station walls.
     _slParallax(v, 0.1, (l, r) => {
       const g = ctx.createLinearGradient(0, 100, 0, G);
       g.addColorStop(0, 'rgba(255,90,30,0)'); g.addColorStop(1, 'rgba(255,90,30,0.35)');
@@ -48,7 +39,7 @@
   }
 
   function back(v, a) {
-    // ── The bank: cooled lava rock, slag heaps, the station's outer wall
+    // The bank: cooled lava rock, slag heaps, the station's outer wall
     if (_slVisible(v, -200, GATE + 60)) {
       ctx.fillStyle = '#2a1e1a';
       ctx.beginPath(); ctx.moveTo(-200, G); ctx.lineTo(-200, G - 60);
@@ -61,14 +52,14 @@
         ctx.beginPath(); ctx.moveTo(x - 10, G); ctx.lineTo(x, y + 6); ctx.quadraticCurveTo(x + w / 2, y - 10, x + w, y + 6); ctx.lineTo(x + w + 10, G); ctx.fill();
         ctx.fillStyle = 'rgba(255,120,40,0.25)'; ctx.fillRect(x + 10, y + 10, w - 20, 3);
       }
-      // Outer wall + blast gate standing open
+      // Outer wall and blast gate
       _slBrick(GATE - 120, G - 360, 160, 360, '#3a3a44');
       ctx.fillStyle = '#1a1c22'; ctx.fillRect(GATE - 70, G - 180, 110, 180);
       ctx.fillStyle = '#5a5e66'; ctx.fillRect(GATE - 70, G - 300, 110, 116);
       ctx.fillStyle = '#d0a020'; for (let k = 0; k < 6; k++) ctx.fillRect(GATE - 70 + k * 20, G - 192, 10, 6);
       ctx.fillStyle = '#9ad8f0'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillText('RELAY STATION · V', GATE - 15, G - 314);
     }
-    // ── Interior: hall wall with equations, crystal pillars, conduits
+    // Interior: hall wall with equations, crystal pillars, conduits
     if (_slVisible(v, GATE, 6200)) {
       const x0 = Math.max(GATE + 40, v.x - 40), x1 = Math.min(6200, v.x + v.w + 40);
       ctx.fillStyle = '#1c1e26'; ctx.fillRect(x0, G - 520, x1 - x0, 520);
@@ -81,7 +72,7 @@
       for (const c of COND) if (_slVisible(v, c.x, c.x + c.w)) _slConduit(c.x - 60, c.x + c.w + 60, c.y + 6, 190, 8);
       _slConduit(Math.max(GATE + 40, x0), x1, G - 470, 280, 10);
       for (const cx of [1380, 1720, 2300, 2560, 3420, 3700, 4350, 5400, 5700]) if (_slVisible(v, cx - 60, cx + 60)) _slCrystal(cx, G, 120 + _slHash(cx) * 60, 190 + (cx % 3) * 20, cx);
-      // Instrument rack + steps up to the first conduit
+      // Instrument rack and steps
       if (_slVisible(v, 1400, 2000)) {
         ctx.fillStyle = '#2a2e36'; ctx.fillRect(1420, G - 60, 70, 60); ctx.fillRect(1460, G - 115, 60, 55);
         ctx.fillStyle = '#5affc8'; for (let k = 0; k < 4; k++) ctx.fillRect(1430 + k * 14, G - 50, 6, 3);
@@ -89,12 +80,12 @@
         _slHolo(1946, G - 112, 68, 50, 190);
       }
     }
-    // ── The atrium and the great crystal
+    // The atrium and the great crystal
     if (_slVisible(v, ATRIUM - 420, ATRIUM + 420)) {
       ctx.fillStyle = '#16181f'; ctx.beginPath(); ctx.ellipse(ATRIUM, G - 240, 380, 260, 0, Math.PI, 0); ctx.fill();
       ctx.strokeStyle = 'rgba(150,220,255,0.25)'; ctx.lineWidth = 2;
       for (let k = 0; k < 4; k++) { ctx.beginPath(); ctx.ellipse(ATRIUM, G - 240, 380 - k * 60, 260 - k * 40, 0, Math.PI, 0); ctx.stroke(); }
-      // Rotating rings around the crystal
+      // Rotating rings
       for (let k = 0; k < 3; k++) {
         ctx.strokeStyle = `hsla(${190 + k * 40},90%,70%,0.55)`; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.ellipse(ATRIUM, G - 260, 110 + k * 30, 26 + k * 6, frameCount * 0.006 * (k % 2 ? 1 : -1) + k, 0, Math.PI * 2); ctx.stroke();
@@ -102,14 +93,14 @@
       _slCrystal(ATRIUM, G - 120, 200, 195, 99);
       ctx.fillStyle = '#2a2c34'; ctx.fillRect(ATRIUM - 40, G - 120, 80, 120);
       ctx.fillStyle = 'rgba(150,230,255,0.15)'; ctx.fillRect(ATRIUM - 2, G - 120, 4, 120);
-      // The light Veran stepped out of
+      // Veran's entry point
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const lg = ctx.createLinearGradient(0, G - 500, 0, G);
       lg.addColorStop(0, 'rgba(200,240,255,0.25)'); lg.addColorStop(1, 'rgba(200,240,255,0)');
       ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(ATRIUM - 40, G - 500); ctx.lineTo(ATRIUM + 40, G - 500); ctx.lineTo(ATRIUM + 160, G); ctx.lineTo(ATRIUM - 160, G); ctx.fill();
       ctx.restore();
     }
-    // ── Ring gallery: tiers rising toward the deep station
+    // Ring gallery: tiers rising toward the deep station
     if (_slVisible(v, 3560, 5500)) {
       for (const [x, y, w] of TIERS) {
         if (!_slVisible(v, x, x + w)) continue;
@@ -142,7 +133,8 @@
   function surface(v, a, ph) {
     _slSurfaces(v, a, ph, ZONES);
     if (ph !== 'back') return;
-    // Coolant maintenance pits over the cache shafts
+    // Coolant pits over the cache shafts
+
     for (const r of (a.undergroundRects || []).filter(q => q.kind === 'shaft')) {
       if (!_slVisible(v, r.x - 40, r.x + r.w + 40)) continue;
       ctx.fillStyle = '#d0a020'; for (let k = 0; k < 4; k++) { ctx.fillRect(r.x - 30 + k * 8, G - 4, 4, 4); ctx.fillRect(r.x + r.w + 6 + k * 8, G - 4, 4, 4); }

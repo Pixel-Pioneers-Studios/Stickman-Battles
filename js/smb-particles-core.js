@@ -1,13 +1,12 @@
 'use strict';
-// smb-particles-core.js — particle pool, spawnParticles, spawnRing, checkWeaponSparks, spawnBullet, Projectile, DamageText
-// Depends on: smb-globals.js, smb-combat.js
-// PARTICLE POOL — reuses particle objects to reduce GC pressure
-// ============================================================
+// Particle pool, spawnParticles, spawnRing, checkWeaponSparks, spawnBullet, Projectile, DamageText.
+// Depends on: smb-globals.js, smb-combat.js.
+// Particle objects are pooled to cut GC pressure.
 const MAX_PARTICLES = 250;
 const _particlePool = [];   // recycled particle objects
 
 function _getParticle() {
-  // Recycle from pool first
+  // Reuse a pooled particle first
   if (_particlePool.length > 0) return _particlePool.pop();
   return {};
 }
@@ -18,7 +17,7 @@ function _recycleParticle(p) {
 
 function spawnParticles(x, y, color, count) {
   if (!settings.particles) return;
-  // Enforce cap: if over max, skip new particles
+  // Over the cap: skip new particles
   if (particles.length >= MAX_PARTICLES) return;
   const toSpawn = Math.min(count, MAX_PARTICLES - particles.length);
   for (let i = 0; i < toSpawn; i++) {
@@ -35,9 +34,8 @@ function spawnParticles(x, y, color, count) {
   }
 }
 
-// Directional burst — sprays into a cone around (dirX, dirY) instead of a ball.
-// Same pool, cap and settings gate as spawnParticles(); `spread` is the half
-// angle of the cone in radians (default ~50 degrees).
+// Directional burst into a cone around (dirX, dirY). Shares spawnParticles()'s pool
+// and cap. `spread` is the cone's half angle in radians (default ~50 degrees).
 function spawnParticlesDir(x, y, color, count, dirX, dirY, spread) {
   if (!settings.particles) return;
   if (particles.length >= MAX_PARTICLES) return;
@@ -58,8 +56,7 @@ function spawnParticlesDir(x, y, color, count, dirX, dirY, spread) {
   }
 }
 
-// Directional blood spray — sprays away from attacker, falls with gravity
-// dir: 1 = blood sprays right (attacker on left), -1 = sprays left
+// Blood spray away from the attacker. dir: 1 sprays right, -1 sprays left.
 function spawnBlood(x, y, dir, dmg) {
   if (!settings.particles) return;
   const count = Math.max(2, Math.min(10, Math.floor(dmg / 5)));
@@ -70,7 +67,7 @@ function spawnBlood(x, y, dir, dmg) {
     p.x = x + (Math.random() - 0.5) * 8;
     p.y = y + (Math.random() - 0.5) * 10;
     p.vx = dir * (1.5 + Math.random() * 5) + spread;
-    p.vy = -1.5 - Math.random() * 4;  // upward pop, gravity pulls it down
+    p.vy = -1.5 - Math.random() * 4;  // upward pop
     p.color = Math.random() < 0.6 ? '#cc0000' : '#880000';
     p.size  = 2 + Math.random() * 2.5;
     p.life  = 14 + Math.random() * 16;
@@ -104,9 +101,8 @@ function checkWeaponSparks() {
       const a = all[i], b = all[j];
       if (!a.tip.attacking || !b.tip.attacking) continue;
       if ((a.f._weaponClashCd || 0) > 0 || (b.f._weaponClashCd || 0) > 0) continue;
-      // Sparks are the visual half of a clash, so they follow the same rule the
-      // real one does: only equal-strength actions ring off each other. A swing
-      // crossing a super does not spark — it breaks (Fighter._resolveOverpower).
+      // Sparks follow the clash rule: only equal-strength actions ring off each other.
+      // A swing crossing a super breaks instead (Fighter._resolveOverpower).
       if (typeof a.f._clashTier === 'function' && typeof b.f._clashTier === 'function'
           && a.f._clashTier() !== b.f._clashTier()) continue;
       const dx = a.tip.x - b.tip.x;
@@ -130,7 +126,6 @@ function checkWeaponSparks() {
       }
     }
   }
-  // Decrement clash cooldowns
   [...players, ...minions, ...(trainingDummies || [])].forEach(f => { if (f._weaponClashCd > 0) f._weaponClashCd--; });
 }
 
@@ -138,10 +133,13 @@ function _achCheckYetiDead()  { unlockAchievement('yeti_hunter'); }
 function _achCheckBeastDead() { unlockAchievement('beast_tamer'); }
 
 function spawnBullet(user, speed, color, overrideDmg = null) {
-  if (isCinematic) return null; // no new projectiles during cinematics or finishers
-  // Sovereign Domain rule: no ranged weapons allowed — melee only
+  if (isCinematic) return null; // no projectiles during cinematics or finishers
+  // Sovereign domain is melee only
   if (typeof gameMode !== 'undefined' && gameMode === 'sovereign') return null;
-  // Arena-level no-ranged flag (e.g. story sovereign arena)
+  // Story Sovereign fights run as gameMode 'adaptive', so the same rule applies.
+  if (typeof storyModeActive !== 'undefined' && storyModeActive && typeof _activeStory2Chapter !== 'undefined' &&
+      _activeStory2Chapter && _activeStory2Chapter.isSovereignFight) return null;
+  // Arena-level no-ranged flag
   if (typeof currentArena !== 'undefined' && currentArena && currentArena.isNoRanged) return null;
   SoundManager.shoot(user && user.weaponKey);
   const _nearest = [user.target, ...players, ...minions, ...trainingDummies].filter(Boolean).find(t => t !== user && t.health > 0) || null;
@@ -150,11 +148,10 @@ function spawnBullet(user, speed, color, overrideDmg = null) {
   const _baseDmg = overrideDmg !== null ? overrideDmg : (user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage);
   const dmg = Math.max(1, Math.round(_baseDmg * (1 - _pointBlankT * 0.34)));
 
-  // Movement-based accuracy: faster movement = more vertical spread.
-  // At full run speed (5.2) normal weapons get ±0.9 vy spread (~54px at 60f range).
-  // Rapid-fire weapons get 2.8× (±1.4 vy) — rewards burst-control close range.
+  // Faster movement widens the vertical spread. At full run speed (5.2), normal
+  // weapons get ±0.9 vy. Rapid-fire weapons get 2.8x that.
   const _ownerSpd = Math.abs(user.vx);
-  const _isRapid  = user.weapon && user.weapon.cooldown <= 20; // rapid-fire threshold
+  const _isRapid  = user.weapon && user.weapon.cooldown <= 20;
   const _shotHeat = Math.min(8, user._rangedShotHeat || 0);
   const _spread   = (_ownerSpd > 0.8 ? (_ownerSpd / 5.2) * (_isRapid ? 3.1 : 2.0) : 0)
                   + _shotHeat * (_isRapid ? 0.30 : 0.20)
@@ -168,7 +165,7 @@ function spawnBullet(user, speed, color, overrideDmg = null) {
   _proj._closeRangePenalty = _pointBlankT;
   _proj._warmupFrames = _isRapid ? 3 : 2;
   projectiles.push(_proj);
-  // Gunner class: fire a second bullet at slight angle
+  // Gunner: second bullet at a slight angle
   if (user.charClass === 'gunner') {
     const dmg2 = Math.max(1, Math.round((user.weapon.damageFunc ? user.weapon.damageFunc() : user.weapon.damage) * (1 - _pointBlankT * 0.34)));
     const _vy2 = _vy + (Math.random() - 0.5) * 0.3;
@@ -183,9 +180,7 @@ function spawnBullet(user, speed, color, overrideDmg = null) {
   return _proj; // return primary projectile so callers can mark Q-ability shots
 }
 
-// ============================================================
-// PROJECTILE
-// ============================================================
+// Projectile
 class Projectile {
   constructor(x, y, vx, vy, owner, damage, color) {
     this.x = x; this.y = y;
@@ -196,9 +191,8 @@ class Projectile {
     this.life   = 90;
     this.active = true;
     this._warmupFrames = 0;
-    this.hitEntities = new Set(); // prevents duplicate hits from same projectile (e.g. piercing)
-    // The action that fired this shot. Its hits count as that move for dealDamage()'s
-    // per-weapon move tuning even if the owner has gone back to basic shots by then.
+    this.hitEntities = new Set(); // stops duplicate hits from piercing shots
+    // Hits count as the move that fired this shot, even if the owner has since gone back to basic shots.
     this._moveTier = !owner ? null
       : (owner.superActive || owner._attackKindTier === CLASH_TIER_SUPER) ? CLASH_TIER_SUPER
       : (owner._attackKindTier || CLASH_TIER_ATTACK);
@@ -215,9 +209,8 @@ class Projectile {
     _moveTierOverride = this._moveTier;
     try { return this._update(); } finally { _moveTierOverride = null; }
   }
-  // Online mirror of a projectile fired on the owner's machine (see NetProj below).
-  // Visual only: dead-reckons, eases toward corrections, never collides or damages.
-  // Hit authority stays with the owner (hitEvent / pub:hit).
+  // Online mirror of a shot fired on the owner's machine (see NetProj below).
+  // Visual only. The owner keeps hit authority.
   _ghostStep() {
     if (this._ox || this._oy) {
       this.x += this._ox * 0.25; this.y += this._oy * 0.25;
@@ -272,29 +265,43 @@ class Projectile {
     }
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += this._gravity != null ? this._gravity : 0.08; // lobbed shots (Mortar Stone) set their own
-    // Flames drag to a stop and rise as they burn out (hot gas, not a slug)
+    this.vy += this._gravity != null ? this._gravity : 0.08; // lobbed shots set their own
+    // Flames drag to a stop and rise as they burn out
     if (this._isFlame) { this.vx *= 0.92; this.vy = this.vy * 0.9 - 0.13; }
-    // Track distance for damage falloff (applied on hit below)
+    // Distance for falloff, applied on hit
     this._distTraveled = (this._distTraveled || 0) + Math.abs(this.vx);
     if (--this.life <= 0) { this.active = false; return; }
     // platform collision
     for (const pl of currentArena.platforms) {
-      // A lob climbs through platforms on the way up; it only lands coming down.
+      // A lob passes through platforms on the way up and only lands on the way down.
       if (this._burstOnLand && this.vy < 0) break;
       if (this._burstOnLand && pl.y < this._landY && !pl.isFloor) continue;
       if (this.x > pl.x && this.x < pl.x+pl.w && this.y > pl.y && this.y < pl.y+pl.h) {
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 4);
         if (typeof worldReactProjectile === 'function') worldReactProjectile(this, pl);
-        // Lobbed shells detonate where they land, so a near miss still splashes.
+        // Lobbed shells detonate on landing, so a near miss still splashes.
         if (this._burstOnLand) this._splashBurst(null, this.damage);
         return;
       }
     }
-    if (this._flameFx) return; // visual-only flame puff — never collides with fighters
-    // Swelling flames get a hit pad matching their drawn radius
+    if (this._flameFx) return; // visual-only flame puff
+    // Hit pad matches the flame's drawn radius
     const _hp = this._isFlame ? this._flameRadius() * 0.5 : 0;
+    // A melee swing cuts a basic shot it passes through. Ability and super shots, and flames, go through.
+    if (!this._isFlame && (this._moveTier || 0) === 0 && this.owner) {
+      for (const p of players) {
+        if (p === this.owner || p.health <= 0 || !(p.attackTimer > 0) || p.isBoss) continue;
+        if (!p.weapon || p.weapon.type !== 'melee' || areAlliedEntities(this.owner, p)) continue;
+        if (p._cutPtsFrame !== frameCount) { p._cutPtsFrame = frameCount; p._cutPts = p._getMeleeArcPoints(); }
+        if (!p._cutPts.some(pt => Math.abs(pt.x - this.x) < 14 && Math.abs(pt.y - this.y) < 14)) continue;
+        this.active = false;
+        spawnParticles(this.x, this.y, '#ffffff', 6);
+        spawnParticles(this.x, this.y, this.color, 4);
+        if (typeof SoundManager !== 'undefined' && SoundManager.parry) SoundManager.parry();
+        return;
+      }
+    }
     // player collision
     for (const p of players) {
       if (p === this.owner || p.health <= 0) continue;
@@ -325,35 +332,35 @@ class Projectile {
           return;
         }
       }
-      // Block friendly fire unless survival competitive mode explicitly enables it
+      // No friendly fire, unless survival enables it
       const _survFF = gameMode === 'minigames' && minigameType === 'survival' && survivalFriendlyFire;
       if (!_survFF && gameMode === 'boss' && !(this.owner && this.owner.isBoss) && !p.isBoss) continue;
       if (!_survFF && gameMode === 'minigames' && !(this.owner && this.owner.isBoss) && !p.isBoss && !p.isAI) continue;
-      if (this.hitEntities && this.hitEntities.has(p)) continue; // dedup: already hit this target
+      if (this.hitEntities && this.hitEntities.has(p)) continue; // already hit this target
     if (this.x > p.x - _hp && this.x < p.x+p.w + _hp && this.y > p.y - _hp && this.y < p.y+p.h + _hp) {
         this.hitEntities.add(p);
-        // Q-ability: diminishing returns on damage per sequential hit
+        // Q-ability hits in a row do less damage each
         if (this._isQAbility && this.owner) {
           const hc = this.owner._qHitCount || 0;
           this.damage = Math.max(1, Math.round(this.damage * Math.max(0.10, 1 - hc * 0.18)));
           this.owner._qHitCount = hc + 1;
         }
-        // Distance falloff: full damage ≤200px, ramps down to 60% at ≥600px
+        // Full damage to 200px, falling to 60% at 600px
         const _falloff = Math.max(0.60, 1.0 - Math.max(0, (this._distTraveled - 200) / 1000));
         const _hitDmg  = Math.max(1, Math.round(this.damage * _falloff * (1 - (this._closeRangePenalty || 0) * 0.18)));
         dealDamage(this.owner, p, _hitDmg, this._isFlame ? 2 : 7, 1.0, false, 0);
         handleSplash(this.owner, p, _hitDmg, this.x, this.y);
         this._splashBurst(p, _hitDmg);
-        if (this._isFlame) { spawnParticles(this.x, this.y, '#ff8a20', 2); continue; } // burns through
+        if (this._isFlame) { spawnParticles(this.x, this.y, '#ff8a20', 2); continue; } // flames burn through
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 6);
         return;
       }
     }
-    // minion collision — player/non-minion projectiles can kill minions
+    // minion collision: player and non-minion projectiles can kill minions
     if (!this.owner.isMinion && !(this.owner instanceof Boss)) {
       for (const mn of minions) {
-        if (mn.health <= 0) continue;
+        if (mn.health <= 0 || mn === this.owner) continue;
         if (areAlliedEntities(this.owner, mn)) continue;
         if (this._isFlame && this.hitEntities.has(mn)) continue;
         if (this.x > mn.x - _hp && this.x < mn.x+mn.w + _hp && this.y > mn.y - _hp && this.y < mn.y+mn.h + _hp) {
@@ -386,9 +393,7 @@ class Projectile {
       }
     }
   }
-  // Projectile-level splash (e.g. Napalm Spit Q): range set directly on the
-  // projectile. Shared by every hit branch — it used to run only on the players[]
-  // branch, so a direct hit on a minion (every Battle Royale bot) never splashed.
+  // Projectile splash (e.g. Napalm Spit Q). Runs on every hit branch, including minions.
   _splashBurst(hit, hitDmg) {
     if (!this.splashRange || !this.owner) return;
     spawnRing(this.x, this.y);
@@ -408,7 +413,7 @@ class Projectile {
   draw() {
     ctx.save();
     if (this._isPaperPlane) {
-      // Paper airplane ability projectile — drawn as a tiny folded plane
+      // Paper airplane ability: a tiny folded plane
       const _ppAng = Math.atan2(this.vy, this.vx);
       const _ppA   = Math.min(1, this.life / 20);
       ctx.globalAlpha = _ppA * 0.92;
@@ -426,9 +431,8 @@ class Projectile {
       ctx.beginPath(); ctx.moveTo(-2, 0); ctx.lineTo(8, -0.5); ctx.stroke();
       ctx.shadowBlur = 0;
     } else if (this._isFlame) {
-      // Flame puff: small white-hot core at the nozzle that swells, reddens and
-      // smokes out. Overlapping puffs merge into one continuous jet. Normal
-      // blending on purpose: additive washes to white on bright skies.
+      // Flame puff: white-hot core that swells, reddens and smokes out. Normal blending
+      // on purpose, since additive washes to white on bright skies.
       const _fT = this._flameAge();
       const _fR = this._flameRadius();
       ctx.translate(this.x, this.y);
@@ -478,7 +482,7 @@ class Projectile {
       ctx.stroke();
       ctx.restore();
     } else if (this._isShuriken) {
-      // Ninja domain shuriken: spinning 4-blade steel star with a violet glow
+      // Ninja domain shuriken: a spinning 4-blade star with a violet glow
       this._spin = (this._spin || 0) + 0.42;
       ctx.globalAlpha = Math.min(1, this.life / 10);
       ctx.translate(this.x, this.y);
@@ -518,9 +522,7 @@ class Projectile {
   }
 }
 
-// ============================================================
-// DAMAGE TEXT
-// ============================================================
+// Damage text
 class DamageText {
   constructor(x, y, amount, color) {
     this.x = x; this.y = y;
@@ -532,20 +534,15 @@ class DamageText {
   update() { this.y -= 1.1; this.x += this.vx; this.life--; }
   draw() {
     const a = Math.min(1, this.life / 20);
-    // A string amount is a LABEL, not a number — CLASH / BREAK and friends.
-    // Without this branch the numeric path prefixed them with a minus sign and
-    // picked their colour off a damage comparison that a string always fails.
+    // A string amount is a label (CLASH, BREAK), not a number.
     const _label = (typeof this.amount === 'string');
-    // Font size scales more aggressively with damage for better readability
+    // Bigger hits get bigger text
     const fs = _label       ? 19
              : this.amount >= 40 ? 24
              : this.amount >= 25 ? 20
              : this.amount >= 12 ? 16
              : 13;
-    // Colour-coded by tier, but pulled off full chroma. These numbers appear on
-    // every single hit, so at #ffee44 / #ff9900 they were a constant confetti
-    // spray over the fight — the TIER still reads, it just no longer out-shouts
-    // the fighters throwing the punches.
+    // Coloured by tier, but muted so the numbers do not drown out the fight.
     const col = _label       ? (this.color || '#f2ede2')
               : this.amount >= 40 ? '#e0563c'
               : this.amount >= 25 ? '#dd9440'
@@ -556,15 +553,13 @@ class DamageText {
     ctx.globalAlpha   = a;
     ctx.textAlign     = 'center';
     ctx.font          = `800 ${fs}px "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
-    // A soft drop shadow rather than a 4px black keyline traced around every
-    // glyph. The keyline is what made these read as sticker art; a shadow keeps
-    // them legible over any arena without drawing a cartoon outline.
+    // A soft drop shadow, not a black keyline, so text stays legible without a cartoon outline.
     ctx.shadowColor   = 'rgba(0,0,0,0.92)';
     ctx.shadowBlur    = fs >= 20 ? 7 : 5;
     ctx.shadowOffsetY = 1.5;
     ctx.fillStyle     = col;
     ctx.fillText(txt, this.x, this.y);
-    // Heavy hits get one extra pass to thicken the read, not a coloured glow.
+    // Heavy hits get a second pass to thicken the text.
     if (_label || this.amount >= 25) {
       ctx.shadowBlur = 3;
       ctx.fillText(txt, this.x, this.y);
@@ -573,20 +568,18 @@ class DamageText {
   }
 }
 
-// ── NetProj: online projectile position correction ────────────────────────────
-// Remote fighters are network puppets (they never run attacks), so a remote
-// player's shots only exist on the owner's machine. The owner sends compact
-// snapshots [id,x,y,vx,vy,color,kind,life] on spawn and every NetProj.EVERY frames
-// (skipped when every shot still sits within TOL px of dead-reckoning); the
-// receiver keeps a visual-only ghost per id, eases it onto the snapshot, and
-// snaps if the error exceeds SNAP. An empty list clears the sender's ghosts.
+// NetProj: online projectile position correction. Remote fighters are network puppets,
+// so their shots exist only on the owner's machine. The owner sends snapshots
+// [id,x,y,vx,vy,color,kind,life] on spawn and every NetProj.EVERY frames, skipped
+// while a shot is within TOL px of dead reckoning. The receiver eases a visual-only
+// ghost onto each snapshot and snaps past SNAP. An empty list clears the ghosts.
 const NetProj = (() => {
   const EVERY = 6, MAX = 12, TOL = 2, SNAP = 60;
   let _seq = 0, _lastFrame = 0, _had = false, _last = {};
   const _ghosts = new Map();
   const r1 = v => Math.round(v * 10) / 10;
   function _kind(p) { return (p._isArrow ? 1 : 0) | (p._isPaperPlane ? 2 : 0) | (p._isShuriken ? 4 : 0); }
-  // Sender: returns an array to transmit, or null when nothing needs sending.
+  // Sender: returns an array to send, or null if nothing needs sending.
   function collect(owner) {
     if (!owner || typeof projectiles === 'undefined') return null;
     const now = frameCount, live = [];
@@ -623,7 +616,7 @@ const NetProj = (() => {
       return e;
     });
   }
-  // Receiver: list is the sender's full live set; key identifies the sender.
+  // Receiver: list is the sender's full live set. key identifies the sender.
   function apply(key, owner, list) {
     if (!owner || !Array.isArray(list) || typeof projectiles === 'undefined') return;
     const seen = {};

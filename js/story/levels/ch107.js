@@ -1,19 +1,6 @@
 'use strict';
-// js/story/levels/ch107.js — Chapter 107 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 107 — Null (walk → duel vs Null, 1 life)
-// Pattern Zero: the centre of Null's catalogue. The walk passes through the
-// catalogue itself — 847 entries hung in the air as pale cards in columns,
-// each with a stick-figure pose drawn on it, the habit Null recorded for that
-// being. Thin threads run from every card toward the midpoint, where they
-// converge on the point of origin, a single bright node over a floor of
-// concentric rings ("All 847 entries. All 4,200 years. Against you."). Past
-// the midpoint, the threads hang loose and the cards are blank — what the
-// model could not fit. At the very end, off to one side, a chair and a lamp
-// nobody has sat at for a long time. Floating catalogue frames are the climbs;
-// the engine's chest perches at 1800 / 4680 stand clear of them.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 107 map (Null, 1 life). See smb-story-levels.js for the contract.
+// Floating catalogue frames are the climbs. Chests at 1800 / 4680 stand clear of them.
 (function () {
   const G = 440, ORIGIN = 3000, CHAIR = 5500;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -44,7 +31,6 @@
       if (x < 0 || x > 6000) continue;
       const past = x > ORIGIN + 400;
       ctx.fillStyle = past ? 'rgba(60,58,90,0.5)' : 'rgba(200,196,230,0.55)'; ctx.fillRect(x - 12, y - 18, 24, 32);
-      // Thread to the origin
       if (!past) { ctx.strokeStyle = 'rgba(170,160,240,0.08)'; ctx.beginPath(); ctx.moveTo(x, y + 14); ctx.lineTo(ORIGIN, 220); ctx.stroke(); }
       else { ctx.strokeStyle = 'rgba(170,160,240,0.08)'; ctx.beginPath(); ctx.moveTo(x, y + 14); ctx.lineTo(x - 10, y + 70); ctx.stroke(); }
       if (!past) { ctx.strokeStyle = 'rgba(30,26,60,0.85)'; pose(x, y, k); }
@@ -57,7 +43,6 @@
       ctx.strokeStyle = 'rgba(200,196,230,0.6)'; ctx.lineWidth = 1.5; ctx.strokeRect(x, y, w, 46);
       ctx.fillStyle = 'rgba(220,215,255,0.8)'; ctx.fillRect(x, y, w, 2);
     }
-    // The point of origin over its rings
     if (_slVisible(v, ORIGIN - 420, ORIGIN + 420)) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const g = ctx.createRadialGradient(ORIGIN, 220, 4, ORIGIN, 220, 90);
@@ -66,7 +51,6 @@
       ctx.restore();
       for (const x of [ORIGIN - 340, ORIGIN + 240]) { ctx.fillStyle = '#1a1830'; ctx.fillRect(x, 360, 100, G - 360); ctx.fillStyle = 'rgba(220,215,255,0.7)'; ctx.fillRect(x, 360, 100, 2); }
     }
-    // A chair and a lamp nobody has sat at for a long time
     if (_slVisible(v, CHAIR - 80, CHAIR + 120)) {
       ctx.fillStyle = '#3a2a1c'; ctx.fillRect(CHAIR, G - 36, 30, 5); ctx.fillRect(CHAIR + 2, G - 31, 4, 31); ctx.fillRect(CHAIR + 24, G - 31, 4, 31); ctx.fillRect(CHAIR + 24, G - 70, 4, 39);
       ctx.fillRect(CHAIR + 70, G - 110, 4, 110); ctx.fillRect(CHAIR + 58, G - 116, 28, 8);

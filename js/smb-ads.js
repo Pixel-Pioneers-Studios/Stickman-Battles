@@ -1,15 +1,10 @@
 'use strict';
-// smb-ads.js — AdManager: one ad interface for every host.
-// Load order: after smb-crazygames.js (routes to cgSdk on CrazyGames).
-//
-// Where an ad request goes:
-//   CrazyGames          -> cgSdk (the portal's own SDK; no other ads are allowed there)
-//   our own site / local -> AD_CONFIG.provider ('placeholder' until a real network is wired)
-//   any other portal     -> nothing (itch, Newgrounds, Game Jolt have their own rules)
-//
-// Placement rules live here, not at call sites: interstitials only between
-// matches, never online or during a cinematic, never in a new player's first
-// minutes, and no more than one per AD_CONFIG.interstitialGapMs.
+// AdManager: one ad interface for every host. Loads after smb-crazygames.js.
+// CrazyGames uses cgSdk, and no other ads are allowed there. Our own site and local
+// builds use AD_CONFIG.provider. Other portals (itch, Newgrounds, Game Jolt) get nothing.
+// Placement rules live here, not at call sites: interstitials only between matches,
+// never online or in a cinematic, not in a new player's first minutes, and at most one
+// per interstitialGapMs.
 
 const AD_CONFIG = {
   provider: 'placeholder',         // 'placeholder' | 'none'; a real network adds a case in _provider
@@ -76,7 +71,7 @@ const AdManager = (function () {
     if (skip) skip.onclick = function () { finish(false); };
   }
 
-  // ── Interstitial: between matches only ───────────────────────────────────
+  // Interstitial: between matches only
   function interstitial(onDone) {
     function done() { if (onDone) { try { onDone(); } catch (e) {} } }
     const prov = _provider();
@@ -94,16 +89,15 @@ const AdManager = (function () {
     _placeholderAd('interstitial', 3, function () { _showing = false; done(); });
   }
 
-  // ── Rewarded: only ever from a button the player pressed ─────────────────
+  // Rewarded: only from a button the player pressed
   function canShowRewarded() {
     const prov = _provider();
     if (prov === 'cg') return typeof cgSdk !== 'undefined';
     return prov === 'placeholder';
   }
 
-  // Stricter than canShowRewarded: a real portal ad SDK is initialised. The
-  // player-facing "watch an ad for X" buttons use this, so they stay hidden on
-  // itch.io / github.io / local where only the dev placeholder could run.
+  // Stricter than canShowRewarded: needs a real portal SDK. Gates the watch-an-ad buttons,
+  // which stay hidden on itch, github.io and local.
   function rewardedReady() {
     return _provider() === 'cg' && typeof cgSdk !== 'undefined' &&
       typeof cgSdk.adReady === 'function' && cgSdk.adReady();
@@ -122,7 +116,7 @@ const AdManager = (function () {
     });
   }
 
-  // ── Display banners: our own site only, never over the arena ─────────────
+  // Display banners: our own site only, never over the arena
   function refreshBanners() {
     const show = _provider() === 'placeholder';
     document.querySelectorAll('.ad-slot').forEach(function (el) {
@@ -134,7 +128,7 @@ const AdManager = (function () {
     });
   }
 
-  // ── Post-match offer: watch an ad to double this match's coins ───────────
+  // Post-match offer: an ad doubles this match's coins
   function offerMatchCoins(coins) {
     const row = document.getElementById('adRewardRow');
     const btn = document.getElementById('adRewardBtn');
@@ -158,7 +152,7 @@ const AdManager = (function () {
     };
   }
 
-  // ── Store: watch an ad for coins (about one match's worth), with a cooldown ──
+  // Store: coins for an ad, about one match's worth, with a cooldown
   const STORE_AD_COINS = 15;
   const STORE_AD_COOLDOWN_MS = 180000;
   const _STORE_AD_KEY = 'smb_store_ad_last';

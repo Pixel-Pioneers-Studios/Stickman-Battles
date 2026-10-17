@@ -1,32 +1,15 @@
 'use strict';
-// smb-smk2-training.js — Sovereign genome trainer: Sovereign vs melee bots
-// Depends on: smb-smk2-data.js, smb-smk2-class.js
-//
-// Design rationale:
-//   Opponent = randomized melee bots (diverse weapon/class loadouts, including
-//   cross-class affinities). Bots are individually weak — the point is NOT a fair
-//   fight, it is observing how Sovereign manages spatial pressure from multiple
-//   simultaneous threats and what the genome actually causes it to prioritize.
-//
-//   Fairness: champion and challenger run against IDENTICAL bot loadouts per
-//   generation (same seed → same random picks). Only the genome differs.
-//
-// Console commands (smb-debug-console.js):
-//   sovereign:train [gens=20] [matches=10] [bots=2]
-//   sovereign:stress [maxBots=6] [matches=5]
-//   sovereign:genome
-//   sovereign:reset
-//   sovereign:stop
+// smb-smk2-training.js: Sovereign genome trainer (Sovereign vs melee bots). Needs smb-smk2-data.js and smb-smk2-class.js.
+// Opponents are randomized melee bots. The aim is to observe Sovereign's spatial pressure, not a fair fight.
+// Champion and challenger face the same bot loadouts per generation (same seed), so only the genome differs.
+// Console: sovereign:train, sovereign:stress, sovereign:genome, sovereign:reset, sovereign:stop.
 
 const SMK2Trainer = (() => {
   const LS_KEY = 'smk2_champion_v1';
   let _running  = false;
 
-  // ── Melee loadout pool ──────────────────────────────────────────────────
-  // All melee only — Sovereign only adapts to melee patterns.
-  // Includes natural affinities AND cross-class pairings (affinity update).
+  // Melee only: Sovereign only adapts to melee patterns. Natural affinities plus cross-class pairings.
   const _LOADOUTS = [
-    // Natural
     { w: 'sword',  c: 'none'       },
     { w: 'sword',  c: 'ninja'      },
     { w: 'sword',  c: 'berserker'  },
@@ -46,14 +29,8 @@ const SMK2Trainer = (() => {
     { w: 'scythe', c: 'berserker'  },
     { w: 'axe',    c: 'ronin'      },
     { w: 'katana', c: 'kratos'     },
-    // ── Coverage gaps (added 2026-08-23) ──────────────────────────────────
-    // Several melee weapons were missing despite the pool being documented as
-    // melee-only — you cannot adapt to a pattern you never see.
-    //
-    // Knight is deliberately NOT here. It is a troll class with intentionally
-    // absurd stats, and it is barred from boss fights entirely (see
-    // _rerollTrollClass in smb-menu-spawn.js). Training against a joke loadout
-    // would drag the genome toward countering something Sovereign never faces.
+    // Several melee weapons were missing from the pool, so Sovereign never saw them.
+    // Knight is excluded on purpose: a joke class barred from boss fights (see _rerollTrollClass).
     { w: 'spear',      c: 'none'       },
     { w: 'spear',      c: 'kratos'     },
     { w: 'flail',      c: 'berserker'  },
@@ -63,9 +40,7 @@ const SMK2Trainer = (() => {
     { w: 'combat',     c: 'ninja'      },
   ];
 
-  // Duel-mode pool: the loadouts that actually threaten him 1v1. Deliberately
-  // narrower and nastier than the crowd pool — duel training is about surviving
-  // a strong single opponent, not managing a swarm.
+  // Duel pool: the loadouts that actually threaten him 1v1. Narrower and nastier than the crowd pool.
   const _DUEL_LOADOUTS = [
     { w: 'hammer', c: 'thor'       },
     { w: 'katana', c: 'ronin'      },
@@ -76,8 +51,7 @@ const SMK2Trainer = (() => {
     { w: 'flail',  c: 'berserker'  },
   ];
 
-  // Duel opponent calibration — see the note at the bot-construction site.
-  // Exposed on the API so it can be retuned without editing the file.
+  // Duel opponent calibration. Exposed on the API so it can be retuned.
   const DUEL_BUFF = { dmg: 2.2, hp: 1.6 };
 
   // Fixed spawn positions per number of bots (spread across arena)
@@ -91,7 +65,6 @@ const SMK2Trainer = (() => {
     [80,  220, 380, 540, 700, 850],
   ];
 
-  // ── Seeded RNG (mulberry32) ─────────────────────────────────────────────
   function _makeRng(seed) {
     let s = (seed * 2654435761) >>> 0;
     return () => {
@@ -102,7 +75,6 @@ const SMK2Trainer = (() => {
     };
   }
 
-  // ── Gaussian mutation ───────────────────────────────────────────────────
   function _randn() {
     const u = Math.random() || 1e-10;
     return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * Math.random());
@@ -117,19 +89,11 @@ const SMK2Trainer = (() => {
     return out;
   }
 
-  // ── Environment stub / restore ──────────────────────────────────────────
-  // CRITICAL: game globals (players, currentArena, gameMode, frameCount, …) are
-  // lexical `let` bindings, NOT window properties — `window.X = …` creates a
-  // SEPARATE property the game never reads, so the old stub left the real
-  // `players` empty and every bot's _acquireAITarget() returned null → bots
-  // stood idle (0 swings) and the trainer was just Sovereign farming dummies.
-  // Fix: mutate arrays IN PLACE (`players.length=0; players.push(…)`) and write
-  // scalars via BARE assignment. (Functions like spawnParticles/isCombatLocked
-  // ARE window-backed, so window stubs still work for those.)
+  // Game globals are lexical `let`s, not window properties: mutate arrays in place and assign scalars bare.
+  // (Functions like spawnParticles are window-backed, so window stubs still work for those.)
   let _saved = null;
 
-  // Write the headless sim environment into the real (lexical) game globals.
-  // Shared by _stubEnv (once) and _runMatch (per match).
+  // Writes the headless sim env into the real game globals. Used by _stubEnv (once) and _runMatch (per match).
   function _applySimEnv() {
     const _noop = () => {};
     currentArena = (typeof ARENAS !== 'undefined' && ARENAS.sovereign)
@@ -158,7 +122,7 @@ const SMK2Trainer = (() => {
     if (typeof combatLock !== 'undefined' && combatLock && combatLock.blocks) {
       Object.keys(combatLock.blocks).forEach(k => { combatLock.blocks[k] = false; });
     }
-    // Side-effect / guard functions (window-backed — window stubs work here)
+    // Side-effect and guard functions (window-backed, so window stubs work here)
     window.spawnParticles   = _noop;
     window.showBossDialogue = _noop;
     if (typeof spawnBullet        !== 'undefined') window.spawnBullet        = _noop;
@@ -175,8 +139,7 @@ const SMK2Trainer = (() => {
   }
 
   function _stubEnv() {
-    // Snapshot the REAL game state (bare reads / array copies) so we can restore
-    // it after the run — the trainer is launched from the in-game console.
+    // Snapshot the real game state so it can be restored after the run (the trainer runs from the console).
     _saved = {
       players:          players.slice(),
       minions:          (typeof minions !== 'undefined')         ? minions.slice()         : undefined,
@@ -257,7 +220,6 @@ const SMK2Trainer = (() => {
     } catch (e) {}
   }
 
-  // ── Apply class stats to a bot (no side effects) ────────────────────────
   function _applyBotClass(bot, className) {
     if (!className || className === 'none') return;
     if (typeof CLASSES === 'undefined' || !CLASSES[className]) return;
@@ -269,28 +231,9 @@ const SMK2Trainer = (() => {
     bot.health    = hp;
   }
 
-  // ── Diagnostic match counter (shared across all _runMatch calls) ─────────
-  // ── SCRIPTED ARCHETYPE PANEL ────────────────────────────────────────────
-  // Why this exists: the trainer's duel opponent is one Fighter AI holding a
-  // random weapon, and measurement showed those opponents are behaviourally
-  // IDENTICAL to each other — across 12 trials their attack rate (0.02-0.09),
-  // airborne share (0.22-0.87) and close share (0.53-0.94) overlapped almost
-  // completely. A genome trained against them can only learn "beat the bot",
-  // which is why the champion generalizes to nothing. Real opponents differ by
-  // BEHAVIOUR, so the panel supplies behaviour directly.
-  //
-  // Physics, damage, collision and every combat rule still run normally — only
-  // the decision function is replaced, so each panel member is a real fighter
-  // that happens to be predictable in a specific, nameable way.
-  // EVERY panel member carries the SAME kit. The first version varied weapon and
-  // class alongside policy, which made the panel measure nothing cleanly — and it
-  // shipped a live bug while doing so: `assassin` is not a key in CLASSES, so
-  // applyClass() bailed silently (the same silent-bail that once left 104 story
-  // enemies classless) and that puppet kept default 150 HP against the
-  // berserker's 130. After the 1.6x duel buff that is 240 vs 208, so the
-  // archetype that "beat" Sovereign 10-0 was also the one carrying 15% more
-  // health. Holding the kit fixed is what makes a difference in win rate
-  // attributable to BEHAVIOUR, which is the only thing this panel is for.
+  // Opponents are scripted policies, not Fighter AIs. Fighter AIs behave the same as each other (measured),
+  // so a genome trained on them only learns to beat the bot. Physics and damage still run; only the decision is replaced.
+  // Every panel member uses the same kit, so the policy is the only variable.
   const SMK2_PANEL = [
     { name: 'turtle', w: 'sword', c: 'none', policy: 'turtle' },
     { name: 'rusher', w: 'sword', c: 'none', policy: 'rusher' },
@@ -298,20 +241,7 @@ const SMK2Trainer = (() => {
     { name: 'aerial', w: 'sword', c: 'none', policy: 'aerial' },
   ];
 
-  // ── SCRIPTED OPPONENTS MUST FIGHT WITH THEIR WHOLE KIT ────────────────────
-  // Every policy in this file and every stress policy in smb-sov-scenarios.js
-  // called `attack()` and nothing else. No ability, no super — measured
-  // 2026-09-20 over a full sweep: the opponent's abilityCooldown was 0 on
-  // 23,142 of 23,142 samples, i.e. not one ability was spent in the entire
-  // measurement suite.
-  //
-  // That is not a small realism gap, it invalidates whole classes of result.
-  // Sovereign's volley standoff, his shield timing, his i-frame reads and his
-  // punish windows are all answers to a kit he was never actually shown, so the
-  // sim could neither reward nor punish any of them. It also made him look
-  // adaptive when he was not: against an opponent that never threatens, there is
-  // nothing to adapt TO.
-  //
+  // Policies must use abilities too. Earlier sweeps never spent one, so no ability-based result was measurable.
   // Returns true when it consumed the frame's offensive action.
   function _policyUseKit(f, t, d, rate) {
     if (!f || !t || t.health <= 0) return false;
@@ -329,16 +259,13 @@ const SMK2Trainer = (() => {
     }
     return false;
   }
-  // Exposed so smb-sov-scenarios.js upgrades every stress policy through the
-  // same code path rather than growing its own copy that drifts.
+  // Exposed so smb-sov-scenarios.js upgrades stress policies through the same path.
   if (typeof window !== 'undefined') window._policyUseKit = _policyUseKit;
 
   function _applyPolicy(f, policy) {
     if (!f || !policy) return;
     f._policy = policy;
-    // Extension hook — smb-sov-scenarios.js registers the stress policies
-    // (parry_wall, landing_trap, ledge_executioner, chip, random_walk) here.
-    // Consulted BEFORE the switch so the original four stay exactly as measured.
+    // Extension hook: smb-sov-scenarios.js registers stress policies here. Checked before the switch, so the original four stay as measured.
     if (typeof SovScenarios !== 'undefined' && SovScenarios.policyFn) {
       const ext = SovScenarios.policyFn(policy);
       if (ext) { f.updateAI = ext; return; }
@@ -351,9 +278,7 @@ const SMK2Trainer = (() => {
       const dir = Math.sign(dx) || 1;
       this.facing = dir;
       const spd = 4.6;
-      // Every policy can recover from a launch. Without this a single knockback
-      // strands the puppet airborne for the rest of the match and the sample is
-      // worthless (measured: one trial spent 100% of its frames off the ground).
+      // Recover from launches, or one knockback strands the puppet airborne for the whole match.
       if (!this.onGround && this.canDoubleJump && this.vy > 2) { this.vy = -12; this.canDoubleJump = false; }
       switch (policy) {
         case 'turtle':
@@ -372,11 +297,9 @@ const SMK2Trainer = (() => {
           if (d < 95 && this.cooldown <= 0) this.attack(t);
           break;
         case 'zoner':
-          // The ability IS the poke for a zoner — used at the top of its range.
+          // The ability IS the poke for a zoner, used at the top of its range.
           if (_policyUseKit(this, t, d, { abi: 0.06, sup: 0.014, abiRange: 3.0 })) break;
-          // Band is tied to the weapon's own reach rather than to fixed pixels, so
-          // the policy still means "stay at the edge of my range" whatever kit the
-          // panel holds.
+      // Band tied to the weapon's own reach, so 'stay at the edge of my range' holds for any kit.
           this.shielding = false;
           { const R = (this.weapon && this.weapon.range) || 90;
             if (d < R * 0.95) this.vx = -dir * spd;
@@ -397,38 +320,26 @@ const SMK2Trainer = (() => {
 
   let _matchSeq = 0;
 
-  // ── Single headless match ───────────────────────────────────────────────
-  // Sovereign (genome) vs numBots melee bots (unlimited lives — bots respawn).
-  // Matches always run MAX_FRAMES so fitness is kill throughput, not a win/loss.
-  // seed controls loadout picks — same seed = same opponents for fair comparison.
+  // Sovereign (genome) vs numBots melee bots. Bots respawn and matches run MAX_FRAMES, so fitness is kill throughput.
+  // seed fixes the loadout picks, so the same seed gives the same opponents.
   function _runMatch(genome, numBots, seed, opts) {
     const _o    = opts || {};
     const duel  = !!_o.duel;
-    // opts.lives / opts.maxFrames: overridable for calibration runs that need
-    // a long stock-based match (e.g. 10 lives, ~24000 frames) instead of the
-    // trainer's short default. Both default to the unchanged values.
+    // opts.lives / opts.maxFrames: overrides for calibration runs (e.g. 10 lives, ~24000 frames).
     const SOV_LIVES  = _o.lives || 5;
-    const OPP_LIVES  = _o.lives || 5;    // duel only — crowd bots keep unlimited lives
+    const OPP_LIVES  = _o.lives || 5;    // duel only, crowd bots keep unlimited lives
     const MAX_FRAMES = _o.maxFrames || 7200; // ~2 min sim time with full-rate AI
     const matchId    = ++_matchSeq;
-    // Full sim-env reset every match — guards against game-loop interference
-    // during setTimeout yields AND against state accumulated by prior matches.
-    // Writes the real (lexical) globals via in-place array mutation + bare
-    // assignment so Fighter.update() actually reads them (see _applySimEnv note).
+    // Full sim-env reset every match. Writes the real globals (see _applySimEnv).
     _applySimEnv();
 
-    // ── Scenario environment override ───────────────────────────────────────
-    // Applied AFTER _applySimEnv so the sim baseline is always the starting
-    // point and a scenario only states its differences. The arena is CLONED
-    // rather than mutated — ARENAS.sovereign is the real shipped arena object
-    // and a stray flag left on it would follow the player into a real match.
+    // Applied after _applySimEnv, so scenarios state only their differences. Clone the arena: ARENAS.sovereign is shipped.
     if (_o.env) {
       const base = currentArena;
       const a = Object.assign({}, base, { platforms: (base.platforms || []).map(p => Object.assign({}, p)) });
       if (_o.env.floorWidth) {
         const W = Math.max(200, Math.min(900, _o.env.floorWidth));
-        // Keep exactly one isFloor platform — pickSafeSpawn() returns null
-        // without one and respawn crashes. Narrow it, centre it, drop the rest.
+        // Keep one isFloor platform, or pickSafeSpawn() returns null and respawn crashes.
         const floor = a.platforms.find(p => p.isFloor) || { y: 460, h: 60, isFloor: true };
         a.platforms = [Object.assign({}, floor, { x: (900 - W) / 2, w: W, isFloor: true })];
       }
@@ -444,126 +355,75 @@ const SMK2Trainer = (() => {
     // Circuit floor is at y=460; spawn above it so fighters fall into position
     const SPAWN_Y = 380;
 
-    // Build Sovereign — center of the Circuit
+    // Sovereign at the centre of the Circuit
     const sov = new SovereignMK2(450, SPAWN_Y, '#ff2200', 'sword');
     sov.isAI   = true;
     sov.lives  = SOV_LIVES;
-    sov._teamId = 'sim_sov'; // distinct — bots must NOT be allied with Sovereign
+    sov._teamId = 'sim_sov';  // bots must not be allied with him
     sov.applyGenome(genome);
-    // opts.sovKit: pin Sovereign's own weapon/class (calibration needs him on
-    // the exact kit a target replay recorded, e.g. sword/ninja). Stat-only,
-    // same treatment _applyBotClass gives the opponent — his move set is
-    // driven by SovereignMK2 itself, not by charClass.
+    // opts.sovKit pins his weapon and class for calibration. Stat-only: his moves come from SovereignMK2.
     if (_o.sovKit && _o.sovKit.w && typeof WEAPONS !== 'undefined' && WEAPONS[_o.sovKit.w]) {
       sov.weaponKey = _o.sovKit.w;
       sov.weapon    = WEAPONS[_o.sovKit.w];
     }
     if (_o.sovKit && _o.sovKit.c) _applyBotClass(sov, _o.sovKit.c);
-    // Lock it, or SovereignMK2._ensureMatchLoadout() re-picks on his first frame
-    // with a target and silently overwrites the pin (found 2026-09-23: every
-    // "sovKit" run before this measured his own bandit pick, mostly katana/ronin).
+    // Lock the loadout, or _ensureMatchLoadout() re-picks on his first frame and overwrites the pin.
     if (_o.sovKit && (_o.sovKit.w || _o.sovKit.c)) sov._loadoutLocked = true;
 
-    // Build bots from seeded loadout selection
     const rng    = _makeRng(seed);
     const spawns = _BOT_SPAWNS[Math.min(numBots, _BOT_SPAWNS.length - 1)];
     const colors = ['#4488ff', '#44dd44', '#dd44dd', '#44dddd', '#dddd44', '#ff8844'];
     const bots   = [];
 
     const pool = duel ? _DUEL_LOADOUTS : _LOADOUTS;
-    // Panel mode: one scripted opponent of a named archetype, instead of a
-    // seeded random loadout. Implies duel.
+    // panel: one scripted opponent of a named archetype. Implies duel.
     const panel = _o.panel || null;
-    // Scenario roster: a full per-bot spec list from smb-sov-scenarios.js, each
-    // entry { w, c, policy, hp, dmg }. Takes precedence over the seeded pool and
-    // over `panel`, and unlike panel it applies to EVERY bot rather than bot 0 —
-    // a stress scenario is usually a combination, not a single archetype.
+    // roster: per-bot specs from smb-sov-scenarios.js. Takes precedence over panel and applies to every bot.
     const roster = Array.isArray(_o.roster) ? _o.roster : null;
     for (let i = 0; i < numBots; i++) {
       const rs  = roster ? roster[i % roster.length] : null;
-      // `opp`: a FAIR opponent with a named kit and its own full AI — no policy,
-      // no stat multipliers. Used by tools/sov-discover.js, where any buff would
-      // be measured as a property of the opponent's weapon.
+      // opp: a fair opponent with a named kit and its own AI, no policy or stat multipliers (tools/sov-discover.js).
       const ld  = rs ? { w: rs.w, c: rs.c }
                 : (_o.opp && i === 0) ? { w: _o.opp.w, c: _o.opp.c || 'none' }
                 : (panel && i === 0) ? { w: panel.w, c: panel.c }
                 : pool[Math.floor(rng() * pool.length)];
       const _bx = duel ? 700 : (spawns[i] || 300 + i * 120);
-      // ── Duel opponent strength ────────────────────────────────────────────
-      // The sim's core problem, measured 2026-08-23: no AI opponent available
-      // here comes close to a real player. A real Knight match did 1210
-      // damage to Sovereign and locked him 32% of the time. The sim's best
-      // efforts: expert Fighter duel 192 damage / 1.9% locked; 50 crowd bots
-      // 268 damage and LESS lockout than 3 bots; AdaptiveAI duel opponent a
-      // mere 19 damage (it baits — stands still to invite a punish — which is
-      // free damage against a Sovereign who never hesitates).
-      //
-      // Since no available brain supplies the pressure, it is supplied by
-      // stats instead. DUEL_BUFF is a calibration knob, not a fantasy: it
-      // exists purely to drag sim damage-taken and lockout toward what a human
-      // actually inflicts, so the fitness terms measuring those have something
-      // to select against. Tune it against real-match numbers, not vibes.
+      // DUEL_BUFF is a calibration knob. Sim bots hit far less hard than real players, so stats are buffed to
+      // match human damage taken and lockout. Tune it against real-match numbers.
       const bot = new Fighter(_bx, SPAWN_Y, colors[i % colors.length], ld.w);
       bot.isAI         = true;
       bot.aiDiff       = duel ? 'expert' : 'hard';
       bot.intelligence = duel ? 0.99 : 0.92;
       if (duel) {
-        // `noBuff` exists as a CONTROL, not a convenience. The panel archetypes
-        // differ in how often they attack, and DUEL_BUFF multiplies every attack
-        // by 2.2 — so "Sovereign loses to aggressive archetypes" and "Sovereign
-        // loses to whichever archetype cashes in the damage buff most often" are
-        // the same measurement unless the buff can be switched off. Any claim
-        // about a behavioural weakness has to survive this control.
-        // A roster entry carries its OWN hp/dmg multipliers, because the whole
-        // point of glass_cannon vs attrition_tank is that they are stat mirror
-        // images. Those replace DUEL_BUFF rather than stacking with it — a
-        // scenario's difficulty must be the thing the scenario says it is.
+        // noBuff is a control arm: DUEL_BUFF multiplies every attack, so the buff and the archetype must be separable.
+        // A roster entry carries its own hp/dmg multipliers, which replace DUEL_BUFF rather than stack with it.
         const _bf = rs ? { dmg: rs.dmg || 1, hp: rs.hp || 1 }
                   : _o.noBuff ? { dmg: 1, hp: 1 } : DUEL_BUFF;
         bot.dmgMult = _bf.dmg;
         bot.maxHealth = Math.round(bot.maxHealth * _bf.hp);
         bot.health    = bot.maxHealth;
-        // THE important one. Stat buffs barely moved lockout (5.7% -> 4.1% as
-        // damage went 2.2x -> 5x) because lockout comes from CHAINED hits, not
-        // big ones — and the AI whiff-guard makes bots hold their swing unless a
-        // hit is plausible, so they never chain. A human does. Removing the
-        // guard for the opponent alone roughly doubled lockout. Per-fighter, so
-        // Sovereign keeps his own guard intact.
-        // Scenario rosters ALWAYS drop the guard. Lockout comes from chained
-        // hits, not big ones, and the AI whiff-guard makes a bot hold its swing
-        // unless a hit is plausible — so a guarded bot never chains and a human
-        // always does. Measured: removing it for the opponent alone roughly
-        // doubles lockout. A stress scenario that cannot chain is not stress.
-        // `scenarioGuard:'keep'` leaves it in place — the control arm that makes
-        // the choice above measurable rather than assumed.
+        // Scenario rosters always drop the whiff-guard. Lockout comes from chained hits, and the guard stops bots chaining.
+        // scenarioGuard:'keep' leaves it in, as the control arm.
         bot._noWhiffGuard = (_o.scenarioGuard === 'keep') ? false
                           : rs ? true : !_o.noBuff;
       }
-      bot._teamId      = 'sim_bots'; // shared team → areAlliedEntities() blocks bot-vs-bot damage
-      // AdaptiveAI names itself 'SOVEREIGN' in its constructor — rename so match
-      // logs don't show two of him.
+      bot._teamId      = 'sim_bots';  // shared team: bots don't hurt each other
+      // AdaptiveAI names itself SOVEREIGN in its constructor, so rename it to keep logs readable.
       bot.name         = rs ? ('SCN:' + rs.policy + (roster.length > 1 ? (i + 1) : ''))
                        : (panel && i === 0) ? ('PANEL:' + panel.name) : (duel ? ('DUEL:' + ld.c) : ('BOT' + (i + 1)));
       bot.target       = sov;
       if (duel) bot.lives = OPP_LIVES;
       _applyBotClass(bot, ld.c);
-      // `oppHpMult`: a MEASUREMENT instrument for the human proxy
-      // (tools/human-proxy.js). The proxy's offence matches a human's but its
-      // defence does not (it takes ~2x a human's damage per frame), so its health
-      // is scaled until its stock trade vs Sovereign matches the human replays.
-      // Applied after _applyBotClass, which would otherwise overwrite maxHealth.
+      // oppHpMult: calibration knob for the human proxy (tools/human-proxy.js). Its defence is about 2x a human's,
+      // so its health is scaled until its stock trade matches the human replays. Applied after _applyBotClass.
       if (_o.oppHpMult && i === 0) {
         bot.maxHealth = Math.round(bot.maxHealth * _o.oppHpMult);
         bot.health    = bot.maxHealth;
       }
-      // Applied AFTER class setup: _applyBotClass can touch stats but never the
-      // decision function, and the policy must be the last word on updateAI.
+      // Applied last: _applyBotClass can't touch the decision function, so the policy wins.
       if (rs) _applyPolicy(bot, rs.policy);
       else if (panel && i === 0) _applyPolicy(bot, panel.policy);
-      // `oppAI`: an external per-frame controller for bot 0 (tools/ghost-core.js,
-      // the human mimic). Every frame, not every AI_TICK_INTERVAL, because a
-      // human's hands move every frame; and no whiff-guard, because a human
-      // swings at air.
+      // oppAI: an external per-frame controller for bot 0 (tools/ghost-core.js). Every frame, no whiff-guard.
       if (typeof _o.oppAI === 'function' && i === 0) {
         bot.updateAI = _o.oppAI;
         bot.aiTickInterval = 1;
@@ -573,15 +433,11 @@ const SMK2Trainer = (() => {
     }
 
     if (bots.length > 0) sov.target = bots[0];
-    players.length = 0; players.push(sov, ...bots); // in-place → real lexical `players`
+    players.length = 0; players.push(sov, ...bots);  // in place, so the real `players` is updated
 
     let kills      = 0;
     let _errSample = null;
-    // ── Outcome tracking ────────────────────────────────────────────────────
-    // lockedFrames is the important one. A full-match measurement on 2026-08-23
-    // showed it predicting both results cleanly: 32% locked -> Sovereign lost
-    // 10-8; 11.9% locked -> he won 10-0. The old fitness could not see it at all,
-    // so the GA had no way to select against being juggled.
+    // lockedFrames predicts stock results (32% locked lost, 11.9% locked won), so fitness has to see it.
     let lockedFrames = 0;
     let dmgTaken     = 0;
     let dmgDealt     = 0;
@@ -590,9 +446,7 @@ const SMK2Trainer = (() => {
     const prevBotHp  = new Map(bots.map(b => [b, b.health]));
     let framesRun    = 0;
 
-    // opts.record: capture frames/events in the .smbreplay schema so
-    // tools/proxy-stats.js can score a sim match exactly like a real replay.
-    // Only bots[0] ("me", index 0) and sov (index 1) are recorded — duel mode.
+    // opts.record: capture frames in the .smbreplay schema so tools/proxy-stats.js can score sim matches. Duel mode, bots[0] and sov only.
     const REC_EVERY_N = 3;
     const rec = (_o.record && bots.length) ? { frames: [], events: [], recordEveryN: REC_EVERY_N } : null;
     const _snap = f => ({
@@ -602,22 +456,13 @@ const SMK2Trainer = (() => {
       lives: f.lives, wk: f.weaponKey, cls: f.charClass || 'none',
     });
 
-    // ── DOMAINS MUST BE TICKED OR THEY NEVER END ──────────────────────────
-    // DomainManager.update() owns _domainRiseTimer, and the sim never called it.
-    // Measured 2026-09-20: on his third super Sovereign triggers Absolute
-    // Dominion, which sets _domainRising = true; smb-fighter.js then SKIPS
-    // GRAVITY for that fighter. With nothing ticking the rise to completion he
-    // ascended at a constant 1.5px/frame forever — observed at y = -3578, ~3500px
-    // above a 460px floor, with damage frozen for the last 35 seconds of the match.
-    //
-    // Any match in which he expanded was therefore scoring a fighter who had left
-    // the arena. That matters most for exactly the flags that make him spend supers
-    // more often, which is the opposite of what a fair measurement needs.
+    // DomainManager owns _domainRiseTimer and the sim never called it. Without a tick, Absolute Dominion rises forever
+    // with gravity off, so matches were scored with a fighter who had left the arena.
     try { if (typeof DomainManager !== 'undefined' && DomainManager.reset) DomainManager.reset(); } catch (e) {}
     for (let f = 0; f < MAX_FRAMES; f++) {   // crowd mode always runs full duration
       hitStopFrames = 0;
       slowMotion    = 1;
-      aiTick        = f;   // REAL cadence: AI re-decides every AI_TICK_INTERVAL frames (was 0 = every frame)
+      aiTick        = f;  // real AI cadence: every AI_TICK_INTERVAL frames
       frameCount    = f;
       framesRun     = f + 1;
       // Drawing stays stubbed; only the simulation half is advanced.
@@ -630,9 +475,7 @@ const SMK2Trainer = (() => {
           Math.abs(b.cx() - sov.cx()) < Math.abs(n.cx() - sov.cx()) ? b : n);
       }
 
-      // Same order as gameLoop: projectiles and minions before fighters. Without
-      // this the Summoner's familiar never acted and the Gunner's death burst
-      // never flew, so every lab verdict on those classes scored a passive perk.
+      // Same order as gameLoop. Without it the familiar and the Gunner's death burst never act, skewing those scores.
       _tickWorld();
 
       try { sov.update(); } catch (e) { if (!_errSample) _errSample = 'sov:' + e.message; }
@@ -658,7 +501,7 @@ const SMK2Trainer = (() => {
       }
       if (rec && f % REC_EVERY_N === 0) rec.frames.push([_snap(bots[0]), _snap(sov)]);
 
-      // Sovereign death — respawn, limited lives
+      // Sovereign death, respawn, limited lives
       if (sov.health <= 0) {
         if (rec) rec.events.push({ t: 'ko', fi: f / REC_EVERY_N, fc: f, p: 1 });
         sov.lives--;
@@ -673,8 +516,7 @@ const SMK2Trainer = (() => {
         sov.shielding = false; sov.state = 'idle';
       }
 
-      // Bot deaths. Crowd mode: unlimited lives, respawn forever (kill throughput).
-      // Duel mode: finite stocks, so the match is a real win/loss like the game.
+      // Bot deaths. Crowd: unlimited lives. Duel: finite stocks, as in the real game.
       let _duelOver = false;
       for (const b of bots) {
         if (b.health <= 0) {
@@ -688,7 +530,6 @@ const SMK2Trainer = (() => {
           try { b.onDeath(); } catch (_) {}
           b.classPerkUsed = false; b.spartanRageTimer = 0; b.rageStacks = 0;
           b.health = b.maxHealth;
-          // Respawn on opposite side from Sovereign to maintain pressure
           b.x = sov.cx() < GAME_W / 2
             ? 600 + Math.floor(rng() * 200)
             : 100 + Math.floor(rng() * 200);
@@ -702,43 +543,27 @@ const SMK2Trainer = (() => {
       if (_duelOver) break;
     }
 
-    // Close his open-arsenal sample and file inference counts: the sim never
-    // runs endGame, and a match he wins never reaches his onDeath.
+    // Close his arsenal sample and inference counts here: the sim never runs endGame.
     try { if (sov._arsenalCommit) sov._arsenalCommit('end'); } catch (e) {}
     try { if (sov._commitMech) sov._commitMech(); } catch (e) {}
-    players.length = 0;   // clear lexical `players` (final restore happens in _restoreEnv)
+    players.length = 0;  // restored in _restoreEnv
     gameRunning    = false;
 
-    // ── FITNESS ─────────────────────────────────────────────────────────────
-    // The old function was `kills * 200 + partialDmg * 0.1 - sovLivesLost * 20`,
-    // which made one kill worth TEN of Sovereign's own deaths. Against bots with
-    // unlimited lives that is coherent, but the real fight is stock-based, where
-    // dying is precisely how he loses — so the GA was being rewarded for exactly
-    // the behaviour that loses real matches.
-    //
-    // Three corrections:
-    //   · deaths are now expensive enough to actually constrain the search
-    //   · damage TAKEN is counted, not just damage dealt
-    //   · lockedFrames enters the score, so "don't get juggled" is finally
-    //     something the GA can select for. It could not see this before.
-    //
-    // Scale note: over a 7200-frame match dmgDealt lands ~500-2000 and
-    // lockedFrames ~500-2500, so the 0.25 weight keeps lockout meaningful
-    // without letting a purely evasive genome outscore one that fights.
+    // Fitness: deaths cost more, damage taken counts, and lockedFrames (being juggled) is scored.
+    // Over a 7200-frame match dmgDealt is ~500-2000 and lockedFrames ~500-2500, so the 0.25 weight is meaningful.
     const sovLivesLost = SOV_LIVES - sov.lives;
     const lockedPct    = framesRun > 0 ? lockedFrames / framesRun : 0;
 
     let fitness;
     if (duel) {
-      // Duel: stock differential is the match result, so it dominates. Damage
-      // and lockout break ties between genomes that go the same stocks.
+      // Duel: the stock differential is the result, so it dominates. Damage and lockout break ties.
       const stockDiff = oppDeaths - sovLivesLost;
       fitness = stockDiff * 400
               + dmgDealt * 0.5
               - dmgTaken * 0.5
               - lockedFrames * 0.25;
     } else {
-      // Crowd: kill throughput still leads, but survival now genuinely competes.
+      // Crowd: kill throughput still leads, but survival counts.
       fitness = kills * 120
               + dmgDealt * 0.3
               - dmgTaken * 0.6
@@ -754,28 +579,19 @@ const SMK2Trainer = (() => {
       kills,
       fitness,
       sovLivesLeft: sov.lives,
-      // Surfaced so training output can show WHY a genome scored what it did.
+      // Surfaced so training output shows why a genome scored what it did.
       lockedPct: Math.round(lockedPct * 1000) / 10,
       dmgDealt:  Math.round(dmgDealt),
       dmgTaken:  Math.round(dmgTaken),
-      // Surfaced so sim damage can be expressed per-1000-frames and compared
-      // against real replay numbers. Match length varies a lot between
-      // archetypes (a turtle match runs far longer than a rusher match), so
-      // raw dmgDealt/dmgTaken totals are not comparable across the panel.
+      // Damage per 1000 frames, so matches of different length compare fairly with replays.
       framesRun,
       oppDeaths,
       duel,
-      // What he actually learned this match, in the grid's own shape. Surfaced
-      // so tools/sov-vector.js can accumulate it into data/sov-artifact.json —
-      // the link that tools/sov-evolved-genome.json never had.
+      // The grid's learned state, surfaced so tools/sov-vector.js can accumulate it into data/sov-artifact.json.
       grid: sov._tacticGrid || {},
-      // Times the grid itself released the super bank early (_gridWantsSuper).
-      // Surfaced for the same reason `grid` is: a tool measuring whether the
-      // grid changes behaviour needs to see that it actually fired, or a null
-      // result and a gate that never ran look identical.
+      // Times the grid released the super bank early. Surfaced so a null result and a gate that never ran look different.
       gridSupers: sov._gridSupers || 0,
-      // Plans completed and swings a plan held — the execution counters for the
-      // tactic-plan layer, surfaced for the same reason gridSupers is.
+      // Plans completed and swings a plan held, for the tactic-plan layer.
       planCount:  sov._planCount  || 0,
       planVetoed: sov._planVetoed || 0,
       planStat:   sov._planStat   || {},
@@ -786,15 +602,8 @@ const SMK2Trainer = (() => {
     };
   }
 
-  // ── Paired genome evaluation ────────────────────────────────────────────
-  // Runs gA and gB on the SAME seeds (identical bot loadouts) so the only
-  // variable is the genome. Returns summed fitness/kills plus per-match win
-  // counts — the win count is a variance-robust signal (a genome that wins on
-  // lucky seeds by a huge margin doesn't dominate the tally).
-  // Half the seeds are evaluated as 1v1 duels against the strong pool and half as
-  // crowd fights, so a promoted genome has to be good at BOTH. Training purely on
-  // swarms is what produced a champion tuned for farming weak respawning bots —
-  // a different skill from surviving one strong opponent, which is the real fight.
+  // Runs gA and gB on the same seeds, so only the genome differs. Returns summed fitness, kills and per-match win counts.
+  // Half the seeds are 1v1 duels against the strong pool, half crowd fights. Swarm-only training tuned for farming weak bots.
   function _evalPair(gA, gB, numBots, seeds) {
     let aFit = 0, bFit = 0, aKills = 0, bKills = 0, aWins = 0, bWins = 0;
     let aLock = 0, bLock = 0;
@@ -816,23 +625,13 @@ const SMK2Trainer = (() => {
              bLock: Math.round(bLock / n * 10) / 10 };
   }
 
-  // A challenger is "better" only if it wins clearly MORE individual (paired)
-  // matches — NOT if it has higher summed fitness. Fitness sums are dominated by
-  // a few outlier high-kill matches, so a genome can "win on fitness" while
-  // actually tying or losing the head-to-head; that's how training drifts into
-  // degenerate bot-farming genomes (max aggression/speed) that are worse vs a
-  // real player. Win-count is one vote per match → variance-robust.
+  // A challenger is better only if it wins more paired matches, not on summed fitness (outlier kill-heavy matches skew it).
   function _challengerBeats(r) {
     const need = Math.max(2, Math.ceil(r.n * 0.15)); // must win ≥15% of n more matches
     return (r.bWins - r.aWins) >= need && r.bFit >= r.aFit;
   }
 
-  // ── Async training loop ─────────────────────────────────────────────────
-  // Each generation: champion vs a mutated challenger on the SAME seeds. A
-  // challenger is promoted ONLY if it beats the champion by the margin AND wins
-  // the per-match tally — then it must REPEAT that on a fresh confirmation batch.
-  // Requiring two independent wins squares the false-positive rate, so noisy
-  // lucky-seed challengers no longer cause genome drift (the old loop's flaw).
+  // Champion vs mutated challenger on the same seeds. A challenger is promoted only after it wins a fresh confirmation batch too.
   function run(gens = 20, matchesPerGen = 10, numBots = 2) {
     if (_running) { console.warn('[SMK2Trainer] Already running.'); return; }
     _running  = true;
@@ -848,12 +647,7 @@ const SMK2Trainer = (() => {
 
     function _tick() {
       if (!_running || gen >= gens) {
-        // ── FINAL GATEKEEPER ──────────────────────────────────────────────
-        // Per-gen selection is noisy; over many gens the champion can drift
-        // WORSE than where it started (the genome sits near a local optimum, so
-        // the landscape is flatter than the variance). Only persist the evolved
-        // genome if it beats the STARTING genome on a large fresh batch —
-        // training must never regress what's saved.
+        // Persist the evolved genome only if it beats the starting genome on a large fresh batch, so training never regresses.
         let kept = champion;
         if (champion !== _initial) {
           const gate = _evalPair(_initial, champion, numBots,
@@ -877,12 +671,12 @@ const SMK2Trainer = (() => {
       const _mkSeeds = () => Array.from({ length: matchesPerGen }, () => Math.random() * 1e9 | 0);
       const challenger = mutate(champion);
 
-      // Batch 1 — champion vs challenger, paired on identical seeds.
+      // Batch 1: champion vs challenger, paired seeds.
       const r1 = _evalPair(champion, challenger, numBots, _mkSeeds());
 
       let promote = false, r2 = null;
       if (_challengerBeats(r1)) {
-        // Confirmation batch — fresh seeds; must win AGAIN to promote.
+        // Confirmation batch, fresh seeds; must win AGAIN to promote.
         r2 = _evalPair(champion, challenger, numBots, _mkSeeds());
         promote = _challengerBeats(r2);
       }
@@ -906,9 +700,7 @@ const SMK2Trainer = (() => {
     setTimeout(_tick, 0);
   }
 
-  // ── Stress test: throughput at each bot count ──────────────────────────
-  // Bots have unlimited lives, so we measure kills-per-match at each level.
-  // Reports avg kills and Sovereign survival rate across matchesPerLevel matches.
+  // Bots have unlimited lives, so this reports kills per match and survival rate per level.
   function stressTest(maxBots = 6, matchesPerLevel = 8) {
     if (_running) { console.warn('[SMK2Trainer] Already running.'); return; }
     _running = true;
@@ -951,11 +743,7 @@ const SMK2Trainer = (() => {
     setTimeout(_testLevel, 0);
   }
 
-  // ── Controlled A/B: saved champion vs DEFAULT genome ─────────────────────
-  // The honest "is my trained genome actually better?" check — both genomes run
-  // on the SAME seeds (identical matchups), so the comparison is apples-to-apples
-  // (unlike the per-generation log, where seeds differ every gen). Reports avg
-  // fitness/kills and per-match win counts.
+  // Checks whether the trained genome really beats the old one. Same seeds, so the comparison is apples to apples.
   function evalVsDefault(numBots = 2, matches = 40) {
     if (_running) { console.warn('[SMK2Trainer] Already running.'); return; }
     _running = true;
@@ -996,7 +784,6 @@ const SMK2Trainer = (() => {
     console.log('[SMK2Trainer] Stopped.');
   }
 
-  // ── Persistence ─────────────────────────────────────────────────────────
   function saveChampion(g) {
     try { localStorage.setItem(LS_KEY, JSON.stringify(g)); } catch (_) {}
   }
@@ -1024,52 +811,24 @@ const SMK2Trainer = (() => {
     console.log('[SMK2Trainer] Genome reset to defaults.');
   }
 
-  // runMatch is exported so a single match can be inspected directly — the per-gen
-  // log only shows aggregates, and diagnosing "is the duel path even running"
-  // otherwise means editing the file.
-  //   SMK2Trainer.runMatch(SMK2Trainer.loadChampion(), 1, 12345, { duel: true })
+  // runMatch is exported so one match can be inspected directly, e.g. SMK2Trainer.runMatch(SMK2Trainer.loadChampion(), 1, 12345, { duel: true }).
   function runMatch(genome, numBots, seed, opts) {
     _stubEnv();
     try { return _runMatch(genome || loadChampion(), numBots || 1, seed || (Math.random() * 1e9 | 0), opts); }
     finally { _restoreEnv(); }
   }
 
-  // ══ PANEL EVOLUTION — crossover over a behavioural opponent panel ══════════
-  //
-  // The existing run() is a (1+1) hill-climber: one champion, one mutated
-  // challenger, promote or hold. It has no population and no crossover, so the
-  // only way it can combine two good ideas is to stumble on both in the same
-  // random mutation. And it evaluates against a single opponent pool, so what it
-  // selects for is "beats this bot" rather than "beats anyone".
-  //
-  // This is the other thing. Each genome is scored against EVERY panel archetype
-  // and carries a fitness VECTOR. Two facts follow from that, and both matter:
-  //
-  //   • Ranking is by WORST-CASE panel score, not the mean. "Beats everyone" is a
-  //     worst-case property. A genome that dismantles three archetypes and folds
-  //     to the fourth has an excellent mean and is exactly the genome that loses
-  //     to the one player who happens to fight that way.
-  //
-  //   • Parents are chosen to be COMPLEMENTARY — one strong where the other is
-  //     weak — and crossed gene by gene. That is the "pair a Sovereign adapted to
-  //     one opponent with a Sovereign adapted to another" idea: the pairing is
-  //     what lets a strength discovered against a turtle combine with one
-  //     discovered against a rusher, instead of the two competing.
-  //
-  // Honest limits, stated up front: the panel is four scripted policies, not four
-  // humans. Selecting for worst-case over THIS panel proves robustness across
-  // these four behaviours and nothing wider. A human who fights in a way the
-  // panel does not contain is outside what this measures.
+  // Panel evolution: crossover over a behavioural opponent panel.
+  // run() is a (1+1) hill-climber against one pool, so it can only learn 'beats this bot'.
+  // Here each genome is scored against every panel archetype and ranked by its WORST panel score.
+  // Parents are picked to complement each other and crossed gene by gene. The panel is four scripted policies, not humans.
 
   function crossover(a, b, rng) {
     const R = rng || Math.random;
     const out = {};
     for (const key of Object.keys(SMK2_DEFAULT_GENOME)) {
       const [lo, hi] = SMK2_GENOME_RANGES[key];
-      // Blend crossover (BLX): sample between the parents with a little overshoot
-      // so the child can land just outside the segment they span. Pure gene-swap
-      // uniform crossover can only ever produce corners of the box the parents
-      // define, which stalls the moment the population converges on each axis.
+      // Blend crossover: children can land just outside the parents' span, so the population doesn't stall on the box corners.
       const t = R() * 1.4 - 0.2;
       out[key] = Math.max(lo, Math.min(hi, a[key] + (b[key] - a[key]) * t));
     }
@@ -1091,8 +850,7 @@ const SMK2Trainer = (() => {
     return { vec, worst: Math.min(...vals), mean: vals.reduce((a, b) => a + b, 0) / vals.length };
   }
 
-  // Pick two parents that cover for each other: the best overall, then whoever is
-  // strongest on the panel member the first one is WORST against.
+  // Pick parents that cover for each other: the best overall, then whoever is strongest where the first is weakest.
   function _pickComplementaryParents(scored) {
     const a = scored[0];
     let weakest = null, weakestVal = Infinity;
@@ -1144,9 +902,7 @@ const SMK2Trainer = (() => {
         `(${Object.entries(scored[0].score.vec).map(([k, v]) => `${k} ${Math.round(v)}`).join(' ')})  ` +
         `| pairing best with strongest-vs-${weakest}`);
 
-      // Next generation: both parents survive intact (elitism — a crossover can
-      // be worse than either parent and losing them to it wastes the generation),
-      // plus crossed children, plus one fresh mutant for diversity.
+      // Elitism: both parents survive, since a crossover can be worse than either. Plus children and one fresh mutant.
       const next = [a.g, b.g];
       while (next.length < popSize - 1) next.push(mutate(crossover(a.g, b.g), 0.05));
       next.push(mutate(start, 0.15));
@@ -1159,9 +915,7 @@ const SMK2Trainer = (() => {
 
   let _panelResult = null;
 
-  // Adopt the last panel-evolution winner as champion, but only after it beats
-  // the incumbent on a fresh panel batch. Same discipline as run()'s final
-  // gatekeeper: training must never regress what is saved.
+  // Adopt the last panel winner as champion only if it beats the incumbent on a fresh panel batch.
   function adoptPanelWinner(matchesPer = 3) {
     if (!_panelResult || !_panelResult.g) { console.warn('[SMK2Trainer] No panel result — run evolvePanel() first.'); return false; }
     _stubEnv();

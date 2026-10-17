@@ -1,26 +1,17 @@
 'use strict';
-// smb-story-engine-modes.js — New interactive chapter mode logic.
-// Covers: stealth, escape, defense, scavenge, puzzle (explore subtypes),
-//         assassination, gauntlet (fight subtypes), ship_flight (own gameMode),
-//         and escort NPC init (called from _launchEscortChapter in flow.js).
-// Load order: after smb-story-engine-explore2.js, before smb-story-finalize.js.
+// Interactive chapter modes: stealth, escape, defense, scavenge, puzzle,
+// assassination, gauntlet, ship flight, and escort NPC init (from _launchEscortChapter in flow.js).
+// Loads after smb-story-engine-explore2.js and before smb-story-finalize.js.
 
-// ============================================================
-// HELPERS
-// ============================================================
 
 function _modesGuard() {
   return !gameRunning || !players[0];
 }
 
-// ============================================================
-// STEALTH MODE  (exploreMode: 'stealth')
-// Runs inside updateExploration() hook.
-// ============================================================
+// Stealth mode (exploreMode: 'stealth'). Runs from the updateExploration() hook.
 
 function initStealthMode(ch) {
-  // Chapters author zones as stealthGuardDefs [{ wx, radius, name }] (world-x form);
-  // legacy stealthGuards [{ x, y, ... }] is also accepted.
+  // Chapters author zones as stealthGuardDefs [{ wx, radius, name }]. Legacy stealthGuards [{ x, y }] also works.
   const _zoneDefs = ch.stealthGuards ||
     (ch.stealthGuardDefs || []).map(g => {
       const z = { x: g.wx };
@@ -30,7 +21,7 @@ function initStealthMode(ch) {
   stealthGuards       = _zoneDefs.map(g => Object.assign({
     y: 395, radius: 90, alertTimer: 0, maxAlertTimer: 36, alerted: false
   }, g));
-  // Default guards if chapter provided none
+  // Default guards when the chapter gives none
   if (!stealthGuards.length) {
     const wl = ch.worldLength || 4800;
     const slots = [wl * 0.25, wl * 0.50, wl * 0.72];
@@ -55,14 +46,11 @@ function updateStealthMode() {
     const inZone = (dx * dx + dy * dy) <= guard.radius * guard.radius;
 
     if (inZone && moving) {
-      // Proximity-scaled: deeper in the zone = spotted faster. Walking straight
-      // through the middle now triggers mid-crossing (~15 frames); skirting the
-      // outer edge stays survivable. (A flat +1 needed 48 frames — more than a
-      // full crossing takes, so zones only fired if you lingered deliberately.)
+      // Deeper in the zone means spotted faster. Walking through the middle
+      // triggers in about 15 frames; the outer edge stays survivable.
       const _d = Math.sqrt(dx * dx + dy * dy);
       guard.alertTimer += 1 + 2.4 * (1 - _d / guard.radius);
       if (guard.alertTimer >= guard.maxAlertTimer) {
-        // Alarm triggered
         guard.alerted   = true;
         stealthAlarmed  = true;
         stealthNeverAlarmed = false;
@@ -71,11 +59,8 @@ function updateStealthMode() {
         // Remove all guard zones; spawn 3 enemies
         stealthGuards.forEach(g => { g.alerted = true; });
         const ch = _activeStory2Chapter;
-        // Failing stealth should mean "now you fight your way out", not "restart".
-        // The response scales with the chapter: the earliest infiltrations send a
-        // pair of plain scouts, and the elite leader only appears once the player
-        // has gear and levels behind them. The chapter's own patrol queue keeps
-        // feeding after this, so the opening wave doesn't need to be the beating.
+        // Failing stealth means fight your way out, not restart. Early chapters send
+        // plain scouts; the elite leader waits until the player has gear and levels.
         const _alertElite = ch && ch.id >= 6;
         const _alertCount = _alertElite ? 3 : 2;
         for (let i = 0; i < _alertCount; i++) {
@@ -94,7 +79,7 @@ function updateStealthMode() {
         return;
       }
     } else if (!inZone) {
-      // Cool down alert timer when player leaves zone
+      // Alert cools down once the player leaves the zone.
       if (guard.alertTimer > 0) guard.alertTimer = Math.max(0, guard.alertTimer - 2);
     }
   }
@@ -106,7 +91,7 @@ function drawStealthModeOverlay() {
   if (!ch || ch.exploreMode !== 'stealth') return;
   const p1 = players[0];
 
-  // Draw guard detection zones in world space
+  // Guard zones are drawn in world space.
   for (const guard of stealthGuards) {
     if (guard.alerted) continue;
     const dx = p1.cx() - guard.x;
@@ -124,14 +109,12 @@ function drawStealthModeOverlay() {
     ctx.lineWidth   = inZone ? 2.5 : 1.5;
     ctx.stroke();
 
-    // Eye icon at guard position
     ctx.globalAlpha = 0.85;
     ctx.font        = '14px monospace';
     ctx.textAlign   = 'center';
     ctx.fillStyle   = inZone ? '#ff8888' : '#ffcc44';
     ctx.fillText('👁', guard.x, guard.y - guard.radius - 6);
 
-    // Alert progress arc
     if (inZone && progress > 0) {
       ctx.globalAlpha = 0.9;
       ctx.strokeStyle = '#ff3300';
@@ -143,7 +126,7 @@ function drawStealthModeOverlay() {
     ctx.restore();
   }
 
-  // Top HUD: alert bar (in screen space — after ctx.setTransform reset)
+  // Alert bar is screen space, after the transform reset.
   if (!stealthAlarmed) {
     const alerting = stealthGuards.some(g => !g.alerted && g.alertTimer > 0);
     if (alerting) {
@@ -168,10 +151,7 @@ function drawStealthModeOverlay() {
   }
 }
 
-// ============================================================
-// ESCAPE MODE  (exploreMode: 'escape')
-// Runs inside updateExploration() hook.
-// ============================================================
+// Escape mode (exploreMode: 'escape'). Runs from the updateExploration() hook.
 
 function initEscapeMode(ch) {
   escapeWallX          = -80;
@@ -185,7 +165,6 @@ function updateEscapeMode() {
   const p1 = players[0];
   if (exploreGoalFound) return;
 
-  // Advance wall
   escapeWallX         += escapeWallSpeed;
   escapeWallAccelTimer++;
   if (escapeWallAccelTimer >= 60) {
@@ -193,18 +172,16 @@ function updateEscapeMode() {
     escapeWallAccelTimer = 0;
   }
 
-  // Kill player if wall catches them
   if (p1.x <= escapeWallX + 10 && p1.health > 0) {
     if (typeof dealDamage === 'function') dealDamage(null, p1, 9999, 0);
     screenShake = 25;
   }
 
-  // The wall is just as lethal to enemies it overtakes.
+  // The wall is just as lethal to enemies it catches.
   const _caught = (f) => {
     if (!f || f === p1 || f.health <= 0 || f.isStoryAlly || f.storyFaction === 'player' || f._teamId === 1) return;
     if (f.x > escapeWallX + 10) return;
-    // No hit i-frames: the environmental cap (14/frame) is the only throttle, so
-    // the wall burns enemies down in a few frames while the player gets the slow rate.
+    // No i-frames. The 14/frame cap is the only throttle.
     if (typeof dealDamage === 'function') dealDamage(null, f, 9999, 0, 1.0, false, 0);
     if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#ff6622', 16);
   };
@@ -217,7 +194,7 @@ function drawEscapeModeOverlay() {
   const ch = _activeStory2Chapter;
   if (!ch || ch.exploreMode !== 'escape') return;
 
-  // Wall is drawn in world space (camera transform is active)
+  // Wall is drawn in world space.
   const wallW = 50;
   const grad  = ctx.createLinearGradient(escapeWallX, 0, escapeWallX + wallW, 0);
   grad.addColorStop(0,   'rgba(255,20,0,0)');
@@ -227,7 +204,6 @@ function drawEscapeModeOverlay() {
   ctx.fillStyle = grad;
   ctx.fillRect(escapeWallX, 0, wallW, GAME_H + 80);
 
-  // Glow edge
   ctx.shadowColor  = '#ff4400';
   ctx.shadowBlur   = 28;
   ctx.strokeStyle  = 'rgba(255,80,0,0.9)';
@@ -238,7 +214,7 @@ function drawEscapeModeOverlay() {
   ctx.stroke();
   ctx.restore();
 
-  // HUD: distance remaining (screen space)
+  // Distance remaining, screen space.
   if (players[0]) {
     const metersLeft = Math.max(0, Math.round((exploreGoalX - players[0].x) / 10));
     ctx.save();
@@ -253,10 +229,7 @@ function drawEscapeModeOverlay() {
   }
 }
 
-// ============================================================
-// DEFENSE MODE  (exploreMode: 'defense')
-// Runs inside updateExploration() hook.
-// ============================================================
+// Defense mode (exploreMode: 'defense'). Runs from the updateExploration() hook.
 
 function initDefenseMode(ch) {
   defenseNexusHP    = ch.nexusHP    || 300;
@@ -274,10 +247,10 @@ function updateDefenseMode() {
   const p1  = players[0];
   defenseNexusPulse++;
 
-  // Nexus defeat check
+  // Nexus defeat check.
   if (defenseNexusHP <= 0) {
     defenseNexusHP = 0;
-    exploreGoalFound = true; // block further logic
+    exploreGoalFound = true; // stops further logic this frame
     storyFightSubtitle = { text: '💀 Nexus destroyed — mission failed.', timer: 240, maxTimer: 240, color: '#ff2200' };
     p1.lives = 0;
     screenShake = 30;
@@ -287,13 +260,13 @@ function updateDefenseMode() {
 
   defenseNexusHitTimer = Math.max(0, defenseNexusHitTimer - 1);
 
-  // Enemies attack nexus if closer to nexus than to player
+  // Enemies attack the nexus when it is closer to them than the player is.
   for (const m of minions) {
     if (!m || m.health <= 0) continue;
     const dxNexus  = Math.abs(m.cx() - defenseNexusX);
     const dxPlayer = Math.abs(m.cx() - p1.cx());
     if (dxNexus < dxPlayer && defenseNexusHitTimer <= 0) {
-      // Direct HP reduction (not through dealDamage per spec — nexus is not a Fighter)
+      // Direct HP cut. The nexus is not a Fighter, so this skips dealDamage.
       defenseNexusHP    = Math.max(0, defenseNexusHP - 8);
       defenseNexusHitTimer = 60;
       screenShake        = Math.max(screenShake || 0, 5);
@@ -313,7 +286,6 @@ function drawDefenseNexus() {
   const color = pct > 0.5 ? '#44ffcc' : pct > 0.25 ? '#ffcc44' : '#ff4422';
 
   ctx.save();
-  // Crystal body
   ctx.globalAlpha = 0.92 * pulse;
   ctx.shadowColor = color;
   ctx.shadowBlur  = 18 * pulse;
@@ -330,7 +302,6 @@ function drawDefenseNexus() {
   ctx.fill();
   ctx.stroke();
 
-  // HP bar above nexus
   const barW  = 80;
   const barH  = 8;
   const barX  = nx - barW / 2;
@@ -344,7 +315,6 @@ function drawDefenseNexus() {
   ctx.lineWidth   = 1;
   ctx.strokeRect(barX, barY, barW, barH);
 
-  // Label
   ctx.globalAlpha = 0.9;
   ctx.font        = '9px monospace';
   ctx.textAlign   = 'center';
@@ -353,25 +323,20 @@ function drawDefenseNexus() {
   ctx.restore();
 }
 
-// ============================================================
-// SCAVENGE MODE  (exploreMode: 'scavenge')
-// Runs inside updateExploration() hook.
-// ============================================================
+// Scavenge mode (exploreMode: 'scavenge'). Runs from the updateExploration() hook.
 
 function initScavengeMode(ch) {
-  // Chapters author their pickups as `scavengeItemDefs` with world-x under `wx`.
-  // Accept both that and the older `scavengeItems`/`x` shape.
+  // Chapters author pickups as scavengeItemDefs with world-x under `wx`. The older scavengeItems/`x` shape also works.
   const defs = (ch.scavengeItems && ch.scavengeItems.length) ? ch.scavengeItems
              : (ch.scavengeItemDefs || []);
   scavengeItems = defs.map(item => Object.assign(
     { collected: false }, item, { x: (item.x != null ? item.x : item.wx) }
   ));
-  // Default items if not provided
+  // Default items when none are given
   if (!scavengeItems.length) {
     const wl     = ch.worldLength || 4800;
     const count  = ch.scavengeCount || 4;
-    // No icon by default — drawScavengeItems() renders the crate sprite unless
-    // a chapter explicitly authors a glyph via scavengeIcon.
+    // No icon by default. drawScavengeItems() uses the crate sprite unless scavengeIcon is set.
     const icon   = ch.scavengeIcon || null;
     for (let i = 0; i < count; i++) {
       scavengeItems.push({
@@ -405,9 +370,7 @@ function updateScavengeMode() {
         timer: 160, maxTimer: 160, color: '#ffffaa'
       };
       if (collected >= scavengeTotal) {
-        // Collecting the last cache is the objective, not the whole level — the
-        // clear-the-area rule still applies, so the win is ARMED here and fires
-        // once storyLevelClearBlocker() comes back clean.
+        // Collecting the last cache arms the win. It fires once storyLevelClearBlocker() is clean.
         storyArmLevelWin(`All ${scavengeTotal} items recovered`, () => {
           exploreGoalFound = true;
           storyFightSubtitle = {
@@ -421,13 +384,11 @@ function updateScavengeMode() {
   }
 }
 
-// Drawn supply-crate sprite for a scavenge pickup. Centered on (x, y).
-// Geometry only — no image assets, matches the hidden-loot chest style.
-// `icon` (optional) is stamped on the crate face in place of the lit core panel.
+// Supply-crate sprite for a scavenge pickup, centered on (x, y). Geometry only.
+// `icon` (optional) replaces the lit core panel on the crate face.
 function _drawCacheCrate(x, y, glow, icon) {
   const w = 26, h = 24;
 
-  // Hover glow pooled behind the crate
   const g = ctx.createRadialGradient(x, y, 0, x, y, 26);
   g.addColorStop(0, `rgba(255,255,170,${0.28 * glow})`);
   g.addColorStop(1, 'rgba(255,255,170,0)');
@@ -439,13 +400,11 @@ function _drawCacheCrate(x, y, glow, icon) {
   ctx.shadowColor = '#ffffaa';
   ctx.shadowBlur  = 10 + glow * 8;
 
-  // Crate body + darker inset
   ctx.fillStyle = '#3b3a2c';
   ctx.fillRect(x - w / 2, y - h / 2, w, h);
   ctx.fillStyle = '#2a2a20';
   ctx.fillRect(x - w / 2 + 3, y - h / 2 + 3, w - 6, h - 6);
 
-  // Cross braces
   ctx.strokeStyle = '#7a7350';
   ctx.lineWidth   = 1.5;
   ctx.beginPath();
@@ -454,7 +413,7 @@ function _drawCacheCrate(x, y, glow, icon) {
   ctx.stroke();
 
   if (icon) {
-    // Authored glyph stamped on the crate face
+    // Authored glyph on the crate face
     ctx.shadowBlur = 4;
     ctx.font       = '14px Arial';
     ctx.textAlign  = 'center';
@@ -462,12 +421,11 @@ function _drawCacheCrate(x, y, glow, icon) {
     ctx.fillText(icon, x, y + 5);
     ctx.shadowBlur = 10 + glow * 8;
   } else {
-    // Lit core panel — pulses with the glow
+    // Lit core panel, pulses with the glow
     ctx.fillStyle = `rgba(255,255,170,${0.55 + 0.45 * glow})`;
     ctx.fillRect(x - 3, y - 3, 6, 6);
   }
 
-  // Frame + corner brackets
   ctx.strokeStyle = `rgba(255,255,170,${0.85 * glow})`;
   ctx.lineWidth   = 1.5;
   ctx.strokeRect(x - w / 2, y - h / 2, w, h);
@@ -517,19 +475,16 @@ function drawScavengeHUD() {
   ctx.restore();
 }
 
-// ============================================================
-// PUZZLE MODE  (exploreMode: 'puzzle')
-// Runs inside updateExploration() hook.
-// ============================================================
+// Puzzle mode (exploreMode: 'puzzle'). Runs from the updateExploration() hook.
 
 function initPuzzleMode(ch) {
-  // Chapters author switches as puzzleSwitchDefs with world-x under `wx` (the
-  // same shape as scavengeItemDefs); the older puzzleSwitches/`x` form also works.
+  // Chapters author switches as puzzleSwitchDefs with world-x under `wx`.
+  // The older puzzleSwitches/`x` form also works.
   const _swDefs = (ch.puzzleSwitches && ch.puzzleSwitches.length) ? ch.puzzleSwitches : (ch.puzzleSwitchDefs || []);
   puzzleSwitches = _swDefs.map((sw, i) => Object.assign({
     label: String(i + 1), activated: false, pulseTimer: 0
   }, sw, { x: (sw.x != null ? sw.x : sw.wx), y: (sw.y != null ? sw.y : 380) }));
-  // Default switches if not provided
+  // Default switches when none are given
   if (!puzzleSwitches.length) {
     const wl    = ch.worldLength || 4800;
     const count = ch.puzzleCount || 3;
@@ -556,12 +511,10 @@ function updatePuzzleMode() {
     if (sw.activated) { if (sw.pulseTimer > 0) sw.pulseTimer--; continue; }
     const dx = Math.abs(p1.cx() - sw.x);
     const dy = Math.abs(p1.cy() - sw.y);
-    // A wrong switch fires once per visit — standing on it used to re-trigger
-    // every frame, spawning a guard per frame.
+    // A wrong switch fires once per visit, not every frame.
     if (!(dx < 30 && dy < 60)) { sw._wrongHold = false; continue; }
     if (!sw._wrongHold) {
       if (i === puzzleStep) {
-        // Correct order
         sw.activated  = true;
         sw.pulseTimer = 60;
         puzzleStep++;
@@ -581,7 +534,7 @@ function updatePuzzleMode() {
           });
         }
       } else {
-        // Wrong order — shock flash, spawn enemy, reset
+        // Wrong order: shock flash, spawn an enemy, reset
         screenShake = 18;
         storyFightSubtitle = {
           text: `Wrong order! Reset. (Need mechanism ${puzzleStep + 1} first)`,
@@ -595,7 +548,7 @@ function updatePuzzleMode() {
           classKey: 'warrior', aiDiff: 'medium', color: '#884422', health: 100
         }, p1);
       }
-      break; // only one switch per frame
+      break; // one switch per frame
     }
   }
 }
@@ -629,15 +582,13 @@ function drawPuzzleSwitches() {
   }
 }
 
-// ============================================================
-// ASSASSINATION MODE  (type: 'assassination', fight chapter)
-// Called from gameLoop via hook; target must be players[1] or a minion.
-// ============================================================
+// Assassination mode (type: 'assassination', fight chapter). Called from gameLoop.
+// The target must be players[1] or a minion.
 
 function initAssassinationMode(ch) {
   assassinationTimer = ch.assassinationTimer || 5400;
-  assassinationTarget = null; // set once players[] populated
-  // Timer to alternate target between fleeing and fighting
+  assassinationTarget = null; // set once players[] is populated
+  // Target alternates between fleeing and fighting
   window._assassinFightTimer = 0;
   window._assassinFleeing    = true;
 }
@@ -645,17 +596,17 @@ function initAssassinationMode(ch) {
 function updateAssassinationMode() {
   if (_modesGuard() || !storyModeActive) return;
 
-  // Locate target (P2 bot)
+  // Target is the P2 bot.
   if (!assassinationTarget) {
     assassinationTarget = players.find(p => p !== players[0] && p.isAI && !p.isBoss && p.health > 0);
     if (!assassinationTarget) return;
   }
   const tgt = assassinationTarget;
-  if (tgt.health <= 0) return; // target dead — win handled by normal endGame flow
+  if (tgt.health <= 0) return; // the normal endGame flow handles the win
 
   assassinationTimer--;
 
-  // Timer expired — defeat
+  // Timer expired: defeat
   if (assassinationTimer <= 0) {
     assassinationTimer = 0;
     storyFightSubtitle = { text: '⏱ Target escaped — mission failed!', timer: 220, maxTimer: 220, color: '#ff4422' };
@@ -665,17 +616,17 @@ function updateAssassinationMode() {
     return;
   }
 
-  // Target behavior: alternate flee / fight every ~180 / 120 frames
+  // Flee and fight alternate every ~180 and ~120 frames.
   window._assassinFightTimer = (window._assassinFightTimer || 0) + 1;
   if (window._assassinFleeing) {
-    // Force target rightward at high speed
+    // Flee rightward at high speed
     tgt.vx = Math.min(tgt.vx + 0.7, 6.0);
     if (window._assassinFightTimer >= 180) {
       window._assassinFleeing  = false;
       window._assassinFightTimer = 0;
     }
   } else {
-    // Normal AI takes over; just count frames
+    // Normal AI takes over here
     if (window._assassinFightTimer >= 120) {
       window._assassinFleeing   = true;
       window._assassinFightTimer = 0;
@@ -697,7 +648,6 @@ function drawAssassinationHUD() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = pulse;
 
-  // Background bar
   const bx = canvas.width / 2 - 140;
   const by = 8;
   ctx.fillStyle = '#11000a';
@@ -715,9 +665,7 @@ function drawAssassinationHUD() {
   ctx.restore();
 }
 
-// ============================================================
-// GAUNTLET MODE  (type: 'gauntlet', fight chapter)
-// ============================================================
+// Gauntlet mode (type: 'gauntlet', fight chapter).
 
 function initGauntletMode(ch) {
   gauntletRound       = 1;
@@ -797,13 +745,13 @@ function updateGauntletMode() {
     return;
   }
 
-  // Check if current round enemies are all dead
+  // Current round is cleared when its enemies are dead
   const liveEnemies = minions.filter(m => m.health > 0).length +
     players.filter(p => p !== players[0] && p.health > 0 && p.isAI).length;
 
   if (liveEnemies === 0 && gauntletRound <= gauntletTotalRounds) {
     gauntletRound++;
-    gauntletRoundDelay = 120; // 2s delay
+    gauntletRoundDelay = 120; // 2s between rounds
     if (gauntletRound <= gauntletTotalRounds) {
       storyFightSubtitle = {
         text: `Round cleared! Round ${gauntletRound} incoming...`,
@@ -829,10 +777,7 @@ function drawGauntletHUD() {
   ctx.restore();
 }
 
-// ============================================================
-// SHIP FLIGHT MODE  (gameMode: 'shipflight')
-// Completely new game mode — no normal fight/explore systems.
-// ============================================================
+// Ship flight (gameMode: 'shipflight'). Its own mode with no fight or explore systems.
 
 function initShipFlight(ch) {
   shipFlightLen  = ch.shipFlightLength || 6000;
@@ -850,7 +795,7 @@ function initShipFlight(ch) {
   shipFlightEnemies = (ch.shipFlightEnemies || []).map(e => Object.assign({
     hp: 30, maxHp: 30, speed: 1.5, hitTimer: 0
   }, e));
-  // Default enemies if none provided
+  // Default enemies when none are given
   if (!shipFlightEnemies.length) {
     const count = ch.shipEnemyCount || 8;
     for (let i = 0; i < count; i++) {
@@ -866,7 +811,7 @@ function initShipFlight(ch) {
     }
   }
 
-  // Generate parallax stars
+  // Parallax star field
   shipFlightStars = [];
   for (let i = 0; i < 120; i++) {
     shipFlightStars.push({
@@ -884,33 +829,28 @@ function updateShipFlight() {
   if (!gameRunning || !shipFlightShip) return;
   const ship = shipFlightShip;
 
-  // Input
   const keys = window._keysDown || {};
   if (keys['w'] || keys['arrowup'])    ship.vy -= 0.4;
   if (keys['s'] || keys['arrowdown'])  ship.vy += 0.4;
   if (keys['a'] || keys['arrowleft'])  ship.vx -= 0.4;
   if (keys['d'] || keys['arrowright']) ship.vx += 0.4;
 
-  // Fire
   ship.fireTimer = Math.max(0, ship.fireTimer - 1);
   if ((keys[' '] || keys['z'] || keys['j']) && ship.fireTimer <= 0) {
     ship.bullets.push({ x: ship.x + 22, y: ship.y, vx: 10, vy: 0 });
     ship.fireTimer = 12;
   }
 
-  // Physics
   ship.vx = Math.min(Math.max(ship.vx, -5), 5) * 0.92;
   ship.vy = Math.min(Math.max(ship.vy, -5), 5) * 0.92;
   ship.x  = Math.max(20, ship.x + ship.vx);
   ship.y  = Math.max(10, Math.min(GAME_H - 30, ship.y + ship.vy));
   shipFlightScrollX = Math.max(shipFlightScrollX, ship.x - 150);
 
-  // Bullets
   for (let i = ship.bullets.length - 1; i >= 0; i--) {
     const b = ship.bullets[i];
     b.x += b.vx; b.y += b.vy;
     if (b.x > shipFlightScrollX + canvas.width + 40) { ship.bullets.splice(i, 1); continue; }
-    // Hit enemies
     let hit = false;
     for (const en of shipFlightEnemies) {
       if (en.hp <= 0) continue;
@@ -925,12 +865,11 @@ function updateShipFlight() {
     if (hit) { ship.bullets.splice(i, 1); }
   }
 
-  // Enemy movement + collision with ship
+  // Enemy movement and collision with the ship
   for (const en of shipFlightEnemies) {
     if (en.hp <= 0) continue;
     en.x        -= en.speed;
     en.hitTimer  = Math.max(0, en.hitTimer - 1);
-    // If enemy reaches ship
     if (en.x < shipFlightScrollX - 20) { en.hp = 0; continue; } // missed
     if (Math.abs(en.x - ship.x) < 26 && Math.abs(en.y - ship.y) < 22) {
       ship.hp -= 20;
@@ -939,7 +878,7 @@ function updateShipFlight() {
       if (ship.hp <= 0) {
         ship.hp = 0;
         storyFightSubtitle = { text: 'Ship destroyed — mission failed!', timer: 220, maxTimer: 220, color: '#ff4422' };
-        // End via players[0] lives if in story mode; otherwise just end
+        // In story mode this ends through players[0] lives
         if (players[0]) players[0].lives = 0;
         setTimeout(() => { if (!gameRunning) return; endGame(); }, 1400);
         return;
@@ -947,13 +886,13 @@ function updateShipFlight() {
     }
   }
 
-  // Win condition: all enemies gone OR ship reaches end
+  // Win: all enemies gone or the ship reaches the end
   const anyAlive = shipFlightEnemies.some(e => e.hp > 0);
   if (!anyAlive || ship.x >= shipFlightLen - 200) {
     storyFightSubtitle = { text: 'Sector clear — escape route secured!', timer: 240, maxTimer: 240, color: '#ffffaa' };
     SoundManager && typeof SoundManager.superActivate === 'function' && SoundManager.superActivate();
     setTimeout(() => { if (!gameRunning) return; endGame(); }, 2200);
-    shipFlightShip = null; // prevent re-trigger
+    shipFlightShip = null; // stops a re-trigger
     return;
   }
 }
@@ -963,12 +902,10 @@ function drawShipFlight() {
   const ship = shipFlightShip;
   const t    = Date.now();
 
-  // Clear canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#00000e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Parallax stars
   for (const star of shipFlightStars) {
     const sx = ((star.x - shipFlightScrollX * star.speed) % canvas.width + canvas.width) % canvas.width;
     ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t / 600 + star.x);
@@ -977,14 +914,12 @@ function drawShipFlight() {
   }
   ctx.globalAlpha = 1;
 
-  // Progress bar at top
   const progPct = Math.min(1, ship.x / shipFlightLen);
   ctx.fillStyle = '#112233';
   ctx.fillRect(0, 0, canvas.width, 8);
   ctx.fillStyle = '#44aaff';
   ctx.fillRect(0, 0, canvas.width * progPct, 8);
 
-  // Enemy ships
   const offX = -shipFlightScrollX;
   for (const en of shipFlightEnemies) {
     if (en.hp <= 0) continue;
@@ -1003,7 +938,6 @@ function drawShipFlight() {
     ctx.lineTo(10,  12);
     ctx.closePath();
     ctx.fill();
-    // HP bar
     const bpct = en.hp / en.maxHp;
     ctx.shadowBlur = 0;
     ctx.fillStyle  = '#440000';
@@ -1013,7 +947,6 @@ function drawShipFlight() {
     ctx.restore();
   }
 
-  // Player bullets
   ctx.save();
   ctx.strokeStyle = '#ffff44';
   ctx.lineWidth   = 3;
@@ -1028,7 +961,6 @@ function drawShipFlight() {
   }
   ctx.restore();
 
-  // Player ship (blue triangle)
   const sx = ship.x + offX;
   ctx.save();
   ctx.translate(sx, ship.y);
@@ -1044,7 +976,6 @@ function drawShipFlight() {
   ctx.fill();
   ctx.restore();
 
-  // Hull integrity HUD
   const hullPct  = ship.hp / ship.maxHp;
   const hullColor = hullPct > 0.5 ? '#44ffcc' : hullPct > 0.25 ? '#ffcc44' : '#ff4422';
   ctx.save();
@@ -1061,7 +992,6 @@ function drawShipFlight() {
   ctx.lineWidth   = 1;
   ctx.strokeRect(10, canvas.height - 22, 120, 10);
 
-  // Enemy count
   const remaining = shipFlightEnemies.filter(e => e.hp > 0).length;
   ctx.textAlign = 'right';
   ctx.fillStyle = '#ff8888';
@@ -1075,7 +1005,7 @@ function _launchShipFlightChapter(ch) {
 
   worldId        = getWorldForChapter(ch.id);
   currentWorld   = STORY_WORLDS[worldId] || null;
-  worldModifiers = null; // no world modifiers in ship flight
+  worldModifiers = null;
 
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(ch.id / 5) + 1);
@@ -1094,7 +1024,7 @@ function _launchShipFlightChapter(ch) {
   minions      = [];
   projectiles  = [];
 
-  // Use a minimal arena so startGame doesn't crash
+  // Minimal arena, so startGame does not crash
   const arenaKey      = '__shipflight__';
   ARENAS[arenaKey]    = {
     sky: ['#000010', '#000020'],
@@ -1115,11 +1045,11 @@ function _launchShipFlightChapter(ch) {
   if (typeof setObjective === 'function') setObjective('Destroy all enemy ships');
   if (typeof startGame === 'function') startGame();
 
-  // Hide the player sprite (ship flight is its own draw system)
+  // Ship flight has its own draw system, so hide the player sprite.
   setTimeout(() => {
     if (players[0]) { players[0].health = players[0].maxHealth; players[0].invincible = 99999; }
     initShipFlight(ch);
-    // Track keys in ship-flight-compatible way
+    // Track keys
     if (!window._keysDown) {
       window._keysDown = {};
       document.addEventListener('keydown', e => { window._keysDown[e.key.toLowerCase()] = true; });
@@ -1128,14 +1058,9 @@ function _launchShipFlightChapter(ch) {
   }, 80);
 }
 
-// ============================================================
-// ESCORT MODE — SUPERSEDED, kept for reference
-// js/smb-escort.js loads AFTER this file and defines the same four names, so IT
-// is the live implementation and these bodies never run. The two do not share
-// state either (that one drives `escortNPC`, this one `escortNPCTarget`), so
-// they are not interchangeable — patch smb-escort.js, not this block. Renamed
-// with a _legacy suffix so the collision cannot mislead the next edit.
-// ============================================================
+// Escort mode, superseded and kept for reference. smb-escort.js loads after this
+// file and is the live implementation. This one drives escortNPCTarget, not
+// escortNPC, so patch smb-escort.js, not this block. The _legacy suffix avoids name clashes.
 
 function initEscortMode_legacy(ch) {
   if (!players[0]) return;
@@ -1146,7 +1071,7 @@ function initEscortMode_legacy(ch) {
   escortNPCMaxHP = escortNPCHP;
   escortGoalX    = ch.escortGoalX || (ch.worldLength || 5200) - 400;
 
-  // Build a Fighter-like target wrapper (not a real Fighter — avoids circular deps)
+  // Fighter-like target wrapper, not a real Fighter, to avoid circular deps
   escortNPCTarget = {
     x:          p1.x + 60,
     y:          p1.y,
@@ -1189,7 +1114,7 @@ function updateEscortMode_legacy() {
     return;
   }
 
-  // Win condition — delivery is the objective; the level still has to be cleared.
+  // Delivery is the objective, but the level still has to be cleared.
   if (npc.x >= escortGoalX) {
     npc.x = escortGoalX;
     npc.vx = 0;
@@ -1214,26 +1139,25 @@ function updateEscortMode_legacy() {
     return;
   }
 
-  // Movement: walk right but stop if player is far behind
+  // Walk right, but wait if the player falls far behind
   const playerGap = p1.x - npc.x;
   if (playerGap > -200) {
     npc.vx = npc._speed;
   } else {
-    npc.vx = 0; // wait for player
+    npc.vx = 0;
   }
   npc._walkPhase++;
   npc.x += npc.vx;
 
-  // Gravity (simple)
   npc.vy += 0.55;
   npc.y  += npc.vy;
-  // Floor collision (ground = y ~440)
+  // Floor is at y ~440
   if (npc.y + npc.h >= 440) {
     npc.y  = 440 - npc.h;
     npc.vy = 0;
   }
 
-  // Enemies target NPC if closer to NPC than to player
+  // Enemies go for the NPC when it is closer than the player
   for (const m of minions) {
     if (!m || m.health <= 0) continue;
     const dxNPC    = Math.abs(m.cx() - npc.cx());
@@ -1243,7 +1167,7 @@ function updateEscortMode_legacy() {
       m._targetNPC = true;
     }
     if (m._targetNPC) {
-      // Simple NPC damage (direct, per spec — NPC is not a real Fighter)
+      // Direct damage, since the NPC is not a real Fighter
       if (!m._npcHitTimer || m._npcHitTimer <= 0) {
         if (dxNPC < 60) {
           npc.health  = Math.max(0, npc.health - 8);
@@ -1264,7 +1188,6 @@ function drawEscortNPC_legacy() {
   const color = npc.color || '#88ccff';
 
   ctx.save();
-  // Stickman-style body
   ctx.strokeStyle = color;
   ctx.lineWidth   = 3;
   ctx.shadowColor = color;
@@ -1299,7 +1222,6 @@ function drawEscortNPC_legacy() {
   ctx.lineTo(npc.x + npc.w / 2 + 8, npc.y + 50 - walkLegSwing);
   ctx.stroke();
 
-  // HP bar above NPC
   const barW = 40;
   const barX = npc.x + (npc.w - barW) / 2;
   const barY = npc.y - 18;
@@ -1309,7 +1231,6 @@ function drawEscortNPC_legacy() {
   ctx.fillStyle   = pct > 0.5 ? '#44ffcc' : pct > 0.25 ? '#ffcc44' : '#ff4422';
   ctx.fillRect(barX, barY, barW * pct, 6);
 
-  // Name label
   ctx.globalAlpha = 0.85;
   ctx.font        = '8px monospace';
   ctx.textAlign   = 'center';
@@ -1340,10 +1261,8 @@ function drawEscortHUD_legacy() {
   ctx.restore();
 }
 
-// ============================================================
-// drawExploreWorldModeOverlay — dispatches world-space per-mode draw functions
-// Called from gameLoop BEFORE ctx.setTransform reset (camera transform still active)
-// ============================================================
+// Dispatches world-space per-mode draws. Called from gameLoop before the
+// ctx.setTransform reset, while the camera transform is still active.
 
 function drawExploreWorldModeOverlay() {
   const ch = _activeStory2Chapter;
@@ -1357,9 +1276,7 @@ function drawExploreWorldModeOverlay() {
   }
 }
 
-// drawExploreModeOverlay — dispatches screen-space per-mode HUD draw functions
-// Called from gameLoop (screen space, after ctx reset)
-// ============================================================
+// Dispatches screen-space per-mode HUD draws. Called from gameLoop after the ctx reset.
 
 function drawExploreModeOverlay() {
   const ch = _activeStory2Chapter;

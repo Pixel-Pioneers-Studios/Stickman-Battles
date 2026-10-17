@@ -1,14 +1,11 @@
 'use strict';
-// smb-menu-spawn.js — startGame entry, arena spawn bounds, safe spawn point helpers
-// Depends on: smb-globals.js, smb-data-arenas.js, smb-menu-config.js
-// Must load AFTER smb-menu-config.js, BEFORE smb-menu-startcore.js
+// startGame entry, arena spawn bounds, safe spawn helpers.
+// Depends on smb-globals.js, smb-data-arenas.js, smb-menu-config.js.
+// Loads after smb-menu-config.js and before smb-menu-startcore.js.
 
 function startGame(_skipVote) {
-  // ── ONLINE LAUNCH GATE ──────────────────────────────────────────────────
-  // While a room is live the match must be launched by the host for everyone at
-  // once. Without this, a host pressing the menu's FIGHT button (or a guest
-  // pressing anything) started a purely local match while the peer kept its own
-  // settings — the "1v1 for me, Survival for my friend" desync.
+  // Online launch gate. In a live room only the host starts the match, so both
+  // sides get the same settings.
   if (typeof NetworkManager !== 'undefined' && NetworkManager.connected && !window._onlineLaunchInProgress) {
     if (!NetworkManager.isHost()) {
       NetworkManager.showToast('The host starts the match — or leave the room to play solo');
@@ -16,8 +13,7 @@ function startGame(_skipVote) {
     }
     if (typeof networkStartGame === 'function') { networkStartGame(); return; }
   }
-  // 'online' is a lobby screen, not a playable mode — starting it unconnected
-  // dropped the player into a silent local 1v1 that looked like a broken match.
+  // 'online' is a lobby screen, not a mode. Starting it unconnected gives a silent local 1v1.
   if (typeof gameMode !== 'undefined' && gameMode === 'online' &&
       !(typeof NetworkManager !== 'undefined' && NetworkManager.connected)) {
     if (typeof NetworkManager !== 'undefined') {
@@ -27,15 +23,13 @@ function startGame(_skipVote) {
   }
   if (typeof _resetSdFloor === 'function') _resetSdFloor();
   if (typeof cgSdk !== 'undefined') cgSdk.gameplayStart();
-  // Story mode: reset per-fight event state when launching from story
+  // Story: reset per-fight event state.
   if (storyModeActive && typeof _onStoryFightStart === 'function') _onStoryFightStart();
   const fadeOv = document.getElementById('fadeOverlay');
   const loadOv = document.getElementById('loadOverlay');
 
-  // Seamless story transition: story worlds are pure draw functions — nothing
-  // heavy loads between chapters, so skip the loading screen entirely and cover
-  // the world swap with a quick dip of the fade overlay. The flag is set by the
-  // story launch funnel (see _storyMarkTransition in smb-story-engine-flow.js).
+  // Seamless story swap: nothing heavy loads, so skip the loading screen and cover
+  // the swap with a quick fade dip. Flag set by _storyMarkTransition in smb-story-engine-flow.js.
   const _seamless = !!window._storySeamlessNext;
   const _tKind    = window._storyTransitionKind || null;
   window._storySeamlessNext = false;
@@ -56,7 +50,7 @@ function startGame(_skipVote) {
     return;
   }
 
-  // Show loading overlay immediately (no dependency on fadeOv)
+  // Show the loading overlay right away.
   if (loadOv && !_seamless) {
     const info    = _getLoadingInfo();
     const titleEl = document.getElementById('loadModeTitle');
@@ -64,43 +58,38 @@ function startGame(_skipVote) {
     if (titleEl) titleEl.textContent = info.title;
     if (subEl)   subEl.textContent   = info.subtitle;
     loadOv.style.display = 'flex';
-    // Scene starts AFTER the overlay is displayed — the canvas has no layout
-    // size while its parent is display:none, so starting first would size the
-    // backing store to 0 and draw nothing.
+    // Start the scene after the overlay shows. A display:none canvas has no size, so the backing store would be 0.
     if (typeof LoadScene !== 'undefined') LoadScene.start(info.scene);
     const bar = document.getElementById('loadBar');
     if (bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.transition = 'width 0.75s ease'; bar.style.width = '100%'; }); }
   }
   if (fadeOv) fadeOv.style.opacity = '1';
-  gameLoading = true; // freeze input/physics until game is fully started
+  gameLoading = true; // freeze input and physics until the game has started
 
-  // Hold the loading screen for 800ms so the player can see it
-  // (seamless story transitions skip the hold — just a ~120ms fade dip)
+  // Hold the loading screen for 800 ms. Seamless story swaps skip it (~120 ms dip).
   setTimeout(() => {
     _startGameCore();
     if (loadOv && !_seamless) setTimeout(() => {
       loadOv.style.display = 'none';
-      // Stop the rAF once hidden — it must not keep running behind the match.
+      // Stop the rAF once hidden, or it keeps running behind the match.
       if (typeof LoadScene !== 'undefined') LoadScene.stop();
     }, 200);
     if (fadeOv) setTimeout(() => { fadeOv.style.opacity = '0'; }, _seamless ? 60 : 300);
-    // Unfreeze only after overlays are fully gone (~350ms fade) so bots can't act while loading screen is visible
+    // Unfreeze only after the overlays fade out (~350 ms), so bots can't act behind the loading screen.
     setTimeout(() => { gameLoading = false; }, _seamless ? 220 : 480);
   }, _seamless ? 120 : 800);
 }
 
-// Pick a safe spawn position on a platform in the preferred half of the arena.
-// avoidX: if set, the result will be at least MIN_SPAWN_SEP pixels away horizontally.
-// Returns {x, y} or null if no arena is loaded.
-const MIN_SPAWN_SEP = 220; // minimum horizontal distance between two spawns
+// Safe spawn point on a platform in the preferred half of the arena.
+// avoidX: result is at least MIN_SPAWN_SEP px away horizontally. Returns {x, y}, or null with no arena.
+const MIN_SPAWN_SEP = 220; // min horizontal gap between two spawns
 function _arenaSpawnBounds() {
   if (!currentArena || !Array.isArray(currentArena.platforms) || !currentArena.platforms.length) {
     return { left: 20, right: GAME_W - 20 };
   }
   const xs = currentArena.platforms.map(pl => pl.x);
   const xr = currentArena.platforms.map(pl => pl.x + pl.w);
-  // Boundary-portal arenas: spawn targets must stay inside the portals — the
-  // ±half-screen slack let teleport-back targets land BEYOND the boundary portal
+  // Boundary-portal arenas: keep spawns inside the portals. Half-screen slack let teleport-backs land beyond them.
   const _slack = currentArena.boundaryPortals ? -80 : GAME_W * 0.5;
   const left = currentArena.worldWidth
     ? Math.max(Math.min(...xs), (currentArena.mapLeft !== undefined ? currentArena.mapLeft : Math.min(...xs)) - _slack)
@@ -134,7 +123,7 @@ function isHazard(x, y) {
   // Boss-arena floor hazard (void = TrueForm, creator = Boss, god_domain = God)
   if ((currentArenaKey === 'void' || currentArenaKey === 'creator' || currentArenaKey === 'god_domain' || (currentArenaKey === '__storyarena__' && currentArena.isBossArena)) &&
       bossFloorState === 'hazard' && y >= 450) return true;
-  // Active boss beams — don't spawn players into a live beam column
+  // Active boss beams. Don't spawn players into a live beam column.
   if (typeof bossBeams !== 'undefined' && Array.isArray(bossBeams)) {
     for (const beam of bossBeams) {
       if (beam.done || beam.phase !== 'active') continue;
@@ -194,24 +183,18 @@ function pickSafeSpawn(sideHint, avoidX) {
   const platforms = currentArena.platforms;
   const lavaY = currentArena.hasLava ? (currentArena.lavaY || 442) : Infinity;
 
-  // For boss/creator arena: the floor can be disabled by hazard events.
-  // Prefer non-floor platforms that are solid. Fall back to floor if available.
-  // Use current pl.x (live, after random-lerp) so spawn lands on the actual platform.
-  // Also exclude platforms at or below the lava line (would place spawns in lava).
-  // lavaY - 90: keep spawns well above lava so players don't immediately burn on respawn
-  // Fix 5: stricter lava margin — keep 120px above lava to account for fall arc
+  // Boss arenas can disable the floor. Prefer solid raised platforms, and fall back
+  // to the floor. Use live pl.x, since platforms lerp. Stay above lava, with a bigger
+  // margin for the fall arc.
   const lavaMargin = currentArena.hasLava ? 120 : 90;
-  // Underground fill/bedrock are walls and the tunnel floor, not spawn ledges:
-  // their tops sit sealed under the surface slab, so a respawn there lands the
-  // fighter inside solid ground.
+  // Underground fill and bedrock are not spawn ledges. A respawn there lands inside solid ground.
   const safe = platforms.filter(pl => !pl.isFloorDisabled && !pl.isRockFill && !pl.isBedrock &&
     pl.w > 50 && pl.y < lavaY - lavaMargin);
   const raised = safe.filter(pl => !pl.isFloor);
   const floor  = safe.find(pl => pl.isFloor);
 
-  // Fix 4: for story arenas with worldWidth, restrict candidates to visible starting section
-  // to avoid spawning players on platforms 3000px away from the action.
-  // Use camera position if available; otherwise default to first screen near mapLeft.
+  // Story arenas: limit candidates to the visible start section, so no one spawns 3000px from the action.
+  // Use the camera position if set, else the first screen near mapLeft.
   let _storyPool = null;
   if (storyModeActive && currentArena.worldWidth) {
     const viewCX = (typeof camX === 'number' ? camX : (currentArena.mapLeft || 0)) + GAME_W / 2;
@@ -245,7 +228,7 @@ function pickSafeSpawn(sideHint, avoidX) {
       : usable.filter(pl => sideHint === 'right' ? (pl.x + pl.w / 2 > GAME_W / 2) : (pl.x + pl.w / 2 < GAME_W / 2));
     pool = preferred.length ? preferred : usable;
   } else if (floor) {
-    // Only the floor is available — place on appropriate side, far from avoidX.
+    // Only the floor is available. Place it on the right side, far from avoidX.
     // For large worldWidth maps the floor may be wider than the viewport; use viewport-relative
     // coordinates so both players don't clamp to the same GAME_W edge.
     const ww = currentArena.worldWidth;
@@ -280,7 +263,7 @@ function pickSafeSpawn(sideHint, avoidX) {
     }
     // Last-resort floor fallback: only return if not in a hazard zone
     if (!isHazard(rx, floor.y - 1)) return { x: rx, y: floor.y - 1 };
-    // Floor is hazardous — use center-of-map safe position instead
+    // Floor is hazardous. Use the centre-of-map safe position instead.
     const safeHazY = _spawnHazardFloorY();
     return { x: GAME_W / 2, y: Math.min(safeHazY - 140, GAME_H * 0.55) };
   } else {
@@ -360,7 +343,7 @@ function pickSafeSpawn(sideHint, avoidX) {
       return { x: fbSafeX, y: fbY };
     }
   }
-  // Center-of-map safe fallback — well above any hazard floor
+  // Centre-of-map safe fallback, well above any hazard floor.
   const safeHazardY = _spawnHazardFloorY();
   const fallbackY = Math.min(safeHazardY - 140, GAME_H * 0.55);
   // If center is occupied, alternate to left or right quarter of the arena

@@ -140,7 +140,7 @@ STORY_CHAPTER_REGISTRY.push(
     storeNag: '⚠️ War Champion. Expert AI. 1 life. Spend tokens first.',
   },
 
-  // ─────── Arc 5-1: Gravity Flux World ──────────────────────────────
+  // Arc 5-1: Gravity Flux World
 
   {
     id: 90,
@@ -279,6 +279,6 @@ STORY_CHAPTER_REGISTRY.push(
     multiverseWorldId: 'gravity_flux',
   },
 
-  // ─────── Arc 5-2: Shadow Realm (ids 66–67) ────────────────────────
+  // Arc 5-2: Shadow Realm (ids 66-67)
 
 );

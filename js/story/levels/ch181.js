@@ -1,19 +1,9 @@
 'use strict';
-// js/story/levels/ch181.js — Chapter 181 map (story ARENA). See smb-story-levels.js.
+// js/story/levels/ch181.js: Chapter 181 map (story ARENA). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 181 — What Is Yours (stripped-powers duel vs the Void Vessel)
-// The Trial Ground, below all dimensions. Nothing here was built: a dark
-// plane of glass under a sky with no light source, and above it the
-// attention that has been weighing you — a vast, faint ring with nothing in
-// its centre, turning so slowly you only notice it has moved. Around the
-// edge of the plane stand eight pale slabs, one for each reckoning, each a
-// little brighter or dimmer according to how firmly it held. And in the
-// glass under your feet, where the reflections should be, the alley — the
-// first street, the first night, the place everything since started ("Only
-// what you were before all of this"). Built on the void arena's rules and
-// its stepping-stone layout.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 181, What Is Yours (stripped-powers duel vs the Void Vessel).
+// Below all dimensions: a dark glass plane under a sky with no light source.
+// Built on the void arena's rules and stepping-stone layout.
 (function () {
   const G = 460;
   const STONES = [[350, 225, 200], [80, 295, 140], [680, 295, 140], [205, 378, 110], [585, 378, 110], [150, 152, 110], [640, 152, 110]];
@@ -26,12 +16,12 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#020204');
-    // The attention: a vast faint ring, nothing at its centre, barely turning
+    // Faint ring overhead, barely turning
     const t = frameCount * 0.0006;
     ctx.strokeStyle = 'rgba(200,200,220,0.10)'; ctx.lineWidth = 30;
     ctx.beginPath(); ctx.ellipse(450, 120, 520, 160, t, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = 'rgba(220,220,240,0.18)'; ctx.lineWidth = 1.5; ctx.stroke();
-    // The eight reckonings, pale slabs around the plane, brighter where they held
+    // One slab per reckoning, brighter where it held
     for (let k = 0; k < 8; k++) {
       const x = 40 + k * 117, h = 140 + _slHash(k + 1810) * 80, held = 0.15 + 0.35 * _slHash(k + 1811);
       ctx.fillStyle = `rgba(210,210,225,${held})`; ctx.fillRect(x - 14, G - h, 28, h);
@@ -48,7 +38,7 @@
     }
   }
 
-  // The alley, faint in the glass where the reflections should be
+  // Reflected alley, drawn faint in the glass
   function alley() {
     ctx.save(); ctx.beginPath(); ctx.rect(-60, G, 1020, 160); ctx.clip();
     ctx.globalAlpha = 0.22;

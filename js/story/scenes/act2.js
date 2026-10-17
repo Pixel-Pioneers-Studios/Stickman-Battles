@@ -1,17 +1,12 @@
 'use strict';
-// js/story/scenes/act2.js — cinematic scene specs for act2.
-// Split out of the former single-file js/smb-story-scenes.js; content unchanged.
-// Every file here merges into the shared window.STORY_SCENE_SPECS, so load order
-// AMONG these files does not matter — only that they all load BEFORE
-// js/smb-story-narrative-scene.js, which reads the table.
-//
-// 12 specs — chapter ids: 32, 33, 34, 35, 37, 39, 40, 42, 43, 46, 47, 48
+// js/story/scenes/act2.js: cinematic scene specs for act 2 (chapters 32-48, 12 specs).
+// Merges into window.STORY_SCENE_SPECS. Must load before js/smb-story-narrative-scene.js.
 
 window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
 (function (S) {
 
-  // ── Chapter 32 — Gravity Anomaly ────────────────────────────────────────────
+  // Chapter 32: Gravity Anomaly.
   S[32] = {
     bg: 'fracture',
     npcColor: '#ff8800',
@@ -86,7 +81,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 33 — The Orbital Duel ────────────────────────────────────────────
+  // Chapter 33: The Orbital Duel.
   S[33] = {
     bg: 'space',
     npcColor: '#9944cc',
@@ -180,7 +175,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 34 — Echo Storm ──────────────────────────────────────────────────
+  // Chapter 34: Echo Storm.
   S[34] = {
     bg: 'fracture',
     npcColor: '#ff66ff',
@@ -248,7 +243,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 35 — The Core's Eye ──────────────────────────────────────────────
+  // Chapter 35: The Core's Eye.
   S[35] = {
     bg: 'space',
     npcColor: '#8844ff',
@@ -364,7 +359,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 37 — Resonance Spike ────────────────────────────────────────────
+  // Chapter 37: Resonance Spike.
   S[37] = {
     bg: 'fracture',
     npcColor: '#cc44ff',
@@ -463,10 +458,10 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 39 — Into the Green (exploration with narrative) ─────────────────
+  // Chapter 39: Into the Green (exploration).
   S[39] = {
     bg: 'forest',
-    npcColor: '#88aaff',
+    npcColor: '#3ddc84',
     beats: [
       {
         letterbox: true,
@@ -550,7 +545,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 40 — The Second Architect ────────────────────────────────────────
+  // Chapter 40: The Second Architect.
   S[40] = {
     bg: 'forest',
     npcColor: '#33aa44',
@@ -662,7 +657,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 42 — The Ice Dimension ──────────────────────────────────────────
+  // Chapter 42: The Ice Dimension.
   S[42] = {
     bg: 'ice',
     npcColor: '#4488cc',
@@ -765,7 +760,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 43 — The Pessimist ──────────────────────────────────────────────
+  // Chapter 43: The Pessimist.
   S[43] = {
     bg: 'ice',
     npcColor: '#2266bb',
@@ -899,7 +894,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 46 — What the Ancients Left (exploration with narrative) ──────────
+  // Chapter 46: What the Ancients Left (exploration).
   S[46] = {
     bg: 'ruins',
     npcColor: '#887766',
@@ -988,7 +983,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 47 — The Last Army ──────────────────────────────────────────────
+  // Chapter 47: The Last Army.
   S[47] = {
     bg: 'ruins',
     npcColor: '#aa00ff',
@@ -1092,7 +1087,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 48 — The Herald of Nothing ──────────────────────────────────────
+  // Chapter 48: The Herald of Nothing.
   S[48] = {
     bg: 'ruins',
     npcColor: '#ffffff',

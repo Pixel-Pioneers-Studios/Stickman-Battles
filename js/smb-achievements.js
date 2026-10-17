@@ -1,13 +1,9 @@
 'use strict';
 
-// ============================================================
-// ACHIEVEMENT SYSTEM
-// ============================================================
-// `icon` names a glyph in SMB_ICONS (smb-icons.js); achBadgeSVG() frames it in
-// a hex badge coloured by `tier` (bronze → silver → gold → mythic).
-// `desc` states the exact unlock condition — keep it in step with the
-// unlockAchievement() call site. `hint` is the how-to shown while locked.
-// `secret` hides title and desc until earned (spoilers); the hint still shows.
+// Achievement definitions, unlock logic and the popup.
+// icon is a glyph in SMB_ICONS (smb-icons.js). achBadgeSVG() frames it in a hex badge, coloured by tier.
+// desc must match the unlockAchievement() call site. hint shows while locked.
+// secret hides title and desc until earned.
 const ACHIEVEMENT_CATEGORIES = [
   { id: 'fight',  title: 'Fighting' },
   { id: 'modes',  title: 'Modes' },
@@ -18,7 +14,6 @@ const ACHIEVEMENT_CATEGORIES = [
 ];
 
 const ACHIEVEMENTS = [
-  // Fighting
   { id: 'first_blood',         cat: 'fight', tier: 'bronze', icon: 'drop',          title: 'First Blood',          desc: 'Beat a Hard bot',                                   hint: 'Set the opposing bot to Hard in the fighter setup, then win the match' },
   { id: 'hat_trick',           cat: 'fight', tier: 'silver', icon: 'chevrons',      title: 'Hat Trick',            desc: 'Win 3 matches in a row',                            hint: 'Any loss resets the streak' },
   { id: 'survivor',            cat: 'fight', tier: 'silver', icon: 'heartcrack',    title: 'Survivor',             desc: 'Win a match with 10 HP or less left',               hint: 'Hang on. It counts as long as you finish the match standing' },
@@ -34,7 +29,6 @@ const ACHIEVEMENTS = [
   { id: 'finisher_master',     cat: 'fight', tier: 'silver', icon: 'film',          title: 'Finisher Master',      desc: 'Perform 10 Finishers in one session',               hint: 'Finishers count across matches until you close the game' },
   { id: 'gunslinger',          cat: 'fight', tier: 'silver', icon: 'gun',           title: 'Gunslinger',           desc: 'Deal 500 ranged damage in a match you win',         hint: 'Any ranged weapon counts: Gun, Bow, Crossbow and the rest' },
   { id: 'hammer_time',         cat: 'fight', tier: 'bronze', icon: 'hammer',        title: 'Hammer Time',          desc: 'Win a match with the Hammer',                       hint: 'Pick the Hammer as your weapon and win' },
-  // Modes
   { id: 'wave_5',              cat: 'modes', tier: 'bronze', icon: 'wave',          title: 'Wave Warrior',         desc: 'Reach wave 5 in Survival',                          hint: 'Start Survival from the Minigames menu' },
   { id: 'wave_10',             cat: 'modes', tier: 'silver', icon: 'wave',          title: 'Wave Master',          desc: 'Reach wave 10 in Survival',                         hint: 'Enemies hit harder every wave until wave 8' },
   { id: 'survival_win',        cat: 'modes', tier: 'gold',   icon: 'trophy',        title: 'Extinction Event',     desc: 'Clear every wave of a Survival run',                hint: 'Set a wave goal (not Infinite) and clear the last wave' },
@@ -43,14 +37,12 @@ const ACHIEVEMENTS = [
   { id: 'chaos_all',           cat: 'modes', tier: 'gold',   icon: 'flame',         title: 'Pure Chaos',           desc: 'Have every chaos modifier active at once',           hint: 'Chaos Match adds a new modifier every 15 seconds. Last long enough' },
   { id: 'nexus_defender',      cat: 'modes', tier: 'silver', icon: 'diamond',       title: 'Nexus Defender',       desc: 'Clear 5 waves in Nexus Defense',                    hint: 'Keep attackers off the Nexus while you clear each wave' },
   { id: 'online_winner',       cat: 'modes', tier: 'silver', icon: 'globe',         title: 'Connected',            desc: 'Win an online match',                               hint: 'Beat a real player in online play' },
-  // Battle Royale
   { id: 'br_victory',          cat: 'br',    tier: 'gold',   icon: 'medal',         title: 'Last One Standing',    desc: 'Win a Battle Royale',                               hint: 'Outlast all 99 other fighters in one match' },
   { id: 'br_kills_10',         cat: 'br',    tier: 'bronze', icon: 'target',        title: 'Ten Down',             desc: 'Get 10 eliminations in one Battle Royale',          hint: 'Only final blows count' },
   { id: 'br_kills_25',         cat: 'br',    tier: 'silver', icon: 'crosshair',     title: 'Rampage',              desc: 'Get 25 eliminations in one Battle Royale',          hint: 'A quarter of the field, in one match' },
   { id: 'br_kills_50',         cat: 'br',    tier: 'gold',   icon: 'skull',         title: 'Monster',              desc: 'Get 35 eliminations in one Battle Royale',          hint: 'Thirty-five in one match. Yes, really' },
   { id: 'br_cartographer',     cat: 'br',    tier: 'silver', icon: 'compass',       title: 'Cartographer',         desc: 'Visit every zone in one Battle Royale',             hint: 'All fifteen zones, including Cloud Kingdom and Volcano Depths, which you can only reach through rifts' },
   { id: 'br_scavenger',        cat: 'br',    tier: 'bronze', icon: 'crate',         title: 'Scavenger',            desc: 'Open 20 crates in one Battle Royale',               hint: 'You have to break the crates yourself' },
-  // Bosses
   { id: 'boss_slayer',         cat: 'bosses', tier: 'gold',   icon: 'horns',        title: 'Boss Slayer',          desc: 'Defeat the Creator',                                hint: 'Beat the Creator in Story Mode, or rematch him from The Simulator under Refights' },
   { id: 'true_form',           cat: 'bosses', tier: 'mythic', icon: 'crescent',     title: 'Cosmic Axiom',            desc: 'Defeat Cosmic Axiom',                              hint: 'Beat the Creator, then collect the 8 hidden letters (supers reveal them in the arenas) to unlock the fight' },
   { id: 'yeti_hunter',         cat: 'bosses', tier: 'silver', icon: 'snowflake',    title: 'Yeti Hunter',          desc: 'Defeat the Yeti',                                   hint: 'It roams the Ice arena. Fight there until it shows up' },
@@ -58,11 +50,9 @@ const ACHIEVEMENTS = [
   { id: 'sovereign_slayer',    cat: 'bosses', tier: 'gold',   icon: 'omega',        title: 'Sovereign Slayer',     desc: 'Defeat Sovereign Ω',                           hint: 'Beat Sovereign in Adaptive mode. He learns how you play, so keep changing it up' },
   { id: 'god_slayer',          cat: 'bosses', tier: 'mythic', icon: 'halo',         title: 'God Slayer',           desc: 'Defeat God',                                        hint: 'Some fights aren\'t on any menu', secret: true },
   { id: 'absolute_axiom_slayer', cat: 'bosses', tier: 'mythic', icon: 'eye',        title: 'Beyond Godhood',       desc: 'Defeat Absolute Axiom',                             hint: 'A secret boss. You\'ll know it when you see it', secret: true },
-  // Story & Worlds
   { id: 'tutorial_done',       cat: 'story', tier: 'bronze', icon: 'cap',           title: 'First Steps',          desc: 'Complete the tutorial',                             hint: 'Start the Tutorial from the home screen' },
   { id: 'story_begin',         cat: 'story', tier: 'bronze', icon: 'bookopen',      title: 'The Journey Begins',   desc: 'Clear your first Story chapter',                    hint: 'Win any chapter in Story Mode' },
-  // Per-saga completion. On a 'full' build all three are reachable in one run;
-  // a saga build awards only its own. See docs/SAGA_SPLIT_PLAN.md.
+  // Per-saga completion. A 'full' build can reach all three in one run. A saga build only awards its own.
   { id: 'saga1_complete',      cat: 'story', tier: 'silver', icon: 'fragment',      title: 'Not the Ninety-Fifth', desc: 'Finish The Fragment',                               hint: 'Clear every chapter of the first saga' },
   { id: 'saga2_complete',      cat: 'story', tier: 'gold',   icon: 'orbit',         title: 'The Man Who Built It', desc: 'Finish The Multiverse War',                         hint: 'Clear every chapter of the second saga', secret: true },
   { id: 'saga3_complete',      cat: 'story', tier: 'mythic', icon: 'infinity',      title: 'What Cannot Be Erased', desc: 'Finish The Substrate',                             hint: 'Clear every chapter of the third saga', secret: true },
@@ -73,19 +63,14 @@ const ACHIEVEMENTS = [
   { id: 'fracture_explorer',   cat: 'story', tier: 'bronze', icon: 'portal',        title: 'Fracture Explorer',    desc: 'Enter a Fracture',                                  hint: 'Find an unlocked Fracture portal and step through' },
   { id: 'ship_builder',        cat: 'story', tier: 'gold',   icon: 'rocket',        title: 'Axiom Ship Complete',  desc: 'Build the Axiom Ship',                              hint: 'Collect every part: 5 Hull plates, the Engine, the Core and the Crystal' },
   { id: 'branch_conqueror',    cat: 'story', tier: 'gold',   icon: 'branches',      title: 'Branch Conqueror',     desc: 'Clear all three Fracture branches',                 hint: 'Build the ship, then defeat Vael, Kael and Sora in their own branches' },
-  // Completion — checked by checkCompletionAchievements() below
+// Completion, checked by checkCompletionAchievements() below
   { id: 'story_100',           cat: 'complete', tier: 'mythic', icon: 'star',     title: 'Every Stone Turned',   desc: 'Earn a star on every Story level',                  hint: 'A level\'s star needs it cleared and every hidden cache in it opened. Look for dark shafts in the ground' },
   { id: 'game_100',            cat: 'complete', tier: 'mythic', icon: 'crown',    title: 'The Whole Evolution',  desc: 'Star every Story level, own every skin and weapon theme, and earn every other achievement', hint: 'Everything. Every level, every cache, every cosmetic, every achievement' },
 ];
 
-// ── 100% completion ──────────────────────────────────────────────────────────
-// story_100: a star on every Story level in this build (storyStarTally, in the
-// story explore engine — cleared + every hidden cache opened).
-// game_100: story_100 + every cosmetic in COSMETIC_CATALOG + every other
-// achievement. On a single-saga build the other sagas' completion awards can't
-// be earned, so they are not required.
-// Called on chest open, chapter clear, cosmetic unlock, any achievement unlock
-// and when the level select renders (retroactive for existing saves).
+// story_100: a star on every Story level (storyStarTally). game_100 also needs every
+// cosmetic and every other achievement. On a single-saga build the other sagas' awards are not required.
+// Checked on chest open, chapter clear, cosmetic unlock, any achievement unlock, and level select render.
 let _completionChecking = false;
 function _completionRequiredAchievements() {
   const full = typeof sagaIsFullBuild !== 'function' || sagaIsFullBuild();
@@ -122,13 +107,12 @@ let earnedAchievements = new Set();
 let achievementQueue   = []; // pending popup animations
 let achievementTimer   = 0;  // frames remaining for current popup
 
-// Per-session stats for achievements
 let _achStats = { damageTaken: 0, rangedDmg: 0, consecutiveHits: 0, superCount: 0,
                   winStreak: 0, totalWins: 0, matchStartTime: 0,
                   botKills: 0, pvpDamageDealt: 0, pvpDamageReceived: 0,
                   finisherCount: 0, classWins: null };
 
-// ── Badge art ────────────────────────────────────────────────
+// Badge art
 // rim = bevel gradient top/bottom, bg = inner plate, glyph = icon colour
 const ACH_TIERS = {
   bronze: { label: 'Bronze', rim: ['#f0b684', '#8a4f26'], bg: '#24160d', glyph: '#f3bd8c' },
@@ -138,8 +122,7 @@ const ACH_TIERS = {
   locked: { label: 'Locked', rim: ['#4a5264', '#262b36'], bg: '#10131a', glyph: '#586173' },
 };
 
-// Self-contained SVG string (explicit colours, xmlns) so the same markup works
-// inline in the modal and as a data-URL image for the in-game canvas popup.
+// Self-contained SVG (explicit colours, xmlns). Works inline and as a data URL for the canvas popup.
 function achBadgeSVG(a, earned) {
   const key = earned ? (a.tier || 'bronze') : 'locked';
   const t = ACH_TIERS[key] || ACH_TIERS.bronze;
@@ -186,7 +169,6 @@ function unlockAchievement(id) {
   // This may have been the last one game_100 was waiting on
   if (id !== 'game_100') checkCompletionAchievements();
   if (typeof _achUpdateNavCount === 'function') _achUpdateNavCount();
-  // HTML bottom-right notification
   const existing = document.getElementById('achNotif');
   if (existing) existing.remove();
   const el = document.createElement('div');
@@ -217,15 +199,12 @@ function drawAchievementPopups() {
   ctx.save();
   ctx.globalAlpha = alpha;
   const bw = 270, bh = 56, bx = GAME_W - bw - 12 + slideX, by = 12;
-  // Background
   ctx.fillStyle = 'rgba(12,10,22,0.94)';
   ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.fill();
   ctx.strokeStyle = tier.rim[0]; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.stroke();
-  // Badge
   const img = _achBadgeImage(cur);
   if (img.complete && img.naturalWidth) ctx.drawImage(img, bx + 8, by + 6, 44, 44);
-  // Text
   ctx.textAlign = 'left';
   ctx.fillStyle = tier.glyph; ctx.font = 'bold 10px Arial';
   ctx.fillText('ACHIEVEMENT UNLOCKED', bx + 60, by + 17);

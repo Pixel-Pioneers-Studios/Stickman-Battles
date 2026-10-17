@@ -1,20 +1,7 @@
 'use strict';
-// js/story/levels/ch168.js — Chapter 168 map. See smb-story-levels.js for the contract.
+// Chapter 168 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 168 — God's Foundation (escape, run right)
-// God's domain, rewritten: "Axiom's patterns threading through God's
-// foundations and finding them useful." The warm white architecture of the
-// earlier chapters is still here, but violet lattice runs through every
-// joint like a vine, and the domain is building against you — walls
-// assembling themselves out of nothing ahead (they appear block by block,
-// "as if it had always been there and reality was only now admitting it"),
-// arches closing over the route. The floor is God's stone in sections, the
-// gaps edged in violet where the rewrite pulled slabs away. Behind the
-// collapse wall the whole domain folds into lattice. The Center at the end
-// glows red-violet — Absolute Axiom's colour. Lattice-bound cornices are the
-// high routes.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 168, God's Foundation (escape, run right). Walls assemble ahead of you.
 (function () {
   const SECTS = [[0, 1000, 440], [1060, 1900, 440], [1960, 2900, 430], [2960, 3700, 440], [3760, 4200, 440]];
   const CORN = [[650, 340, 110], [1400, 330, 110], [1530, 250, 110], [2300, 340, 110], [3100, 330, 110], [3230, 250, 110], [3900, 340, 100]];
@@ -39,7 +26,6 @@
 
   function back(v) {
     const p1 = (typeof players !== 'undefined' && players[0]) || null;
-    // Walls assembling themselves out of nothing ahead of you, block by block
     for (let k = Math.floor(v.x / 420); k * 420 < v.x + v.w + 420; k++) {
       const x = k * 420 + 260;
       if (x < 300 || x > 3800) continue;
@@ -55,7 +41,6 @@
       ctx.fillStyle = '#e8dcc0'; ctx.fillRect(x, y, w, 14); ctx.fillStyle = '#c89820'; ctx.fillRect(x, y, w, 3);
       ctx.strokeStyle = 'rgba(180,90,255,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let t = 0; t <= w; t += 10) ctx.lineTo(x + t, y + 7 + Math.sin(t * 0.3 + frameCount * 0.05) * 5); ctx.stroke();
     }
-    // Behind the wall the domain folds into lattice
     const wx = (typeof escapeWallX !== 'undefined') ? escapeWallX : -200;
     if (wx > v.x - 40) { ctx.fillStyle = 'rgba(10,0,24,0.85)'; ctx.fillRect(v.x - 40, v.y - 40, wx - v.x + 40, v.h + 80); _slLattice(Math.floor((v.x - 40) / 16) * 16, 40, wx - v.x + 40, 420, 0.4, 16); }
     if (_slVisible(v, CENTER - 200, CENTER + 300)) {

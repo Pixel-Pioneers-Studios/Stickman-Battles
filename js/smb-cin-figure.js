@@ -1,32 +1,12 @@
 'use strict';
-// smb-cin-figure.js — deformable cinematic figure + keyframe/hold/spacing track.
-//
-// WHY THIS IS SEPARATE FROM Fighter.draw()
-// Fighter.draw() has a contract: hitboxes, weapon anchors, accessories, shields
-// and a dozen other systems read positions off it, so its bones are fixed
-// lengths and the body never leaves the vertical. That is exactly what stops it
-// looking hand-animated. Nothing reads off a cinematic figure, so here a limb
-// may stretch to 3x, a body may compress to 40% height for two frames, and the
-// whole figure may rotate freely — the shape violations that separate drawn
-// animation from interpolated parameters.
-//
-// Provides:
-//   CIN_POSE      — the pose schema + defaults
-//   CinRig.draw   — render one pose
-//   CinRig.joints — resolve a pose to world joint positions (for measurement)
-//   CinTrack      — keyframes with explicit HOLDS and per-segment easing
-//   CinRig.smear  — a swept smear SHAPE, not alpha ghosts
-//   CinRig.spacing / CinRig.arc — diagnostics; animation is verified by
-//                   measuring spacing charts, not by eyeballing stills
-//
-// Depends on: smb-anim-core.js (animEase). Canvas-agnostic — every entry point
-// takes an explicit ctx, so it renders to the game canvas or an offscreen one.
-// ============================================================
+// smb-cin-figure.js: deformable cinematic figure, plus keyframe/hold/spacing track.
+// Kept apart from Fighter.draw(), which gameplay reads for hitboxes and weapon anchors.
+// Nothing reads a cinematic figure, so its limbs may stretch and the whole body may rotate.
+// Provides: CIN_POSE (schema), CinRig (draw, joints, smear, spacing, arc), CinTrack (keyframes).
+// Depends on smb-anim-core.js (animEase). Canvas-agnostic: entry points take an explicit ctx.
 
-// ── Pose schema ─────────────────────────────────────────────────────────────
-// Angles are canvas convention: 0 = +X (right), PI/2 = +Y (down).
-// Every *Len is a MULTIPLIER on the base bone length; every *W multiplies line
-// width. Those two families are what make the drawing deformable.
+// Pose schema
+// Angles: 0 = +X (right), PI/2 = +Y (down). *Len multiplies a bone length, *W multiplies line width.
 const CIN_POSE = {
   x: 0, y: 0,              // feet anchor
   rot: 0,                  // whole-body rotation about the hips
@@ -39,7 +19,7 @@ const CIN_POSE = {
   headTilt: 0,
   headScale: 1,
   headOff: 0,              // head x offset in px (drag / overlap)
-  hipDrop: 0,              // px the hips sit BELOW standing height (kneel, crouch, collapse)
+  hipDrop: 0,              // px the hips sit below standing height
 
   // Upper arm then forearm, each an ABSOLUTE angle so a pose may hyperextend
   rArm: Math.PI * 0.58, rFore: Math.PI * 0.58,
@@ -143,17 +123,9 @@ const CinRig = {
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     if (o.glow) { ctx.shadowColor = o.glow === true ? color : o.glow; ctx.shadowBlur = o.glowBlur || 10; }
 
-    // ── ONE BODY, NOT A PILE OF BONES ──────────────────────────────────────
-    // Each bone used to be filled on its own, which puts a visible edge at every
-    // joint and lights each limb separately — the cutscene figures had exactly
-    // the assembled-components problem the gameplay figure had. Bones are now
-    // COLLECTED and painted together, the same recipe as smb-figure-skin.js:
-    // stroke the compound path at double width, then fill every part with one
-    // shared OPAQUE gradient so overlaps overpaint identically and vanish.
-    //
-    // Filling per part (rather than one compound 'nonzero' fill) is deliberate:
-    // subpaths that wind opposite ways cancel and punch holes through the body,
-    // and an ellipse winds the other way from a capsule.
+    // One body, not a pile of bones: paint every bone in one pass with one shared opaque
+    // gradient, so joints show no seams. Fill per part, since opposite-wound subpaths
+    // cancel under nonzero and punch holes.
     const parts = [];
     const bone = (a, b, wa, wb) => parts.push(CinRig._capsule(a, b, wa, wb));
 
@@ -191,12 +163,8 @@ const CinRig = {
     if (d < 0.01) return P;
     const nx = -dy / d, ny = dx / d;
     const ra = Math.max(0.4, wa * 0.5), rb = Math.max(0.4, wb * 0.5);
-    // Both caps sweep ANTICLOCKWISE. With `false` each arc took the long way
-    // round — the far cap bulged backwards along the bone instead of forwards —
-    // so the outline crossed itself and a 'nonzero' fill cancelled the overlap,
-    // punching a hole at every elbow, knee and shoulder. Let theta be the bone
-    // direction: the outline leaves at theta+90 and must rejoin at theta-90 by
-    // DECREASING through theta, which is what anticlockwise means here.
+    // Both caps sweep anticlockwise. Clockwise went the long way round and the outline
+    // crossed itself, punching a hole at every joint.
     P.moveTo(a.x + nx * ra, a.y + ny * ra);
     P.lineTo(b.x + nx * rb, b.y + ny * rb);
     P.arc(b.x, b.y, rb, Math.atan2(ny, nx), Math.atan2(-ny, -nx), true);
@@ -224,9 +192,7 @@ const CinRig = {
       if (j.x + r > x1) x1 = j.x + r;
       if (j.y + r > y1) y1 = j.y + r;
     }
-    // LOCKED FIGHTER LOOK (see FigureSkin.paint): near-black body, outline in the
-    // fighter's own accent colour. This used to lay the coloured gradient ramp
-    // across the body, so every cutscene figure was the OLD coloured fighter.
+    // Locked fighter look (see FigureSkin.paint): near-black body, accent-colour outline.
     const compound = new Path2D();
     for (const q of parts) compound.addPath(q);
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -253,10 +219,7 @@ const CinRig = {
       return;
     }
     const sb = ctx.shadowBlur; ctx.shadowBlur = 0;
-    // Dark almond eyes with a single catchlight, matching the gameplay figure.
-    // The white sclera + pupil pair this replaces reads as an emoji at any size
-    // a cutscene actually plays at, and it was the loudest cartoon mark left in
-    // the cinematics. See FigureSkin.face() for the reasoning.
+    // Dark almond eyes with one catchlight. White sclera and pupil read as an emoji at this size.
     const lx = (o.look && o.look.x || 0) * R * 0.09, ly = (o.look && o.look.y || 0) * R * 0.07;
     const _open = expr === 'hurt' ? 0.5 : (expr === 'angry' || expr === 'intense') ? 0.62 : 0.82;
     ctx.fillStyle = expr === 'hurt' ? '#7c2420' : 'rgba(16,20,28,0.92)';
@@ -274,7 +237,7 @@ const CinRig = {
       ctx.arc(ex + lx + f * R * 0.05, ey + ly - R * 0.05, R * 0.045, 0, Math.PI * 2);
       ctx.fill();
     }
-    // Brow — the single strongest expression cue on a stick figure
+    // Brow: the single strongest expression cue on a stick figure
     const browIn = expr === 'angry' || expr === 'intense' ? 1.7
                  : expr === 'hurt' || expr === 'afraid' ? -1.7 : 0;
     if (browIn) {
@@ -320,8 +283,7 @@ const CinRig = {
     ctx.save();
     ctx.shadowBlur = 0;
     const g = ctx.createLinearGradient(tips[0].x, tips[0].y, tips[n - 1].x, tips[n - 1].y);
-    // Fade to a TRANSPARENT version of the same colour. Fading to transparent
-    // white washes the trailing edge grey against a dark scene.
+    // Fade to transparent, not white, or the trailing edge goes grey on dark scenes.
     g.addColorStop(0, cinFade(color));
     g.addColorStop(0.45, cinFade(color));
     g.addColorStop(1, color);
@@ -336,7 +298,7 @@ const CinRig = {
     ctx.restore();
   },
 
-  // ── Diagnostics ───────────────────────────────────────────────────────────
+  // Diagnostics
   /**
    * Per-frame travel of one joint across a track. This is a spacing chart: an
    * animator draws these by hand to check that an action eases rather than
@@ -383,7 +345,7 @@ function cinLerpPose(a, b, u) {
   return out;
 }
 
-// ── Keyframe track with real holds ──────────────────────────────────────────
+// Keyframe track with real holds
 /**
  * Keys are `{ at, hold, ease, pose }` in frames.
  *

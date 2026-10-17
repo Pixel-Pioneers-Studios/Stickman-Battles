@@ -1,17 +1,13 @@
 'use strict';
-// js/story/scenes/act4mv.js — cinematic scene specs for act4mv.
-// Split out of the former single-file js/smb-story-scenes.js; content unchanged.
-// Every file here merges into the shared window.STORY_SCENE_SPECS, so load order
-// AMONG these files does not matter — only that they all load BEFORE
-// js/smb-story-narrative-scene.js, which reads the table.
-//
-// 22 specs — chapter ids: 86, 87, 89, 90, 91, 93, 94, 95, 97, 99, 101, 105, 106, 107, 110, 112, 116, 117, 118, 122, 125, 126
+// Cinematic scene specs for act4mv. Merges into window.STORY_SCENE_SPECS, which
+// smb-story-narrative-scene.js reads, so these load before it.
+// 22 specs. Chapter ids: 86, 87, 89, 90, 91, 93, 94, 95, 97, 99, 101, 105, 106, 107, 110, 112, 116, 117, 118, 122, 125, 126
 
 window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
 (function (S) {
 
-  // ─── Chapter 86 — A World at War ─────────────────────────────────────────
+  // Chapter 86: A World at War
   S[86] = {
     bg: 'ruins',
     npcColor: '#aa3311',
@@ -108,7 +104,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 87 — The War Camp ────────────────────────────────────────────
+  // Chapter 87: The War Camp
   S[87] = {
     bg: 'city',
     npcColor: '#cc3311',
@@ -199,7 +195,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 89 — War Champion ────────────────────────────────────────────
+  // Chapter 89: War Champion
   S[89] = {
     bg: 'city',
     npcColor: '#ff2200',
@@ -303,7 +299,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 90 — Into the Flux ──────────────────────────────────────────
+  // Chapter 90: Into the Flux
   S[90] = {
     bg: 'space',
     npcColor: '#2255aa',
@@ -377,7 +373,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 91 — Drifters in the Flux ───────────────────────────────────
+  // Chapter 91: Drifters in the Flux
   S[91] = {
     bg: 'space',
     npcColor: '#3366cc',
@@ -460,8 +456,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 93 — Flux Guardian (4 beats) ────────────────────────────────────
-  // "You are the fourteenth fragment bearer to reach this axis." Then gravity flips.
+  // Chapter 93: Flux Guardian (4 beats)
   S[93] = {
     bg: 'space',
     npcColor: '#00aaff',
@@ -481,7 +476,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'static_noise', alpha: 0.10 }],
       },
       {
-        // "the fourteenth" — he is a number to it, the way he was to the lab.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.14, cx: 0.60, cy: 0.50 }, { at: 70, zoom: 1.30, cx: 0.52, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.36, state: 'listen', facing: 1 }],
@@ -489,7 +483,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#00aaff', alpha: 0.30 }],
       },
       {
-        // "The world flipped." — the camera inverts with it.
         letterbox: true,
         warp: 3,
         camAnim: [
@@ -512,7 +505,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 94 — Into the Dark ──────────────────────────────────────────
+  // Chapter 94: Into the Dark
   S[94] = {
     bg: 'space',
     npcColor: '#550077',
@@ -587,7 +580,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 95 — The Unseen Court ───────────────────────────────────────
+  // Chapter 95: The Unseen Court
   S[95] = {
     bg: 'space',
     npcColor: '#7700cc',
@@ -659,7 +652,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 97 — Shadow Warden ───────────────────────────────────────────
+  // Chapter 97: Shadow Warden
   S[97] = {
     bg: 'space',
     npcColor: '#9900ff',
@@ -733,7 +726,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 99 — The Outer Throne ───────────────────────────────────────
+  // Chapter 99: The Outer Throne
   S[99] = {
     bg: 'lava',
     npcColor: '#cc7700',
@@ -808,7 +801,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ─── Chapter 101 — Titan King ──────────────────────────────────────────────
+  // Chapter 101: Titan King
   S[101] = {
     bg: 'lava',
     npcColor: '#ffaa00',
@@ -911,9 +904,9 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 105 — The Pattern Gap (7 beats) ─────────────────────────────────
+  // Chapter 105: The Pattern Gap (7 beats)
   // Null: 847 catalogued beings, 4,200 years, and Kael is the first structural
-  // error. Staged flat and symmetrical — it is a machine describing a fault.
+  // error. Staged flat and symmetrical: it is a machine describing a fault.
   S[105] = {
     // Where the Erasure Protocol stopped, by the Dimensional Anchor (ch104)
     bg: 'level', level: { ch: 104, x: 4150 },
@@ -942,7 +935,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#9900cc', alpha: 0.28 }],
       },
       {
-        // "my model began producing errors"
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.30, cx: 0.66, cy: 0.49 }, { at: 70, zoom: 1.12, cx: 0.50, cy: 0.50 }],
         camShake: [{ at: 30, strength: 3, dur: 30 }],
@@ -957,7 +949,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
       },
       {
-        // "The fragment you carry is the source."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.12, cx: 0.42, cy: 0.50 }, { at: 60, zoom: 1.34, cx: 0.36, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.32, state: 'idle', facing: 1 }],
@@ -974,7 +965,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 106 — The Unseen Pattern (7 beats) — TRIAL OF SENSE ─────────────
+  // Chapter 106: The Unseen Pattern (7 beats): TRIAL OF SENSE
   // Null takes sight and hands over the lantern. The lantern beat is the one
   // that has to read, because the whole trial is about what it does.
   S[106] = {
@@ -988,7 +979,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.66, state: 'talk',   facing: -1 }],
       },
       {
-        // "I am going to take it from you."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.06, cx: 0.56, cy: 0.50 }, { at: 40, zoom: 1.32, cx: 0.62, cy: 0.49 }],
         camShake: [{ at: 34, strength: 6, dur: 20 }],
@@ -1022,7 +1012,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fire_glow', alpha: 0.22 }],
       },
       {
-        // "The information will be old the moment you have it."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.20, cx: 0.52, cy: 0.52 }],
         playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
@@ -1030,7 +1019,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#6600aa', alpha: 0.26 }],
       },
       {
-        // "Show me what you treat it as." Null goes out.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.20, cx: 0.52, cy: 0.52 }, { at: 70, zoom: 1.02, cx: 0.44, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.34, state: 'guard', facing: 1 }],
@@ -1040,7 +1028,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 107 — Null (5 beats) ────────────────────────────────────────────
+  // Chapter 107: Null (5 beats)
   S[107] = {
     bg: 'space',
     npcColor: '#9900cc',
@@ -1059,7 +1047,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'static_noise', alpha: 0.16 }],
       },
       {
-        // "You do not return to anything." The one thing it cannot model.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.18, cx: 0.42, cy: 0.50 }, { at: 70, zoom: 1.36, cx: 0.36, cy: 0.49 }],
         camShake: [{ at: 34, strength: 4, dur: 30 }],
@@ -1083,7 +1070,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 110 — The Pull (6 beats) ────────────────────────────────────────
+  // Chapter 110: The Pull (6 beats)
   // The fragment leans toward Seraph like water toward a drain.
   S[110] = {
     // The centre of the expanse, at the rim of Seraph's bowl (ch112)
@@ -1098,7 +1085,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.50 }],
       },
       {
-        // Not toward danger — toward Seraph.
+        // Not toward danger: toward Seraph.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.28, cx: 0.36, cy: 0.49 }, { at: 70, zoom: 1.02, cx: 0.56, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.34, state: 'look', facing: 1 }],
@@ -1122,7 +1109,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'echo_text', color: '#00aacc', alpha: 0.24 }],
       },
       {
-        // "I am not going to take it from you."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }, { at: 60, zoom: 1.36, cx: 0.68, cy: 0.48 }],
         playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
@@ -1139,8 +1125,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 112 — Seraph (4 beats) ──────────────────────────────────────────
-  // "I keep taking things." The duel offered as the only thanks they know.
+  // Chapter 112: Seraph (4 beats)
   S[112] = {
     bg: 'ice',
     npcColor: '#00aacc',
@@ -1166,7 +1151,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.34 }],
       },
       {
-        // "I want to see that up close." Both take guard.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.10, cx: 0.46, cy: 0.50 }, { at: 55, zoom: 1.00, cx: 0.50, cy: 0.50 }],
         camShake: [{ at: 48, strength: 5, dur: 18 }],
@@ -1177,8 +1161,8 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 116 — The Blind Spot (6 beats) ──────────────────────────────────
-  // VAEL has been first through every door — and cannot see Kael at all.
+  // Chapter 116: The Blind Spot (6 beats)
+  // VAEL has been first through every door: and cannot see Kael at all.
   S[116] = {
     // Where the three temporal layers meet (ch118)
     bg: 'level', level: { ch: 118, x: 3000 },
@@ -1213,7 +1197,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.68, state: 'talk', facing: -1 }],
       },
       {
-        // "The fragment is why."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.10, cx: 0.42, cy: 0.50 }, { at: 60, zoom: 1.34, cx: 0.36, cy: 0.49 }],
         playerPos: [{ at: 0, x: 0.34, state: 'idle',  facing: 1 }],
@@ -1221,7 +1204,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'fragment_pulse', color: '#66ccff', alpha: 0.48 }],
       },
       {
-        // First through every door — until now.
+        // First through every door: until now.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.34, cx: 0.56, cy: 0.50 }, { at: 80, zoom: 1.00, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.34, state: 'idle', facing: 1 }],
@@ -1231,7 +1214,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 117 — Thirty-Four Frames (6 beats) — TRIAL OF SELF-KNOWLEDGE ────
+  // Chapter 117: Thirty-Four Frames (6 beats): TRIAL OF SELF-KNOWLEDGE
   // The water stands up and takes his shape. The mirror beat has to sell it.
   S[117] = {
     bg: 'ice',
@@ -1244,7 +1227,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1 }],
       },
       {
-        // "I looked back instead. Half a second."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.08, cx: 0.60, cy: 0.50 }, { at: 60, zoom: 1.24, cx: 0.64, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.32, state: 'listen', facing: 1 }],
@@ -1269,7 +1251,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         ],
       },
       {
-        // "It does not predict you. It repeats you."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.30, cx: 0.46, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.31, state: 'guard', facing: 1 }],
@@ -1277,7 +1258,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         extraFigures: [{ xf: 0.52, color: '#2266cc', facing: -1, state: 'guard', alpha: 0.62 }],
       },
       {
-        // "If you have a pattern, it will find you with it."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.30, cx: 0.46, cy: 0.50 }, { at: 70, zoom: 1.12, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.31, state: 'idle', facing: 1 }],
@@ -1285,7 +1265,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         extraFigures: [{ xf: 0.52, color: '#2266cc', facing: -1, state: 'idle', alpha: 0.62 }],
       },
       {
-        // "I have never watched anyone try."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.12, cx: 0.50, cy: 0.50 }, { at: 60, zoom: 1.00, cx: 0.50, cy: 0.50 }],
         playerPos: [{ at: 0, x: 0.31, state: 'guard', facing: 1 }],
@@ -1295,7 +1274,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 118 — VAEL (4 beats) ────────────────────────────────────────────
+  // Chapter 118: VAEL (4 beats)
   // Three seconds of foresight against the one person who returns nothing.
   S[118] = {
     bg: 'ice',
@@ -1309,7 +1288,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effectsBehind: [{ type: 'multi_portals', color: '#0055ff', alpha: 0.20, count: 3 }],
       },
       {
-        // "Against you — I see nothing."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.22, cx: 0.66, cy: 0.50 }, { at: 40, zoom: 1.40, cx: 0.68, cy: 0.48 }],
         camShake: [{ at: 34, strength: 4, dur: 24 }],
@@ -1334,7 +1312,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 122 — Thresh (6 beats) ──────────────────────────────────────────
+  // Chapter 122: Thresh (6 beats)
   // Grief that fractures everything it touches. Ground cracks carry this one.
   S[122] = {
     bg: 'lava',
@@ -1354,7 +1332,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         npcPos:    [{ at: 0, x: 0.68, state: 'talk',   facing: -1, scale: 1.10 }],
       },
       {
-        // "The void didn't give me more strength."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.22, cx: 0.64, cy: 0.50 }, { at: 70, zoom: 1.38, cx: 0.68, cy: 0.49 }],
         camShake: [{ at: 30, strength: 5, dur: 34 }],
@@ -1373,7 +1350,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         effects: [{ type: 'shockwave', cx: 0.68, cy: 0.62, color: '#ff4400', startFrame: 18, duration: 46 }],
       },
       {
-        // "You're standing in the middle of what my grief looks like."
         letterbox: true,
         camAnim: [{ at: 0, zoom: 1.00, cx: 0.50, cy: 0.52 }, { at: 80, zoom: 0.92, cx: 0.50, cy: 0.48 }],
         playerPos: [{ at: 0, x: 0.32, state: 'look', facing: 1 }],
@@ -1384,7 +1360,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         ],
       },
       {
-        // "I don't want to break you." He guards anyway.
         letterbox: true,
         camAnim: [{ at: 0, zoom: 0.92, cx: 0.50, cy: 0.48 }, { at: 60, zoom: 1.06, cx: 0.50, cy: 0.50 }],
         camShake: [{ at: 52, strength: 6, dur: 20 }],
@@ -1395,14 +1370,14 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 125: The Architecture of the Lie ─────────────────────────────────
+  // Chapter 125: The Architecture of the Lie
   S[125] = {
     // The fracture boundary, by the figure's traces (ch123)
     bg: 'level', level: { ch: 123, x: 3000 },
     npcColor: '#8855aa',
     beats: [
       {
-        // The figure lays out the variant protocol — anchor chain, Veran's compromise
+        // The figure lays out the variant protocol: anchor chain, Veran's compromise
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.00, cx: 0.50, cy: 0.50 },
@@ -1422,7 +1397,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.72,
       },
       {
-        // "The fracture closure doesn't require the bearer to be consumed. It never did."
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.18, cx: 0.62, cy: 0.50 },
@@ -1441,7 +1415,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.72,
       },
       {
-        // "Veran knows about the variant. She has always known."
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.30, cx: 0.30, cy: 0.50 },
@@ -1465,7 +1438,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.72,
       },
       {
-        // "You survive, or she does." — the fragment burning
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.10, cx: 0.50, cy: 0.50 },
@@ -1485,10 +1457,10 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 126: The Weight of a Choice ──────────────────────────────────────
+  // Chapter 126: The Weight of a Choice
   S[126] = {
     bg: 'ruins',
-    npcColor: '#4488dd',
+    npcColor: '#3ddc84',
     beats: [
       {
         // Player returns. Veran senses something is wrong.
@@ -1511,7 +1483,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.68,
       },
       {
-        // "That's not what happened." Veran steps forward.
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.22, cx: 0.60, cy: 0.50 },
@@ -1531,7 +1502,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.66,
       },
       {
-        // "There is no variant." — Veran denying it plainly.
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.35, cx: 0.65, cy: 0.48 },
@@ -1550,7 +1520,6 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.62,
       },
       {
-        // "You raised your weapon." — the figure watching from the ridge.
         letterbox: true,
         camAnim: [
           { at: 0,  zoom: 1.20, cx: 0.38, cy: 0.50 },
@@ -1579,13 +1548,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
   };
 
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // COVERAGE PASS — chapters that carried a `narrative` but no staging.
-  // These fell back to generic act style, which renders correctly but stages
-  // nothing. Beat counts below are the runtime's own parse of each chapter's
-  // narrative (blank-line groups, split on narrator-vs-quote); where a chapter
-  // has more beats than spec entries the LAST entry holds, so these are sized
-  // to the chapter's shape rather than padded out one-to-one.
-  // ══════════════════════════════════════════════════════════════════════════
+  // Chapters with a narrative but no staging. They fall back to generic act style.
+  // Beat counts follow the runtime's parse; extra beats fold into the last entry.
 
 })(window.STORY_SCENE_SPECS);

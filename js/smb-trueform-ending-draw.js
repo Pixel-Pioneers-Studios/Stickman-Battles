@@ -1,8 +1,7 @@
 'use strict';
-// smb-trueform-ending-draw.js — drawTFEnding visual pass + canvas utilities (_roundRect, _tfeCamFocus)
-// Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js
+// drawTFEnding visual pass and canvas utilities (_roundRect, _tfeCamFocus).
+// Depends on smb-globals.js, smb-particles-core.js, smb-combat.js.
 
-// ── Draw ──────────────────────────────────────────────────────────────────────
 function drawTFEnding() {
   const sc = tfEndingScene;
   if (!sc) return;
@@ -13,7 +12,7 @@ function drawTFEnding() {
   const scX = cw / GAME_W, scY = ch / GAME_H;
   const sc_ = Math.min(scX, scY);
 
-  // ── REALIZATION: boss dialogue + zero pops ──────────────────────────────────
+  // Realization
   if (sc.phase === 'realization') {
     if (sc.dialogueAlpha > 0 && sc.dialogueIdx < sc.realizationDialogue.length) {
       const line = sc.realizationDialogue[sc.dialogueIdx];
@@ -34,7 +33,6 @@ function drawTFEnding() {
       ctx.textBaseline = 'alphabetic';
     }
 
-    // Zero pops
     for (const zp of _tfeZeroPops) {
       ctx.globalAlpha = zp.alpha;
       ctx.font        = `bold ${Math.round(18 * sc_)}px monospace`;
@@ -47,11 +45,10 @@ function drawTFEnding() {
     }
   }
 
-  // ── LAUNCH: dimension panels + flying hero ───────────────────────────────────
+  // Launch
   if (sc.phase === 'launch') {
     const panel = _TFE_BG_PANELS[sc.bgPanelIdx] || _TFE_BG_PANELS[0];
 
-    // Background gradient overlay (dimensions)
     const sky = panel.sky;
     const grd = ctx.createLinearGradient(0, 0, 0, ch);
     grd.addColorStop(0,   sky[0]);
@@ -61,14 +58,12 @@ function drawTFEnding() {
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, cw, ch);
 
-    // Dimension label
     ctx.globalAlpha = 0.75 * sc.tearAlpha;
     ctx.font = `bold ${Math.round(11 * sc_)}px monospace`;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#ffffff';
     ctx.fillText(panel.label, 20 * scX, 22 * scY);
 
-    // Reality tear streaks
     if (sc.tearAlpha > 0) {
       ctx.globalAlpha = sc.tearAlpha * 0.5;
       ctx.strokeStyle = '#ffffff';
@@ -84,7 +79,6 @@ function drawTFEnding() {
       }
     }
 
-    // Flying hero stickman
     const hsx = sc.heroScreenX * scX, hsy = sc.heroScreenY * scY;
     const angle = Math.atan2(
       sc.heroScreenY - sc.heroPrevY,
@@ -108,14 +102,12 @@ function drawTFEnding() {
     ctx.restore();
   }
 
-  // ── CODEREALM: matrix rain + hero stickman + code nodes ────────────────────
+  // Coderealm
   if (sc.phase === 'coderealm' || (sc.phase === 'return' && sc.rainAlpha > 0)) {
-    // Black void
     ctx.globalAlpha = Math.min(sc.rainAlpha, 0.92);
     ctx.fillStyle   = 'rgba(0,0,0,0.88)';
     ctx.fillRect(0, 0, cw, ch);
 
-    // Rain columns
     ctx.globalAlpha = sc.rainAlpha;
     ctx.font = `${Math.round(12 * sc_)}px monospace`;
     ctx.textAlign = 'left';
@@ -129,21 +121,18 @@ function drawTFEnding() {
     }
 
     if (sc.phase === 'coderealm') {
-      // Code nodes
       for (const nd of sc.codeNodes) {
         const nx = nd.x * scX, ny = nd.y * scY;
         const pulse = 1 + Math.sin(nd.pulse) * 0.15;
         const r     = 22 * sc_ * pulse;
         ctx.globalAlpha = nd.corrupted ? 0.35 : 0.85;
 
-        // Outer ring
         ctx.beginPath();
         ctx.arc(nx, ny, r * 1.5, 0, Math.PI*2);
         ctx.strokeStyle = nd.corrupted ? '#332244' : (nd.hitTimer > 0 ? '#ffffff' : '#cc66ff');
         ctx.lineWidth   = 2 * sc_;
         ctx.stroke();
 
-        // Fill
         ctx.beginPath();
         ctx.arc(nx, ny, r, 0, Math.PI*2);
         ctx.fillStyle = nd.corrupted ? 'rgba(40,0,40,0.5)' : 'rgba(180,100,255,0.12)';
@@ -152,7 +141,6 @@ function drawTFEnding() {
         ctx.lineWidth = 1.5 * sc_;
         ctx.stroke();
 
-        // Label
         ctx.font      = `bold ${Math.round(10 * sc_)}px monospace`;
         ctx.textAlign = 'center';
         ctx.fillStyle = nd.corrupted ? '#332244' : '#cc66ff';
@@ -161,7 +149,6 @@ function drawTFEnding() {
         ctx.fillText(nd.label, nx, ny + 4 * sc_);
         ctx.shadowBlur  = 0;
 
-        // Corrupted X
         if (nd.corrupted) {
           ctx.globalAlpha = 0.7;
           ctx.font      = `bold ${Math.round(22 * sc_)}px monospace`;
@@ -169,7 +156,6 @@ function drawTFEnding() {
           ctx.fillText('✕', nx, ny + 8 * sc_);
         }
 
-        // Proximity ring for hero
         const dx = nd.x - sc.crHeroX, dy = nd.y - sc.crHeroY;
         const dist = Math.sqrt(dx*dx+dy*dy);
         if (!nd.corrupted && dist < 80) {
@@ -182,14 +168,12 @@ function drawTFEnding() {
         }
       }
 
-      // Rift counter
       ctx.globalAlpha = 0.75;
       ctx.font      = `${Math.round(10 * sc_)}px monospace`;
       ctx.textAlign = 'left';
       ctx.fillStyle = '#cc66ff';
       ctx.fillText(`RIFTS SEALED: ${sc.nodesCorrupted}/5`, 14 * scX, 18 * scY);
 
-      // Instruction
       if (sc.nodesCorrupted < 5) {
         ctx.globalAlpha = 0.6 + Math.sin(sc.timer * 0.12) * 0.3;
         ctx.font      = `${Math.round(9 * sc_)}px monospace`;
@@ -206,7 +190,6 @@ function drawTFEnding() {
         ctx.shadowBlur = 0;
       }
 
-      // Hero stickman in coderealm
       const hsx = sc.crHeroX * scX, hsy = sc.crHeroY * scY;
       ctx.globalAlpha = 1.0;
       const s = 16 * sc_;
@@ -223,7 +206,6 @@ function drawTFEnding() {
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Flash on node corruption
       if (sc.crFlashTimer > 0) {
         ctx.globalAlpha = (sc.crFlashTimer / 20) * 0.38;
         ctx.fillStyle = '#cc66ff';
@@ -232,17 +214,15 @@ function drawTFEnding() {
     }
   }
 
-  // ── RETURN: dimensional tear entry ─────────────────────────────────────────
+  // Return
   if (sc.phase === 'return') {
     const hsx = GAME_W/2 * scX, hsy = sc.returnY * scY;
-    // Tear effect at top
     ctx.globalAlpha = 0.7;
     const grd = ctx.createRadialGradient(hsx, 0, 0, hsx, 0, 80*scY);
     grd.addColorStop(0, 'rgba(100,0,200,0.8)');
     grd.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = grd; ctx.fillRect(0, 0, cw, 120*scY);
 
-    // Falling hero
     ctx.globalAlpha = 1;
     const s = 16 * sc_;
     ctx.strokeStyle = sc.hero.color || '#3399ff';
@@ -250,7 +230,6 @@ function drawTFEnding() {
     ctx.beginPath(); ctx.moveTo(hsx, hsy - s*1.4); ctx.lineTo(hsx, hsy + s*0.3); ctx.stroke();
     ctx.beginPath(); ctx.arc(hsx, hsy - s*1.9, s*0.45, 0, Math.PI*2);
     ctx.fillStyle = sc.hero.color || '#3399ff'; ctx.fill(); ctx.stroke();
-    // Arms raised (falling pose)
     ctx.beginPath(); ctx.moveTo(hsx - s*1.0, hsy - s*1.0); ctx.lineTo(hsx + s*1.0, hsy - s*1.0); ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(hsx, hsy + s*0.3); ctx.lineTo(hsx - s*0.6, hsy + s*1.4);
@@ -258,11 +237,10 @@ function drawTFEnding() {
     ctx.stroke();
   }
 
-  // ── FINISHER QTE ─────────────────────────────────────────────────────────────
+  // Finisher QTE
   if (sc.phase === 'finisher') {
     const neededHits = 3;
 
-    // Boss ragdoll draw (manual, detached from normal draw)
     if (sc.finisherBossAlpha > 0) {
       const bsx = sc.finisherBossX * scX, bsy = sc.finisherBossY * scY;
       const bs = 20 * sc_;
@@ -284,7 +262,6 @@ function drawTFEnding() {
       ctx.restore();
     }
 
-    // QTE prompt
     if (sc.finisherPrompt > 0 && sc.finisherHits < neededHits) {
       const promptIdx = sc.finisherHits;
       const pulse = 0.75 + Math.sin(sc.timer * 0.22) * 0.25;
@@ -297,7 +274,6 @@ function drawTFEnding() {
       ctx.fillText(_TFE_QTE_PROMPTS[promptIdx] || '[ ATTACK ]', cw/2, ch * 0.84);
       ctx.shadowBlur  = 0;
 
-      // Hit counter dots
       for (let i = 0; i < neededHits; i++) {
         const filled = i < sc.finisherHits;
         const dotX = cw/2 + (i - 1) * 28 * sc_;
@@ -312,7 +288,6 @@ function drawTFEnding() {
       }
     }
 
-    // Hit flash
     if (sc.finisherFlash > 0) {
       ctx.globalAlpha = (sc.finisherFlash / 22) * 0.45;
       ctx.fillStyle   = '#ffffff';
@@ -320,12 +295,11 @@ function drawTFEnding() {
     }
   }
 
-  // ── RESONANCE pulse — flickering, distorted, imprecise ──────────────────────
+  // Resonance
   if (sc.phase === 'aura') {
     const ax  = sc.auraX * scX, ay = sc.auraY * scY;
     const r   = 28 * sc_;
     const flk = sc._resonanceFlicker !== undefined ? sc._resonanceFlicker : 1;
-    // Outer glow: flickers between void-purple and near-black
     const pulse = (1 + Math.sin(sc.timer * 0.28) * 0.14) * flk;
     ctx.globalAlpha = 0.82 * flk;
     const grd = ctx.createRadialGradient(ax, ay, 0, ax, ay, r * 3.0 * pulse);
@@ -336,7 +310,6 @@ function drawTFEnding() {
     ctx.fillStyle = grd;
     ctx.beginPath(); ctx.arc(ax, ay, r * 3.0 * pulse, 0, Math.PI*2); ctx.fill();
 
-    // Core: flickering dark orb with unstable purple rim
     ctx.globalAlpha = 0.92 * flk;
     ctx.fillStyle   = '#0a000f';
     ctx.shadowColor = flk > 0.6 ? '#8800ff' : '#330044';
@@ -344,7 +317,6 @@ function drawTFEnding() {
     ctx.beginPath(); ctx.arc(ax, ay, r * pulse, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur  = 0;
 
-    // Particles: scattered, erratic — not streaming
     for (const ap of _tfeAuraParticles) {
       const pAlpha = (ap.life / ap.maxLife) * 0.75 * flk;
       ctx.globalAlpha = pAlpha;
@@ -354,9 +326,9 @@ function drawTFEnding() {
     }
   }
 
-  // ── SOVEREIGN ARRIVAL + KERNEL THEFT ─────────────────────────────────────────
+  // Sovereign arrival
   if (sc.phase === 'kernelFlight') {
-    // Kernel orb — visible only until Sovereign extracts it (sc._kfAlpha = 0 after t=25)
+    // Hidden after t=25, when Sovereign takes it
     if (sc._kfAlpha > 0 && sc._kfX !== undefined) {
       const kx = sc._kfX * scX, ky = sc._kfY * scY;
       const kr = (sc._kfR || 12) * sc_;
@@ -378,7 +350,6 @@ function drawTFEnding() {
       ctx.fillText('THE KERNEL', kx, ky - kr * 2.2 - 4 * sc_);
     }
 
-    // Sovereign silhouette — dark figure with indigo rim, drops from above
     if (sc._sovAlpha > 0 && sc._sovX !== undefined) {
       const sx  = sc._sovX * scX;
       const sy  = sc._sovY * scY;
@@ -386,7 +357,6 @@ function drawTFEnding() {
       const hr  = 7  * sc_;                // head radius
       ctx.globalAlpha = sc._sovAlpha;
 
-      // Indigo glow halo
       const halo = ctx.createRadialGradient(sx, sy, 0, sx, sy, 50 * sc_);
       halo.addColorStop(0,   'rgba(40,0,100,0.55)');
       halo.addColorStop(0.5, 'rgba(20,0,60,0.25)');
@@ -394,22 +364,19 @@ function drawTFEnding() {
       ctx.fillStyle = halo;
       ctx.beginPath(); ctx.arc(sx, sy, 50 * sc_, 0, Math.PI*2); ctx.fill();
 
-      // Body silhouette — near-black with sharp indigo stroke
       ctx.fillStyle   = '#05000a';
       ctx.strokeStyle = '#5500cc';
       ctx.lineWidth   = 1.5 * sc_;
-      // Head
       ctx.shadowColor = '#7722ff'; ctx.shadowBlur = 10 * sc_;
       ctx.beginPath(); ctx.arc(sx, sy - sh * 0.5 - hr, hr, 0, Math.PI*2);
       ctx.fill(); ctx.stroke();
-      // Body
       ctx.beginPath();
       ctx.rect(sx - sw * 0.5, sy - sh * 0.5, sw, sh);
       ctx.fill(); ctx.stroke();
       ctx.shadowBlur = 0;
     }
 
-    // Dialogue — starts after Sovereign is gone (t > 60)
+    // Starts after Sovereign leaves (t > 60)
     if (sc._kfLine !== undefined && sc.timer > 60) {
       const _kfLines = [
         { speaker: 'KAEL', text: 'He stopped.', side: 'left',  color: '#aaddff' },
@@ -444,7 +411,7 @@ function drawTFEnding() {
     }
   }
 
-  // ── Hero aura glow (powers + fall) ────────────────────────────────────────────
+  // Hero aura
   if (sc.hero._tfAuraGlow && (sc.phase === 'powers' || sc.phase === 'fall')) {
     const hsx = sc.hero.cx() * scX, hsy = sc.hero.cy() * scY;
     const glowR = 55 * sc_ * (1 + Math.sin(sc.timer * 0.12) * 0.15);
@@ -457,7 +424,7 @@ function drawTFEnding() {
     ctx.beginPath(); ctx.arc(hsx, hsy, glowR, 0, Math.PI*2); ctx.fill();
   }
 
-  // ── POWERS panel ─────────────────────────────────────────────────────────────
+  // Powers panel
   if (sc.phase === 'powers' && sc.powersAlpha > 0) {
     ctx.globalAlpha = sc.powersAlpha;
     ctx.fillStyle   = 'rgba(0,0,10,0.78)';
@@ -495,14 +462,14 @@ function drawTFEnding() {
     }
   }
 
-  // ── FALL alpha ─────────────────────────────────────────────────────────────────
+  // Fall alpha
   if (sc.phase === 'fall') {
     ctx.globalAlpha = 1 - sc.heroFallAlpha;
     ctx.fillStyle   = '#000000';
     ctx.fillRect(0, 0, cw, ch);
   }
 
-  // ── FADEOUT ───────────────────────────────────────────────────────────────────
+  // Fadeout
   if (sc.phase === 'fadeout') {
     const frac = Math.min(1, sc.timer / 70);
     ctx.globalAlpha = frac;
@@ -515,7 +482,7 @@ function drawTFEnding() {
   ctx.restore();
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────────
+// Utilities
 function _roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);

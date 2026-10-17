@@ -34,7 +34,7 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 3000, name: 'Relic Knight',    weaponKey: 'spear',  classKey: 'warrior', aiDiff: 'expert', color: '#aa9977', armor: ['helmet', 'chestplate'] },
       { wx: 3400, name: 'Dust Wraith',     weaponKey: 'sword',  classKey: 'ninja',   aiDiff: 'expert', color: '#665544' },
       { wx: 3800, name: 'Keeper',          weaponKey: 'hammer', classKey: 'thor',    aiDiff: 'expert', color: '#998844', armor: ['helmet', 'chestplate', 'leggings'] },
-      // Diagram guardians — hold the fracture diagram location
+      // Guardians hold the fracture diagram location
       { wx: 4300, name: 'Diagram Sentinel', weaponKey: 'axe',   classKey: 'thor',    aiDiff: 'expert', color: '#776644', isGuard: true, health: 140, armor: ['helmet', 'chestplate'] },
       { wx: 4380, name: 'Vault Warden',     weaponKey: 'hammer',classKey: 'warrior', aiDiff: 'expert', color: '#887755', isGuard: true, health: 120, armor: ['helmet', 'chestplate', 'leggings'] },
       { wx: 4450, name: 'Last Keeper',      weaponKey: 'spear', classKey: 'ninja',   aiDiff: 'expert', color: '#665533', isGuard: true, health: 100 },
@@ -44,11 +44,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The fracture diagram. Not a physical object — a transfer of knowledge. You understand it immediately. The closure protocol. Three steps. The third step you already knew.',
   },
 
-  // ───────────────────────────────────────────────────────────────
-  // CHAPTER V — UNRAVELING
-  // Setting: back to the core — executing the closure protocol.
-  // Mechanics: escalating distortion, staggered elite fights.
-  // ───────────────────────────────────────────────────────────────
+  // Chapter V: Unraveling. Closure protocol, escalating distortion, staggered elites.
 
   {
     id: 47, title: 'The Last Army',
@@ -129,11 +125,8 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'They dissolve slowly. Not in violence — in the quiet way of something that has been half-gone for a long time finally finishing the journey. The rift core opens. The rift entity stands at the center. "One more thing before the protocol," it says. "There is something beyond the rift. Something that has been watching." It looks at you. "The Creator of the fracture system. It built the system you have been moving through. It designed the process that emptied the one who just dissolved — the extraction, the hollowing, the fragment pulled free. And it already knows your name." A long silence. "You will meet it. But not today." The core hums. "Today, we close this."',
   },
 
-  // ══════════════════════════════════════════════════════════════════
-  // ACT IV — THE ARCHITECTS' WAR (ids 45–60)
-  // The Architects convene. A betrayal reshapes everything.
-  // ══════════════════════════════════════════════════════════════════
+  // Act IV: The Architects' War (ids 45-60). A betrayal reshapes everything.
 
-  // ─────── Arc 3-0: The Assembly (ids 45–51) ────────────────────────
+  // Arc 3-0: The Assembly (ids 45-51)
 
 );

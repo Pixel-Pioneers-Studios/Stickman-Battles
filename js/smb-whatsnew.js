@@ -1,19 +1,7 @@
 'use strict';
-// smb-whatsnew.js — "test the latest update" panel.  F6, or whatsNew() in console.
-//
-// Reads the manifest written by tools/whatsnew/gen.js (js/smb-whatsnew-data.js)
-// and offers a one-click jump into every part of the game that update actually
-// changed — nothing else. Regenerate the manifest after each update:
-//
-//     npm run whatsnew
-//
-// Loaded LAST, defines only window.whatsNew / _whatsNewToggle, and every hook it
-// calls is guarded. If the manifest is missing the panel says so and does nothing
-// else; it must never be able to affect a normal play session.
-//
-// The jump hooks live in smb-debug-jump.js and gate on `debugMode`, so the panel
-// sets it before calling them — same as opening the F8 menu would. Note that is a
-// bare assignment, not window.debugMode; see the comment at the assignment.
+// smb-whatsnew.js: the "test the latest update" panel (F6, or whatsNew() in console).
+// Manifest comes from tools/whatsnew/gen.js (npm run whatsnew). Loads last.
+// Jump hooks gate on `debugMode`, a lexical `let`, so set it bare, not via window.
 
 (function () {
 
@@ -27,21 +15,13 @@
     });
   }
 
-  // ── Running a target ───────────────────────────────────────────────────────
   function run(kind, arg) {
     try {
-      // The jump hooks gate on `debugMode`, which smb-globals.js declares with
-      // `let` — so it is a LEXICAL global, and `window.debugMode = true` sets a
-      // different variable entirely. Classic scripts share one global lexical
-      // scope, so a bare assignment reaches the real binding.
+      // debugMode is a `let` in smb-globals.js, so a bare assignment reaches it.
       try { if (typeof debugMode !== 'undefined') debugMode = true; } catch (e) {}
-      // The Tuesday prologue plays once per profile and would sit in front of the
-      // very thing you opened this panel to look at. Mark it seen — this is a
-      // test jump, not a first play.
+      // Mark the Tuesday prologue seen so it doesn't cover the thing being tested.
       try { localStorage.setItem('smb_tuesday_seen', '1'); } catch (e) {}
-      // Same for the story "seam" prologue, which fires the first time Story is
-      // opened on a save. Harmless on a played profile (already true); it keeps
-      // the jump deterministic on a fresh one.
+      // Same for the story seam prologue.
       try { if (typeof _story2 !== 'undefined' && _story2) _story2.prologueSeen = true; } catch (e) {}
       close();
       switch (kind) {
@@ -62,8 +42,7 @@
           }
           break;
         case 'domain':
-          // _devPreviewDomain needs a live fighter, so route through the same
-          // auto-launch the F8 cinematic viewer uses rather than calling it cold.
+          // Use the F8 viewer's auto-launch, since _devPreviewDomain needs a live fighter.
           if (typeof _cinViewerLaunch === 'function' && typeof _devPreviewDomain === 'function') {
             return _cinViewerLaunch('vs', function () { _devPreviewDomain(arg || 'thor'); }, 800);
           }
@@ -78,8 +57,7 @@
     }
   }
 
-  // A finisher needs a live match and two fighters, so start one, then force a
-  // def on the next frame once players[] exists.
+  // Finishers need a live match with two fighters, so force the def on the next frame.
   function _runFinisherPreview() {
     if (typeof selectMode !== 'function' || typeof startGame !== 'function') return;
     selectMode('vs');
@@ -107,7 +85,6 @@
     if (window.console) console.log('[whatsnew] ' + msg);
   }
 
-  // ── Panel ──────────────────────────────────────────────────────────────────
   function close() {
     var el = document.getElementById(PANEL_ID);
     if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -131,7 +108,7 @@
       'width:min(780px,92vw)', 'max-height:86vh', 'overflow:auto',
       'background:#0d1018', 'border:1px solid #2b3550', 'border-radius:12px',
       'box-shadow:0 18px 60px rgba(0,0,0,0.65)', 'padding:18px 20px', 'color:#dbe4f5',
-      'text-align:left'   // the page centres text; the panel must not inherit that
+      'text-align:left'   // reset: the page centres text
     ].join(';');
 
     if (!d) {
@@ -147,8 +124,7 @@
     var groups = {};
     (d.targets || []).forEach(function (t) { (groups[t.kind] = groups[t.kind] || []).push(t); });
 
-    // Pairs, not an object literal: a `arena: '...'` key reads to the audit's
-    // unknown-key rule as a reference to an ARENAS entry, which it is not.
+    // Pairs, not an object literal: an `arena:` key looks like an ARENAS reference to the audit.
     var GROUPS = [
       ['boss', 'Bosses'], ['mode', 'Modes'], ['match', 'Core combat'],
       ['finisher', 'Finishers'], ['domain', 'Domains'],

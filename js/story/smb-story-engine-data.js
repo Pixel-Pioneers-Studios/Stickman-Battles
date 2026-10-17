@@ -1,13 +1,7 @@
 'use strict';
-// smb-story-engine-data.js — Story chapter expansion helpers + current chapter state vars + UI icon helpers
-// Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
+// Story chapter expansion helpers and current-chapter state.
+// Depends on smb-globals.js, smb-story-registry.js and the arc files.
 
-// smb-story-engine.js
-// Story mode engine: fight progression, chapter launch, event system, UI, exploration, drawing.
-// Depends on: smb-story-config.js, smb-story-registry.js, smb-globals.js
-// Must load: AFTER smb-story-config.js and all arc files, BEFORE smb-story-finalize.js
-
-// ── Act / Arc structure (read-only descriptor over STORY_CHAPTERS2 indices) ───
 
 function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens, numPhases) {
   const phaseCh = {
@@ -15,7 +9,7 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
     title:       origCh.title + (numPhases > 1 ? ' — ' + (phase.label || _storyPhaseName(phase.type)) : ''),
     world:       origCh.world,
     narrative:   isFirst ? (origCh.narrative || []) : [],
-    // Saga cold open rides with the narrative it prepends (see _sagaChapterNarrative).
+    // Saga cold open rides with its narrative (see _sagaChapterNarrative).
     sagaColdOpen: isFirst ? (origCh.sagaColdOpen || null) : null,
     preText:     phase.label || _storyPhaseName(phase.type),
     fightScript: isFirst ? (origCh.fightScript || []) : [],
@@ -26,7 +20,7 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
     arena:       phase.arena || origCh.arena,
     blueprintDrop: isFinal ? (origCh.blueprintDrop || null) : null,
     storeNag:    isFinal ? (origCh.storeNag || null) : null,
-    _origId:     origCh.id,   // original chapter ID for difficulty scaling
+    _origId:     origCh.id,
     _phaseType:  phase.type,
     _phaseFinal: isFinal,
   };
@@ -41,7 +35,6 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
     phaseCh.groundColor  = origCh.groundColor;
     phaseCh.platColor    = origCh.platColor;
   } else {
-    // Fight phase
     if (Array.isArray(phase.opponents) && phase.opponents.length > 0) {
       const lead           = phase.opponents[0];
       phaseCh.opponentName  = lead.name         || origCh.opponentName  || 'Enemy';
@@ -55,7 +48,7 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
         phaseCh.secondEnemy = phase.opponents[1];
       }
     } else {
-      // Final phase (mini_boss) — use original chapter opponent
+      // mini_boss final phase uses the original opponent
       phaseCh.opponentName  = origCh.opponentName;
       phaseCh.weaponKey     = origCh.weaponKey;
       phaseCh.classKey      = origCh.classKey;
@@ -71,11 +64,9 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
       if (origCh.aaStoryHealth)   phaseCh.aaStoryHealth   = origCh.aaStoryHealth;
       if (origCh.paradoxManifest) phaseCh.paradoxManifest = origCh.paradoxManifest;
     }
-    // Ally fighter accompanies the player through every fight phase of the chapter
+    // Ally fighter goes through every fight phase
     if (origCh.allyDef) phaseCh.allyDef = origCh.allyDef;
-    // Trial fields must survive expansion. A trial chapter takes the stay-intact
-    // branch above so this is a backstop, but dropping them here is exactly how
-    // bossType/type went missing before (v3.9.18) — the failure is silent.
+    // Trial fields must survive expansion. Dropping them fails silently.
     if (origCh.trial)      phaseCh.trial      = origCh.trial;
     if (origCh.playerCaps) phaseCh.playerCaps = origCh.playerCaps;
   }
@@ -83,11 +74,9 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
 }
 
 function _expandStoryChaptersInPlace() {
-  // Take a snapshot of the original 80 chapters
   const origList = STORY_CHAPTERS2.slice();
   const expanded = [];
-  // Track new ID range for each original chapter (for act structure rebuild)
-  const origToNewRange = {}; // origId → { start, end }
+  const origToNewRange = {};
 
   for (const origCh of origList) {
     const rangeStart = expanded.length;
@@ -99,18 +88,13 @@ function _expandStoryChaptersInPlace() {
         || origCh.trial
         || origCh.isBossFight || origCh.isTrueFormFight || origCh.isSovereignFight || origCh.isAbsoluteAxiomFight || origCh.isGodFight
         || origCh.walkFight) {
-      // Special-mode chapters stay single & intact so their type + mode data
-      // (assassinationTimer, gauntletRounds, escortNPC, shipFlight) survive to
-      // reach the real mode engine instead of collapsing to a plain duel.
-      // noFight / epilogue / damnation / exploration chapters stay as single
-      // chapters. Exploration is kept intact (not collapsed to a duel) so its
-      // authored data — exploreMode, stealthGuardDefs, puzzleSwitches,
-      // spawnEnemies, worldLength, sky — survives to reach the real mode engine.
+      // Special-mode, noFight, epilogue, damnation and exploration chapters stay whole.
+      // Collapsing them to a duel would lose their mode data.
       expanded.push({ ...origCh, id: expanded.length });
     } else {
-      // Build phases using the original chapter's id for difficulty scaling
+      // Phases use the original id for difficulty scaling
       const phaseSrc = { ...origCh }; // don't mutate origCh
-      delete phaseSrc.phases;         // force rebuild
+      delete phaseSrc.phases;
       const phases   = _storyBuildPhases(phaseSrc);
       const n        = phases.length;
       const tok      = origCh.tokenReward || 0;
@@ -118,10 +102,10 @@ function _expandStoryChaptersInPlace() {
       phases.forEach((phase, pi) => {
         expanded.push(_phaseToChapter(
           origCh, phase,
-          expanded.length,   // new sequential id
+          expanded.length,
           pi,
-          pi === 0,          // isFirst
-          pi === n - 1,      // isFinal
+          pi === 0,
+          pi === n - 1,
           tok,
           n,
         ));
@@ -131,11 +115,10 @@ function _expandStoryChaptersInPlace() {
     origToNewRange[origCh.id] = { start: rangeStart, end: expanded.length - 1 };
   }
 
-  // Mutate STORY_CHAPTERS2 in place (it's a const array)
+  // In place: the array is const
   STORY_CHAPTERS2.length = 0;
   for (const ch of expanded) STORY_CHAPTERS2.push(ch);
 
-  // Rebuild STORY_ACT_STRUCTURE chapterRanges with new IDs
   for (const act of STORY_ACT_STRUCTURE) {
     for (const arc of act.arcs) {
       const [origStart, origEnd] = arc.chapterRange;
@@ -149,6 +132,5 @@ function _expandStoryChaptersInPlace() {
 // Run expansion immediately after both arrays are defined
 
 
-// ── Current chapter state for a fight in progress ─────────────────────────────
-let _activeStory2Chapter = null;  // set when launching a chapter fight
+let _activeStory2Chapter = null;
 

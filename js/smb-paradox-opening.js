@@ -1,14 +1,11 @@
 'use strict';
-// smb-paradox-opening.js — TF opening fight cinematic (startTFOpeningFight, updateTFOpeningFight)
+// smb-paradox-opening.js: TF opening fight cinematic (startTFOpeningFight, updateTFOpeningFight)
 // Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
 
-// ============================================================
-// OPENING FIGHT  — player + Paradox fight TF together (fully scripted cinematic)
-// Called from TrueForm.updateAI() on first tick.
-// Player has NO control. TF cannot attack. Everything is driven by a GSAP timeline
-// for phase events/dialogue; per-frame movement handled in updateTFOpeningFight().
-// ============================================================
-let _tfOpeningGSAPTL = null; // active GSAP timeline for this cinematic
+// TF opening fight: player and Paradox fight TF in a fully scripted cinematic.
+// GSAP drives phase events and dialogue, and updateTFOpeningFight() moves everyone per frame.
+// Called from TrueForm.updateAI() on the first tick. The player has no control and TF can't attack.
+let _tfOpeningGSAPTL = null; // active GSAP timeline
 
 function startTFOpeningFight(tf) {
   if (tfOpeningFightActive) return;
@@ -25,12 +22,12 @@ function startTFOpeningFight(tf) {
   _tfOpeningFreeFrames      = 300; // 5 seconds of free player control at start
   _tfOpeningTFStartHealth   = tf ? tf.health : 10000;
 
-  // Player is INVINCIBLE throughout but retains full control for the first 5 seconds.
-  // Input lock kicks in at _tfOpeningFreeFrames === 0 (see processInput + updateTFOpeningFight).
+  // Player is invincible throughout. Input locks when _tfOpeningFreeFrames hits 0
+  // (see processInput and updateTFOpeningFight).
   if (typeof players !== 'undefined') {
     for (const p of players) {
       if (!p.isBoss) {
-        p.invincible = 99999; // god-mode — TF cannot hurt the player during this cinematic
+        p.invincible = 99999; // TF can't hurt the player here
       }
     }
   }
@@ -38,7 +35,7 @@ function startTFOpeningFight(tf) {
   spawnParadox(155, GAME_H - 190);
   if (paradoxEntity) paradoxEntity.facing = 1;
 
-  // ── GSAP Timeline: schedule all phase/dialogue/camera events ──────────────
+  // GSAP timeline: phase, dialogue and camera events
   if (typeof gsap !== 'undefined') {
     if (_tfOpeningGSAPTL) _tfOpeningGSAPTL.kill();
 
@@ -60,7 +57,7 @@ function startTFOpeningFight(tf) {
       cinematicFocusY      = GAME_H / 2 - 20;
     });
 
-    // t=3s: phase 1 (250 dmg equiv) — Paradox closes in
+    // t=3s: phase 1 (250 dmg equiv). Paradox closes in.
     _tfOpeningGSAPTL.call(() => {
       if (!tfOpeningFightActive) return; // stale callback after quit/restart
       _tfOpeningPhase = 1;
@@ -69,7 +66,7 @@ function startTFOpeningFight(tf) {
         showBossDialogue('Persistent.', 200);
     }, [], 3);
 
-    // t=6s: phase 2 (650 dmg equiv) — climax
+    // t=6s: phase 2 (650 dmg equiv): climax
     _tfOpeningGSAPTL.call(() => {
       if (!tfOpeningFightActive) return; // stale callback after quit/restart
       _tfOpeningPhase = 2;
@@ -81,8 +78,7 @@ function startTFOpeningFight(tf) {
       cinematicZoomTarget = 1.3;
     }, [], 6);
 
-    // t=9s: threshold reached — pin TF HP to exactly 1000 below its start value,
-    // then hand off to the kicks-paradox-out cinematic.
+    // t=9s: threshold. Pin TF HP to exactly 1000 below its start, then hand off to the kicks-out cinematic.
     _tfOpeningGSAPTL.call(() => {
       if (!tfOpeningFightActive) return;
       const _tf9 = _tfOpeningTFRef;
@@ -110,26 +106,26 @@ function updateTFOpeningFight() {
   const tf = _tfOpeningTFRef;
   if (!tf || tf.health <= 0) return;
 
-  // ── Free period: player can move/attack for first 2 seconds ──────────────
+  // Free period: player has control (see _tfOpeningFreeFrames)
   if (_tfOpeningFreeFrames > 0) {
     _tfOpeningFreeFrames--;
     // Track any damage the player freely deals during this window
     const freedmg = Math.max(0, _tfOpeningTFStartHealth - tf.health);
     tfOpeningDamageDealt = freedmg;
-    // Prevent TF from retaliating — keep it locked during free phase
+    // Prevent TF from retaliating: keep it locked during free phase
     tf.attackTimer = Math.max(tf.attackTimer, 1);
     if (paradoxEntity) paradoxEntity.update();
     return; // skip scripted section entirely while player has control
   }
 
-  // ── Scripted phase begins: lock player movement to zero ──────────────────
+  // Scripted phase: player movement locked to zero
   if (typeof players !== 'undefined') {
     for (const p of players) {
       if (!p.isBoss) { p.vx = 0; p.invincible = Math.max(p.invincible, 9999); }
     }
   }
 
-  // ── Phase speed/cadence (phase index set by GSAP timeline, not damage count) ─
+  // Phase speed and cadence, set by the GSAP timeline
   // Speed multipliers per phase
   const paradoxSpeed  = [4.5, 5.5, 6.5][_tfOpeningPhase];
   const paradoxCdBase = [90,  58,  34][_tfOpeningPhase];
@@ -142,7 +138,7 @@ function updateTFOpeningFight() {
   }
   if (paradoxEntity) paradoxEntity.update();
 
-  // ── Hero scripted behaviour ────────────────────────────────────────────────
+  // Hero scripted behaviour
   const hero = players && players.find(p => !p.isBoss && !p.isRemote);
   if (hero) {
     const hdx = tf.cx() - hero.cx();
@@ -174,7 +170,7 @@ function updateTFOpeningFight() {
     _tfOpeningHeroAtkCd--;
     if (_tfOpeningHeroAtkCd <= 0) {
       if (Math.abs(hdx) >= 95 || hero.attackTimer > 0) {
-        // Not in range yet — hold ready (check again next frame)
+        // Not in range yet: hold ready (check again next frame)
         _tfOpeningHeroAtkCd = 1;
       } else {
         _tfOpeningHeroAtkCd = heroCdBase + Math.floor(Math.random() * 30);
@@ -206,11 +202,11 @@ function updateTFOpeningFight() {
     }
   }
 
-  // ── Paradox attack on TF ──────────────────────────────────────────────────
+  // Paradox attack on TF
   if (paradoxEntity) {
     const pdx = tf.cx() - paradoxEntity.cx();
 
-    // Smoothed velocity movement — lerp toward target speed to prevent jitter
+    // Smoothed velocity movement: lerp toward target speed to prevent jitter
     const targetVx = Math.abs(pdx) > 55 ? Math.sign(pdx) * paradoxSpeed : 0;
     _paradoxVx += (targetVx - _paradoxVx) * 0.2;
     if (Math.abs(_paradoxVx) > 0.1) {
@@ -221,7 +217,7 @@ function updateTFOpeningFight() {
     _tfOpeningParadoxAtkCd--;
     if (_tfOpeningParadoxAtkCd <= 0) {
       if (Math.abs(pdx) >= 130) {
-        // Not in range — hold ready, check next frame
+        // Not in range: hold ready, check next frame
         _tfOpeningParadoxAtkCd = 1;
       } else {
         _tfOpeningParadoxAtkCd = paradoxCdBase + Math.floor(Math.random() * 25);
@@ -248,8 +244,8 @@ function updateTFOpeningFight() {
     }
   }
 
-  // When threshold reached: TF teleports behind Paradox and punches them out of the stage.
-  // Fight then continues normally; Paradox returns later at 1000 HP.
+  // At the threshold TF teleports behind Paradox and punches them out. The fight continues,
+  // and Paradox returns later at 1000 HP.
   if (tfOpeningDamageDealt >= TF_OPENING_DAMAGE_THRESHOLD) {
     tfOpeningFightActive = false;
     _tfOpeningTFRef      = null;

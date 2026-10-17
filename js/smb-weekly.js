@@ -1,27 +1,18 @@
 'use strict';
-// smb-weekly.js — Weekly Challenge: a three-fight gauntlet that changes every Monday
-// -------------------------------------------------------
-// Unlocked by clearing the Fight Ladder, and takes over the ladder's hero card
-// on the home screen from then on. Every player gets the same week: the kit
-// you must fight with, the three opponents and the week's twist are all rolled
-// from the week number, so friends are racing the same gauntlet. The run is
-// timed; your best time for the week is shown to friends (smb-friends.js).
-//
-// The fights themselves are ladder matches: this file only builds the rung
-// definitions and keeps the week's progress. smb-ladder.js runs the match and
-// calls back into onResult().
-//
-// Depends on: smb-ladder.js (startLadderRung, getLadderCleared, LADDER_RUNGS)
-// Reads at call time: WEAPONS, CLASSES, FriendsManager
-// -------------------------------------------------------
+// smb-weekly.js: Weekly Challenge, a three-fight gauntlet that changes every Monday.
+// Unlocked by clearing the Fight Ladder. Everyone gets the same week (kit,
+// opponents, twist), all rolled from the week number. Best time is shared with friends.
+// Fights are ladder matches: smb-ladder.js runs them and calls onResult().
+// Depends on smb-ladder.js (startLadderRung, getLadderCleared, LADDER_RUNGS).
+// Reads WEAPONS, CLASSES and FriendsManager at call time.
 
 const WeeklyChallenge = (() => {
   const WEEK_MS = 7 * 24 * 3600 * 1000;
-  const MONDAY_OFFSET = 4 * 24 * 3600 * 1000;   // 1 Jan 1970 was a Thursday; weeks turn over Monday 00:00 UTC
+  const MONDAY_OFFSET = 4 * 24 * 3600 * 1000;   // epoch is a Thursday; weeks start Monday 00:00 UTC
   const STAGES = 3;
   const STAGE_COINS = 25, CLEAR_BONUS = 150, RERUN_COINS = 10, LOSS_COINS = 3;
 
-  // Fixed pools, so a week reads the same for everyone on every build.
+  // Fixed pools, so every build rolls the same week.
   const KIT_WEAPONS = ['sword', 'hammer', 'axe', 'spear', 'scythe', 'fryingpan', 'broomstick', 'combat', 'flail',
     'whip', 'katana', 'electricstaff', 'glassblade', 'anchor', 'bow', 'boomerang', 'knives', 'crossbow'];
   const KIT_CLASSES = ['warrior', 'thor', 'kratos', 'ninja', 'archer', 'paladin', 'berserker', 'pugilist', 'ronin',
@@ -53,7 +44,7 @@ const WeeklyChallenge = (() => {
   function _wName(k) { return (typeof WEAPONS !== 'undefined' && WEAPONS[k] && WEAPONS[k].name) || k; }
   function _cName(k) { return (typeof CLASSES !== 'undefined' && CLASSES[k] && CLASSES[k].name) || k; }
 
-  // A class that is built around one weapon brings it; the rest take any.
+  // Weapon-bound classes bring their weapon, the rest take any.
   function _loadout(rand, used) {
     const classes = KIT_CLASSES.filter(k => (typeof CLASSES === 'undefined' || CLASSES[k]) && !(used && used[k]));
     const weapons = KIT_WEAPONS.filter(k => typeof WEAPONS === 'undefined' || WEAPONS[k]);
@@ -64,11 +55,11 @@ const WeeklyChallenge = (() => {
     return { cls, weapon: (own && (typeof WEAPONS === 'undefined' || WEAPONS[own])) ? own : roll };
   }
 
-  /** This week's gauntlet. Same result for every player in the same week. */
+  /** This week's gauntlet. Same for every player. */
   function def(wk) {
     wk = wk === undefined ? week() : wk;
     const rand = _rng(wk);
-    const used = {};               // no class twice in one week: kit and opponents all differ
+    const used = {};               // no class twice in a week
     const kit = _loadout(rand, used);
     const twist = TWISTS[Math.floor(rand() * TWISTS.length)];
     const stages = [];
@@ -84,7 +75,6 @@ const WeeklyChallenge = (() => {
     return { wk, kit, twist, stages, title: _cName(kit.cls) + ' + ' + _wName(kit.weapon) };
   }
 
-  // ── Progress (per account, per week) ──────────────────────────────────────
   function _read() {
     let s = null;
     try {
@@ -119,7 +109,6 @@ const WeeklyChallenge = (() => {
     return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0');
   }
 
-  // ── Fights ────────────────────────────────────────────────────────────────
   /** Start the next stage of this week's run (or a fresh run once it is cleared). */
   function fight() {
     if (!unlocked() || typeof startLadderRung !== 'function') return;
@@ -138,10 +127,7 @@ const WeeklyChallenge = (() => {
     });
   }
 
-  /**
-   * A weekly fight ended. Returns what the ladder's result card should say:
-   * { coins, head, sub, next, go }.
-   */
+  /** A weekly fight ended. Returns the ladder result card: { coins, head, sub, next, go }. */
   function onResult(won, ms) {
     const s = _read();
     const d = def();
@@ -190,7 +176,6 @@ const WeeklyChallenge = (() => {
     return h > 0 ? h + 'h ' + Math.floor((ms % 3600000) / 60000) + 'm' : Math.max(1, Math.floor(ms / 60000)) + 'm';
   }
 
-  // Fastest friend this week, for the card: something to chase.
   function _friendBest() {
     if (!window.FriendsManager) return null;
     let top = null;
@@ -200,7 +185,6 @@ const WeeklyChallenge = (() => {
     return top;
   }
 
-  // ── Home hub card (the ladder's hero card, once the ladder is beaten) ─────
   function refreshCard() {
     const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
     const s = _read();
@@ -223,6 +207,7 @@ const WeeklyChallenge = (() => {
     set('hubLadderLab', 'STAGES CLEARED');
     set('hubLadderCount', Math.min(STAGES, s.stage) + ' / ' + STAGES);
     set('hubLadderBtn', done ? 'Run Again' : 'Fight');
+    if (typeof hubRungTiles === 'function') hubRungTiles(STAGES, Math.min(STAGES, s.stage), null);
   }
 
   return { week, def, unlocked, best, fmt, fight, onResult, refreshCard, resetsInMs };

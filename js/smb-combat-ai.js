@@ -1,21 +1,13 @@
-// ============================================================
-// smb-combat-ai.js  —  Modular Combat AI
-// Three-class architecture:
-//   CombatSystem   — attack decisions, cooldowns, range
-//   MovementSystem — approach / retreat / dodge / bait
-//   AIController   — utility scoring, action selection
-//   CombatAIFighter — Fighter subclass wiring them together
-//
-// Load order: after smb-pathfinding.js, before smb-enemies.js
+// smb-combat-ai.js: modular combat AI.
+// CombatSystem (attacks), MovementSystem (approach, retreat, dodge, bait),
+// AIController (utility scoring), CombatAIFighter (wires them together).
+// Load order: after smb-pathfinding.js, before smb-enemies-core.js
 // All damage flows through Fighter.attack() → dealDamage().
 // All edge checks use Fighter.isEdgeDanger().
-// ============================================================
 
 'use strict';
 
-// ─────────────────────────────────────────────────────────────
-// Tunable weight table — tweak here without touching logic
-// ─────────────────────────────────────────────────────────────
+// Tunable weights. Tweak here, not in the logic.
 const CAI_WEIGHTS = {
   // Utility base scores (before perception modifiers)
   approach : 0.50,
@@ -36,9 +28,7 @@ const CAI_WEIGHTS = {
   suboptimalChance: 0.12,
 };
 
-// ─────────────────────────────────────────────────────────────
-// Small helpers shared by all three systems
-// ─────────────────────────────────────────────────────────────
+// Helpers shared by all three systems
 
 /** Convert milliseconds to AI frames (≈ 60 fps). */
 function _msToFrames(ms) { return Math.max(1, Math.round(ms / (1000 / 60))); }
@@ -55,16 +45,8 @@ function _noise(score) {
   return score * (1 + _rand(-f, f));
 }
 
-// ─────────────────────────────────────────────────────────────
-// applyAIIntent — single consolidation point
-// ─────────────────────────────────────────────────────────────
-// AI systems write to fighter._aiIntent instead of mutating
-// vx/vy directly.  The game loop (or Fighter.update) calls
-// applyAIIntent(fighter) once per frame to flush the buffer.
-//
-// If _aiIntent is null (AI did not run this tick), physics
-// is left untouched — no stale overwrite.
-// ─────────────────────────────────────────────────────────────
+// applyAIIntent: the one place AI intent becomes velocity.
+// Null intent (AI skipped this tick) leaves physics alone.
 function applyAIIntent(fighter) {
   if (!fighter || !fighter._aiIntent) return;
   const intent = fighter._aiIntent;
@@ -82,14 +64,10 @@ function applyAIIntent(fighter) {
   }
 }
 
-// ═════════════════════════════════════════════════════════════
-// 1.  CombatSystem
-//     Manages attacking: range check, cooldown tracking,
-//     and hit-detection stub (real damage via Fighter.attack).
-// ═════════════════════════════════════════════════════════════
+// CombatSystem: range checks and cooldowns. Damage goes via Fighter.attack.
 class CombatSystem {
   /**
-   * @param {Fighter} owner  — the AI-controlled fighter
+   * @param {Fighter} owner : the AI-controlled fighter
    */
   constructor(owner) {
     this.owner   = owner;
@@ -127,17 +105,15 @@ class CombatSystem {
       this._windupTimer = undefined;
       return false;
     }
-    // First call this decision cycle: start the wind-up countdown
+        // First call: start the wind-up.
     if (this._windupTimer === undefined) {
       this._windupTimer = _msToFrames(_rand(50, 100)); // 3–6 frames ≈ 50–100 ms
       return false;
     }
-    // Still winding up
     if (this._windupTimer > 0) {
       this._windupTimer--;
       return false;
     }
-    // Wind-up complete — fire the swing
     this._windupTimer = undefined;
     this.owner.attack(target);           // uses Fighter.attack → dealDamage
     this.cd = this.owner.cooldown || 28; // sync with weapon cooldown
@@ -158,7 +134,7 @@ class CombatSystem {
   }
 
   /**
-   * Attempt super move — used when meter is full or health is critical.
+   * Attempt super move: used when meter is full or health is critical.
    */
   trySuper(target) {
     if (!this.owner.superReady) return false;
@@ -181,16 +157,11 @@ class CombatSystem {
   }
 }
 
-// ═════════════════════════════════════════════════════════════
-// 2.  MovementSystem
-//     Executes the six movement intentions.
-//     Uses pfGetNextWaypoint (A*) for long-range navigation,
-//     direct velocity for close-range and impulse moves.
-// ═════════════════════════════════════════════════════════════
+// MovementSystem: six movement intentions. A* for long range, direct velocity up close.
 class MovementSystem {
   /**
    * @param {Fighter} owner
-   * @param {object}  cfg   — { speed, approachThreshold, retreatThreshold }
+   * @param {object}  cfg  : { speed, approachThreshold, retreatThreshold }
    */
   constructor(owner, cfg) {
     this.owner = owner;
@@ -220,7 +191,7 @@ class MovementSystem {
     }
   }
 
-  // ── Internal helpers ───────────────────────────────────────
+  // Internal helpers
 
   _safeDir(dir) {
     const o = this.owner;
@@ -245,7 +216,7 @@ class MovementSystem {
 
         // Jump if waypoint requires it
         if (wp.action === 'jump' && o.onGround) {
-          o.vy = -20;
+          o.vy = -(wp.vy || 20);
         } else if (wp.action === 'doubleJump' && o.canDoubleJump && o.vy > -1) {
           o.vy = -17; o.canDoubleJump = false;
         } else if (wp.action === 'drop') {
@@ -255,14 +226,13 @@ class MovementSystem {
       }
     }
 
-    // Direct movement — close range or no graph
+      // Direct movement, close range or no graph
     const safeD = this._safeDir(dir);
     if (safeD !== 0) {
-      // Add tiny zig-zag noise to X movement
       const zigzagOffset = this._zigzagDir * this.spd * 0.06;
       o.vx = safeD * this.spd * (speedScale || 1.0) + zigzagOffset;
     } else {
-      // Edge danger — try jumping over instead
+      // Edge danger: jump over instead.
       if (o.onGround) o.vy = -20;
     }
 
@@ -274,17 +244,17 @@ class MovementSystem {
     }
   }
 
-  // ── Six movement intentions ────────────────────────────────
+  // Movement intentions
 
   /**
-   * approach — move toward target using A* or direct walk.
+   * approach: move toward target using A* or direct walk.
    */
   approach(target) {
     this._moveToward(target, 1.0);
   }
 
   /**
-   * retreat — move away; prefer jumping to a higher platform.
+   * retreat: move away; prefer jumping to a higher platform.
    */
   retreat(target) {
     const o   = this.owner;
@@ -295,7 +265,7 @@ class MovementSystem {
     if (sd !== 0) {
       o.vx = sd * this.spd * 1.1;
     } else {
-      // Cornered — jump straight up
+      // Cornered: jump straight up
       if (o.onGround) o.vy = -22;
     }
 
@@ -304,13 +274,13 @@ class MovementSystem {
   }
 
   /**
-   * dodge — quick impulse away from the incoming attack direction.
+   * dodge: quick impulse away from the incoming attack direction.
    * Perpendicular or backward relative to the player.
    */
   dodge(target) {
     const o   = this.owner;
     const dx  = _dx(o, target);
-    const dir = Math.sign(dx); // direction TOWARD attacker
+    const dir = Math.sign(dx); // direction toward attacker
     const nearLeft  = o.x < 60;
     const nearRight = o.x + o.w > GAME_W - 60;
 
@@ -324,7 +294,7 @@ class MovementSystem {
       // Randomly add a jump to make the dodge less predictable
       if (Math.random() < 0.35) o.vy = -18;
     } else if (o.onGround) {
-      // Cornered — jump toward attacker to pass through
+      // Cornered: jump through toward attacker
       o.vy = -20;
       o.vx = dir * this.spd * 0.7;
     } else if (o.canDoubleJump) {
@@ -333,7 +303,7 @@ class MovementSystem {
   }
 
   /**
-   * bait — step inside attack range, pause, then step back.
+   * bait: step inside attack range, pause, then step back.
    * Phase machine: 'in' → 'hold' → 'out'
    */
   bait(target) {
@@ -352,12 +322,10 @@ class MovementSystem {
 
     switch (this._baitPhase) {
       case 'in':
-        // Move to baitGap distance
         if (d > this._baitGap + 15) {
           const sd = this._safeDir(dir);
           if (sd !== 0) o.vx = sd * this.spd * 0.55;
         } else {
-          // Reached bait position — hold still
           o.vx *= 0.5;
           this._baitPhase = 'hold';
           this._baitTimer = _msToFrames(_rand(180, 360)); // 0.18–0.36 s pause
@@ -365,7 +333,6 @@ class MovementSystem {
         break;
 
       case 'hold':
-        // Stand still — tempting target
         o.vx = 0;
         if (this._baitTimer === 0) {
           this._baitPhase = 'out';
@@ -374,7 +341,6 @@ class MovementSystem {
         break;
 
       case 'out':
-        // Step back out of range
         {
           const sd = this._safeDir(-dir);
           if (sd !== 0) o.vx = sd * this.spd * 0.70;
@@ -387,7 +353,7 @@ class MovementSystem {
     }
   }
 
-  /** Reset bait state — e.g. when interrupted by a dodge. */
+  /** Reset bait state: e.g. when interrupted by a dodge. */
   cancelBait() {
     this._baitPhase    = 'none';
     this._baitTimer    = 0;
@@ -401,10 +367,7 @@ class MovementSystem {
   get canBait() { return this._baitCooldown === 0; }
 }
 
-// ═════════════════════════════════════════════════════════════
-// 3.  AIController  (Utility-based decision engine)
-//     Each frame: score all actions → pick highest → execute.
-// ═════════════════════════════════════════════════════════════
+// AIController: utility-based decisions. Score all actions, pick the highest, execute.
 class AIController {
   /**
    * @param {Fighter}        owner
@@ -434,7 +397,7 @@ class AIController {
     };
   }
 
-  // ── Perception ─────────────────────────────────────────────
+  // Perception
 
   _updatePerception(target) {
     const o = this.owner;
@@ -450,7 +413,7 @@ class AIController {
     p.playerIsAirborne  = !target.onGround;
   }
 
-  // ── Scoring ────────────────────────────────────────────────
+  // Scoring
 
   /**
    * Compute a raw utility score for each action, then add noise.
@@ -465,30 +428,29 @@ class AIController {
 
     const scores = {};
 
-    // approach — high when far away
+    // approach: high when far away
     scores.approach = W.approach * (0.4 + farRatio * 1.6);
 
-    // attack — high when close, higher when target is vulnerable
+    // attack: high when close, more when the target is vulnerable
     scores.attack = W.attack * (closeRatio * 1.5) *
                     (this.combat.targetIsVulnerable(target) ? 1.8 : 1.0);
 
-    // dodge — spike when player is attacking and we are close
+    // dodge: spikes when the player attacks and we're close
     scores.dodge = p.playerIsAttacking
       ? W.dodge * (0.8 + closeRatio * 1.4)
       : W.dodge * 0.05;
 
-    // retreat — scales with low AI health
+    // retreat: scales with low AI health
     scores.retreat = W.retreat * Math.pow(Math.max(0, 0.45 - p.aiHealth) * 2.5, 1.4);
 
-    // bait — high when player is idle/defensive and AI is healthy
+    // bait: high when the player is idle or defensive and AI is healthy
     scores.bait = this.movement.canBait
       ? W.bait * (p.playerIsIdle ? 1.6 : 0.3) * (0.3 + p.aiHealth * 0.7)
       : 0;
 
-    // idle — low baseline (AI prefers to do something)
+    // idle: low baseline, so the AI prefers to act
     scores.idle = W.idle;
 
-    // Add per-score noise
     const result = {};
     for (const key in scores) result[key] = _noise(scores[key]);
     return result;
@@ -507,16 +469,16 @@ class AIController {
     return entries[0][0];
   }
 
-  // ── Main decide-and-act loop ───────────────────────────────
+  // Decide and act
 
   /**
    * Call once per AI tick (respects existing aiTick throttle from Fighter).
-   * @param {Fighter} target — the opponent
+   * @param {Fighter} target: the opponent
    */
   decide(target) {
     if (!target || target.health <= 0) return;
 
-    // Reaction delay — simulates human latency
+    // Reaction delay, simulates human latency
     if (this._reactionDelay > 0) { this._reactionDelay--; return; }
 
     this.combat.tick();
@@ -531,13 +493,11 @@ class AIController {
       return;
     }
 
-    // Score and choose
     const scores = this._scoreActions(target);
     const chosen  = this._pickAction(scores);
 
     // Bait requires a clean state transition
     if (chosen === 'bait' && this.movement.isBaiting) {
-      // Already baiting — keep going
       this._action     = 'bait';
       this._actionLock = 2;
     } else if (chosen !== 'bait' && this.movement.isBaiting) {
@@ -580,20 +540,18 @@ class AIController {
         break;
 
       case 'attack':
-        // Close the last gap before swinging
         if (!c.inRange(target)) m.approach(target);
         if (!c.tryAttack(target)) {
-          // Attack on cooldown — use ability or super while waiting
+          // On cooldown: use ability or super while waiting
           if (!c.tryAbility(target)) c.trySuper(target);
         } else {
-          // Attack landed — try ability/super as combo
+          // Landed: try ability or super as a combo
           c.tryAbility(target);
         }
         break;
 
       case 'dodge':
         m.dodge(target);
-        // Interrupt any ongoing bait
         if (m.isBaiting) m.cancelBait();
         // After dodge, queue a counter
         this._actionLock = Math.max(this._actionLock, _msToFrames(120));
@@ -611,7 +569,6 @@ class AIController {
         if (this._perc.playerIsAttacking && m._baitPhase === 'hold') {
           m.cancelBait();
           m.dodge(target);
-          // Schedule a counter attack
           this._action     = 'attack';
           this._actionLock = _msToFrames(150);
           this._reactionDelay = _msToFrames(60);
@@ -620,24 +577,21 @@ class AIController {
 
       case 'idle':
       default:
-        // Dampen velocity gradually — don't freeze solid
+        // Dampen velocity gradually, don't freeze.
         o.vx *= 0.85;
         break;
     }
   }
 }
 
-// ═════════════════════════════════════════════════════════════
-// 4.  CombatAIFighter  —  Fighter subclass
-//     Wires the three systems into Fighter.updateAI().
-// ═════════════════════════════════════════════════════════════
+// CombatAIFighter: Fighter subclass that wires the three systems into updateAI().
 class CombatAIFighter extends Fighter {
   /**
-   * @param {number} x          — spawn x
-   * @param {number} y          — spawn y
-   * @param {string} color      — fill colour string
-   * @param {string} weaponKey  — key from WEAPONS data
-   * @param {object} [cfg]      — optional overrides for speed, thresholds
+   * @param {number} x         : spawn x
+   * @param {number} y         : spawn y
+   * @param {string} color     : fill colour string
+   * @param {string} weaponKey : key from WEAPONS data
+   * @param {object} [cfg]     : optional overrides for speed, thresholds
    */
   constructor(x, y, color, weaponKey, cfg) {
     // Always created as an AI fighter at 'hard' difficulty base
@@ -656,11 +610,11 @@ class CombatAIFighter extends Fighter {
     this._movement = new MovementSystem(this, movCfg);
     this._aiCtrl   = new AIController(this, this._combat, this._movement);
 
-    // Suppress Fighter's built-in updateAI logic for this subclass
+    // Replaces Fighter's built-in updateAI for this subclass
     this._useCombatAI = true;
   }
 
-  // Override Fighter.updateAI — route to AIController.decide()
+  // Override Fighter.updateAI: route to AIController.decide()
   updateAI() {
     // Respect Fighter's aiReact delay
     if (this.aiReact > 0) { this.aiReact--; return; }
@@ -669,7 +623,7 @@ class CombatAIFighter extends Fighter {
     const t = this.target;
     if (!t || t.health <= 0) return;
 
-    // Danger overrides — check for arena hazards before AI logic
+    // Hazards override AI logic
     if (this._handleHazards(t)) return;
 
     this._aiCtrl.decide(t);
@@ -706,9 +660,7 @@ class CombatAIFighter extends Fighter {
   }
 }
 
-// ─────────────────────────────────────────────────────────────
-// Factory helper (optional convenience)
-// ─────────────────────────────────────────────────────────────
+// Factory helper
 
 /**
  * spawnCombatAI(x, y, color, weaponKey, cfg)

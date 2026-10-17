@@ -1,5 +1,5 @@
 // Appends chapters for act7/smb-act7-arc2.js.
-// The God arc — Kael and Axiom inside God's domain.
+// The God arc: Kael and Axiom inside God's domain.
 // God will not let Axiom reach the center. The fight neither of them wanted.
 // The double taking. The lab. Awakened Sovereign. The seam.
 STORY_CHAPTER_REGISTRY.push(
@@ -55,7 +55,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'It had not opened its door for him.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat. Staged from the same scene spec (see _playBranchAfterNarrative).
     afterNarrative: [
       'Him, it had carried.',
       'Five thousand years of war threaded through its foundations',
@@ -73,7 +73,7 @@ STORY_CHAPTER_REGISTRY.push(
       'was arriving at a decision',
       'it had spent ten thousand years refusing to make.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the domain watching: its attention is the detection field.
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the domain's attention is the detection field.
     beat: {
       type: 'exploration', exploreMode: 'stealth',
       arena: 'god_domain', style: 'void', worldLength: 3600,
@@ -160,7 +160,7 @@ STORY_CHAPTER_REGISTRY.push(
       'A path someone had drawn through the one room',
       'it knew you could not cross quietly.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat. Staged from the same scene spec (see _playBranchAfterNarrative).
     afterNarrative: [
       'God moved.',
       '',
@@ -190,7 +190,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'You stepped forward, and stood with him.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the last walk to the center, nothing stopping you.
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the last walk to the center.
     beat: {
       type: 'exploration', exploreMode: 'traversal',
       arena: 'god_domain', style: 'void', worldLength: 3000,
@@ -258,7 +258,7 @@ STORY_CHAPTER_REGISTRY.push(
       'Where Calix slept for centuries in a sealed column',
       'that Axiom never found.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat. Staged from the same scene spec (see _playBranchAfterNarrative).
     afterNarrative: [
       'You were three minutes too late.',
       '',
@@ -296,7 +296,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'Yours.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the lab corridor, and what Sovereign left running in it.
+    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the lab corridor, with what Sovereign left running.
     beat: {
       walkFight: true, worldLength: 3000, levelId: 66,
       arena: 'storyLab', style: 'city',
@@ -334,7 +334,8 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'Awakened Sovereign. Unconstrained, fully adaptive, every counter-pattern it has ever built. The maker of Absolute Axiom, at full capacity, with nothing left to protect. 3 lives.',
     isSovereignFight: true,
     arena: 'sovereign',
-    playerLives: 3,
+    playerLives: 10,   // standalone refight: 10 stocks each
+
     tokenReward: 150,
     fightScript: [
       { frame: 60,  text: '"Every match was a rehearsal. This is the performance."', color: '#cc44ff', timer: 220 },

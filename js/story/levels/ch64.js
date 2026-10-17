@@ -1,17 +1,6 @@
 'use strict';
-// js/story/levels/ch64.js — Chapter 64 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 64 — The Enforcer (walk → duel vs the Enforcer)
-// The Gate: the threshold of the Creator's domain, built in its white,
-// faceless geometry. A processional avenue of pylons — each a smooth white
-// slab with a seam of light — leads to the plaza where the Enforcer waits;
-// the plaza floor is scorched with the outlines of the fighters "I've seen
-// records of what it does." Beyond, the Gate itself fills the end of the map:
-// two doors taller than the sky, a line of light where they meet. Pylon
-// plinths are the climbs; the cache shafts are seams in the white paving.
-// One life: no falls here, only the plinths.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch64.js: Chapter 64 map (The Enforcer, walk then duel). See smb-story-levels.js.
+// No falls here, only the pylon plinths. Cache shafts are seams in the white paving.
 (function () {
   const G = 440, PLAZA = 3000, GATE = 5650;
   const PLINTH = [[420, 350, 100], [540, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -43,7 +32,6 @@
   }
 
   function back(v) {
-    // The processional pylons: smooth white slabs with a seam of light
     for (const px of PYLONS) {
       if (!_slVisible(v, px - 40, px + 40)) continue;
       ctx.fillStyle = '#d8dae2'; ctx.fillRect(px - 22, G - 300, 44, 300);
@@ -58,7 +46,6 @@
       ctx.fillStyle = '#e8eaf2'; ctx.fillRect(x, y, w, 6);
     }
     for (const sx of SEAMS) if (_slVisible(v, sx - 80, sx + 80)) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(sx - 70, G - 3, 24, 3); ctx.fillRect(sx + 46, G - 3, 24, 3); }
-    // The plaza: scorched outlines of the fighters it has ended
     if (_slVisible(v, PLAZA - 500, PLAZA + 500)) {
       for (let k = 0; k < 6; k++) {
         const fx = PLAZA - 260 + k * 104 + _slHash(k) * 30, rot = (_slHash(k + 4) - 0.5) * 1.6;
@@ -69,7 +56,6 @@
       }
       for (const sx of [PLAZA - 340, PLAZA + 240]) { ctx.fillStyle = '#c8cad4'; ctx.fillRect(sx, 360, 100, G - 360); ctx.fillStyle = '#e8eaf2'; ctx.fillRect(sx, 360, 100, 6); }
     }
-    // The Gate: two doors taller than the sky, light where they meet
     if (_slVisible(v, GATE - 500, GATE + 400)) {
       ctx.fillStyle = '#e0e2ea'; ctx.fillRect(GATE - 420, v.y - 20, 400, G - v.y + 20);
       ctx.fillStyle = '#d0d2dc'; ctx.fillRect(GATE + 20, v.y - 20, 400, G - v.y + 20);

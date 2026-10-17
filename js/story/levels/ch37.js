@@ -1,16 +1,6 @@
 'use strict';
-// js/story/levels/ch37.js — Chapter 37 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 37 — Resonance Spike (walk → duel vs the Resonance Fighter)
-// "The fragment has to be pushed past its baseline." The resonance chamber is
-// a long instrument: ranks of giant tuning forks line the approach, each
-// humming at a frequency you can see as rings in the air; their prongs carry
-// standable crossbars. The fighter is calibrated in the chamber's heart — a
-// circular sounding floor under a suspended bell of crystal — and when the
-// fragment spikes, "the air bends": the rings there warp toward you. Cache
-// shafts are the forks' sounding pits.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch. 37 map: the resonance chamber, tuning-fork climbs and a calibrated sounding floor.
+// Layout contract: smb-story-levels.js.
 (function () {
   const G = 440, HEART = 3000;
   const FORKS = [520, 1150, 1420, 2250, 3750, 4100, 5100, 5400];
@@ -70,7 +60,6 @@
       ctx.strokeStyle = '#2e2242'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(x + 6, y); ctx.lineTo(x + 6, v.y - 10); ctx.moveTo(x + w - 6, y); ctx.lineTo(x + w - 6, v.y - 10); ctx.stroke();
     }
-    // Sounding pits over the cache shafts
     for (const px of PITS) if (_slVisible(v, px - 80, px + 80)) { ctx.fillStyle = '#3e2e58'; ctx.fillRect(px - 60, G - 16, 10, 16); ctx.fillRect(px + 50, G - 16, 10, 16); rings(px, G - 10, 3, 300, 0); }
     // The heart: sounding floor under a suspended crystal bell; the air bends
     if (_slVisible(v, HEART - 520, HEART + 520)) {

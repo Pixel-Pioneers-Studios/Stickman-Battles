@@ -1,23 +1,13 @@
 'use strict';
-// smb-loadscreen.js — animated per-mode loading screens (LoadScene)
-// Depends on: smb-globals.js (GAME_W/GAME_H not required — this is screen-space)
-// Must load AFTER smb-menu-ui.js, BEFORE smb-menu-spawn.js (which drives it).
+// Per-mode animated loading screens (LoadScene). Screen space only.
+// Loads after smb-menu-ui.js and before smb-menu-spawn.js, which drives it.
 //
-// Replaces the three AI-generated stills (Boss-Page.png / True-Form.png /
-// Game-Page.png) that covered six different modes between them — Battle Royale
-// and Online had no art of their own at all. Each mode now gets an authored,
-// animated scene built from the same stickman vocabulary as the home screen, so
-// the loading screen reads as part of the game rather than as stock art.
-//
-// Every scene keeps its action in the UPPER ~62% of the canvas: the overlay's
-// title, subtitle and progress bar are anchored to the bottom over a scrim.
+// Scenes keep their action in the upper ~62% of the canvas. The title, subtitle and
+// bar sit over a scrim at the bottom.
 
 var LoadScene = (function () {
 
-  // ── Figure ────────────────────────────────────────────────────────────────
-  // Same proportions as the home-screen hero (~92 units tall, 60 of leg below
-  // the hip, head meeting the neck) so both screens draw the same species of
-  // figure. Poses are joint tables, not one hardcoded stance.
+  // Figure. Same proportions as the home-screen hero (~92 units tall). Poses are joint tables.
   var POSES = {
     // [shoulder, head, leadKnee, leadFoot, trailKnee, trailFoot,
     //  leadElbow, leadHand, trailElbow, trailHand]
@@ -27,11 +17,8 @@ var LoadScene = (function () {
     guard: [[2,-35],[6,-49],[14,16],[20,34],[-14,16],[-22,34],[16,-22],[22,-36],[-8,-20],[-14,-30]],
     idle:  [[2,-35],[5,-49],[8,16],[10,34],[-8,16],[-12,34],[10,-18],[14,-2],[-10,-18],[-14,-2]],
     fall:  [[4,-32],[8,-46],[20,8],[26,28],[-18,6],[-32,20],[28,-34],[42,-44],[-20,-26],[-34,-34]],
-    // Colossus stance: planted wide, weapon shouldered, free arm out but not
-    // splayed. Two earlier tries failed for instructive reasons — arms hanging
-    // BELOW the hip read as extra legs once the horizon cropped the real ones
-    // (a tripod lamp), and arms fully spread at shoulder height ran off-frame
-    // and read as a scarecrow. Keep the span inside the body's own footprint.
+    // Colossus stance. Keep the arms inside the body's footprint. Arms below the
+    // hip read as extra legs, and arms spread wide read as a scarecrow.
     loom:  [[0,-40],[3,-58],[24,14],[32,36],[-24,14],[-32,36],[26,-30],[36,-8],[-26,-34],[-34,-52]]
   };
 
@@ -47,8 +34,7 @@ var LoadScene = (function () {
     var le = P(p[6]), lh = P(p[7]), te = P(p[8]), th = P(p[9]);
 
     var hr = 11 * u;
-    // Neck ends on the head's CIRCUMFERENCE — running it to the centre draws a
-    // line across the face, since the body is stroked before the head.
+    // Neck stops at the head's edge, or it draws a line across the face.
     var ndx = head[0] - sh[0], ndy = head[1] - sh[1];
     var nl = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
     var neck = [head[0] - (ndx / nl) * hr, head[1] - (ndy / nl) * hr];
@@ -96,7 +82,7 @@ var LoadScene = (function () {
     body();   ctx.strokeStyle = DARK; ctx.lineWidth = 4.2 * u; ctx.stroke();
     weapon(); ctx.strokeStyle = DARK; ctx.lineWidth = 2.8 * u; ctx.stroke();
 
-    // Head last, opaque, so it always covers the neck join.
+    // Head last, so it covers the neck join.
     ctx.beginPath(); ctx.arc(head[0], head[1], hr, 0, Math.PI * 2);
     ctx.fillStyle = DARK; ctx.fill();
     ctx.lineWidth = 1.6 * u; ctx.strokeStyle = RIM; ctx.stroke();
@@ -129,9 +115,9 @@ var LoadScene = (function () {
     ctx.restore();
   }
 
-  // ── Shared backdrop pieces ────────────────────────────────────────────────
+  // Shared backdrop pieces.
 
-  // Layered ridges receding into haze — cheap parallax depth under any scene.
+  // Layered ridges receding into haze, for cheap depth.
   function ridges(ctx, W, H, t, c1, c2, horizon) {
     var hy = H * (horizon || 0.60);
     for (var L = 0; L < 3; L++) {
@@ -156,10 +142,8 @@ var LoadScene = (function () {
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Impact star — the clash marker used by the fight-forward scenes.
-  // A hit, not an asterisk. The first version stroked thin mid-alpha rays that
-  // composited to a muddy brown; energy needs a white core and saturated,
-  // thicker rays that fall off, with 'lighter' so overlaps brighten.
+  // Impact star, the clash marker. Thin mid-alpha rays went muddy, so use a white core
+  // and thick saturated rays. 'lighter' blending makes overlaps brighten.
   function impact(ctx, x, y, r, t, col) {
     var p = 0.62 + Math.sin(t * 5) * 0.38;
     ctx.save();
@@ -201,11 +185,10 @@ var LoadScene = (function () {
     ctx.restore();
   }
 
-  // ── Scenes ────────────────────────────────────────────────────────────────
-  // One per situation. Each owns its palette, its backdrop and its staging.
+  // Scenes: one per situation, each with its own palette, backdrop and staging.
   var SCENES = {
 
-    // STORY — the rift behind, the road ahead. Motion is forward, not combat.
+    // Story: the rift behind, the road ahead. Motion is forward.
     story: function (ctx, W, H, t, u) {
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#150c2e'); sky.addColorStop(0.55, '#0c0a1e'); sky.addColorStop(1, '#05050e');
@@ -242,16 +225,14 @@ var LoadScene = (function () {
         u: hu, face: 1, pose: 'dash', t: t, weapon: 'sword', scarf: true });
     },
 
-    // BOSS — scale. A vast silhouette; the player is small and looking up.
+    // Boss: scale. A vast silhouette over a small player.
     boss: function (ctx, W, H, t, u) {
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#2a0708'); sky.addColorStop(0.5, '#15060f'); sky.addColorStop(1, '#070308');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
       glow(ctx, W * 0.72, H * 0.30, H * 0.60, 'rgba(255,60,40,ALPHA)', 0.26);
 
-      // Colossus: the same figure vocabulary as everything else, at ~6x scale
-      // and cropped by the ridge. The first version was a rounded mound with
-      // triangular horns and two flat discs for eyes — it read as a cat.
+      // Colossus: the normal figure at ~6x scale, cropped by the ridge.
       var bu = u * 3.6;
       var bHip = H * 0.70 - 36 * bu;          // feet land on the ridge line
       fig(ctx, W * 0.70, bHip + Math.sin(t * 0.7) * 3 * u, {
@@ -273,12 +254,12 @@ var LoadScene = (function () {
       }
       ctx.restore();
 
-      // The player — small, guarded, looking up at it
+      // The player: small, guarded, looking up at it
       fig(ctx, W * 0.23, H * 0.64, { u: u * 0.95, face: 1, pose: 'guard', t: t,
         weapon: 'sword', scarf: true });
     },
 
-    // TRUE FORM — reality coming apart. Inverted, mirrored, unstable.
+    // True Form: reality coming apart. Inverted, mirrored, unstable.
     trueform: function (ctx, W, H, t, u) {
       ctx.fillStyle = '#06030f'; ctx.fillRect(0, 0, W, H);
       glow(ctx, W * 0.5, H * 0.36, H * 0.62, 'rgba(190,60,255,ALPHA)', 0.24);
@@ -301,7 +282,7 @@ var LoadScene = (function () {
       }
       ctx.restore();
 
-      // Three of him at once, one upside down — the mode's whole idea
+      // Three of him at once, one upside down. That is the mode's whole idea.
       var cx = W * 0.5, cy = H * 0.46;
       fig(ctx, cx - W * 0.20, cy - H * 0.06, { u: u * 1.05, face: 1, pose: 'fall', t: t,
         weapon: 'sword', alpha: 0.34, dark: 'rgba(120,50,210,0.8)', rim: 'rgba(210,160,255,0.45)' });
@@ -316,13 +297,13 @@ var LoadScene = (function () {
       impact(ctx, cx, cy - H * 0.05, H * 0.16, t, '226,140,255');
     },
 
-    // BATTLE ROYALE — many, and a ring closing on all of them.
+    // Battle Royale: many fighters, and a ring closing on them.
     battleroyale: function (ctx, W, H, t, u) {
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#2a1406'); sky.addColorStop(0.5, '#140d12'); sky.addColorStop(1, '#06050c');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
 
-      // The closing ring — a wall of light sweeping inward from both edges
+      // The closing ring: a wall of light sweeping in from both edges
       var sweep = (Math.sin(t * 0.5) * 0.5 + 0.5);
       var inset = W * (0.02 + sweep * 0.10);
       var lw = ctx.createLinearGradient(0, 0, inset + W * 0.10, 0);
@@ -334,8 +315,7 @@ var LoadScene = (function () {
 
       ridges(ctx, W, H, t, 'rgba(40,22,10,0.95)', 'rgba(18,12,10,0.96)', 0.68);
 
-      // A crowd. Depth via scale + alpha; every figure on its own cycle so the
-      // field never pulses in unison.
+      // A crowd. Each figure runs its own cycle, so the field never pulses in unison.
       var N = 14;
       for (var i = 0; i < N; i++) {
         var seed = i * 2.399;
@@ -356,7 +336,7 @@ var LoadScene = (function () {
         weapon: 'sword', scarf: true });
     },
 
-    // MINIGAMES — the light one. Bright, bouncy, no menace.
+    // Minigames: bright, bouncy, no menace.
     minigames: function (ctx, W, H, t, u) {
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#07283a'); sky.addColorStop(0.55, '#062030'); sky.addColorStop(1, '#04121c');
@@ -393,7 +373,7 @@ var LoadScene = (function () {
       ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.6 * u; ctx.stroke();
     },
 
-    // TRAINING — calm, measured, diagnostic. A dummy and a clean rep.
+    // Training: calm and measured. A dummy and a clean rep.
     training: function (ctx, W, H, t, u) {
       ctx.fillStyle = '#080b14'; ctx.fillRect(0, 0, W, H);
       // Measurement grid
@@ -423,13 +403,13 @@ var LoadScene = (function () {
         dark: '#060a14', rim: 'rgba(170,215,255,0.9)' });
     },
 
-    // ONLINE — two players, one seam between them.
+    // Online: two players joined by one link.
     online: function (ctx, W, H, t, u) {
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#071a2e'); sky.addColorStop(0.6, '#050f20'); sky.addColorStop(1, '#03060f');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
 
-      // Link arcs across the middle — the connection, drawn as signal
+      // Link arcs across the middle, drawn as signal
       ctx.save();
       for (var i = 0; i < 5; i++) {
         var ph = ((t * 0.5) + i / 5) % 1;
@@ -456,7 +436,7 @@ var LoadScene = (function () {
         dark: '#1a0a10', rim: 'rgba(255,120,120,0.9)' });
     },
 
-    // VERSUS — the default. Two fighters meeting in the middle, mid-air.
+    // Versus (the default): two fighters meeting mid-air.
     versus: function (ctx, W, H, t, u) {
       var sky = ctx.createLinearGradient(0, 0, 0, H);
       sky.addColorStop(0, '#20102e'); sky.addColorStop(0.55, '#120a1c'); sky.addColorStop(1, '#05040b');
@@ -473,14 +453,11 @@ var LoadScene = (function () {
       fig(ctx, cx + W * 0.105 + close, cy + H * 0.12, {
         u: u * 1.5, face: -1, pose: 'clash', t: t, weapon: 'axe',
         dark: '#100408', rim: 'rgba(255,130,110,0.9)', eye: '#ff4030' });
-      // Flash drawn OVER the fighters — it is the point of contact between them.
+      // Flash drawn over the fighters, at the point of contact.
       impact(ctx, cx, cy + H * 0.02, H * 0.15, t, '255,170,90');
     },
 
-    // SPLASH — the opening clash. This replaces the old stock/AI splash still
-    // with the same stickman vocabulary used by every authored loading scene.
-    // The composition intentionally echoes the reference: cool bearer versus
-    // warm rival, both converging on a bright fracture in reality.
+    // Splash: the opening clash. Cool bearer versus warm rival, converging on a fracture.
     splash: function (ctx, W, H, t, u) {
       var sky = ctx.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.42, H * 0.90);
       sky.addColorStop(0, '#1b1534');
@@ -500,7 +477,7 @@ var LoadScene = (function () {
       rightGlow.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = rightGlow; ctx.fillRect(W * 0.32, 0, W * 0.68, H);
 
-      // Fracture rays — lightweight, deterministic, and alive.
+      // Fracture rays. Cheap, deterministic, animated.
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       ctx.lineCap = 'round';
@@ -555,8 +532,7 @@ var LoadScene = (function () {
       });
       impact(ctx, W * 0.5, H * 0.49, H * 0.19, t, '255,205,126');
 
-      // Foreground vignette keeps the splash legible and makes the game canvas
-      // feel like a deliberate title-card surface.
+      // Vignette keeps the splash legible.
       var vignette = ctx.createRadialGradient(W * 0.5, H * 0.43, H * 0.16, W * 0.5, H * 0.43, H * 0.78);
       vignette.addColorStop(0, 'rgba(0,0,0,0)');
       vignette.addColorStop(1, 'rgba(0,0,0,0.66)');
@@ -564,7 +540,7 @@ var LoadScene = (function () {
     }
   };
 
-  // ── Runtime ───────────────────────────────────────────────────────────────
+  // Runtime.
   var _raf = null, _t0 = 0, _key = 'versus';
 
   function start(sceneKey) {
@@ -572,8 +548,7 @@ var LoadScene = (function () {
     if (!cv) return;
     _key = SCENES[sceneKey] ? sceneKey : 'versus';
     var ctx = cv.getContext('2d');
-    // Cap the backing store: this runs for ~800ms behind a fade, so a full
-    // retina buffer is wasted work on a frame nobody inspects closely.
+    // Cap the backing store. The screen fades out in ~800 ms, so a full retina buffer is wasted.
     var dpr = Math.min(window.devicePixelRatio || 1, 1.5);
 
     function resize() {
@@ -592,7 +567,7 @@ var LoadScene = (function () {
       ctx.clearRect(0, 0, W, H);
       try { SCENES[_key](ctx, W, H, t, u); } catch (e) { /* never break a launch */ }
 
-      // Bottom scrim — the overlay's title, subtitle and bar sit here.
+      // Bottom scrim under the title, subtitle and bar.
       var sc = ctx.createLinearGradient(0, H * 0.45, 0, H);
       sc.addColorStop(0, 'rgba(4,4,11,0)');
       sc.addColorStop(0.62, 'rgba(4,4,11,0.72)');

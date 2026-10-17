@@ -1,8 +1,6 @@
 'use strict';
-// smb-cin-perf.js — authored figure performances for cinematic set-pieces.
-//
-// Depends on: smb-cin-figure.js (CinRig, CinTrack), smb-anim-core.js (animEase).
-// ============================================================
+// Authored figure performances for cinematic set-pieces.
+// Depends on smb-cin-figure.js (CinRig, CinTrack) and smb-anim-core.js (animEase).
 
 const CIN_PERF_GESTURES = ['cross', 'raise', 'draw', 'low'];
 
@@ -14,10 +12,10 @@ const CIN_PERF_DOMAIN_GESTURE = {
 };
 
 
-// ── Named poses for cutscene beats ──────────────────────────────────────────
-// Angles are CinRig absolute radians, facing-right space (0 = forward, PI/2 =
-// down, -PI/2 = up); the rig mirrors for facing. Partial poses merge onto
-// 'stand'. Keep silhouettes bold: a cutscene figure is seen at 0.5x–2x.
+// Named poses for cutscene beats.
+// Angles are CinRig absolute radians in facing-right space (0 forward, PI/2 down).
+// The rig mirrors for facing. Partial poses merge onto 'stand'. Keep silhouettes
+// bold, since cutscene figures are seen at 0.5x to 2x.
 const CIN_PERF_POSES = (function () {
   const P = Math.PI;
   const stand = {
@@ -132,8 +130,7 @@ const CinPerf = {
     pose.y = f.y + f.h;
     pose.facing = f.facing || 1;
     if (rec.kind === 'cutscene') {
-      // Match the gameplay body (FIG_* constants: ~86px tall, 9px head radius,
-      // x drawScale for bosses) so cutting in and out of a performance does not pop.
+      // Match the gameplay body size (FIG_* constants) so cutting in and out does not pop.
       pose.scale = (pose.scale || 1) * 0.9 * (f.drawScale || 1);
       pose.headScale = (pose.headScale || 1) * 0.77;
     } else {
@@ -145,8 +142,7 @@ const CinPerf = {
       CinRig.smear(ctx, rec.prevPose, pose, 'rArm', rec.color, 8, 0.45);
       CinRig.smear(ctx, rec.prevPose, pose, 'lArm', rec.color, 8, 0.45);
     }
-    // Cutscene figures keep their accessories (cape behind the body, hat on top)
-    // so a boss or a player does not lose its look when the performance begins.
+    // Keep accessories (cape, hat) so a boss keeps its look.
     const _acc = rec.kind === 'cutscene' && typeof drawAccessory === 'function';
     let J;
     const _jj = CinRig.joints(pose);
@@ -275,13 +271,10 @@ const CinPerf = {
   },
 
 
-  // ── Cutscene performances ────────────────────────────────────────────────
-  // Authored beats for boss / opening cutscenes. `beats` are in SECONDS (the
-  // unit cinScript and startCinematic already speak):
-  //   { at, pose, hold, ease, expr }
-  // `pose` is a CIN_PERF_POSES name, or { from:'name', ...overrides }, or a raw
-  // partial pose. `hold` sits on the pose before moving on (the beat that makes
-  // it read); `expr` switches the face from that beat on.
+  // Cutscene performances.
+  // Beats are in seconds, the unit cinScript uses: { at, pose, hold, ease, expr }.
+  // pose is a CIN_PERF_POSES name, { from, ...overrides }, or a raw partial pose.
+  // hold sits on the pose before moving on. expr switches the face from that beat on.
 
   /** Resolve a beat's pose spec into a partial pose object. */
   _resolve(spec) {
@@ -377,13 +370,10 @@ const CinPerf = {
   },
 };
 
-// ── Authored cutscene performances ──────────────────────────────────────────
-// Specs are { who, at, beats[, facing] }; consumed by CinPerf.run(owner, t, specs)
-// from a cinematic's update(t). Times are seconds on the cinematic's own clock
-// and mirror the beats already in each cutscene (slam, burst, dialogue lines);
-// no timing, camera or flow lives here, only how the figures move.
-//   who: 'boss' = the Boss fighter (TrueForm/God/Yeti/ForestBeast keep their own
-//   bodies and are skipped); 'players' = every non-boss, non-remote fighter.
+// Specs are { who, at, beats[, facing] }, run from a cinematic's update(t) via CinPerf.run.
+// Times are seconds on the cinematic's own clock.
+// who: 'boss' skips the bodies of TrueForm, God, Yeti and ForestBeast.
+// 'players' is every non-boss, non-remote fighter.
 CinPerf.faceBoss = function (f) {
   const b = (typeof players !== 'undefined') ? players.find(p => p.isBoss && p.health > 0) : null;
   return b ? (b.cx() >= f.cx() ? 1 : -1) : (f.facing || 1);
@@ -393,7 +383,7 @@ CinPerf.SCENES = (function () {
   const FB = CinPerf.faceBoss;
   const S = {};
 
-  // ── Phase transitions (smb-boss-phase-cin.js) ──
+    // Phase transitions (smb-boss-phase-cin.js)
   S.bossP2 = [
     { who: 'boss', at: 0, beats: [
       { at: 0,    pose: 'menace', expr: 'intense' },
@@ -454,7 +444,7 @@ CinPerf.SCENES = (function () {
       { at: 2.95, pose: 'guard' } ] },
   ];
 
-  // ── Creator Boss HP-threshold cinematics (smb-cinematics-boss-thresh.js) ──
+    // Creator boss HP-threshold cinematics (smb-cinematics-boss-thresh.js)
   S.boss75 = [
     { who: 'boss', at: 0, beats: [
       { at: 0,    pose: 'menace', expr: 'intense' },
@@ -505,8 +495,8 @@ CinPerf.SCENES = (function () {
       { at: 2.8,  pose: 'guard' } ] },
   ];
 
-  // ── True Form HP-threshold cinematics: TF keeps its fragmented body, the
-  //    fighters facing it get the performance (smb-cinematics-tf-thresh.js) ──
+    // True Form HP thresholds (smb-cinematics-tf-thresh.js). TF keeps its fragmented
+    // body. Fighters facing it get the performance.
   S.tfEntry = [
     { who: 'players', facing: FB, beats: [
       { at: 0,    pose: 'guard' },
@@ -535,9 +525,8 @@ CinPerf.SCENES = (function () {
       { at: 4.4,  pose: 'guard' } ] },
   ];
 
-  // ── Boss backstory (smb-cinematics-backstory.js), 38s, seven scenes ──
-  // The boss is the "human" who becomes the Creator; the hero stands in for the
-  // opponent he fights. Beat times follow the scene map in that file.
+    // Boss backstory (smb-cinematics-backstory.js). Beat times follow the scene map there.
+    // The hero stands in for the opponent he fights.
   S.backstory = [
     { who: 'boss', at: 0, beats: [
       { at: 0,    pose: 'stand',   expr: 'neutral' },

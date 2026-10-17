@@ -1,16 +1,6 @@
 'use strict';
-// js/story/levels/ch18.js — Chapter 18 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 18 — Fragment Theory (escape)
-// "The stable pocket is collapsing. The walls are caving in from the left."
-// A bubble of ordered geometry inside the fracture network — hexagonal floor
-// plates, pillars of light, staircases that float — coming apart from behind.
-// The floor steps up and down (inside one jump so the wall can be outrun); a
-// floating stair route runs above the floor for anyone who wants height. Past
-// the collapse line everything behind you crumbles into the void. The Stable
-// Exit is a doorway of light at the far end.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 18 map (escape). Contract: smb-story-levels.js.
+// The stable pocket collapses from the left. A floating stair route gives height above the floor.
 (function () {
   const PLATES = [
     [0, 600, 440], [600, 900, 404], [900, 1250, 440], [1250, 1400, 476], [1400, 1800, 440],
@@ -25,7 +15,7 @@
   function layout() {
     const P = [];
     for (const [x, y] of STAIRS) _slLedge(P, x, y, 70);
-    _slLedge(P, 940, 180, 240);        // upper gallery after stair 1
+    _slLedge(P, 940, 180, 240);
     _slLedge(P, 2940, 180, 220);
     return P;
   }
@@ -33,7 +23,7 @@
   function backdrop(v) {
     _slSkyAbove(v, '#05040c');
     _slParallax(v, 0.08, (l, r) => {
-      // The fracture network outside the pocket, seen through its membrane
+      // Fracture network seen through the membrane
       ctx.fillStyle = 'rgba(255,255,255,0.6)';
       for (let i = Math.floor(l / 30); i * 30 < r; i++) if (_slHash(i + 21) < 0.3) ctx.fillRect(i * 30 + _slHash(i) * 20, -300 + _slHash(i + 6) * 760, 1.2, 1.2);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -42,7 +32,7 @@
       ctx.restore();
     });
     _slParallax(v, 0.3, (l, r) => {
-      // Pillars of light holding the pocket open
+      // Pillars holding the pocket open
       for (let i = Math.floor(l / 260) - 1; i * 260 < r + 260; i++) {
         const x = i * 260 + 60;
         ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -65,7 +55,6 @@
   }
 
   function back(v) {
-    // Geometry walls: ordered panels with hex inlays
     const x0 = Math.max(-200, v.x - 40), x1 = Math.min(5200, v.x + v.w + 40);
     ctx.fillStyle = '#141826'; ctx.fillRect(x0, -200, x1 - x0, 640);
     ctx.strokeStyle = 'rgba(140,190,255,0.12)'; ctx.lineWidth = 1;
@@ -83,14 +72,13 @@
       ctx.beginPath(); ctx.moveTo(gx, 156); ctx.lineTo(gx + gw, 156); ctx.stroke();
       for (let k = gx; k <= gx + gw; k += 20) { ctx.beginPath(); ctx.moveTo(k, 180); ctx.lineTo(k, 156); ctx.stroke(); }
     }
-    // Equations of the pocket's own physics, floating
     for (let k = 0; k < 12; k++) {
       const ex = 300 + k * 420;
       if (!_slVisible(v, ex - 100, ex + 100)) continue;
       ctx.fillStyle = 'rgba(180,220,255,0.35)'; ctx.font = '12px monospace'; ctx.textAlign = 'center';
       ctx.fillText(['g = −g?', 'Σ = stable', 'r → 0', 'frag ⊂ you', 'adaptive', 'collapse t−'][k % 6], ex, 110 + Math.sin(frameCount * 0.02 + k) * 6);
     }
-    // Behind the collapse: the pocket crumbling into the void
+    // Collapse behind the player
     const wx = (typeof escapeWallX !== 'undefined') ? escapeWallX : -100;
     if (wx > v.x - 200) {
       ctx.fillStyle = '#05040c'; ctx.fillRect(v.x - 20, -400, Math.max(0, wx - v.x + 20), 1100);
@@ -102,7 +90,7 @@
         ctx.restore();
       }
     }
-    // Stable Exit: a doorway of light
+    // Stable Exit
     if (_slVisible(v, EXIT_X - 200, EXIT_X + 300)) {
       ctx.fillStyle = '#20263a'; ctx.fillRect(EXIT_X - 40, 440 - 230, 160, 230);
       ctx.save(); ctx.globalCompositeOperation = 'lighter';

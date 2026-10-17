@@ -20,6 +20,11 @@
  * Every match is against that frozen net playing its top choice, the way it plays
  * as Sovereign. Whatever the hunter learns is a hole in the target.
  *
+ * (With two or more hunters, half of those matches are a 'hunter switch': two hunters
+ * taking turns in one body. --no-switch turns that off.)
+ * --habit=masher[,blocker] (with --hunt) lays a fixed habit over the target (js/smb-brain.js
+ * HABITS), one drawn per match: the specialist this trains is the ceiling test for how
+ * much knowing an opponent's habit is worth.
  * Patching the holes: --hunters=data/brain-hunter[,...] puts each hunter's latest
  * checkpoint and its newest snapshots into the main league at HUNTER_SHARE.
  *
@@ -56,10 +61,12 @@ const HUNTERS = !args.hunters ? [] : String(args.hunters).split(',').flatMap(d =
   const files = fs.existsSync(snaps) ? fs.readdirSync(snaps).filter(f => f.endsWith('.json')).sort().slice(-4).map(f => path.join(snaps, f)) : [];
   return [path.join(dir, 'latest.json'), ...files].filter(f => fs.existsSync(f)).map(f => {
     const j = JSON.parse(fs.readFileSync(f, 'utf8'));
-    return { label: 'hunter', weights: j.pi || j };
+    return { label: 'hunter', dir: d, weights: j.pi || j };
   });
 });
+const HUNTER_DIRS = [...new Set(HUNTERS.map(h => h.dir))], SWITCH_SHARE = args['no-switch'] ? 0 : 0.5;
 const HUNT    = args.hunt ? (j => j.pi || j)(JSON.parse(fs.readFileSync(path.resolve(ROOT, args.hunt), 'utf8'))) : null;
+const HABITS  = args.habit ? String(args.habit).split(',') : [];
 const SNAPS   = path.join(DIR, 'snapshots');
 
 const CFG = {
@@ -191,7 +198,11 @@ function pickOpponents(state, pool, count) {
   // had one in only ~40% of matches, so class passives and every domain were
   // mostly out of reach (0 domains in 49M decisions).
   const brainKit = 'randomClass';
-  if (HUNT) return Array.from({ length: count }, () => ({ type: 'self', label: 'target', greedy: true, brainKit, kit: 'randomClass' }));
+  // 'none' in the --habit list is the plain target, so a habit is never a safe assumption.
+  if (HUNT) return Array.from({ length: count }, () => {
+    const habit = HABITS.length ? HABITS[Math.floor(Math.random() * HABITS.length)] : undefined;
+    return { type: 'self', label: habit ? `target ${habit}` : 'target', greedy: true, brainKit, kit: 'randomClass', habit };
+  });
   for (let i = 0; i < count; i++) {
     const r = Math.random();
     if (state.stage > 0 && r < 0.2) { out.push({ type: STAGES[Math.floor(Math.random() * Math.min(state.stage, 5))], brainKit }); continue; }
@@ -220,10 +231,21 @@ function pickOpponents(state, pool, count) {
 // HUNTER_SHARE of the league swapped for hunter nets.
 function withHunters(opps) {
   if (!HUNTERS.length || HUNT) return opps;
-  return opps.map(o => Math.random() < HUNTER_SHARE
-    ? { type: 'self', label: 'hunter', weights: HUNTERS[Math.floor(Math.random() * HUNTERS.length)].weights,
-        brainKit: 'randomClass', kit: 'randomClass' }
-    : o);
+  return opps.map(o => {
+    if (Math.random() >= HUNTER_SHARE) return o;
+    // Half of them, once there are two hunters: two different hunters taking
+    // turns in one body, swapping every 10-25 s. No single answer beats both
+    // halves, so the brain is paid for noticing which one it is facing now.
+    if (HUNTER_DIRS.length >= 2 && Math.random() < SWITCH_SHARE) {
+      const a = Math.floor(Math.random() * HUNTER_DIRS.length);
+      let b = Math.floor(Math.random() * (HUNTER_DIRS.length - 1)); if (b >= a) b++;
+      const one = d => { const l = HUNTERS.filter(h => h.dir === d); return l[Math.floor(Math.random() * l.length)].weights; };
+      return { type: 'self', label: 'hunter switch', weightsList: [one(HUNTER_DIRS[a]), one(HUNTER_DIRS[b])],
+        every: 600 + Math.floor(Math.random() * 900), brainKit: 'randomClass', kit: 'randomClass' };
+    }
+    return { type: 'self', label: 'hunter', weights: HUNTERS[Math.floor(Math.random() * HUNTERS.length)].weights,
+      brainKit: 'randomClass', kit: 'randomClass' };
+  });
 }
 
 (async () => {
@@ -381,7 +403,7 @@ function withHunters(opps) {
     const stageName = STAGES[state.stage];
     for (const e of episodes) state.recent.push({ opp: e.opp, win: e.win, it: state.iter });
     state.recent = state.recent.slice(-2000);
-    const cur = state.recent.filter(e => e.opp === (HUNT ? 'target' : stageName === 'league' ? 'sovereign' : stageName)).slice(-WINDOW);
+    const cur = state.recent.filter(e => HUNT ? e.opp.startsWith('target') : e.opp === (stageName === 'league' ? 'sovereign' : stageName)).slice(-WINDOW);
     const curWin = cur.length ? cur.reduce((a, e) => a + e.win, 0) / cur.length : 0;
     const byOpp = {};
     // de/te: damage dealt/taken in the first 10 s; dt/tt: whole match. Late

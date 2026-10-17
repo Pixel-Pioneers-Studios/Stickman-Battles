@@ -1,15 +1,9 @@
 'use strict';
-// smb-drawing-arenas3.js — Online/large arenas + home world arenas (megacity, warpzone, homeyard, alley, suburb, rural, portal edge, realm entry, boss sanctum)
-// Depends on: smb-globals.js, smb-data-arenas.js, smb-particles-core.js
+// Online/large arenas and home world arenas.
 
-// ─── ONLINE-ONLY LARGE ARENA DRAW FUNCTIONS ─────────────────────────────────
 
-// ── Shared helpers for the large online arenas ────────────────────────────
-// These maps span mapLeft..mapRight (-900..2700 for the 3600-wide set), but the
-// original draw functions all hardcoded `W = 1800` starting at x=0, so the whole
-// left half of every one of them had no art at all. _arenaSpan returns the real
-// world extent, and _arenaVis the slice the camera can actually see so wide maps
-// don't pay to draw thousands of off-screen windows.
+// Maps span mapLeft..mapRight, not 0..1800. _arenaSpan gives the world extent and _arenaVis
+// the on-camera slice, so wide maps skip off-screen windows.
 function _arenaSpan(pad) {
   const a  = currentArena || {};
   const x0 = (a.mapLeft !== undefined ? a.mapLeft : 0) - (pad || 0);
@@ -23,12 +17,10 @@ function _arenaVis(margin) {
   return { lo: c - GAME_W - m, hi: c + GAME_W + m };
 }
 
-// ── Mega City ─────────────────────────────────────────────────────────────
 function _megacityBg() {
   if (_megacityBg._c) return _megacityBg._c;
   const sp = _arenaSpan(400);
   const rnd = (a, b) => a + Math.random() * (b - a);
-  // Three parallax skyline layers, far to near
   const layers = [
     { par: 0.05, step: 74, hMin:  90, hMax: 190, fill: '#141430', win: 'rgba(180,200,255,',  winStep: 22, alpha: 0.30, base: 0 },
     { par: 0.12, step: 88, hMin: 140, hMax: 280, fill: '#101028', win: 'rgba(255,220,120,',  winStep: 18, alpha: 0.55, base: 18 },
@@ -42,7 +34,7 @@ function _megacityBg() {
       const wins = [];
       for (let wy = 10; wy < h - 12; wy += L.winStep) {
         for (let wx = 6; wx < w - 8; wx += L.winStep * 0.8) {
-          if (Math.random() < 0.34) continue;              // dark units
+          if (Math.random() < 0.34) continue;
           wins.push({ x: wx, y: wy, seed: Math.random() * 100 });
         }
       }
@@ -54,7 +46,6 @@ function _megacityBg() {
       });
     }
   }
-  // Flying traffic on two lanes
   const cars = Array.from({ length: 14 }, () => ({
     y:    rnd(60, 230),
     x:    rnd(sp.x0, sp.x1),
@@ -62,7 +53,6 @@ function _megacityBg() {
     len:  rnd(14, 34),
     warm: Math.random() < 0.5,
   }));
-  // Rain
   const rain = Array.from({ length: 90 }, () => ({
     x: rnd(-100, GAME_W + 100), y: rnd(-40, 560),
     len: rnd(9, 22), spd: rnd(7, 13), slant: rnd(1.4, 2.6),
@@ -81,7 +71,6 @@ function drawMegacityArena() {
 
   ctx.save();
 
-  // ── Sky: smog gradient plus light pollution rising off the city ───────────
   const sky = ctx.createLinearGradient(0, -120, 0, H);
   sky.addColorStop(0,    '#05060f');
   sky.addColorStop(0.55, '#0e0b26');
@@ -89,7 +78,6 @@ function drawMegacityArena() {
   ctx.fillStyle = sky;
   ctx.fillRect(sp.x0, -300, sp.w, H + 320);
 
-  // ── Moon low over the skyline ─────────────────────────────────────────────
   const mx = 380 - camOff * 0.02, my = 92;
   const mg = ctx.createRadialGradient(mx, my, 6, mx, my, 96);
   mg.addColorStop(0,   'rgba(255,238,210,0.30)');
@@ -101,7 +89,6 @@ function drawMegacityArena() {
   ctx.beginPath(); ctx.arc(mx - 8, my - 6, 6, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(mx + 9, my + 7, 4, 0, Math.PI * 2); ctx.fill();
 
-  // ── Searchlights sweeping the sky ─────────────────────────────────────────
   for (let i = 0; i < 3; i++) {
     const bx = sp.x0 + sp.w * (0.22 + i * 0.28);
     if (bx < vis.lo || bx > vis.hi) continue;
@@ -118,26 +105,22 @@ function drawMegacityArena() {
     ctx.restore();
   }
 
-  // ── Skyline layers ────────────────────────────────────────────────────────
   for (const L of bg.layers) {
     ctx.save();
     ctx.translate(-camOff * L.par, 0);
     const shift = camOff * L.par;
     for (const b of L.blds) {
-      if (b.x + shift < vis.lo || b.x + shift > vis.hi) continue;   // cull off-screen
+      if (b.x + shift < vis.lo || b.x + shift > vis.hi) continue;
       const top = H - L.base - b.h;
       ctx.fillStyle = L.fill;
       ctx.fillRect(b.x, top, b.w, b.h + L.base);
-      // roof edge catches the sky glow
       ctx.fillStyle = 'rgba(120,140,220,0.18)';
       ctx.fillRect(b.x, top, b.w, 2);
-      // windows — precomputed positions, lit state cycles per unit
       for (const w of b.wins) {
         const lit = ((f * 0.012 + w.seed) % 3) < 1.9;
         ctx.fillStyle = L.win + (lit ? L.alpha : 0.06) + ')';
         ctx.fillRect(b.x + w.x, top + w.y, 5, 6);
       }
-      // antenna with a blinking aircraft warning light
       if (b.mast) {
         ctx.fillStyle = '#2a2a48';
         ctx.fillRect(b.x + b.w * 0.5 - 1, top - 26, 2, 26);
@@ -146,7 +129,6 @@ function drawMegacityArena() {
           ctx.beginPath(); ctx.arc(b.x + b.w * 0.5, top - 28, 2.4, 0, Math.PI * 2); ctx.fill();
         }
       }
-      // holographic billboard on the building face
       if (b.holo) {
         const hh = Math.min(b.h * 0.42, 84), hw = b.w * 0.72;
         const hx = b.x + b.w * 0.14, hy = top + 16;
@@ -156,7 +138,6 @@ function drawMegacityArena() {
         ctx.strokeStyle = `hsla(${b.hue},90%,68%,0.75)`;
         ctx.lineWidth = 1.4;
         ctx.strokeRect(hx, hy, hw, hh);
-        // scan bands travelling down the panel
         ctx.fillStyle = `hsla(${b.hue},90%,72%,0.35)`;
         for (let k = 0; k < 4; k++) {
           const sy = hy + ((f * 0.9 + k * hh / 4) % hh);
@@ -168,7 +149,6 @@ function drawMegacityArena() {
     ctx.restore();
   }
 
-  // ── Flying traffic ────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.16, 0);
   for (const c of bg.cars) {
@@ -185,14 +165,12 @@ function drawMegacityArena() {
   }
   ctx.restore();
 
-  // ── Street-level glow haze under the skyline ──────────────────────────────
   const haze = ctx.createLinearGradient(0, H - 150, 0, H);
   haze.addColorStop(0, 'rgba(120,60,180,0)');
   haze.addColorStop(1, 'rgba(150,70,200,0.30)');
   ctx.fillStyle = haze;
   ctx.fillRect(sp.x0, H - 150, sp.w, 150);
 
-  // ── Rain, drawn in screen space so it stays even on a panning map ─────────
   ctx.strokeStyle = 'rgba(170,190,240,0.20)';
   ctx.lineWidth   = 1;
   ctx.save();
@@ -209,7 +187,6 @@ function drawMegacityArena() {
   ctx.restore();
 }
 
-// ── Warp Zone ─────────────────────────────────────────────────────────────
 function _warpBg() {
   if (_warpBg._c) return _warpBg._c;
   const sp = _arenaSpan(400);
@@ -220,7 +197,6 @@ function _warpBg() {
       x: rnd(sp.x0, sp.x1), y: rnd(-40, 560), r: rnd(0.5, 2.0),
       a: rnd(0.2, 0.9), ph: rnd(0, Math.PI * 2),
     })),
-    // Rifts the map is named for — each a stack of concentric ellipses
     rifts: Array.from({ length: 7 }, (_, i) => ({
       x: sp.x0 + 260 + i * ((sp.w - 460) / 6),
       y: 110 + (i % 3) * 105,
@@ -229,13 +205,11 @@ function _warpBg() {
       spin: rnd(0.010, 0.026) * (Math.random() < 0.5 ? -1 : 1),
       ph: rnd(0, Math.PI * 2),
     })),
-    // Tumbling debris pulled toward the rifts
     debris: Array.from({ length: 26 }, () => ({
       x: rnd(sp.x0, sp.x1), y: rnd(0, 540),
       s: rnd(4, 13), spd: rnd(0.3, 1.1), spin: rnd(-0.03, 0.03),
       n: 3 + ((Math.random() * 3) | 0),
     })),
-    // Streaks radiating from the vanishing point
     streaks: Array.from({ length: 40 }, () => ({
       a: rnd(0, Math.PI * 2), r0: rnd(40, 260), len: rnd(30, 120),
       spd: rnd(0.9, 2.6), w: rnd(1, 2.6), hue: rnd(255, 320),
@@ -254,7 +228,6 @@ function drawWarpzoneArena() {
 
   ctx.save();
 
-  // ── Void backdrop with a colour-shifting nebula wash ──────────────────────
   const g = ctx.createLinearGradient(0, -200, 0, H);
   g.addColorStop(0, '#0d0024');
   g.addColorStop(0.6, '#12003a');
@@ -274,7 +247,6 @@ function drawWarpzoneArena() {
     ctx.fillRect(nx - 340, ny - 340, 680, 680);
   }
 
-  // ── Star field ────────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.04, 0);
   for (const st of bg.stars) {
@@ -286,7 +258,6 @@ function drawWarpzoneArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Hyperspace streaks radiating from the centre of the view ─────────────
   ctx.save();
   ctx.translate(450 + camOff * 0.02, 270);
   for (const s of bg.streaks) {
@@ -301,7 +272,6 @@ function drawWarpzoneArena() {
   }
   ctx.restore();
 
-  // ── Warp rifts: nested rotating rings with a dark core ───────────────────
   ctx.save();
   ctx.translate(-camOff * 0.10, 0);
   for (const rf of bg.rifts) {
@@ -309,14 +279,12 @@ function drawWarpzoneArena() {
     const puls = Math.sin(f * 0.03 + rf.ph);
     ctx.save();
     ctx.translate(rf.x, rf.y);
-    // event-horizon core
     const cg = ctx.createRadialGradient(0, 0, 2, 0, 0, rf.rx);
     cg.addColorStop(0,   'rgba(0,0,0,0.85)');
     cg.addColorStop(0.6, `hsla(${rf.hue},90%,45%,0.35)`);
     cg.addColorStop(1,   `hsla(${rf.hue},90%,60%,0)`);
     ctx.fillStyle = cg;
     ctx.beginPath(); ctx.ellipse(0, 0, rf.rx, rf.ry, 0, 0, Math.PI * 2); ctx.fill();
-    // rings
     for (let k = 0; k < 4; k++) {
       const t = k / 4;
       ctx.rotate(f * rf.spin * (1 - t * 0.5));
@@ -327,7 +295,6 @@ function drawWarpzoneArena() {
                   t * 0.5, 0, Math.PI * 2);
       ctx.stroke();
     }
-    // arcs jumping across the mouth
     ctx.strokeStyle = `hsla(${rf.hue},100%,84%,${0.30 + puls * 0.25})`;
     ctx.lineWidth = 1.4;
     for (let k = 0; k < 3; k++) {
@@ -342,7 +309,6 @@ function drawWarpzoneArena() {
   }
   ctx.restore();
 
-  // ── Tumbling debris ───────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.14, 0);
   for (const d of bg.debris) {
@@ -366,7 +332,6 @@ function drawWarpzoneArena() {
   }
   ctx.restore();
 
-  // ── Energy grid floor glow ────────────────────────────────────────────────
   const fg = ctx.createLinearGradient(0, H - 130, 0, H);
   fg.addColorStop(0, 'rgba(136,0,255,0)');
   fg.addColorStop(1, 'rgba(136,0,255,0.32)');
@@ -389,7 +354,6 @@ function drawWarpzoneArena() {
   ctx.restore();
 }
 
-// ── Grand Colosseum ───────────────────────────────────────────────────────
 function _colo10Bg() {
   if (_colo10Bg._c) return _colo10Bg._c;
   const sp = _arenaSpan(400);
@@ -409,7 +373,6 @@ function _colo10Bg() {
       }
     }
   }
-  // Dust motes hanging in the sun shafts
   const motes = Array.from({ length: 60 }, () => ({
     x: rnd(-100, GAME_W + 100), y: rnd(120, 560),
     r: rnd(0.7, 2.2), spd: rnd(0.06, 0.24), drift: rnd(0.004, 0.013),
@@ -429,7 +392,6 @@ function drawColosseum10Arena() {
 
   ctx.save();
 
-  // ── Dusk sky over the open roof ───────────────────────────────────────────
   const sky = ctx.createLinearGradient(0, -200, 0, 200);
   sky.addColorStop(0,   '#160600');
   sky.addColorStop(0.6, '#3a1400');
@@ -437,7 +399,6 @@ function drawColosseum10Arena() {
   ctx.fillStyle = sky;
   ctx.fillRect(sp.x0, -300, sp.w, 500);
 
-  // ── Velarium: the awning ring around the top of the bowl ──────────────────
   ctx.fillStyle = '#2a1206';
   ctx.fillRect(sp.x0, 96, sp.w, 22);
   for (let x = sp.x0; x < sp.x1; x += 74) {
@@ -452,12 +413,10 @@ function drawColosseum10Arena() {
     ctx.fill();
   }
 
-  // ── Stands ────────────────────────────────────────────────────────────────
-  ctx.fillStyle = '#3a1c08'; ctx.fillRect(sp.x0, 140, sp.w, 88);   // upper tier
-  ctx.fillStyle = '#2e1506'; ctx.fillRect(sp.x0, 228, sp.w, 12);   // walkway
-  ctx.fillStyle = '#432008'; ctx.fillRect(sp.x0, 240, sp.w, 78);   // lower tier
+  ctx.fillStyle = '#3a1c08'; ctx.fillRect(sp.x0, 140, sp.w, 88);
+  ctx.fillStyle = '#2e1506'; ctx.fillRect(sp.x0, 228, sp.w, 12);
+  ctx.fillStyle = '#432008'; ctx.fillRect(sp.x0, 240, sp.w, 78);
 
-  // ── Crowd — sways constantly, erupts on a big hit ─────────────────────────
   const hype = screenShake > 4 ? 1 : 0;
   ctx.globalAlpha = 0.62;
   for (const c of bg.crowd) {
@@ -470,7 +429,6 @@ function drawColosseum10Arena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Arcade of stone arches below the stands ───────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.05, 0);
   for (let x = sp.x0; x < sp.x1; x += 155) {
@@ -482,20 +440,17 @@ function drawColosseum10Arena() {
     ctx.beginPath();
     ctx.arc(ax + aw / 2, top, aw / 2, Math.PI, 0);
     ctx.fill();
-    // shadowed void inside the arch
     ctx.fillStyle = 'rgba(12,4,0,0.72)';
     ctx.beginPath();
     ctx.arc(ax + aw / 2, top + 4, aw / 2 - 22, Math.PI, 0);
     ctx.fill();
     ctx.fillRect(ax + 22, top + 4, aw - 44, ah - 4);
-    // capital + base highlights
     ctx.fillStyle = 'rgba(200,150,80,0.20)';
     ctx.fillRect(ax, top, 22, 4);
     ctx.fillRect(ax + aw - 22, top, 22, 4);
   }
   ctx.restore();
 
-  // ── Banners hung between the arches ───────────────────────────────────────
   for (let x = sp.x0 + 60; x < sp.x1; x += 310) {
     if (x < vis.lo || x > vis.hi) continue;
     const sway = Math.sin(f * 0.018 + x * 0.01) * 4;
@@ -514,7 +469,6 @@ function drawColosseum10Arena() {
     ctx.fill();
   }
 
-  // ── Torches on the arcade piers, each with a glow pool ────────────────────
   for (let x = sp.x0 + 100; x < sp.x1; x += 155) {
     if (x < vis.lo || x > vis.hi) continue;
     const ty = H - 210;
@@ -533,7 +487,6 @@ function drawColosseum10Arena() {
     ctx.fill();
   }
 
-  // ── Sun shafts raking in over the rim ─────────────────────────────────────
   ctx.save();
   ctx.globalAlpha = 0.09;
   for (let i = 0; i < 5; i++) {
@@ -550,14 +503,12 @@ function drawColosseum10Arena() {
   }
   ctx.restore();
 
-  // ── Sand haze at the arena floor ──────────────────────────────────────────
   const hz = ctx.createLinearGradient(0, H - 150, 0, H);
   hz.addColorStop(0, 'rgba(190,140,70,0)');
   hz.addColorStop(1, 'rgba(190,140,70,0.26)');
   ctx.fillStyle = hz;
   ctx.fillRect(sp.x0, H - 150, sp.w, 150);
 
-  // ── Dust motes drifting in the shafts (screen space) ──────────────────────
   ctx.save();
   ctx.translate(camOff, 0);
   ctx.fillStyle = '#e8cf9a';
@@ -573,17 +524,14 @@ function drawColosseum10Arena() {
   ctx.restore();
 }
 
-// ── Home world: Backyard ───────────────────────────────────────────────────────
 function drawHomeYardArena() {
   const W = GAME_W;
   const groundY = 480;
 
-  // Sky — clear afternoon
   const sky = ctx.createLinearGradient(0,0,0,groundY);
   sky.addColorStop(0,'#5aaddb'); sky.addColorStop(1,'#c0e8f8');
   ctx.fillStyle = sky; ctx.fillRect(0,0,W,groundY);
 
-  // Clouds
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   [[120,60,55,22],[360,40,70,26],[640,70,50,20],[800,50,60,24]].forEach(([cx,cy,rx,ry])=>{
     ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.fill();
@@ -591,10 +539,8 @@ function drawHomeYardArena() {
     ctx.beginPath(); ctx.ellipse(cx-28,cy-4,rx*0.6,ry*0.6,0,0,Math.PI*2); ctx.fill();
   });
 
-  // Back wall of house — large, spans most of the width
   ctx.fillStyle = '#c8b89a'; ctx.strokeStyle='#a09070'; ctx.lineWidth=2;
   ctx.fillRect(0, 180, W, groundY-180);
-  // Brick texture rows
   ctx.strokeStyle='rgba(0,0,0,0.06)'; ctx.lineWidth=1;
   for(let ry=200; ry<groundY; ry+=18){
     ctx.beginPath(); ctx.moveTo(0,ry); ctx.lineTo(W,ry); ctx.stroke();
@@ -604,27 +550,21 @@ function drawHomeYardArena() {
     }
   }
 
-  // Sliding glass door (center)
   ctx.fillStyle='rgba(180,220,255,0.35)'; ctx.strokeStyle='#8aadcc'; ctx.lineWidth=2;
   ctx.fillRect(360,270,180,210); ctx.strokeRect(360,270,180,210);
   ctx.beginPath(); ctx.moveTo(450,270); ctx.lineTo(450,480); ctx.stroke();
-  // Door frame
   ctx.strokeStyle='#6a8aa8'; ctx.lineWidth=3;
   ctx.strokeRect(360,270,180,210);
-  // Reflection shimmer
   ctx.fillStyle='rgba(255,255,255,0.18)';
   ctx.fillRect(366,276,24,180);
 
-  // Window (left of door)
   ctx.fillStyle='rgba(180,220,255,0.3)'; ctx.strokeStyle='#8aadcc'; ctx.lineWidth=1.5;
   ctx.fillRect(180,290,120,90); ctx.strokeRect(180,290,120,90);
   ctx.beginPath(); ctx.moveTo(240,290); ctx.lineTo(240,380); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(180,335); ctx.lineTo(300,335); ctx.stroke();
-  // Curtains
   ctx.fillStyle='rgba(255,220,180,0.5)';
   ctx.fillRect(180,290,28,90); ctx.fillRect(272,290,28,90);
 
-  // Window (right)
   ctx.fillStyle='rgba(180,220,255,0.3)'; ctx.strokeStyle='#8aadcc'; ctx.lineWidth=1.5;
   ctx.fillRect(600,290,120,90); ctx.strokeRect(600,290,120,90);
   ctx.beginPath(); ctx.moveTo(660,290); ctx.lineTo(660,380); ctx.stroke();
@@ -632,12 +572,9 @@ function drawHomeYardArena() {
   ctx.fillStyle='rgba(255,220,180,0.5)';
   ctx.fillRect(600,290,28,90); ctx.fillRect(692,290,28,90);
 
-  // Wooden fence (back of yard)
   ctx.fillStyle='#c4966a'; ctx.strokeStyle='#9a7040'; ctx.lineWidth=1.5;
-  // Horizontal rails
   ctx.fillRect(0,195,W,10); ctx.strokeRect(0,195,W,10);
   ctx.fillRect(0,218,W,8);  ctx.strokeRect(0,218,W,8);
-  // Vertical pickets (left section and right section, door gap in middle)
   for(let fx=0; fx<360; fx+=22){
     ctx.fillRect(fx+2,170,16,50); ctx.strokeRect(fx+2,170,16,50);
   }
@@ -645,27 +582,22 @@ function drawHomeYardArena() {
     ctx.fillRect(fx+2,170,16,50); ctx.strokeRect(fx+2,170,16,50);
   }
 
-  // Patio concrete slab
   ctx.fillStyle='#b0a898'; ctx.strokeStyle='#908878'; ctx.lineWidth=1;
   ctx.fillRect(300,460,300,20); ctx.strokeRect(300,460,300,20);
-  // Patio grout lines
   ctx.strokeStyle='rgba(0,0,0,0.12)'; ctx.lineWidth=1;
   for(let px=300; px<600; px+=50){ ctx.beginPath(); ctx.moveTo(px,460); ctx.lineTo(px,480); ctx.stroke(); }
   ctx.beginPath(); ctx.moveTo(300,470); ctx.lineTo(600,470); ctx.stroke();
 
-  // Lawn — green ground (extends well past canvas so camera zoom-out never shows void)
   const grass = ctx.createLinearGradient(0,groundY-30,0,groundY+40);
   grass.addColorStop(0,'#5a9040'); grass.addColorStop(1,'#3d6e28');
   ctx.fillStyle = grass; ctx.fillRect(0,groundY,W,600);
   ctx.fillStyle='#4a8030'; ctx.fillRect(0,groundY,W,8);
 
-  // Lawn texture — random darker blades
   ctx.strokeStyle='rgba(40,80,20,0.25)'; ctx.lineWidth=1;
   for(let bx=0; bx<W; bx+=14){
     ctx.beginPath(); ctx.moveTo(bx,groundY); ctx.lineTo(bx+3,groundY-8); ctx.stroke();
   }
 
-  // Small flower pots on patio
   [[328,460],[560,460]].forEach(([px,py])=>{
     ctx.fillStyle='#9a5030'; ctx.strokeStyle='#7a3820'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(px-8,py); ctx.lineTo(px+8,py); ctx.lineTo(px+6,py-14); ctx.lineTo(px-6,py-14); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -673,12 +605,9 @@ function drawHomeYardArena() {
     ctx.fillStyle='#3a7020'; ctx.fillRect(px-1,py-28,2,12);
   });
 
-  // ── Yard dressing ──────────────────────────────────────────────────────
-  // The yard was a flat wall, a fence and two pots. These are the props that
-  // make it read as somewhere lived-in rather than a backdrop.
+  // The yard was a wall, a fence and two pots. These props make it read as lived-in.
   const yt = frameCount * 0.02;
 
-  // Sun and a couple of birds in the sky strip above the roofline
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const ysg = ctx.createRadialGradient(120, 66, 4, 120, 66, 86);
@@ -702,7 +631,6 @@ function drawHomeYardArena() {
   }
   ctx.lineCap = 'butt';
 
-  // Tree behind the right-hand fence, leaning over the yard
   const trX = 800;
   ctx.fillStyle = '#5a3a20';
   ctx.fillRect(trX - 7, 300, 14, 180);
@@ -715,7 +643,6 @@ function drawHomeYardArena() {
   ctx.fillStyle = 'rgba(150,205,120,0.35)';
   ctx.beginPath(); ctx.arc(trX - 16 + Math.sin(yt) * 2, 272, 28, 0, Math.PI * 2); ctx.fill();
 
-  // Garden bed against the wall, left of the patio
   ctx.fillStyle = '#6b4a2c';
   ctx.fillRect(96, 446, 168, 16);
   ctx.fillStyle = '#7d5836';
@@ -739,7 +666,6 @@ function drawHomeYardArena() {
     ctx.beginPath(); ctx.arc(fx + fsw * 1.6, 421, 1.6, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Barbecue on the patio
   const bqX = 620;
   ctx.fillStyle = '#3a3a40';
   ctx.beginPath();
@@ -755,7 +681,6 @@ function drawHomeYardArena() {
   ctx.fillStyle = '#6a6a74';
   ctx.beginPath(); ctx.arc(bqX + 30, 436, 5, 0, Math.PI * 2); ctx.fill();
 
-  // Coiled hose on the wall
   const hsX = 268, hsY = 400;
   ctx.strokeStyle = '#2f7a44'; ctx.lineWidth = 3;
   for (let k = 0; k < 3; k++) {
@@ -768,39 +693,27 @@ function drawHomeYardArena() {
   ctx.stroke();
   ctx.fillStyle = '#5a5a62'; ctx.fillRect(hsX - 3, hsY - 22, 6, 12);
 
-  // Doormat under the sliding door
   ctx.fillStyle = '#7a5a3a'; ctx.fillRect(414, 452, 72, 10);
   ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1;
   for (let mx = 418; mx < 486; mx += 8) { ctx.beginPath(); ctx.moveTo(mx, 452); ctx.lineTo(mx, 462); ctx.stroke(); }
 
-  // Left & right wooden fence barriers (hard walls)
   [[0, 40],[W-40, 40]].forEach(([bx, bw])=>{
     ctx.fillStyle='#c4966a'; ctx.strokeStyle='#9a7040'; ctx.lineWidth=1.5;
     ctx.fillRect(bx,0,bw,groundY);
-    // Horizontal rails
     ctx.fillStyle='#b08050'; ctx.fillRect(bx,200,bw,10); ctx.fillRect(bx,260,bw,10);
-    // Vertical pickets
     for(let fy=0; fy<groundY; fy+=22){
       ctx.fillStyle='#c4966a'; ctx.fillRect(bx+4,fy,bw-8,18); ctx.strokeRect(bx+4,fy,bw-8,18);
     }
   });
 }
 
-// ── Home world: City Alley ─────────────────────────────────────────────────────
-// ── City Rooftop ──────────────────────────────────────────────────────────
-// This arena had NO draw function at all — it fell through to the bare sky
-// gradient plus the generic ARENA_DEPTH hills, which put rolling countryside
-// behind a rooftop. Built as a night rooftop: the city dropping away below the
-// parapet in three parallax bands, a moon and light dome above it, and the
-// clutter that actually lives on a roof — water tower, HVAC plant, vents,
-// dishes, a stairwell bulkhead, aerials with warning lamps and pigeons.
+// Night rooftop: the city below the parapet in three parallax bands, plus roof clutter.
 function _rooftopBg() {
   const sp  = _arenaSpan(400);
   const key = sp.x0 + '|' + sp.w;
   if (_rooftopBg._c && _rooftopBg._key === key) return _rooftopBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
 
-  // Skyline bands below the parapet — nearer bands are taller and darker
   const bands = [
     { par: 0.05, step: 68,  hMin: 40,  hMax: 130, top: 300, fill: '#141b30', win: 'rgba(180,205,255,', a: 0.22 },
     { par: 0.11, step: 88,  hMin: 60,  hMax: 180, top: 330, fill: '#0e1426', win: 'rgba(255,222,140,', a: 0.42 },
@@ -822,7 +735,6 @@ function _rooftopBg() {
     }
   }
 
-  // Roof clutter, spaced along the deck
   const props = [];
   for (let x = sp.x0 + 120; x < sp.x1 - 120; x += rnd(180, 300)) {
     props.push({ x, kind: Math.floor(rnd(0, 5)), s: rnd(0.8, 1.35), blink: rnd(0, 6.28) });
@@ -853,12 +765,11 @@ function drawHomeRooftopArena() {
   const vis = _arenaVis(1800);
   const f   = frameCount;
   const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
-  const deck = 480;                       // the rooftop floor
+  const deck = 480;
   const seen = (x, pad) => x > vis.lo - (pad || 0) && x < vis.hi + (pad || 0);
 
   ctx.save();
 
-  // ── Night sky with a light dome rising off the city ──────────────────────
   const sky = ctx.createLinearGradient(0, -200, 0, deck);
   sky.addColorStop(0,    '#05070f');
   sky.addColorStop(0.55, '#111828');
@@ -874,7 +785,6 @@ function drawHomeRooftopArena() {
   }
   ctx.globalAlpha = 1;
 
-  // Moon, parked relative to the camera so it stays on the horizon as you move
   const mX = (typeof camXCur === 'number' ? camXCur : 450) + 300, mY = 92;
   const mg = ctx.createRadialGradient(mX, mY, 6, mX, mY, 150);
   mg.addColorStop(0,   'rgba(190,206,244,0.30)');
@@ -887,7 +797,6 @@ function drawHomeRooftopArena() {
   ctx.beginPath(); ctx.arc(mX - 7, mY - 5, 5.5, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(mX + 6, mY + 5, 4, 0, Math.PI * 2); ctx.fill();
 
-  // Aircraft
   for (const pl of bg.planes) {
     const span = 2200;
     const raw = ((f * Math.abs(pl.spd) + pl.off) % span + span) % span;
@@ -897,7 +806,6 @@ function drawHomeRooftopArena() {
     ctx.beginPath(); ctx.arc(px, pl.y, 1.8, 0, Math.PI * 2); ctx.fill();
   }
 
-  // ── City dropping away below the parapet ─────────────────────────────────
   for (const L of bg.bands) {
     ctx.save();
     ctx.translate(-camOff * L.par, 0);
@@ -906,7 +814,6 @@ function drawHomeRooftopArena() {
       if (b.x + b.w < lo - 200 || b.x > hi + 200) continue;
       ctx.fillStyle = L.fill;
       ctx.fillRect(b.x, L.top, b.w, deck - L.top + 120);
-      // Roofline cap so the towers read as separate blocks
       ctx.fillStyle = 'rgba(255,255,255,0.05)';
       ctx.fillRect(b.x, L.top, b.w, 3);
       for (const w of b.wins) {
@@ -927,14 +834,12 @@ function drawHomeRooftopArena() {
     ctx.restore();
   }
 
-  // Light haze sitting over the streets below
   const haze = ctx.createLinearGradient(0, 300, 0, deck);
   haze.addColorStop(0, 'rgba(120,96,170,0)');
   haze.addColorStop(1, 'rgba(140,110,180,0.22)');
   ctx.fillStyle = haze;
   ctx.fillRect(sp.x0, 300, sp.w, deck - 300);
 
-  // ── Roof clutter ─────────────────────────────────────────────────────────
   for (const pr of bg.props) {
     if (!seen(pr.x, 120)) continue;
     const s = pr.s;
@@ -942,7 +847,6 @@ function drawHomeRooftopArena() {
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.lineWidth = 1.5;
     if (pr.kind === 0) {
-      // Water tower on a steel frame
       const tw = 46 * s, th = 52 * s, base = deck - 34 * s;
       ctx.strokeStyle = '#3a3a44'; ctx.lineWidth = 3;
       ctx.beginPath();
@@ -963,7 +867,6 @@ function drawHomeRooftopArena() {
         ctx.beginPath(); ctx.moveTo(pr.x - tw * 0.5, yy); ctx.lineTo(pr.x + tw * 0.5, yy); ctx.stroke();
       }
     } else if (pr.kind === 1) {
-      // HVAC plant with a turning fan
       const w = 66 * s, h = 34 * s;
       ctx.fillRect(pr.x - w * 0.5, deck - h, w, h);
       ctx.strokeRect(pr.x - w * 0.5, deck - h, w, h);
@@ -981,7 +884,6 @@ function drawHomeRooftopArena() {
       }
       ctx.restore();
     } else if (pr.kind === 2) {
-      // Stairwell bulkhead with a lit doorway
       const w = 58 * s, h = 62 * s;
       ctx.fillStyle = '#26262e';
       ctx.fillRect(pr.x - w * 0.5, deck - h, w, h);
@@ -998,7 +900,6 @@ function drawHomeRooftopArena() {
       ctx.fillStyle = dg; ctx.fillRect(pr.x - 74, deck - h - 30, 148, 148);
       ctx.restore();
     } else if (pr.kind === 3) {
-      // Vent pipes
       for (let k = -1; k <= 1; k++) {
         const vx = pr.x + k * 15 * s;
         const vh = (20 + Math.abs(k) * 8) * s;
@@ -1009,7 +910,6 @@ function drawHomeRooftopArena() {
         ctx.fill();
       }
     } else {
-      // Satellite dish on a mast, plus an aerial with a warning lamp
       const mh = 44 * s;
       ctx.strokeStyle = '#3a3a44'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(pr.x, deck); ctx.lineTo(pr.x, deck - mh); ctx.stroke();
@@ -1024,7 +924,6 @@ function drawHomeRooftopArena() {
     }
   }
 
-  // ── Parapet along the roof edge, and its warning-light string ────────────
   ctx.fillStyle = '#2e2e38';
   ctx.fillRect(sp.x0, deck - 12, sp.w, 12);
   ctx.fillStyle = '#3c3c48';
@@ -1035,7 +934,6 @@ function drawHomeRooftopArena() {
     ctx.beginPath(); ctx.moveTo(x, deck - 12); ctx.lineTo(x, deck); ctx.stroke();
   }
 
-  // ── Pigeons perched on the parapet ───────────────────────────────────────
   ctx.fillStyle = 'rgba(60,64,78,0.95)';
   for (const pg of bg.pigeons) {
     if (!seen(pg.x, 20)) continue;
@@ -1052,12 +950,9 @@ function drawHomeRooftopArena() {
     ctx.fillStyle = 'rgba(60,64,78,0.95)';
   }
 
-  // NOTE: there is deliberately no deck-surface art here. The isFloor platform
-  // (y480, h200) is opaque and drawn AFTER the background, so anything painted
-  // below the floor line is covered before the frame is presented. Roof props
-  // therefore all sit ABOVE y480, standing on the deck.
+  // No deck-surface art: the isFloor platform (y480) is drawn after the background and covers
+  // anything below it. Roof props sit above y480.
 
-  // ── Wind streaks drifting across the deck ────────────────────────────────
   ctx.strokeStyle = 'rgba(200,215,240,0.10)';
   ctx.lineWidth = 2;
   for (let i = 0; i < 7; i++) {
@@ -1078,12 +973,10 @@ function drawHomeAlleyArena() {
   const groundY = 480;
   const t = frameCount * 0.02;
 
-  // Sky strip between buildings — dark/dusk
   const sky = ctx.createLinearGradient(0,0,0,160);
   sky.addColorStop(0,'#1a2030'); sky.addColorStop(1,'#2a3040');
   ctx.fillStyle = sky; ctx.fillRect(0,0,W,160);
 
-  // Stars in the narrow sky strip
   ctx.fillStyle='rgba(255,255,255,0.7)';
   [[60,20],[130,40],[200,15],[300,35],[400,22],[500,38],[620,18],[730,42],[820,28],[880,15]].forEach(([sx,sy])=>{
     const blink = Math.sin(t + sx*0.1) * 0.3 + 0.7;
@@ -1092,33 +985,27 @@ function drawHomeAlleyArena() {
   });
   ctx.globalAlpha = 1;
 
-  // LEFT building wall — brick
   const leftW = 130;
   ctx.fillStyle='#3a3028'; ctx.fillRect(0,0,leftW,groundY);
-  // Brick pattern
   ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
   for(let ry=0; ry<groundY; ry+=16){
     ctx.beginPath(); ctx.moveTo(0,ry); ctx.lineTo(leftW,ry); ctx.stroke();
     const off = ((ry/16)|0)%2===0 ? 0 : 50;
     for(let rx=off; rx<leftW; rx+=100){ ctx.beginPath(); ctx.moveTo(rx,ry); ctx.lineTo(rx,ry+16); ctx.stroke(); }
   }
-  // Fire escape on left wall
   ctx.strokeStyle='#555545'; ctx.lineWidth=2;
   ctx.beginPath(); ctx.moveTo(leftW-2,160); ctx.lineTo(leftW-2,groundY); ctx.stroke();
   [220,310,400,groundY-10].forEach(fy=>{
     ctx.fillStyle='#444434'; ctx.fillRect(leftW-30,fy,30,6);
     ctx.strokeStyle='#333324'; ctx.lineWidth=1;
     ctx.strokeRect(leftW-30,fy,30,6);
-    // Railing
     for(let rx=leftW-28; rx<leftW; rx+=8){ ctx.beginPath(); ctx.moveTo(rx,fy); ctx.lineTo(rx,fy-20); ctx.stroke(); }
   });
-  // Lit window on left
   ctx.fillStyle='rgba(255,200,80,0.35)'; ctx.strokeStyle='#555'; ctx.lineWidth=1;
   ctx.fillRect(8,100,60,50); ctx.strokeRect(8,100,60,50);
-  ctx.fillStyle='rgba(255,200,80,0.12)'; // window glow
+  ctx.fillStyle='rgba(255,200,80,0.12)';
   ctx.beginPath(); ctx.ellipse(38,125,50,40,0,0,Math.PI*2); ctx.fill();
 
-  // RIGHT building wall
   const rightX = W-130;
   ctx.fillStyle='#2e2a24'; ctx.fillRect(rightX,0,130,groundY);
   ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
@@ -1132,20 +1019,15 @@ function drawHomeAlleyArena() {
   ctx.fillStyle='rgba(255,200,80,0.10)';
   ctx.beginPath(); ctx.ellipse(rightX+47,105,60,40,0,0,Math.PI*2); ctx.fill();
 
-  // Alley depth. This used to fill from y=0, which painted over the sky strip
-  // and left the entire middle of the map as one flat dark rectangle — the
-  // alley had no back to it. It now starts below the roofline so the sky shows
-  // through the gap, and a detailed end wall closes the alley off.
+  // Alley back starts below the roofline, so the sky shows through the gap.
   const backTop = 150;
   const depthGrad = ctx.createLinearGradient(0,backTop,0,groundY);
   depthGrad.addColorStop(0,'#141820'); depthGrad.addColorStop(1,'#1e2028');
   ctx.fillStyle=depthGrad; ctx.fillRect(leftW,backTop,rightX-leftW,groundY-backTop);
 
-  // ── Back wall of the alley ─────────────────────────────────────────────
   const bwX = leftW, bwW = rightX - leftW;
   ctx.fillStyle = '#332d25';
   ctx.fillRect(bwX, backTop, bwW, groundY - backTop);
-  // Brick courses
   ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = 1;
   for (let ry = backTop; ry < groundY; ry += 15) {
     ctx.beginPath(); ctx.moveTo(bwX, ry); ctx.lineTo(bwX + bwW, ry); ctx.stroke();
@@ -1154,14 +1036,12 @@ function drawHomeAlleyArena() {
       ctx.beginPath(); ctx.moveTo(bwX + rx, ry); ctx.lineTo(bwX + rx, ry + 15); ctx.stroke();
     }
   }
-  // Grime wash down the wall
   const grime = ctx.createLinearGradient(0, backTop, 0, groundY);
   grime.addColorStop(0, 'rgba(0,0,0,0.45)');
   grime.addColorStop(0.5, 'rgba(0,0,0,0.05)');
   grime.addColorStop(1, 'rgba(0,0,0,0.42)');
   ctx.fillStyle = grime; ctx.fillRect(bwX, backTop, bwW, groundY - backTop);
 
-  // Graffiti tag — loose overlapping strokes, no attempt at letters
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const tagX = bwX + bwW * 0.30, tagY = 352;
@@ -1173,8 +1053,7 @@ function drawHomeAlleyArena() {
     ctx.quadraticCurveTo(tagX + 116 + dx, tagY - 26 + dy, tagX + 138 + dx, tagY + 22 + dy);
     ctx.stroke();
   };
-  // Dark outline first, then muted fills at low alpha. Bright saturated strokes
-  // on their own float off the brick and read as a ribbon, not spray paint.
+  // Dark outline under muted fills. Bright saturated strokes read as ribbon, not spray paint.
   ctx.globalAlpha = 0.5; ctx.strokeStyle = '#0d0b08'; ctx.lineWidth = 13; tagPath(0, 0);
   ctx.globalAlpha = 0.34;
   ctx.strokeStyle = '#a8365c'; ctx.lineWidth = 7; tagPath(0, 0);
@@ -1184,7 +1063,6 @@ function drawHomeAlleyArena() {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // Fire door with an EXIT lamp above it
   const doorX = bwX + bwW * 0.72;
   ctx.fillStyle = '#3d4a44'; ctx.fillRect(doorX, groundY - 96, 52, 96);
   ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2;
@@ -1201,7 +1079,6 @@ function drawHomeAlleyArena() {
   ctx.fillStyle = eg; ctx.fillRect(doorX - 30, groundY - 165, 112, 112);
   ctx.restore();
 
-  // Barred window
   const bwinX = bwX + bwW * 0.12;
   ctx.fillStyle = 'rgba(255,196,86,0.20)';
   ctx.fillRect(bwinX, 246, 56, 46);
@@ -1214,7 +1091,6 @@ function drawHomeAlleyArena() {
     ctx.stroke();
   }
 
-  // Drainpipes running down the wall
   ctx.strokeStyle = '#3b352c'; ctx.lineWidth = 6;
   for (const px of [bwX + bwW * 0.06, bwX + bwW * 0.55, bwX + bwW * 0.9]) {
     ctx.beginPath();
@@ -1227,7 +1103,6 @@ function drawHomeAlleyArena() {
     ctx.fillRect(px - 5, 370, 10, 5);
   }
 
-  // AC units bolted to the wall, each with a slow-turning fan
   for (const [ax, ay, as] of [[bwX + bwW * 0.24, 200, 1], [bwX + bwW * 0.63, 232, 0.8]]) {
     ctx.fillStyle = '#4a4a44';
     ctx.fillRect(ax, ay, 46 * as, 34 * as);
@@ -1244,12 +1119,10 @@ function drawHomeAlleyArena() {
       ctx.stroke();
     }
     ctx.restore();
-    // Drip stain under it
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.fillRect(ax + 18 * as, ay + 34 * as, 8 * as, groundY - (ay + 34 * as));
   }
 
-  // Steam venting from a floor grate
   ctx.fillStyle = '#1a1a18';
   ctx.fillRect(bwX + bwW * 0.44, groundY - 6, 54, 6);
   ctx.strokeStyle = '#33332e'; ctx.lineWidth = 1.5;
@@ -1264,8 +1137,7 @@ function drawHomeAlleyArena() {
     const sx2 = bwX + bwW * 0.46 + Math.sin(sp * 5 + k) * 14;
     const sy2 = groundY - 8 - sp * 150;
     const sr  = 12 + sp * 34;
-    // Radial falloff, additive: flat grey ellipses on a dark wall just looked
-    // like smudges rather than steam catching the light.
+    // Additive radial falloff. Flat grey ellipses looked like smudges.
     const g2 = ctx.createRadialGradient(sx2, sy2, 1, sx2, sy2, sr);
     g2.addColorStop(0, `rgba(190,206,222,${(1 - sp) * 0.16})`);
     g2.addColorStop(1, 'rgba(190,206,222,0)');
@@ -1275,7 +1147,6 @@ function drawHomeAlleyArena() {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // Overhead wires
   ctx.strokeStyle='rgba(40,40,40,0.9)'; ctx.lineWidth=1.5;
   [[leftW,80,rightX,100],[leftW,120,rightX,108]].forEach(([x1,y1,x2,y2])=>{
     ctx.beginPath();
@@ -1284,13 +1155,11 @@ function drawHomeAlleyArena() {
     ctx.quadraticCurveTo(mid,y1+18,x2,y2);
     ctx.stroke();
   });
-  // Hanging light
   const lightX = W*0.5, lightY = 110;
   const swing = Math.sin(t) * 8;
   ctx.strokeStyle='rgba(40,40,40,0.8)'; ctx.lineWidth=1;
   ctx.beginPath(); ctx.moveTo(lightX,90); ctx.lineTo(lightX+swing,lightY); ctx.stroke();
   ctx.fillStyle='#888'; ctx.beginPath(); ctx.arc(lightX+swing,lightY,6,0,Math.PI*2); ctx.fill();
-  // Light cone
   const lightFlicker = 0.15 + Math.sin(t*3)*0.05;
   const lgrad = ctx.createRadialGradient(lightX+swing,lightY,0,lightX+swing,lightY,180);
   lgrad.addColorStop(0,`rgba(255,200,100,${lightFlicker*2})`);
@@ -1298,24 +1167,19 @@ function drawHomeAlleyArena() {
   ctx.fillStyle=lgrad;
   ctx.beginPath(); ctx.moveTo(lightX+swing,lightY); ctx.lineTo(lightX+swing-100,groundY); ctx.lineTo(lightX+swing+100,groundY); ctx.closePath(); ctx.fill();
 
-  // Ground — wet asphalt (fill well past canvas to eliminate void on zoom-out)
   const road = ctx.createLinearGradient(0,groundY,0,groundY+60);
   road.addColorStop(0,'#252525'); road.addColorStop(1,'#1a1a1a');
   ctx.fillStyle=road; ctx.fillRect(0,groundY,W,600);
-  // Cracks
   ctx.strokeStyle='rgba(0,0,0,0.4)'; ctx.lineWidth=1;
   [[200,groundY,220,groundY+20],[450,groundY,440,groundY+15],[700,groundY,715,groundY+18]].forEach(([x1,y1,x2,y2])=>{
     ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
   });
-  // Puddle reflection
   ctx.fillStyle='rgba(255,200,100,0.06)';
   ctx.beginPath(); ctx.ellipse(lightX,groundY+12,60,8,0,0,Math.PI*2); ctx.fill();
   ctx.fillStyle='rgba(100,140,200,0.08)';
   ctx.beginPath(); ctx.ellipse(250,groundY+10,40,6,0,0,Math.PI*2); ctx.fill();
-  // Ground line
   ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,groundY,W,4);
 
-  // Graffiti on left wall (simple colored shapes)
   ctx.save(); ctx.globalAlpha=0.45;
   ctx.fillStyle='#dd4422'; ctx.font='bold 18px Arial';
   ctx.fillText('NO', 20, 340);
@@ -1323,12 +1187,10 @@ function drawHomeAlleyArena() {
   ctx.fillText('WAY', 22, 360);
   ctx.restore();
 
-  // Graffiti arrow on right
   ctx.save(); ctx.globalAlpha=0.35; ctx.strokeStyle='#cc8800'; ctx.lineWidth=3;
   ctx.beginPath(); ctx.moveTo(rightX+15,300); ctx.lineTo(rightX+55,300); ctx.lineTo(rightX+48,293); ctx.moveTo(rightX+55,300); ctx.lineTo(rightX+48,307); ctx.stroke();
   ctx.restore();
 
-  // Dumpsters — decorative, flush against ground (no collision)
   [[80,480],[700,480]].forEach(([dx,dy])=>{
     ctx.fillStyle='#2a7a3a'; ctx.strokeStyle='#1a5a2a'; ctx.lineWidth=2;
     ctx.fillRect(dx,dy-38,120,38); ctx.strokeRect(dx,dy-38,120,38);
@@ -1339,7 +1201,6 @@ function drawHomeAlleyArena() {
     ctx.fillText('WASTE', dx+8, dy-16);
   });
 
-  // Rats (tiny animated)
   const ratX = 180 + Math.sin(t*0.8)*15;
   ctx.fillStyle='#555'; ctx.save();
   ctx.translate(ratX, groundY+5);
@@ -1349,7 +1210,6 @@ function drawHomeAlleyArena() {
   ctx.beginPath(); ctx.moveTo(8,0); ctx.quadraticCurveTo(16,-3,20,1); ctx.stroke();
   ctx.restore();
 
-  // Left & right solid brick barrier walls (hard walls matching physics boundary)
   [[0,40],[W-40,40]].forEach(([bx,bw])=>{
     ctx.fillStyle='#3a3028'; ctx.fillRect(bx,0,bw,groundY);
     ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
@@ -1358,16 +1218,11 @@ function drawHomeAlleyArena() {
       const off=((ry/16)|0)%2===0?0:50;
       for(let rx=off; rx<bw; rx+=100){ ctx.beginPath(); ctx.moveTo(bx+rx,ry); ctx.lineTo(bx+rx,ry+16); ctx.stroke(); }
     }
-    // Grime/moss patches
     ctx.fillStyle='rgba(40,60,20,0.2)'; ctx.fillRect(bx, groundY-80, bw, 80);
   });
 }
 
-// ── Suburbs ───────────────────────────────────────────────────────────────
-// Was five beige boxes with triangle roofs. Rebuilt as an actual street: two
-// depth bands of houses with varied rooflines, porches, chimneys and garage
-// doors, street trees, lamp posts, a parked car, a road with kerb and markings,
-// and distant hills — with the portal haze and picket-fence walls kept.
+// Two depth bands of houses, porches, street trees and a road. Portal haze and picket walls kept.
 function _suburbBg() {
   if (_suburbBg._c) return _suburbBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1413,7 +1268,6 @@ function drawSuburbArena() {
   sky.addColorStop(0, '#6fbfe4'); sky.addColorStop(0.6, '#a9dcf2'); sky.addColorStop(1, '#dcf2ff');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, GAME_H);
 
-  // Sun and drifting clouds
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   const sg = ctx.createRadialGradient(150, 70, 6, 150, 70, 150);
@@ -1431,7 +1285,6 @@ function drawSuburbArena() {
     ctx.fill();
   }
 
-  // Distant hills behind the street
   ctx.fillStyle = 'rgba(126,168,132,0.55)';
   ctx.beginPath();
   ctx.moveTo(-40, groundY);
@@ -1443,17 +1296,13 @@ function drawSuburbArena() {
   ctx.closePath();
   ctx.fill();
 
-  // ── Houses, far band then near band ──────────────────────────────────────
   const drawHouse = (h, alpha) => {
     const top = groundY - h.h;
     ctx.globalAlpha = alpha;
-    // Body
     ctx.fillStyle = h.wall;
     ctx.fillRect(h.x, top, h.w, h.h);
-    // Wall shading down the right-hand third
     ctx.fillStyle = 'rgba(0,0,0,0.10)';
     ctx.fillRect(h.x + h.w * 0.66, top, h.w * 0.34, h.h);
-    // Roof — gable end or hipped
     ctx.fillStyle = h.roof;
     ctx.beginPath();
     if (h.gable) {
@@ -1468,17 +1317,14 @@ function drawSuburbArena() {
     }
     ctx.closePath();
     ctx.fill();
-    // Fascia board under the eaves
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.fillRect(h.x - 10, top - 3, h.w + 20, 4);
-    // Chimney
     if (h.chimney) {
       ctx.fillStyle = '#8a5a4a';
       ctx.fillRect(h.x + h.w * 0.72, top - h.h * 0.36, 12 * h.s, h.h * 0.30);
       ctx.fillStyle = '#6e463a';
       ctx.fillRect(h.x + h.w * 0.72 - 2, top - h.h * 0.36, 16 * h.s, 5);
     }
-    // Windows, some lit
     const wy = top + h.h * 0.22, ww = 22 * h.s, wh = 24 * h.s;
     for (let i = 0; i < 3; i++) {
       const wx = h.x + h.w * (0.12 + i * 0.30);
@@ -1487,12 +1333,11 @@ function drawSuburbArena() {
       ctx.strokeStyle = 'rgba(255,255,255,0.8)';
       ctx.lineWidth = 2;
       ctx.strokeRect(wx, wy, ww, wh);
-      ctx.beginPath();                      // mullions
+      ctx.beginPath();
       ctx.moveTo(wx + ww * 0.5, wy); ctx.lineTo(wx + ww * 0.5, wy + wh);
       ctx.moveTo(wx, wy + wh * 0.5); ctx.lineTo(wx + ww, wy + wh * 0.5);
       ctx.stroke();
     }
-    // Door, or garage door
     if (h.garage) {
       ctx.fillStyle = '#d8d4cc';
       ctx.fillRect(h.x + h.w * 0.56, groundY - h.h * 0.42, h.w * 0.36, h.h * 0.42);
@@ -1507,7 +1352,6 @@ function drawSuburbArena() {
     ctx.fillRect(h.x + h.w * 0.14, groundY - h.h * 0.36, 22 * h.s, h.h * 0.36);
     ctx.fillStyle = '#e8c860';
     ctx.beginPath(); ctx.arc(h.x + h.w * 0.14 + 17 * h.s, groundY - h.h * 0.18, 1.8, 0, Math.PI * 2); ctx.fill();
-    // Porch roof over the door
     if (h.porch) {
       ctx.fillStyle = 'rgba(120,86,58,0.9)';
       ctx.fillRect(h.x + h.w * 0.06, groundY - h.h * 0.42, h.w * 0.28, 5);
@@ -1520,7 +1364,6 @@ function drawSuburbArena() {
   for (const h of bg.far)  drawHouse(h, 0.55);
   for (const h of bg.near) drawHouse(h, 1);
 
-  // ── Street trees ─────────────────────────────────────────────────────────
   for (const t of bg.trees) {
     const sway = Math.sin(f * 0.012 + t.phase) * 3;
     ctx.fillStyle = '#5a3a20';
@@ -1537,7 +1380,6 @@ function drawSuburbArena() {
     ctx.fill();
   }
 
-  // ── Lamp posts ───────────────────────────────────────────────────────────
   for (const lx of bg.lamps) {
     ctx.fillStyle = '#3c4048';
     ctx.fillRect(lx - 3, groundY - 132, 6, 132);
@@ -1549,7 +1391,6 @@ function drawSuburbArena() {
     ctx.beginPath(); ctx.ellipse(lx + 28, groundY - 143, 8, 5, 0, 0, Math.PI * 2); ctx.fill();
   }
 
-  // ── Parked car ───────────────────────────────────────────────────────────
   const carX = 590;
   ctx.fillStyle = '#2f6fb0';
   ctx.beginPath();
@@ -1573,12 +1414,10 @@ function drawSuburbArena() {
   ctx.beginPath(); ctx.arc(carX - 26, groundY - 5, 9, 0, Math.PI * 2); ctx.fill();
   ctx.beginPath(); ctx.arc(carX + 26, groundY - 5, 9, 0, Math.PI * 2); ctx.fill();
 
-  // ── Portal haze creeping in (story atmosphere — kept) ────────────────────
   const smokeAlpha = 0.08 + Math.sin(f * 0.04) * 0.03;
   ctx.fillStyle = `rgba(80,0,80,${smokeAlpha})`;
   ctx.fillRect(0, 0, W, GAME_H);
 
-  // ── Lawn, kerb and road ──────────────────────────────────────────────────
   const lawn = ctx.createLinearGradient(0, groundY, 0, groundY + 90);
   lawn.addColorStop(0, '#6a9c46'); lawn.addColorStop(1, '#40682c');
   ctx.fillStyle = lawn; ctx.fillRect(0, groundY, W, 600);
@@ -1589,7 +1428,6 @@ function drawSuburbArena() {
   ctx.fillStyle = 'rgba(240,226,140,0.75)';
   for (let sx = 10; sx < W; sx += 66) ctx.fillRect(sx, 546, 34, 5);
 
-  // ── Picket fence walls (hard boundaries — kept) ──────────────────────────
   [[0, 40], [W - 40, 40]].forEach(([bx, bw]) => {
     ctx.fillStyle = '#5a8a3a'; ctx.fillRect(bx, 0, bw, 480);
     ctx.fillStyle = '#f0ece0'; ctx.strokeStyle = '#c8c0a0'; ctx.lineWidth = 1.5;
@@ -1603,16 +1441,11 @@ function drawSuburbArena() {
   });
 }
 
-// ── Rural Fields ──────────────────────────────────────────────────────────
-// Was a flat sunset, one red rectangle "barn" and a silo. Rebuilt as a farm at
-// golden hour: banded sun with cloud streaks, rolling wheat fields in three
-// parallax depths that actually sway, a barn with a gambrel roof and hayloft, a
-// banded silo, a turning windmill, a receding fence line, and crows.
+// Farm at golden hour: wheat in three parallax depths, a gambrel barn, a silo, a windmill and crows.
 function _ruralBg() {
   if (_ruralBg._c) return _ruralBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
   _ruralBg._c = {
-    // Wheat bands: near ones are taller, darker and sway more
     fields: [
       { y: 400, h: 16, n: 330, col: '#c9963a', a: 0.55, amp: 1.6, par: 0.05 },
       { y: 428, h: 24, n: 280, col: '#b47c28', a: 0.75, amp: 2.6, par: 0.09 },
@@ -1633,7 +1466,6 @@ function _ruralBg() {
       y: rnd(70, 200), spd: rnd(0.4, 1.0) * (Math.random() < 0.5 ? 1 : -1),
       off: rnd(0, 1400), s: rnd(0.7, 1.2), flap: rnd(0.16, 0.3),
     })),
-    // Receding fence posts along the field edge
     posts: Array.from({ length: 16 }, (_, i) => ({ x: -20 + i * 62, h: 26 + (i % 3) * 4 })),
   };
   return _ruralBg._c;
@@ -1646,7 +1478,6 @@ function drawRuralArena() {
   const camOff = (typeof camXCur === 'number' ? camXCur - 450 : 0);
   const groundY = 480;
 
-  // ── Sunset sky ───────────────────────────────────────────────────────────
   const sky = ctx.createLinearGradient(0, 0, 0, groundY);
   sky.addColorStop(0,    '#4a72b4');
   sky.addColorStop(0.32, '#e88f3a');
@@ -1654,7 +1485,6 @@ function drawRuralArena() {
   sky.addColorStop(1,    '#f6d47a');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, GAME_H);
 
-  // ── Sun low on the horizon ───────────────────────────────────────────────
   const sunX = 700, sunY = 300;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
@@ -1668,7 +1498,6 @@ function drawRuralArena() {
   ctx.fillStyle = 'rgba(255,242,186,0.95)';
   ctx.beginPath(); ctx.arc(sunX, sunY, 52, 0, Math.PI * 2); ctx.fill();
 
-  // ── Cloud streaks, backlit ───────────────────────────────────────────────
   for (const c of bg.clouds) {
     const cx2 = (((c.off + f * c.spd) % 1300) + 1300) % 1300 - 220;
     ctx.globalAlpha = c.a;
@@ -1676,14 +1505,13 @@ function drawRuralArena() {
     ctx.beginPath();
     ctx.ellipse(cx2, c.y, c.w * 0.5, c.h * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,222,150,0.7)';        // lit underside
+    ctx.fillStyle = 'rgba(255,222,150,0.7)';
     ctx.beginPath();
     ctx.ellipse(cx2, c.y + c.h * 0.28, c.w * 0.42, c.h * 0.22, 0, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // ── Crows ────────────────────────────────────────────────────────────────
   ctx.strokeStyle = 'rgba(28,18,10,0.7)';
   ctx.lineWidth = 2;
   ctx.lineCap = 'round';
@@ -1701,7 +1529,6 @@ function drawRuralArena() {
   }
   ctx.lineCap = 'butt';
 
-  // ── Distant treeline ─────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.03, 0);
   ctx.fillStyle = 'rgba(72,58,34,0.55)';
@@ -1714,7 +1541,6 @@ function drawRuralArena() {
   ctx.fillRect(-60, 388, W + 120, 10);
   ctx.restore();
 
-  // ── Windmill ─────────────────────────────────────────────────────────────
   const wmX = 118, wmY = 236;
   ctx.fillStyle = 'rgba(60,44,26,0.9)';
   ctx.beginPath();
@@ -1741,9 +1567,8 @@ function drawRuralArena() {
   ctx.fillStyle = 'rgba(48,34,20,0.95)';
   ctx.beginPath(); ctx.arc(wmX, wmY, 4, 0, Math.PI * 2); ctx.fill();
 
-  // ── Barn ─────────────────────────────────────────────────────────────────
   const bX = 226, bY = 296, bW = 186, bH = 186;
-  // Gambrel roof — two pitches, which is what says "barn" and not "shed"
+  // Gambrel roof: two pitches, so it reads as a barn.
   ctx.fillStyle = '#6b1010';
   ctx.beginPath();
   ctx.moveTo(bX - 14, bY);
@@ -1757,11 +1582,9 @@ function drawRuralArena() {
   ctx.fillRect(bX, bY, bW, bH);
   ctx.fillStyle = 'rgba(0,0,0,0.14)';
   ctx.fillRect(bX + bW * 0.66, bY, bW * 0.34, bH);
-  // White trim boards
   ctx.strokeStyle = 'rgba(240,232,214,0.85)';
   ctx.lineWidth = 3;
   ctx.strokeRect(bX + 6, bY + 8, bW - 12, bH - 14);
-  // Big sliding doors with the classic X brace
   const dX = bX + bW * 0.28, dW = bW * 0.44, dY = bY + bH * 0.42, dH = bH * 0.58;
   ctx.fillStyle = '#4a0808';
   ctx.fillRect(dX, dY, dW, dH);
@@ -1773,13 +1596,11 @@ function drawRuralArena() {
   ctx.moveTo(dX + dW * 0.5, dY); ctx.lineTo(dX + dW * 0.5, dY + dH);
   ctx.stroke();
   ctx.strokeRect(dX, dY, dW, dH);
-  // Hayloft opening under the peak, lit from inside
   ctx.fillStyle = '#3a0606';
   ctx.fillRect(bX + bW * 0.42, bY - 26, bW * 0.16, 26);
   ctx.fillStyle = `rgba(255,190,90,${0.3 + Math.sin(f * 0.03) * 0.12})`;
   ctx.fillRect(bX + bW * 0.44, bY - 22, bW * 0.12, 20);
 
-  // ── Silo ─────────────────────────────────────────────────────────────────
   const sX = 470, sTop = 268;
   ctx.fillStyle = '#cfc188';
   ctx.fillRect(sX, sTop, 64, groundY - sTop);
@@ -1793,18 +1614,16 @@ function drawRuralArena() {
     ctx.beginPath(); ctx.moveTo(sX, yy); ctx.lineTo(sX + 64, yy); ctx.stroke();
   }
 
-  // ── Portal glow in the distance (story atmosphere — kept) ────────────────
   const pg = ctx.createRadialGradient(150, 380, 10, 150, 380, 80);
   pg.addColorStop(0, `rgba(180,0,255,${0.35 + Math.sin(f * 0.06) * 0.12})`);
   pg.addColorStop(1, 'rgba(180,0,255,0)');
   ctx.fillStyle = pg; ctx.fillRect(0, 200, 300, 280);
 
-  // ── Wheat fields, far to near ────────────────────────────────────────────
   for (const bd of bg.fields) {
     ctx.save();
     ctx.translate(-camOff * bd.par, 0);
     ctx.globalAlpha = bd.a;
-    // Field mass first so the stalks read as a top edge, not floating lines
+    // Field mass first, so the stalks read as a top edge.
     ctx.fillStyle = bd.col;
     ctx.fillRect(-60, bd.y, W + 120, groundY - bd.y + 10);
     ctx.strokeStyle = bd.col;
@@ -1815,7 +1634,6 @@ function drawRuralArena() {
       ctx.moveTo(st.x, bd.y + 2);
       ctx.quadraticCurveTo(st.x + sway * 0.5, bd.y - st.h * 0.6, st.x + sway, bd.y - st.h);
       ctx.stroke();
-      // Grain head
       ctx.fillStyle = bd.col;
       ctx.beginPath();
       ctx.ellipse(st.x + sway, bd.y - st.h, 0.9, 2.2, sway * 0.06, 0, Math.PI * 2);
@@ -1825,7 +1643,6 @@ function drawRuralArena() {
     ctx.restore();
   }
 
-  // ── Fence line along the field edge ──────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.15, 0);
   ctx.strokeStyle = 'rgba(88,64,34,0.8)';
@@ -1836,7 +1653,6 @@ function drawRuralArena() {
   for (const p of bg.posts) ctx.fillRect(p.x, 470 - p.h, 5, p.h);
   ctx.restore();
 
-  // ── Ground ───────────────────────────────────────────────────────────────
   const dirt = ctx.createLinearGradient(0, groundY, 0, groundY + 80);
   dirt.addColorStop(0, '#8a6a38'); dirt.addColorStop(1, '#5c421f');
   ctx.fillStyle = dirt; ctx.fillRect(0, groundY, W, 600);
@@ -1846,7 +1662,6 @@ function drawRuralArena() {
     ctx.beginPath(); ctx.moveTo(fx, groundY); ctx.lineTo(fx + 5, groundY - 6); ctx.stroke();
   }
 
-  // ── Wire fence walls (hard boundaries — kept) ────────────────────────────
   [[0, 36], [W - 36, 36]].forEach(([bx, bw]) => {
     ctx.fillStyle = '#8a6a38'; ctx.strokeStyle = '#5a4020'; ctx.lineWidth = 2;
     for (let py = 200; py < groundY; py += 100) {
@@ -1867,12 +1682,7 @@ function drawRuralArena() {
   });
 }
 
-// ── Portal Threshold ──────────────────────────────────────────────────────
-// Was one radial-gradient ellipse, 60 fixed stars and a flat floor — and it
-// only covered the first 900px of a 5760px-wide world. This gives the rift a
-// structure (event horizon, accretion ring, arc discharge, debris being pulled
-// in), tears the sky open behind it, and spans the whole world width so the
-// scene doesn't run out from under the camera.
+// Rift: event horizon, accretion ring, arc discharge and debris, across the whole world width.
 function _portalBg() {
   if (_portalBg._c) return _portalBg._c;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1881,16 +1691,13 @@ function _portalBg() {
       u: Math.random(), y: rnd(0, 400), r: rnd(0.5, 2.0),
       phase: rnd(0, 6.28), spd: rnd(0.02, 0.06),
     })),
-    // Sky tears — thin bright rifts on their own parallax layer
     tears: Array.from({ length: 9 }, () => ({
       u: Math.random(), y: rnd(40, 300), len: rnd(50, 190),
       ang: rnd(-1.2, 1.2), phase: rnd(0, 6.28), w: rnd(1, 3),
     })),
-    // Broken land silhouettes on the horizon
     shards: Array.from({ length: 26 }, () => ({
       u: Math.random(), w: rnd(30, 120), h: rnd(30, 130),
     })),
-    // Debris being drawn toward the rift
     debris: Array.from({ length: 30 }, () => ({
       a: rnd(0, 6.28), d: rnd(140, 460), spd: rnd(0.0016, 0.005),
       r: rnd(1.5, 5), phase: rnd(0, 6.28), rot: rnd(-0.05, 0.05),
@@ -1910,13 +1717,11 @@ function drawPortalEdgeArena() {
 
   ctx.save();
 
-  // ── Sky ──────────────────────────────────────────────────────────────────
   const sky = ctx.createLinearGradient(0, 0, 0, GAME_H);
   sky.addColorStop(0, '#08001c'); sky.addColorStop(0.6, '#22004e'); sky.addColorStop(1, '#3a0068');
   ctx.fillStyle = sky;
   ctx.fillRect(left - 400, -400, world + 800, GAME_H + 800);
 
-  // ── Stars, spread over the whole world ───────────────────────────────────
   for (const st of bg.stars) {
     const sx = left + st.u * world;
     if (sx < vis.lo || sx > vis.hi) continue;
@@ -1926,7 +1731,6 @@ function drawPortalEdgeArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Sky tears ────────────────────────────────────────────────────────────
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const t of bg.tears) {
@@ -1944,7 +1748,6 @@ function drawPortalEdgeArena() {
   }
   ctx.restore();
 
-  // ── Broken land on the horizon ───────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.05, 0);
   ctx.fillStyle = 'rgba(20,4,44,0.9)';
@@ -1961,11 +1764,8 @@ function drawPortalEdgeArena() {
   }
   ctx.restore();
 
-  // ── The rift ─────────────────────────────────────────────────────────────
-  // At the END of the run, not at x=450. The parkour reads left-to-right and
-  // the last platform sits around x5670, so the threshold you are crossing
-  // toward belongs at that end of the hall — pinned mid-screen it sat in the
-  // first sixth of a 5760px world with nothing to walk toward.
+  // Threshold sits at the end of the run, where the parkour finishes.
+  // Mid-screen it sat in the first sixth of the 5760px world.
   const px = sp.x1 - 300, py = 260;
   const pr = 120 + Math.sin(f * 0.04) * 12;
   ctx.save();
@@ -1977,7 +1777,6 @@ function drawPortalEdgeArena() {
   ctx.fillStyle = halo;
   ctx.fillRect(px - pr * 2.7, py - pr * 2.7, pr * 5.4, pr * 5.4);
   ctx.restore();
-  // Event horizon — dark core so the rift reads as a hole, not a lamp
   const core = ctx.createRadialGradient(px, py, 2, px, py, pr);
   core.addColorStop(0,    'rgba(255,255,255,0.95)');
   core.addColorStop(0.10, 'rgba(210,140,255,0.9)');
@@ -1986,7 +1785,6 @@ function drawPortalEdgeArena() {
   core.addColorStop(1,    'rgba(30,0,70,0)');
   ctx.fillStyle = core;
   ctx.beginPath(); ctx.ellipse(px, py, pr * 0.55, pr, 0, 0, Math.PI * 2); ctx.fill();
-  // Accretion rings spinning at different rates
   for (let i = 0; i < 3; i++) {
     const rr = pr * (0.62 + i * 0.16);
     ctx.strokeStyle = `rgba(210,140,255,${0.5 - i * 0.13})`;
@@ -1997,7 +1795,6 @@ function drawPortalEdgeArena() {
     ctx.beginPath(); ctx.ellipse(0, 0, rr * 0.55, rr, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.restore();
   }
-  // Arc discharge off the rim
   ctx.strokeStyle = `rgba(230,180,255,${0.5 + Math.sin(f * 0.09) * 0.3})`;
   ctx.lineWidth = 1.6;
   for (let i = 0; i < 10; i++) {
@@ -2014,7 +1811,6 @@ function drawPortalEdgeArena() {
     ctx.stroke();
   }
 
-  // ── Debris spiralling in ─────────────────────────────────────────────────
   for (const d of bg.debris) {
     const t2 = ((f * d.spd + d.phase) % 1);
     const dist = d.d * (1 - t2);
@@ -2031,7 +1827,6 @@ function drawPortalEdgeArena() {
   }
   ctx.globalAlpha = 1;
 
-  // ── Ground and its rift glow ─────────────────────────────────────────────
   ctx.fillStyle = '#150030';
   ctx.fillRect(left - 400, groundY, world + 800, GAME_H + 400 - groundY);
   const gGlow = ctx.createLinearGradient(0, 434, 0, groundY);
@@ -2046,9 +1841,7 @@ function drawPortalEdgeArena() {
   ctx.restore();
 }
 
-// ── The New Realm ─────────────────────────────────────────────────────────
-// This map is 5740px wide but the original draw painted only GAME_W (900), so
-// ~85% of it was bare sky. Everything below spans mapLeft..mapRight.
+// Map is 5740px wide. Everything below spans mapLeft..mapRight, not GAME_W.
 function _realmBg() {
   if (_realmBg._c) return _realmBg._c;
   const sp = _arenaSpan(300);
@@ -2063,19 +1856,16 @@ function _realmBg() {
   };
   _realmBg._c = {
     sp,
-    // Two ranges of crystal monoliths
     far:  mono(150, 90, 210, 0.05),
     near: mono(210, 140, 300, 0.12),
     stars: Array.from({ length: 260 }, () => ({
       x: rnd(sp.x0, sp.x1), y: rnd(-20, 430), r: rnd(0.5, 1.8),
       a: rnd(0.15, 0.8), ph: rnd(0, Math.PI * 2),
     })),
-    // Floating islands drifting slowly
     isles: Array.from({ length: 14 }, () => ({
       x: rnd(sp.x0, sp.x1), y: rnd(90, 300), w: rnd(50, 140),
       h: rnd(16, 34), bob: rnd(0, Math.PI * 2), spd: rnd(0.004, 0.012),
     })),
-    // Motes of light rising off the ground
     motes: Array.from({ length: 70 }, () => ({
       x: rnd(-100, GAME_W + 100), y: rnd(0, 520), r: rnd(0.8, 2.4),
       spd: rnd(0.12, 0.5), drift: rnd(0.004, 0.014), amp: rnd(6, 26),
@@ -2099,7 +1889,6 @@ function drawRealmEntryArena() {
 
   ctx.save();
 
-  // ── Sky ───────────────────────────────────────────────────────────────────
   const sky = ctx.createLinearGradient(0, -200, 0, groundY);
   sky.addColorStop(0,   '#000410');
   sky.addColorStop(0.55,'#000e2a');
@@ -2107,7 +1896,6 @@ function drawRealmEntryArena() {
   ctx.fillStyle = sky;
   ctx.fillRect(sp.x0, -300, sp.w, groundY + 300);
 
-  // ── Star field ────────────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.02, 0);
   for (const st of bg.stars) {
@@ -2119,7 +1907,6 @@ function drawRealmEntryArena() {
   ctx.globalAlpha = 1;
   ctx.restore();
 
-  // ── Aurora curtains — these DO read here, unlike on the daylit ice map ────
   for (const cu of bg.curtains) {
     ctx.save();
     ctx.globalAlpha = cu.alpha;
@@ -2138,7 +1925,6 @@ function drawRealmEntryArena() {
     ctx.restore();
   }
 
-  // ── The gate: a vast ring standing on the horizon ────────────────────────
   const gx = sp.x0 + sp.w * 0.5 - camOff * 0.03, gy = groundY - 150;
   if (gx > vis.lo - 400 && gx < vis.hi + 400) {
     const pulse = 0.6 + Math.sin(f * 0.02) * 0.4;
@@ -2157,7 +1943,6 @@ function drawRealmEntryArena() {
     ctx.restore();
   }
 
-  // ── Crystal monolith ranges ───────────────────────────────────────────────
   for (const R of [bg.far, bg.near]) {
     const isNear = R === bg.near;
     ctx.save();
@@ -2174,14 +1959,12 @@ function drawRealmEntryArena() {
       ctx.lineTo(b2.x + b2.w * 0.5, groundY);
       ctx.closePath();
       ctx.fill();
-      // lit edge — the crystals glow along one face
       ctx.strokeStyle = isNear ? 'rgba(0,140,255,0.50)' : 'rgba(0,120,220,0.30)';
       ctx.lineWidth = isNear ? 2 : 1.4;
       ctx.beginPath();
       ctx.moveTo(b2.x + b2.w * 0.5, groundY);
       ctx.lineTo(tipX + b2.w * 0.16, top);
       ctx.stroke();
-      // a few carry a bright vein
       if (b2.lit) {
         const vp = 0.5 + Math.sin(f * 0.03 + b2.x * 0.05) * 0.5;
         ctx.strokeStyle = `rgba(120,210,255,${0.18 + vp * 0.28})`;
@@ -2196,7 +1979,6 @@ function drawRealmEntryArena() {
     ctx.restore();
   }
 
-  // ── Floating islands ──────────────────────────────────────────────────────
   ctx.save();
   ctx.translate(-camOff * 0.09, 0);
   for (const il of bg.isles) {
@@ -2210,9 +1992,9 @@ function drawRealmEntryArena() {
     ctx.lineTo(il.x - il.w * 0.10, iy + il.h * 0.7);
     ctx.closePath();
     ctx.fill();
-    ctx.fillStyle = 'rgba(0,110,200,0.40)';        // lit top plate
+    ctx.fillStyle = 'rgba(0,110,200,0.40)';
     ctx.fillRect(il.x - il.w * 0.5, iy - 2, il.w, 3);
-    ctx.strokeStyle = 'rgba(90,190,255,0.22)';     // glow under the rock
+    ctx.strokeStyle = 'rgba(90,190,255,0.22)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(il.x - il.w * 0.10, iy + il.h * 0.7);
@@ -2221,7 +2003,6 @@ function drawRealmEntryArena() {
   }
   ctx.restore();
 
-  // ── Horizon glow along the ground plane ───────────────────────────────────
   const hg = ctx.createLinearGradient(0, groundY - 70, 0, groundY);
   hg.addColorStop(0, 'rgba(0,90,200,0)');
   hg.addColorStop(1, `rgba(0,110,240,${0.24 + Math.sin(f * 0.04) * 0.06})`);
@@ -2230,7 +2011,6 @@ function drawRealmEntryArena() {
   ctx.fillStyle = '#001030';
   ctx.fillRect(sp.x0, groundY, sp.w, GAME_H + 200 - groundY);
 
-  // ── Rising motes (screen space) ───────────────────────────────────────────
   ctx.save();
   ctx.translate(camOff, 0);
   ctx.fillStyle = '#9fd8ff';
@@ -2246,16 +2026,8 @@ function drawRealmEntryArena() {
   ctx.restore();
 }
 
-// ── Boss Sanctum ──────────────────────────────────────────────────────────
-// Throne room: a colonnade receding into the dark, a throne on a dais under a
-// bleeding rose window, braziers with live flame, hanging banners and chains,
-// floating embers, and a cracked floor lit from below.
-//
-// IMPORTANT: this arena is 5880px wide (`worldWidth`), not GAME_W. Everything
-// here is laid out in WORLD coordinates and repeated across the full span —
-// an earlier version drew at fixed 0..900 and left five sixths of the map as
-// bare floor. The throne and rose window sit at the world's centre so the
-// room reads as symmetrical around its centrepiece.
+// Throne room: colonnade, throne on a dais, braziers and chains. Laid out in world
+// coordinates (worldWidth, 5880px), not GAME_W.
 function _sanctumBg() {
   const sp   = _arenaSpan(0);
   const key  = sp.x0 + '|' + sp.w;
@@ -2319,11 +2091,7 @@ function drawBossSanctumArena() {
   const groundY = 480;
   const throb = 0.5 + Math.sin(f * 0.04) * 0.2;
   const L = bg.left - 400, WW = bg.world + 800;
-  // Generous cull window — this arena is played very zoomed out, so anything
-  // tighter than this pops geometry in at the screen edges.
-  // Margin is deliberately wide: when the two fighters are at opposite ends the
-  // camera zooms far out and shows ~4000px of world, so the default 700 would
-  // pop the colonnade in at the screen edges.
+  // Wide cull margin: the camera zooms far out here, so a tight window pops geometry in at the edges.
   const vis = _arenaVis(1800);
   const vis0 = vis.lo, vis1 = vis.hi;
   const seen = (x, pad) => x > vis0 - (pad || 0) && x < vis1 + (pad || 0);
@@ -2334,7 +2102,6 @@ function drawBossSanctumArena() {
   sky.addColorStop(0, '#0d0004'); sky.addColorStop(0.6, '#26000f'); sky.addColorStop(1, '#3d0018');
   ctx.fillStyle = sky; ctx.fillRect(L, -300, WW, H + 600);
 
-  // ── Rose window bleeding light down the nave (world centre) ──────────────
   const rw = { x: bg.cx, y: 96, r: 54 };
   if (seen(rw.x, 300)) {
     const rg = ctx.createRadialGradient(rw.x, rw.y, 4, rw.x, rw.y, 240);
@@ -2356,7 +2123,6 @@ function drawBossSanctumArena() {
       ctx.stroke();
     }
     ctx.beginPath(); ctx.arc(rw.x, rw.y, rw.r * 0.45, 0, Math.PI * 2); ctx.stroke();
-    // Shaft of red light falling on the dais
     const shaft = ctx.createLinearGradient(rw.x, rw.y, rw.x, groundY);
     shaft.addColorStop(0, `rgba(255,50,90,${0.14 * throb + 0.05})`);
     shaft.addColorStop(1, 'rgba(255,30,70,0)');
@@ -2370,7 +2136,6 @@ function drawBossSanctumArena() {
     ctx.fill();
   }
 
-  // ── Colonnade, repeating the length of the hall ──────────────────────────
   for (let i = 0; i < bg.pillars.length; i++) {
     const p = bg.pillars[i];
     if (!seen(p.x, 140)) continue;
@@ -2389,9 +2154,7 @@ function drawBossSanctumArena() {
       const fx = p.x - p.w * 0.5 + (p.w * k) / 4;
       ctx.beginPath(); ctx.moveTo(fx, 56); ctx.lineTo(fx, groundY - 20); ctx.stroke();
     }
-    // Arch spanning to the next pillar. A true semicircle over a 196px bay
-    // springs to y=-44 — above the top of the frame — so only the two feet
-    // were visible. A shallow ellipse keeps the whole span on screen.
+    // Shallow ellipse: a true semicircle over a 196px bay springs above the frame.
     const nx = bg.pillars[i + 1];
     if (nx && nx.x - p.x < 260) {
       ctx.strokeStyle = 'rgba(66,8,30,0.9)';
@@ -2399,13 +2162,11 @@ function drawBossSanctumArena() {
       ctx.beginPath();
       ctx.ellipse((p.x + nx.x) / 2, 56, (nx.x - p.x) / 2, 40, 0, Math.PI, 0);
       ctx.stroke();
-      // Keystone
       ctx.fillStyle = 'rgba(84,12,38,0.95)';
       ctx.fillRect((p.x + nx.x) / 2 - 7, 10, 14, 14);
     }
   }
 
-  // ── Hanging banners ──────────────────────────────────────────────────────
   for (const b of bg.banners) {
     if (!seen(b.x, 60)) continue;
     const sw = Math.sin(f * 0.016 + b.phase) * 4;
@@ -2424,7 +2185,6 @@ function drawBossSanctumArena() {
     ctx.fill();
   }
 
-  // ── Chains from the vault ────────────────────────────────────────────────
   ctx.strokeStyle = 'rgba(70,18,30,0.8)';
   ctx.lineWidth = 2;
   for (const ch of bg.chains) {
@@ -2443,7 +2203,6 @@ function drawBossSanctumArena() {
     }
   }
 
-  // ── Throne on its dais, dead centre of the hall ──────────────────────────
   const tX = bg.cx;
   if (seen(tX, 260)) {
     ctx.fillStyle = '#160009';
@@ -2472,7 +2231,6 @@ function drawBossSanctumArena() {
     ctx.stroke();
   }
 
-  // ── Braziers with live flame ─────────────────────────────────────────────
   for (const bx of bg.braziers) {
     if (!seen(bx, 130)) continue;
     ctx.fillStyle = '#2a0812';
@@ -2509,7 +2267,6 @@ function drawBossSanctumArena() {
     ctx.restore();
   }
 
-  // ── Embers ───────────────────────────────────────────────────────────────
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const e of bg.embers) {
@@ -2527,7 +2284,6 @@ function drawBossSanctumArena() {
   ctx.restore();
   ctx.globalAlpha = 1;
 
-  // ── Floor, cracked and lit from beneath ──────────────────────────────────
   ctx.fillStyle = '#180010'; ctx.fillRect(L, groundY, WW, H + 300 - groundY);
   ctx.strokeStyle = `rgba(230,20,50,${0.45 + Math.sin(f * 0.06) * 0.18})`;
   ctx.lineWidth = 2;
@@ -2537,7 +2293,6 @@ function drawBossSanctumArena() {
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   }
   ctx.shadowBlur = 0;
-  // Flagstone joints — stepped through the visible span only
   ctx.strokeStyle = 'rgba(50,0,24,0.9)';
   ctx.lineWidth = 1;
   const j0 = Math.floor((vis0 - 200) / 54) * 54;

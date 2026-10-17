@@ -1,17 +1,6 @@
-// Void Mind arc — Epilogue: "After"
-// id 165
-//
-// The reckonings are complete. The player walks out of the Substrate.
-// This is not a victory. The Void Mind is not defeated here — that fight
-// has not happened yet. This is the end of the assessment.
-// The player carries whatever they carried in, plus what the reckonings
-// added to the record — gaps identified, weights acknowledged or surrendered.
-//
-// Thematically: the fragment goes still. Not responding to anything outside.
-// Responding to the player. Just them. The first time this has been true.
-// This is what peak form was pointing toward.
-//
-// No choices. No fight. Just what remains.
+// Void Mind arc, epilogue "After" (id 165).
+// The reckonings are done. This is not a victory: the Void Mind is not defeated here.
+// The fragment goes still and answers only the player, for the first time.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -32,7 +21,7 @@ STORY_CHAPTER_REGISTRY.push(
       'Not because you defeated it.',
       'Because the assessment was complete.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat, staged from the same scene spec (see _playBranchAfterNarrative).
     afterNarrative: [
       'The reckonings were never a fight.',
       'They were a record.',

@@ -1,18 +1,7 @@
-// ============================================================
-// smb-behavior-model.js — Player Behavior Fingerprinting
-//
-// Plugs into AdaptiveAI to add:
-//   • Per-context bigram prediction (grounded / airborne / edge)
-//   • Dynamic confidence thresholds — strict early, loose after ~200 obs
-//   • Punish-route ledger with adaptive rotation & escape-cooldowns
-//   • Acceleration-aware anticipatory position projection
-//
-// Load order: after smb-adaptive-ai.js, before smb-sovereign-mk2.js
-// Uses globals: GAME_W, currentArena (from smb-globals.js)
-// All classes/constants exposed as globals — no import/export.
-// ============================================================
+// Player behavior fingerprinting. Plugs into AdaptiveAI: per-context bigram prediction,
+// dynamic confidence thresholds, the punish-route ledger, and projected player position.
+// Load after smb-adaptive-ai.js. Uses GAME_W and currentArena from smb-globals.js.
 
-// ─── Player action constants ──────────────────────────────────
 // Edge-detected once per AI tick; used as bigram indices.
 const PA = Object.freeze({
   IDLE        : 0,
@@ -25,9 +14,7 @@ const PA = Object.freeze({
 });
 const _PA_COUNT = 7;
 
-// ─── Spatial context constants ────────────────────────────────
-// Separate bigrams per context so grounded/airborne/edge
-// sequences are predicted independently.
+// Separate bigrams per context, so grounded, airborne and edge sequences are predicted apart.
 const BM_CTX = Object.freeze({
   GROUNDED: 0,  // on ground, not near wall
   AIRBORNE: 1,  // in the air
@@ -35,7 +22,6 @@ const BM_CTX = Object.freeze({
 });
 const _BM_CTX_COUNT = 3;
 
-// ─── Action classifier ───────────────────────────────────────
 // Requires prevSnapshot = { onGround, vx, vy } from the previous tick.
 function _bmClassifyAction(p, prevSnap) {
   if (!prevSnap) return PA.IDLE;
@@ -50,7 +36,6 @@ function _bmClassifyAction(p, prevSnap) {
   return PA.IDLE;
 }
 
-// ─── Context classifier ───────────────────────────────────────
 function _bmClassifyContext(p) {
   const nearEdge = p.x < 80 || p.x + (p.w || 34) > GAME_W - 80;
   if (nearEdge)    return BM_CTX.EDGE;
@@ -58,13 +43,10 @@ function _bmClassifyContext(p) {
   return BM_CTX.GROUNDED;
 }
 
-// ═════════════════════════════════════════════════════════════
-// BehaviorModel
-// ═════════════════════════════════════════════════════════════
 class BehaviorModel {
   constructor() {
     // Per-context bigram: _bigram[ctx][prevAction][nextAction]
-    // 3 × 7 × 7 = 147 floats — negligible memory cost.
+    // 3 × 7 × 7 = 147 floats: negligible memory cost.
     this._bigram = [];
     for (let c = 0; c < _BM_CTX_COUNT; c++) {
       this._bigram.push(
@@ -72,14 +54,12 @@ class BehaviorModel {
       );
     }
 
-    // Per-context accumulated observation counts (decayed)
     this._ctxObs = new Float32Array(_BM_CTX_COUNT);
 
     // Overall action frequencies (context-agnostic, for bias weights)
     this._freq    = new Float32Array(_PA_COUNT);
     this._totalObs = 0;
 
-    // Previous-tick state (seeded to safe defaults)
     this._prevAction = PA.IDLE;
     this._prevCtx    = BM_CTX.GROUNDED;
 
@@ -89,11 +69,10 @@ class BehaviorModel {
     this._decayTick     = 0;
     this._decayInterval = 6;
 
-    // ── Punish ledger ─────────────────────────────────────────
     // Three routes. Ledger entry: { hits, escapes, cooldown }.
-    //   direct  — sprint in, basic swing (default)
-    //   crossup — jump over target, attack from behind
-    //   delayed — normal approach but with a timing-trip pause
+    //   direct : sprint in, basic swing (default)
+    //   crossup: jump over target, attack from behind
+    //   delayed: normal approach but with a timing-trip pause
     this._ledger = {
       direct : { hits: 0, escapes: 0, cooldown: 0 },
       crossup: { hits: 0, escapes: 0, cooldown: 0 },
@@ -103,22 +82,18 @@ class BehaviorModel {
     this._lastRoute   = 'direct';
     this._rotateAt    = 4 + Math.floor(Math.random() * 4); // jittered: 4-7 punishes before rotation
 
-    // ── Ability / Super context log ───────────────────────────
     // Stamped with { dist, healthPct, attacking, comboDepth } at the moment of use.
     this._abilityLog = [];
     this._superLog   = [];
   }
 
-  // ─── observe() ───────────────────────────────────────────────
-  // Call once per AI tick with the current target (player) state
-  // and the snapshot captured on the previous tick.
-  // Updates all matrices and ticks ledger cooldowns.
-  // Returns { action, context } for use in the same tick.
+  // Call once per AI tick with the current player state and the previous tick's snapshot.
+  // Returns { action, context }.
   observe(player, prevSnapshot) {
     const action  = _bmClassifyAction(player, prevSnapshot);
     const context = _bmClassifyContext(player);
 
-    // Periodic decay — not every frame (saves multiply ops)
+    // Periodic decay: not every frame (saves multiply ops)
     this._decayTick++;
     if (this._decayTick >= this._decayInterval) {
       this._decayTick = 0;
@@ -134,13 +109,11 @@ class BehaviorModel {
       this._totalObs *= d;
     }
 
-    // Record transition: (prevCtx, prevAction) → action
     this._bigram[this._prevCtx][this._prevAction][action] += 1;
     this._ctxObs[this._prevCtx] += 1;
     this._freq[action] += 1;
     this._totalObs     += 1;
 
-    // Tick punish-route cooldowns
     for (const e of Object.values(this._ledger)) {
       if (e.cooldown > 0) e.cooldown--;
     }
@@ -151,11 +124,10 @@ class BehaviorModel {
     return { action, context };
   }
 
-  // ─── predictNext() ───────────────────────────────────────────
   // Returns the most likely next action from the current (action, context).
   //
   // Dynamic confidence gate:
-  //   - Starts at 0.65 (very tight — needs strong signal before committing)
+  //   - Starts at 0.65 (very tight: needs strong signal before committing)
   //   - Loosens linearly to 0.38 after ~195 per-context observations
   //   - This prevents the AI from pre-dodging on random noise early on
   //
@@ -185,7 +157,6 @@ class BehaviorModel {
     };
   }
 
-  // ─── attackProb() ────────────────────────────────────────────
   // Marginal probability the player will attack given their context.
   // Used to scale bait activation (aggressive players bite less often).
   attackProb(context) {
@@ -203,16 +174,13 @@ class BehaviorModel {
     return total > 0 ? atkSum / total : 0.30;
   }
 
-  // ─── computeBias() ───────────────────────────────────────────
-  // Derives score multipliers from the behavior model for use in
-  // AdaptiveAI's decision logic.
   //
   // Returns:
-  //   dodgeBoost     — multiply Phase-1 dodge threshold (prediction-driven)
-  //   approachBoost  — multiply approach speed (jumpy player → close in faster)
-  //   baitBoost      — multiply bait activation chance (idle/defensive player)
-  //   preDodgeFrames — frames to pre-position if attack is confidently predicted
-  //   atkProb        — marginal attack probability for the caller to inspect
+  //   dodgeBoost    : multiply Phase-1 dodge threshold (prediction-driven)
+  //   approachBoost : multiply approach speed (jumpy player → close in faster)
+  //   baitBoost     : multiply bait activation chance (idle/defensive player)
+  //   preDodgeFrames: frames to pre-position if attack is confidently predicted
+  //   atkProb       : marginal attack probability for the caller to inspect
   computeBias(currentAction, prediction) {
     const ctx     = this._prevCtx;
     const atkProb = this.attackProb(ctx);
@@ -250,10 +218,7 @@ class BehaviorModel {
     return { dodgeBoost, approachBoost, baitBoost, preDodgeFrames, atkProb, tempoBias, routeBias };
   }
 
-  // ─── summarizeOpponent() ────────────────────────────────────
-  // Produces a compact read on what the player is trying to do right now.
-  // This is intentionally tactical rather than statistical: the caller can
-  // use it to choose an aggressive plan instead of a single reactive move.
+  // Tactical read on what the player is doing now, to pick a plan rather than a single reaction.
   summarizeOpponent(currentAction = PA.IDLE, prediction = { action: PA.IDLE, confidence: 0 }) {
     const safe = Math.max(1, this._totalObs);
     const jumpFreq  = this._freq[PA.JUMP]  / safe;
@@ -299,12 +264,11 @@ class BehaviorModel {
     };
   }
 
-  // ─── bestPunishRoute() ───────────────────────────────────────
   // Selects the punish route to use, incrementing _punishCount.
   //
   // Selection logic:
   //   1. Every 5th punish, 35% chance to force-rotate to a different
-  //      available route — prevents the AI from becoming one-note.
+  //      available route: prevents the AI from becoming one-note.
   //   2. Otherwise: Laplace-smoothed success rate = (hits+0.5)/(hits+escapes+1)
   //      Routes on cooldown (recently escaped) are skipped.
   bestPunishRoute(hint = {}) {
@@ -406,7 +370,6 @@ class BehaviorModel {
       }
     }
 
-    // Weighted pick
     let best = 'direct', bestScore = -1;
     for (const r of routes) {
       const e = this._ledger[r];
@@ -423,7 +386,6 @@ class BehaviorModel {
     return best;
   }
 
-  // ─── recordPunish() ──────────────────────────────────────────
   // Called ~22 frames after a punish attempt to record the outcome.
   // 'landed' = true if target HP dropped since the attempt.
   // Escaped punishes put the route on a random 60–120 frame cooldown.
@@ -443,7 +405,6 @@ class BehaviorModel {
     }
   }
 
-  // ─── _tempoBias() / _routeBias() ───────────────────────────
   // Internal helpers that translate opponent rhythm into tactical nudges.
   _tempoBias(currentAction) {
     if (currentAction === PA.BLOCK) return 1.12;
@@ -465,7 +426,6 @@ class BehaviorModel {
     };
   }
 
-  // ─── Ability / Super context logging ─────────────────────────
   // Call when the player's ability or super rising-edge fires.
   // ctx: { dist, healthPct, attacking, comboDepth }
   logAbilityUse(ctx) {
@@ -477,13 +437,12 @@ class BehaviorModel {
     if (this._superLog.length > 20) this._superLog.shift();
   }
 
-  // ─── getSuperProfile() ───────────────────────────────────────
   // Clusters super-use history into a player archetype.
-  //   'healer'   — fires at low health (survival tool)
-  //   'finisher' — fires after landing hits (combo extender)
-  //   'opener'   — fires at long range (gap opener)
-  //   'dump'     — fires as soon as charged, no clear pattern
-  //   'unknown'  — fewer than 3 samples
+  //   'healer'  : fires at low health (survival tool)
+  //   'finisher': fires after landing hits (combo extender)
+  //   'opener'  : fires at long range (gap opener)
+  //   'dump'    : fires as soon as charged, no clear pattern
+  //   'unknown' : fewer than 3 samples
   getSuperProfile() {
     const log = this._superLog;
     if (log.length < 3) return 'unknown';
@@ -499,12 +458,11 @@ class BehaviorModel {
     return 'dump';
   }
 
-  // ─── getAbilityProfile() ─────────────────────────────────────
   // Clusters ability-use history into an archetype.
-  //   'poke'    — used at long range as a projectile / poke tool
-  //   'combo'   — used mid-attack string (combo extension)
-  //   'closer'  — used at close range to extend pressure
-  //   'unknown' — fewer than 3 samples
+  //   'poke'   : used at long range as a projectile / poke tool
+  //   'combo'  : used mid-attack string (combo extension)
+  //   'closer' : used at close range to extend pressure
+  //   'unknown': fewer than 3 samples
   getAbilityProfile() {
     const log = this._abilityLog;
     if (log.length < 3) return 'unknown';
@@ -517,13 +475,7 @@ class BehaviorModel {
     return 'closer';
   }
 
-  // ─── projectPosition() ───────────────────────────────────────
-  // Simulates N frames of physics to anticipate where the player
-  // centre will be. Accounts for current velocity, gravity, and
-  // ground/air drag. Clamps to horizontal arena bounds.
-  //
-  // Good-enough for an 8-frame lookahead; ignores platform landing
-  // (the error is < 15 px over that window).
+  // landings (error under 15 px over 8 frames).
   projectPosition(player, frames) {
     // Infer arena gravity from currentArena flags (mirrors Fighter.update logic)
     let grav = 0.65;
@@ -550,11 +502,10 @@ class BehaviorModel {
       vx *= onGround ? FRIC_GR : FRIC_AI;
       px += vx;
       py += vy;
-      // Simplified floor landing (ignores platforms — acceptable for short lookahead)
+      // Simplified floor landing (ignores platforms: acceptable for short lookahead)
       if (py > GAME_H - 30 && !onGround) { onGround = true; vy = 0; }
     }
 
-    // Clamp to horizontal arena bounds
     px = Math.max(30, Math.min(GAME_W - 30, px));
     return { x: px, y: py };
   }

@@ -1,18 +1,9 @@
 'use strict';
-// js/story/levels/ch114.js — Chapter 114 map. See smb-story-levels.js for the contract.
+// Chapter 114 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 114 — The Foreseen Path (puzzle, 4 locks)
-// A stretch of the Fracture Coast that VAEL arranged before you arrived. The
-// sea runs along behind it in layers — every wave shown three times, where it
-// was, where it is, where it will be. The beach is laid out like a board:
-// standing stones in rows, each lock on a stone set at the height
-// puzzleSwitchDefs gives it, and beside every lock VAEL left a marker for
-// where they predicted you would stand — an outline of a figure that never
-// resolves, only static where the face should be ("They couldn't predict
-// you"). Each lock you take wipes its marker away. Tide-worn stones are the
-// climbs. The Blind Node at the end is a lens of glass that shows nothing.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 114, The Foreseen Path (puzzle, 4 locks).
+// Stones are set at puzzleSwitchDefs heights. Each lock's ghost outline
+// (where VAEL expected you to stand) disappears once you take the lock.
 (function () {
   const G = 440, NODE = 3300;
   const LOCKS = [[500, 390], [1400, 355], [2400, 370], [3100, 345]];
@@ -37,7 +28,6 @@
 
   function back(v) {
     const n = (typeof puzzleStep !== 'undefined') ? puzzleStep : 0;
-    // Rows of standing stones laid out like a board
     for (let k = Math.max(0, Math.floor(v.x / 160)); k * 160 < Math.min(3600, v.x + v.w + 160); k++) {
       const x = k * 160 + 60;
       ctx.fillStyle = '#26282c'; ctx.fillRect(x - 6, G - 50, 12, 50); ctx.fillStyle = '#3e4044'; ctx.fillRect(x - 8, G - 54, 16, 6);
@@ -51,9 +41,9 @@
     for (const [x, y, w] of STONES) if (_slVisible(v, x - 10, x + w + 10)) {
       ctx.fillStyle = '#3e4044'; ctx.beginPath(); ctx.moveTo(x + 4, G); ctx.lineTo(x, y + 8); ctx.quadraticCurveTo(x + w / 2, y - 8, x + w, y + 6); ctx.lineTo(x + w - 4, G); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#5a5c62'; ctx.fillRect(x, y, w, 3);
-      ctx.strokeStyle = 'rgba(150,200,255,0.25)'; ctx.lineWidth = 1; ctx.strokeRect(x + 8, y - 8, w, G - y);   // its future outline
+      ctx.strokeStyle = 'rgba(150,200,255,0.25)'; ctx.lineWidth = 1; ctx.strokeRect(x + 8, y - 8, w, G - y);
     }
-    // The Blind Node: a lens of glass that shows nothing
+    // Blind Node: glass that shows nothing
     if (_slVisible(v, NODE - 120, NODE + 120)) {
       ctx.fillStyle = '#26282c'; ctx.fillRect(NODE - 8, 260, 16, G - 260);
       ctx.fillStyle = 'rgba(200,220,255,0.12)'; ctx.beginPath(); ctx.ellipse(NODE, 220, 50, 60, 0, 0, Math.PI * 2); ctx.fill();

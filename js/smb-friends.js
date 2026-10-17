@@ -1,19 +1,9 @@
 'use strict';
-// smb-friends.js — friends list: who is online, and inviting them to a lobby.
-//
-// Friends cannot message each other; there is no text field in this system
-// besides the friend code. A friend can be invited to the lobby you are in (or
-// a new private one), and their best Weekly Challenge time is shown next to
-// their name. Talking happens in-game only, in the lobby chat.
-//
-// The server (social.js) stores nothing. This browser keeps the list — in the
-// active account's save, so it follows a cloud login — and the server only
-// relays presence and invites between players who have BOTH added each other.
-//
-// Identity is a random secret kept in the save; the public friend code is a
-// one-way hash of it (same derivation as social.js codeFromSecret).
-//
-// Load order: after smb-public-hub.js (server URL + Socket.io loader).
+// smb-friends.js: friends list (presence and lobby invites).
+// social.js stores nothing. The list lives in the account save; the server only relays
+// presence and invites between players who have both added each other.
+// Identity is a random secret in the save. The friend code is a one-way hash of it (same as social.js).
+// Load after smb-public-hub.js (server URL and Socket.io loader).
 // Reads at call time: AccountManager, setAccountFlag, WeeklyChallenge, PubHub.
 
 const FriendsManager = (() => {
@@ -40,7 +30,6 @@ const FriendsManager = (() => {
     return code.length === CODE_LEN ? code : null;
   }
 
-  // ── Storage ───────────────────────────────────────────────────────────────
   function _acct() {
     try { return (window.AccountManager && AccountManager.getActiveAccount) ? AccountManager.getActiveAccount() : null; } catch (e) { return null; }
   }
@@ -74,8 +63,7 @@ const FriendsManager = (() => {
     } catch (e) {}
   }
 
-  // Same hash as the server, so the code is known before the first connection
-  // (lobby rosters carry it for the "add friend" buttons).
+  // Same hash as the server, so the code is known before connecting.
   function _deriveCode() {
     if (_code || !window.crypto || !crypto.subtle || !window.TextEncoder) return;
     const secret = _data.secret;
@@ -119,7 +107,6 @@ const FriendsManager = (() => {
 
   function _friend(code) { return _data.friends.find(f => f.code === code); }
 
-  // ── Connection ────────────────────────────────────────────────────────────
   function connect() {
     _ensure();
     if (_sock || _connecting) return;
@@ -182,7 +169,6 @@ const FriendsManager = (() => {
     if (!quiet && f.online && !was && rec) _toast(rec.name + ' is online', 2200);
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
   function add(raw) {
     _ensure();
     const code = _clean(raw);
@@ -227,8 +213,7 @@ const FriendsManager = (() => {
     }, 250);
   }
 
-  // Invite a friend to the lobby this player is in. With no lobby yet, open a
-  // private one first and send the invite once it exists.
+  // Invite a friend to our lobby. With no lobby yet, open a private one and send once it exists.
   function invite(code) {
     const live = _live[code];
     if (!live || !live.online) { _toast('They are not online right now'); return; }
@@ -260,15 +245,13 @@ const FriendsManager = (() => {
     if (_sock && _sock.connected) _sock.emit('soc:status', { weekly: w || null });
   }
 
-  // A match that is not a lobby (story, versus, a ladder fight) has to be
-  // closed properly before the lobby starts its own.
+  // A match that is not a lobby must end before the lobby starts its own.
   function _leaveMatchThen(fn) {
     const inMatch = typeof gameRunning !== 'undefined' && gameRunning && !(window.PubHub && PubHub.active);
     if (inMatch && typeof backToMenu === 'function') { backToMenu(); setTimeout(fn, 350); }
     else fn();
   }
 
-  // ── Invite banner ─────────────────────────────────────────────────────────
   function _onInvite(m) {
     if (!m || !_friend(m.code) || !m.lobby) return;
     if (window.PubHub && PubHub.active && PubHub.code === m.lobby) return;
@@ -297,7 +280,6 @@ const FriendsManager = (() => {
     if (_banner) _banner.style.display = 'none';
   }
 
-  // ── Panel ─────────────────────────────────────────────────────────────────
   let _cssDone = false;
   function _css() {
     if (_cssDone) return;

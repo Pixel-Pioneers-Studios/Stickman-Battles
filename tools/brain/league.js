@@ -23,8 +23,16 @@
  *   2. is not --tol points easier for ANY hunter in the pool than shipped is.
  * A rejected candidate is thrown away; the next phase starts again from shipped.
  *
+ * Memory check (Oct 12). Iter 12756 passed that gate and still played the same
+ * with its memory cleared every decision: stronger, not adapting. So every
+ * candidate is also played normally and with its memory cleared (adapt.js --wipe=1)
+ * against each hunter and against the hunters taking turns in one body. It counts
+ * as adapting only if clearing the memory costs it --mem-margin points pooled.
+ * This is a verdict in the log, not a ship condition; a candidate that adapts
+ * but fails the gate is kept in data/brain-league/ instead of thrown away.
+ *
  * Usage: node tools/brain/league.js [--hours=8.5] [--main=2.5] [--hunt=3] [--workers=3]
- *        [--gate-eps=200] [--margin=5] [--tol=6] [--no-gate] [--torch] [--threads=N] [--gru[=128]] [--main-only]
+ *        [--gate-eps=200] [--margin=5] [--tol=6] [--mem-margin=5] [--no-gate] [--torch] [--threads=N] [--gru[=128]] [--main-only]
  *        --main-only stops after the first main phase and its gate (one long candidate run, no new hunter)
  *        --torch / --threads / --gru are passed to every train.js phase (PyTorch update, see train.js)
  * Log:   data/brain-league/league.log  (phase lines + eval headlines + gate verdicts)
@@ -42,6 +50,7 @@ const TRAIN_EXTRA = [...(args.torch ? ['--torch'] : []), ...(args.threads ? [`--
 const MIN_PHASE_H = 0.75;
 const GATE = !args['no-gate'], GATE_EPS = parseInt(args['gate-eps'], 10) || 200;
 const MARGIN = args.margin !== undefined ? parseFloat(args.margin) : 5, TOL = args.tol !== undefined ? parseFloat(args.tol) : 6;
+const MEM_MARGIN = args['mem-margin'] !== undefined ? parseFloat(args['mem-margin']) : 5;
 const LDIR = path.join(ROOT, 'data', 'brain-league');
 fs.mkdirSync(LDIR, { recursive: true });
 const LOG = path.join(LDIR, 'league.log');
@@ -117,6 +126,20 @@ async function gate(cand, shipped, hunters) {
   }
   return true;
 }
+// Does the candidate lean on what it remembers of this match? null when the eval failed.
+async function memoryCheck(cand, hunters) {
+  if (stopping || hunters.length < 2) return null;
+  const ct = iterOf(cand), json = path.join(LDIR, `mem-cand${ct}.json`), out = path.join(LDIR, `mem-cand${ct}.out`);
+  try { fs.unlinkSync(json); } catch (e) {}
+  const nets = hunters.map(h => `${h.slice(5)}:${h}/latest.json`), names = hunters.map(h => h.slice(5)).concat('switch');
+  const code = await run('adapt.js', ['--wipe=1', '--greedy', '--switch', `--eps=${GATE_EPS}`, `--ckpt=${cand}`, `--nets=${nets.join(',')}`,
+    `--styles=${names.join(',')}`, `--json=${json}`], out);
+  let r; try { r = JSON.parse(fs.readFileSync(json, 'utf8')); } catch (e) { say(`memory check failed (exit ${code}), see ${path.relative(ROOT, out)}`); return null; }
+  const gap = r.pooled[0] - r.pooled[1], sw = r.rows.find(x => x.opp === 'switch');
+  say(`memory: cand ${ct} normal ${r.pooled[0].toFixed(1)}% vs memory cleared ${r.pooled[1].toFixed(1)}% = ${gap >= 0 ? '+' : ''}${gap.toFixed(1)} (need +${MEM_MARGIN})` +
+    (sw ? `; vs switching hunters ${sw.win[0].toFixed(0)}% / ${sw.win[1].toFixed(0)}%` : '') + ` -> ${gap >= MEM_MARGIN ? 'ADAPTS' : 'does not adapt'}`);
+  return gap >= MEM_MARGIN;
+}
 const copyDir = (from, to, names) => { fs.mkdirSync(to, { recursive: true }); for (const f of names) if (fs.existsSync(path.join(from, f))) fs.copyFileSync(path.join(from, f), path.join(to, f)); };
 const poolFiles = dir => { try { return (JSON.parse(fs.readFileSync(path.join(dir, 'state.json'), 'utf8')).pool || []).map(p => p.file); } catch (e) { return []; } };
 const iterOf = p => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, p), 'utf8')).iter; } catch (e) { return '?'; } };
@@ -149,7 +172,14 @@ const iterOf = p => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, p)
       await train([`--dir=${CAND}`, `--hunters=${hunters.join(',')}`], path.join(cand, 'train.out'), MAIN_H);
       say(`candidate done at iter ${iterOf(CAND + '/latest.json')}`);
       if (stopping) break;
-      if (await gate(`${CAND}/latest.json`, 'data/brain/latest.json', hunters)) {
+      const adapts = await memoryCheck(`${CAND}/latest.json`, hunters);
+      const passed = await gate(`${CAND}/latest.json`, 'data/brain/latest.json', hunters);
+      if (adapts && !passed) {
+        const keep = `cand-${iterOf(CAND + '/latest.json')}-adapts.json`;
+        fs.copyFileSync(path.join(cand, 'latest.json'), path.join(LDIR, keep));
+        say(`kept the adapting candidate as data/brain-league/${keep}`);
+      }
+      if (passed) {
         const was = iterOf('data/brain/latest.json');
         const newSnaps = poolFiles(cand).filter(f => !fs.existsSync(path.join(main, 'snapshots', f)));
         copyDir(path.join(cand, 'snapshots'), path.join(main, 'snapshots'), newSnaps);

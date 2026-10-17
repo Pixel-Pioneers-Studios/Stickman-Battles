@@ -1,17 +1,6 @@
 'use strict';
-// js/story/levels/ch67.js — Chapter 67 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 67 — The Sealed Section (traversal)
-// Past the door at the back of the main corridor, "sealed with a different
-// access protocol. Not Axiom's. Older." The architecture changes at the
-// threshold: Axiom's concrete gives way to green enamel panels, brass-ringed
-// portholes and riveted ducts. Two blast doors stand open overhead; between
-// them the decontamination chamber is "still cycling on automatic" — mist
-// and spray jets, the floor sunk into a grated basin. The ducts and pipe
-// runs are the high route. At the end: the suspension chamber, a
-// floor-to-ceiling glass column full of preservation fluid, a figure inside.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch. 67 map: the sealed section. Enamel panels, ducts as the high route, a glass column at the end.
+// Layout contract: smb-story-levels.js.
 (function () {
   const FLOOR = [[0, 900, 440], [900, 1300, 420], [1300, 1700, 460], [1700, 2000, 440], [2000, 2400, 420], [2400, 3200, 440]];
   const DUCTS = [[600, 340, 140], [740, 260, 100], [1450, 350, 120], [1560, 270, 100], [2150, 330, 120], [2260, 250, 120]];
@@ -39,7 +28,6 @@
         ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(px, 70, 2, 370);
         ctx.fillStyle = 'rgba(200,170,90,0.6)'; for (let ry = 90; ry < 430; ry += 40) ctx.fillRect(px + 4, ry, 3, 3);
       }
-      // Brass portholes
       for (let k = Math.ceil(a0 / 300); k * 300 < x1; k++) {
         const hx = k * 300 + 150; if (Math.abs(hx - COLUMN) < 300) continue;
         ctx.fillStyle = '#b08a40'; ctx.beginPath(); ctx.arc(hx, 180, 30, 0, Math.PI * 2); ctx.fill();
@@ -52,14 +40,12 @@
       ctx.fillStyle = '#b08a40'; ctx.fillRect(THRESH - 6, 70, 12, 370);
       ctx.fillStyle = 'rgba(255,90,60,0.8)'; ctx.font = '9px monospace'; ctx.textAlign = 'center'; ctx.fillText('AXIOM SWEEP: END OF LOG', THRESH - 90, 140);
     }
-    // Blast doors standing open overhead
     for (const dx of DOORS) {
       if (!_slVisible(v, dx - 80, dx + 80)) continue;
       ctx.fillStyle = '#2a3430'; ctx.fillRect(dx - 70, 70, 140, 60);
       ctx.fillStyle = '#d8b030'; for (let k = 0; k < 5; k++) ctx.fillRect(dx - 64 + k * 28, 120, 14, 8);
       ctx.fillStyle = '#4a5a52'; ctx.fillRect(dx - 76, 70, 10, base(dx) - 70); ctx.fillRect(dx + 66, 70, 10, base(dx) - 70);
     }
-    // Decontamination chamber: grated basin, spray jets, mist
     if (_slVisible(v, 1260, 1740)) {
       ctx.fillStyle = '#1a2420'; ctx.fillRect(1300, 440, 400, 20);
       ctx.strokeStyle = '#4a5a52'; ctx.lineWidth = 1; for (let gx = 1300; gx < 1700; gx += 12) { ctx.beginPath(); ctx.moveTo(gx, 448); ctx.lineTo(gx, 460); ctx.stroke(); }
@@ -72,7 +58,6 @@
       ctx.fillStyle = `rgba(210,235,225,${cyc ? 0.16 : 0.06})`; ctx.fillRect(1300, 300, 400, 160);
       ctx.fillStyle = cyc ? '#ff6644' : '#44ff88'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center'; ctx.fillText(cyc ? 'DECON CYCLE' : 'CLEAR', 1500, 92);
     }
-    // Riveted ducts and pipe runs: the high route
     for (const [x, y, w] of DUCTS) {
       if (!_slVisible(v, x - 10, x + w + 10)) continue;
       ctx.fillStyle = '#5a6a62'; ctx.fillRect(x, y, w, 16);

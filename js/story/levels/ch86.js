@@ -1,19 +1,7 @@
 'use strict';
-// js/story/levels/ch86.js — Chapter 86 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch86.js. Chapter 86 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 86 — A World at War (walk → duel vs two War Conscripts)
-// The War-Torn Dimension, where "the fracture opened onto a sky that was
-// already burning". You come through the fracture (still open at the left
-// edge) into the rear of a battlefield that has been fought over for three
-// hundred years: churned earth, craters, stake lines, palisade fragments of
-// a dozen forgotten fronts, banners of armies nobody remembers. The far line
-// of siege towers and trebuchets never stops moving. Ahead, past the duel,
-// "something very large was collapsing": a siege fortress the size of a hill
-// leaning over the horizon, shedding stone, falling and never finished
-// falling. Watch platforms on the old palisades are the climbs; the cache
-// shafts are dugout entrances shored with timber.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 86, walk to duel vs two War Conscripts. The siege fortress falls on the horizon. Cache shafts are dugouts.
 (function () {
   const G = 440, DUEL = 3000;
   const CLIMB = [[520, 350, 100], [640, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],
@@ -32,7 +20,7 @@
 
   function backdrop(v) {
     _slWarSky(v, 86);
-    // The collapsing fortress on the horizon — always falling, never finished
+    // The collapsing fortress on the horizon, never finished falling
     _slParallax(v, 0.1, (l, r) => {
       const fx = 4600 * 0.1 + 300;
       if (fx < l - 400 || fx > r + 400) return;

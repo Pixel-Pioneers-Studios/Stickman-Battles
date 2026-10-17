@@ -1,20 +1,16 @@
-// smb-accounts.js — Local multi-account system
-// Must be loaded BEFORE smb-save.js so _getSaveKey() works on first loadGame() call.
-// Requires smb-state.js (loaded earlier) — reads/writes via GameState instead of
-// maintaining its own _state and localStorage key.
+// Local multi-account system. Loads before smb-save.js so _getSaveKey() works on the first
+// loadGame(). Reads and writes through GameState, not its own state or localStorage key.
 'use strict';
 
-// Immutable top-tier accounts for the local build.
-// These accounts should always outrank role changes so console/admin access
-// cannot be accidentally revoked by in-game tools.
+// Top-tier accounts. Role changes must never outrank these, so in-game tools can't revoke
+// console or admin access.
 const SUPERUSER_ACCOUNT_IDS = ['acct_mp4wuj48_4k52s', 'acct_mp4wvabe_5rp7h', 'acct_mp4wwgnw_3r0r3'];
 
 const AccountManager = (() => {
 
-  // GameState is already populated (smb-state.js called load() at parse time).
-  // No local _state needed — all account data lives in GameState.
+  // GameState is populated at parse time. Account data lives there.
 
-  // ── Persistence ──────────────────────────────────────────────────────────────
+  // Persistence
   function _persist() {
     GameState.save();
   }
@@ -23,9 +19,8 @@ const AccountManager = (() => {
     return 'acct_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
   }
 
-  // ── loadAccounts ─────────────────────────────────────────────────────────────
-  // Validates the state already loaded by GameState, seeds defaults on first run,
-  // and flushes to 'smb_state' so future loads hit the canonical key.
+  // loadAccounts
+  // Seeds defaults on first run and flushes to 'smb_state'.
   function loadAccounts() {
     const p = GameState.getPersistent();
 
@@ -35,7 +30,7 @@ const AccountManager = (() => {
       GameState.update(s => { s.persistent.activeAccountId = keys.length > 0 ? keys[0] : null; });
     }
 
-    // Migration: ensure every account has a role field (accounts created before roles were added)
+    // Migration: accounts from before roles existed get a role field
     if (p.accounts && Object.values(p.accounts).some(function(a) { return !a.role; })) {
       GameState.update(function(s) {
         Object.values(s.persistent.accounts || {}).forEach(function(a) { if (!a.role) a.role = 'player'; });
@@ -60,8 +55,8 @@ const AccountManager = (() => {
       });
     }
 
-    // Migration: ensure every account.data has a version field so loadGame() primary
-    // path fires and _refreshRuntimeFromSave() (with its reset phase) always runs.
+    // Migration: the version field makes loadGame()'s primary path fire, so
+    // _refreshRuntimeFromSave() always runs.
     if (p.accounts && Object.values(p.accounts).some(function(a) { return a.data && typeof a.data.version !== 'number'; })) {
       GameState.update(function(s) {
         Object.values(s.persistent.accounts || {}).forEach(function(a) {
@@ -103,8 +98,7 @@ const AccountManager = (() => {
       });
     }
 
-    // Already have accounts — ensure activeAccountId is valid, then flush and return.
-    // NEVER wipe existing accounts here. Only seed when accounts is truly empty.
+    // Already have accounts. Only seed when the list is truly empty, never wipe it here.
     if (p.accounts && Object.keys(p.accounts).length > 0) {
       const _currId = GameState.getPersistent().activeAccountId;
       if (!_currId || !GameState.getPersistent().accounts[_currId]) {
@@ -115,9 +109,8 @@ const AccountManager = (() => {
       return;
     }
 
-    // First run or fully corrupted — seed a default "Player 1" account.
-    // Include data + auth fields immediately so migrations never see a missing-data
-    // account and overwrite progress with empty defaults.
+    // First run or corrupted: seed 'Player 1' with data and auth fields, so migrations
+    // never overwrite progress with empty defaults.
     const defaultId = 'acct_default';
     const _sv = (typeof SAVE_VERSION !== 'undefined') ? SAVE_VERSION : 3;
     GameState.update(s => {
@@ -151,7 +144,7 @@ const AccountManager = (() => {
     _persist();
   }
 
-  // ── Getters ──────────────────────────────────────────────────────────────────
+  // Getters
   function getActiveAccount() {
     const p = GameState.getPersistent();
     return (p.accounts && p.activeAccountId) ? (p.accounts[p.activeAccountId] || null) : null;
@@ -165,17 +158,15 @@ const AccountManager = (() => {
     return Object.values(GameState.getPersistent().accounts || {}).sort((a, b) => a.createdAt - b.createdAt);
   }
 
-  // ── findAccountByName ────────────────────────────────────────────────────────
-  // Returns ALL accounts whose username matches (case-insensitive).
-  // Always returns an array — callers must not assume uniqueness.
-  // Authority actions (bans, kicks) MUST use the returned account.id, never the name.
+  // findAccountByName
+  // Returns an array, since names are not unique. Bans and kicks must use account.id.
   function findAccountByName(name) {
     const needle = String(name || '').trim().toLowerCase();
     if (!needle) return [];
     return getAllAccounts().filter(a => String(a.username || '').toLowerCase() === needle);
   }
 
-  // ── createAccount ────────────────────────────────────────────────────────────
+  // createAccount
   function createAccount(username) {
     const name = (String(username || '').trim().slice(0, 20)) || 'Player';
     const id = _genId();
@@ -193,7 +184,7 @@ const AccountManager = (() => {
     return id;
   }
 
-  // ── switchAccount ────────────────────────────────────────────────────────────
+  // switchAccount
   function switchAccount(id) {
     const p = GameState.getPersistent();
     if (!p.accounts[id]) return false;
@@ -204,8 +195,7 @@ const AccountManager = (() => {
     // Change active account
     GameState.update(s => { s.persistent.activeAccountId = id; });
     _persist();
-    // Fully rehydrate runtime from new account — bypasses _hydratedAccountId guard
-    // so switching A→B→A always re-hydrates A's data correctly.
+    // Full rehydrate, bypassing _hydratedAccountId, so A to B to A reloads A's data.
     const newAcct = GameState.getPersistent().accounts[id];
     const _newCoins   = newAcct && newAcct.data ? (newAcct.data.coins   || 0) : 0;
     const _newChapter = newAcct && newAcct.data ? (newAcct.data.chapter || 0) : 0;
@@ -219,7 +209,7 @@ const AccountManager = (() => {
     return true;
   }
 
-  // ── deleteAccount ────────────────────────────────────────────────────────────
+  // deleteAccount
   function deleteAccount(id) {
     const p = GameState.getPersistent();
     if (!p.accounts || !p.accounts[id]) return false;
@@ -254,7 +244,7 @@ const AccountManager = (() => {
     return true;
   }
 
-  // ── renameAccount ────────────────────────────────────────────────────────────
+  // renameAccount
   function renameAccount(id, newName) {
     const name = (String(newName || '').trim().slice(0, 20)) || 'Player';
     const p = GameState.getPersistent();
@@ -264,12 +254,12 @@ const AccountManager = (() => {
     return true;
   }
 
-  // ── saveAccountData ──────────────────────────────────────────────────────────
+  // saveAccountData
   function saveAccountData() {
     if (typeof saveGame === 'function') saveGame();
   }
 
-  // ── Auth helpers ─────────────────────────────────────────────────────────────
+  // Auth helpers
   function _hashStr(s) {
     let h = 5381;
     for (let i = 0; i < s.length; i++) h = Math.imul(h, 33) ^ s.charCodeAt(i);
@@ -427,7 +417,7 @@ function isSuperuserAccountId(accountId) {
   return SUPERUSER_ACCOUNT_IDS.indexOf(String(accountId)) !== -1;
 }
 
-// ── UI ────────────────────────────────────────────────────────────────────────
+// UI
 // Multi-view modal: 'list' | 'login' | 'setpw' | 'recovery' | 'showcode'
 
 let _acctModalData = { view: 'list', targetId: null, recoveryCode: null };
@@ -490,7 +480,7 @@ function _acctRender() {
   else if (v === 'showcode')  _acctRenderShowCode(inner);
 }
 
-// ── View: Account List ────────────────────────────────────────────────────────
+// View: Account List
 function _acctRenderList(inner) {
   const accounts          = AccountManager.getAllAccounts();
   const active            = AccountManager.getActiveAccount();
@@ -550,9 +540,7 @@ function _acctRenderList(inner) {
 }
 
 function _acctRenderCloudSection() {
-  // CrazyGames forbids external login options, and username/password sign-in to
-  // our own backend counts. Hide the whole cloud-save block there — local saves
-  // and the local account system are unaffected.
+  // CrazyGames forbids external logins and our own username sign-in, so hide the cloud block there.
   if (_acctOnCrazyGamesPortal()) return '';
   if (!window.SupabaseBridge) {
     return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);font-size:0.78rem;opacity:0.65;">Cloud saves are not loaded.</div>';
@@ -567,7 +555,7 @@ function _acctRenderCloudSection() {
   const status = signedIn
     ? ('Signed in as <strong style="color:#dde4ff;">' + _acctEscHtml(cloudName) + '</strong>')
     : (st.available ? 'Sign in with a username to sync progress across browsers and devices.' : 'Add Supabase config to enable cloud sync.');
-  // Hide Google login on CrazyGames — external OAuth providers are not permitted
+  // Hide Google login on CrazyGames (external OAuth not permitted).
   const _onCrazyGames = _acctOnCrazyGamesPortal();
   const googleBtn = (!signedIn && st.available && !_onCrazyGames)
     ? '<button onclick="_acctCloudSignInGoogle()" style="' + _acctBtnStyle('blue') + ';display:flex;align-items:center;gap:5px;"><img src="https://www.google.com/favicon.ico" style="width:13px;height:13px;"> Google</button>'
@@ -601,7 +589,7 @@ function _acctRenderCloudSection() {
     + '</div>';
 }
 
-// ── View: Login ───────────────────────────────────────────────────────────────
+// View: Login
 function _acctRenderLogin(inner) {
   const id   = _acctModalData.targetId;
   const p    = GameState.getPersistent();
@@ -644,7 +632,7 @@ function _acctSubmitLogin() {
   _acctToast('Logged in as ' + (acct ? acct.username : 'account'));
 }
 
-// ── View: Set / Change / Remove Password ─────────────────────────────────────
+// View: Set / Change / Remove Password
 function _acctRenderSetPw(inner) {
   const id    = _acctModalData.targetId;
   const p     = GameState.getPersistent();
@@ -709,7 +697,7 @@ function _acctSubmitRemovePw() {
   _acctToast('Password removed.');
 }
 
-// ── View: Recovery ────────────────────────────────────────────────────────────
+// View: Recovery
 function _acctRenderRecovery(inner) {
   const id   = _acctModalData.targetId;
   const p    = GameState.getPersistent();
@@ -756,7 +744,7 @@ async function _acctCloudSignInGoogle() {
   if (msg) msg.textContent = 'Redirecting to Google…';
   try {
     await SupabaseBridge.signInWithGoogle();
-    // Page will redirect — nothing to do here; session is restored on return
+    // Page will redirect, nothing to do here; session is restored on return
   } catch(e) {
     if (msg) msg.textContent = (e && e.message) ? e.message : 'Google sign-in failed.';
   }
@@ -889,7 +877,7 @@ function _acctCloseChapter1SavePrompt(markSeen) {
   }
 }
 
-// ── View: Show Recovery Code ──────────────────────────────────────────────────
+// View: Show Recovery Code
 function _acctRenderShowCode(inner) {
   const code = _acctModalData.recoveryCode || '(error)';
   inner.innerHTML = '<h3 style="margin:0 0 8px;font-size:1.1rem;color:#ffcc44;">⚠️ Save Your Recovery Code</h3>'
@@ -903,7 +891,7 @@ function _acctRenderShowCode(inner) {
     + '<button onclick="_acctNav(\'list\')" style="' + _acctBtnStyle('blue') + ';width:100%;">I\'ve Saved It — Continue</button>';
 }
 
-// ── View: Login by Account ID ─────────────────────────────────────────────────
+// View: Login by Account ID
 function _acctRenderLoginById(inner) {
   inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">🔑 Login by Account ID</h3>'
     + '<p style="margin:0 0 14px;font-size:0.8rem;opacity:0.6;">Enter an account ID (e.g. <code style="font-size:0.76rem;opacity:0.8;">acct_abc123</code>) to switch to it directly.</p>'
@@ -927,7 +915,7 @@ function _acctSubmitLoginById() {
   const acct = p.accounts && p.accounts[id];
   if (!acct) { if (err) err.textContent = 'Account not found: ' + id; return; }
   if (AccountManager.isLocked(id)) {
-    // Account is locked — show password prompt
+    // Account is locked, show password prompt
     _acctNav('login', id);
     return;
   }
@@ -936,7 +924,7 @@ function _acctSubmitLoginById() {
   _acctToast('Switched to ' + (acct.username || id));
 }
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+// Navigation
 function _acctNav(view, targetId) {
   _acctModalData.view = view;
   if (targetId !== undefined) _acctModalData.targetId = targetId;
@@ -971,7 +959,7 @@ function _acctLogout() {
   _acctToast('Logged out. Account is now locked.');
 }
 
-// ── Prompt helpers ────────────────────────────────────────────────────────────
+// Prompt helpers
 function _acctCreatePrompt() {
   const name = prompt('Enter a name for the new account (max 20 chars):');
   if (name === null) return;
@@ -996,7 +984,7 @@ function _acctConfirmDelete(id, username) {
   _acctToast(wasLast ? 'Account deleted. A new default account was created.' : 'Account deleted.');
 }
 
-// ── Style helpers ─────────────────────────────────────────────────────────────
+// Style helpers
 function _acctBtnStyle(type) {
   const base = 'border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;';
   if (type === 'blue')   return base + 'background:rgba(80,160,255,0.15);border:1px solid rgba(80,160,255,0.4);color:#88ccff;';
@@ -1022,7 +1010,7 @@ function _acctInputStyle() {
   ].join(';');
 }
 
-// ── Safe string helpers ───────────────────────────────────────────────────────
+// Safe string helpers
 function _acctEscHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -1033,7 +1021,7 @@ function _acctEscId(s) {
   return String(s).replace(/[^a-zA-Z0-9_]/g,'');
 }
 
-// ── hasPermission ─────────────────────────────────────────────────────────────
+// hasPermission
 function hasPermission(level) {
   const _ROLE_RANK = { player: 0, moderator: 0.5, admin: 1, dev: 2 };
   const required = (_ROLE_RANK[level] !== undefined) ? _ROLE_RANK[level] : 999;
@@ -1046,7 +1034,7 @@ function hasPermission(level) {
   return actual >= required;
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
+// Toast
 function _acctToast(msg) {
   let t = document.getElementById('accountsToast');
   if (!t) {
@@ -1068,10 +1056,8 @@ function _acctToast(msg) {
   t._hideTimer = setTimeout(function() { t.style.opacity = '0'; }, 2200);
 }
 
-// ── Quick cloud login ─────────────────────────────────────────────────────────
-// A one-step username/password box reachable straight from the home nav, so
-// signing in or out on another computer does not mean digging through the full
-// Account & Saves modal.
+// Quick cloud login
+// One-step cloud login from the home nav, so signing in on another computer skips the modal.
 
 function _acctAuthErrorText(err) {
   const raw = String((err && err.message) || 'Something went wrong.');
@@ -1084,9 +1070,7 @@ function _acctAuthErrorText(err) {
   return raw;
 }
 
-// True only when actually embedded on the CrazyGames portal. NOT `!!window.CrazyGames`
-// — the SDK script is in index.html unconditionally and initializes fine off-portal,
-// so its mere presence must not hide anything.
+// True only when embedded on the CrazyGames portal. The SDK loads everywhere, so its presence alone is not enough.
 function _acctOnCrazyGamesPortal() {
   try {
     const sdk = window.CrazyGames && window.CrazyGames.SDK;

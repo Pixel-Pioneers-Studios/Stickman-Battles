@@ -1,18 +1,9 @@
 'use strict';
-// smb-anim-core.js — shared animation substrate (Phase 0 of docs/animation-quality-plan.md)
-//
-// Pure helpers + small stateful classes used by the death animation, the fighter
-// model upgrade, finishers, domain entry and chapter transitions. Nothing here
-// mutates game globals except animHold(), which raises the existing hitStopFrames.
-//
-// Depends on: smb-globals.js (settings, hitStopFrames), smb-particles-core.js
-//             (spawnParticles) — both loaded earlier. Every call site guards.
-// ============================================================
+// smb-anim-core.js: shared animation helpers (easing, springs, smear, arcs, dust).
+// Only animHold() writes game state (hitStopFrames). Needs smb-globals.js and
+// smb-particles-core.js loaded first. Every call site guards.
 
-// ── Easing / curve library ──────────────────────────────────────────────────
-// Anticipation and overshoot are the single largest perceptual difference
-// between "lerped" and "animated". Nothing in the codebase overshoots without
-// these.
+// Overshoot and anticipation are what make motion read as animated, not lerped.
 const animEase = {
   linear:    t => t,
   inQuad:    t => t * t,
@@ -29,13 +20,13 @@ const animEase = {
     const c3 = s + 1;
     return 1 + c3 * Math.pow(t - 1, 3) + s * Math.pow(t - 1, 2);
   },
-  /** Springy settle — good for barrier walls, name cards, snap-to poses. */
+  /** Springy settle: barrier walls, name cards, snap-to poses. */
   outElastic(t, p = 0.35) {
     if (t <= 0) return 0;
     if (t >= 1) return 1;
     return Math.pow(2, -10 * t) * Math.sin((t - p / 4) * (Math.PI * 2) / p) + 1;
   },
-  /** Dips BELOW 0 before rising — the wind-up curve. amt = dip depth (0..1). */
+  /** Dips below 0 before rising: the wind-up curve. amt = dip depth (0..1). */
   anticipate(t, amt = 0.22) {
     if (t <= 0) return 0;
     if (t >= 1) return 1;
@@ -53,8 +44,6 @@ function animLerpAngle(a, b, t) {
   return a + d * t;
 }
 
-// ── Reusable spring ─────────────────────────────────────────────────────────
-// So systems stop hand-rolling `vel += (target-cur)*k; vel *= d`.
 class AnimSpring {
   constructor(value = 0, stiffness = 0.18, damping = 0.82) {
     this.value     = value;
@@ -79,13 +68,7 @@ class AnimSpring {
   }
 }
 
-// ── Motion smear ────────────────────────────────────────────────────────────
-/**
- * Draw `drawFn` several times along a motion path at falling alpha.
- * This is the "Animator vs. Animation" signature: fast limbs become streaks,
- * not blurs. drawFn(offsetX, offsetY, alpha, i) draws one sample; it is
- * responsible for its own path — the offsets are applied via ctx.translate.
- */
+/** Draws drawFn along a path at falling alpha so fast limbs read as streaks. drawFn(x, y, alpha, i) draws one sample. */
 function animSmear(drawFn, fromX, fromY, toX, toY, samples = 4, alpha = 0.42) {
   if (typeof ctx === 'undefined' || typeof drawFn !== 'function') return;
   if (typeof settings !== 'undefined' && settings.particles === false) { drawFn(0, 0, 1, samples); return; }
@@ -101,28 +84,19 @@ function animSmear(drawFn, fromX, fromY, toX, toY, samples = 4, alpha = 0.42) {
     drawFn(ox, oy, a, i);
     ctx.restore();
   }
-  // The head of the smear is the real, fully-opaque figure
+  // Head of the smear: the real, fully opaque figure
   drawFn(toX, toY, 1, n);
 }
 
-// ── Impact holds ────────────────────────────────────────────────────────────
-/**
- * Named "hold on the impact pose" built on the existing hitStopFrames
- * vocabulary (smb-combat.js). Never lowers an in-flight hold.
- */
+/** Holds on the impact pose via hitStopFrames (smb-combat.js). Never shortens an active hold. */
 function animHold(frames) {
   if (typeof hitStopFrames === 'undefined') return;
   const f = Math.max(0, Math.min(30, frames | 0));
   if (f > hitStopFrames) hitStopFrames = f;
 }
 
-// ── Arcs ────────────────────────────────────────────────────────────────────
-/**
- * Quadratic arc interpolation between two points. Straight-line limb travel is
- * the other cheap-animation tell; real animation moves on arcs.
- * `sag` is perpendicular offset in px at the midpoint (positive = "below" the
- * chord in screen space, following the travel direction's right-hand normal).
- */
+/** Quadratic arc between two points. Limbs move on arcs; straight lines look cheap.
+ * sag is the perpendicular offset in px at the midpoint (positive = right of travel). */
 function animArc(p, from, to, sag = 0) {
   const t  = Math.max(0, Math.min(1, p));
   const dx = to.x - from.x, dy = to.y - from.y;
@@ -137,7 +111,6 @@ function animArc(p, from, to, sag = 0) {
   };
 }
 
-// ── Ground contact ──────────────────────────────────────────────────────────
 /** Dust puff at a ground contact point, routed through the existing pool. */
 function animDust(x, y, dir = 0, count = 8, color = 'rgba(190,180,160,0.9)') {
   if (typeof spawnParticles !== 'function') return;
@@ -147,12 +120,11 @@ function animDust(x, y, dir = 0, count = 8, color = 'rgba(190,180,160,0.9)') {
   if (dir) spawnParticles(x + dir * 8, y - 2, color, Math.max(1, (count / 2) | 0));
 }
 
-/** Low, wide scuff — sliding/skidding contact rather than an impact. */
+/** Low, wide scuff: sliding or skidding contact, not an impact. */
 function animScuff(x, y, dir = 1, count = 5) {
   animDust(x + dir * 6, y, dir, count, 'rgba(170,165,150,0.75)');
 }
 
-// ── Small utilities used by the animation layers ─────────────────────────────
 /** Clamp helper that is safe before smb-combat.js's clamp() exists. */
 function animClamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 

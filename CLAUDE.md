@@ -271,7 +271,7 @@ Script load order in `index.html` — files may only reference globals from earl
 122. `js/smb-test-tools.js` — Test/QA tooling
 123. `js/smb-replay.js` — Match replay recording, storage (IndexedDB, up to 3 replays), download, and viewer (loaded last)
 
-Dependencies: GSAP 3.12.5 (CDN), PeerJS 1.5.4 (CDN).
+Dependencies: GSAP 3.12.5 and PeerJS 1.5.4, vendored in `js/vendor/` (the game is handed around as a zip and run from local folders, where CDNs can be blocked). Player build: `tools/package/build-school.sh` -> `dist/stickman-evolution.zip`.
 
 **Cache-busting:** All `<script>` tags use a `?v=` suffix (currently `?v=3.9.3`, with the newest scripts at `?v=3.9.4`). When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change. Verify the current value with `grep -oE '\?v=[0-9.]+' index.html | sort | uniq -c` rather than trusting this doc.
 

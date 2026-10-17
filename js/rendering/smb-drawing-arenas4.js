@@ -1,16 +1,12 @@
 'use strict';
-// smb-drawing-arenas4.js — Story location arenas: the places the story names
-// that no general-purpose arena depicts (the lab, the relay, the war front, ...).
-// Depends on: smb-globals.js, smb-data-arenas.js
+// smb-drawing-arenas4.js: story location backdrops (lab, relay, war front, ...).
+// Depends on smb-globals.js, smb-data-arenas.js.
 //
-// Every drawer paints one 900-wide backdrop against a floor at y=460 and nothing
-// below it: the ground fill and platforms own everything under the floor line,
-// and explore worlds clip the art there anyway. None of them read camXCur —
-// explore worlds lay these out as viewport panels while camXCur runs into the
-// thousands, which would slide parallax layers clean out of the panel.
+// Each drawer paints a 900-wide backdrop against a floor at y=460 and nothing below it.
+// Explore worlds lay these out as viewport panels, so none of them read camXCur.
 //
-// Style: grounded palette, light from the upper left, silhouettes separated by
-// value rather than outlines, one restrained accent per location.
+// Grounded palette, light from the upper left, silhouettes separated by value, not outline.
+// One restrained accent per location.
 
 const _SA_FY = 460;
 
@@ -76,7 +72,7 @@ function _saMotes(key, n, rgb, alpha, speed, dir) {
   }
 }
 
-// ── Research Facility (the lab) ─────────────────────────────────────────────
+// Research Facility (the lab)
 function drawStoryLabArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -86,7 +82,7 @@ function drawStoryLabArena() {
     shards: Array.from({ length: 9 }, () => ({ x: 232 + rng() * 60, w: 4 + rng() * 9, r: rng() * 3 })),
   }));
 
-  // Back wall — panelled, lit from the upper left.
+  // Back wall: panelled, lit from the upper left.
   const wall = ctx.createLinearGradient(0, 40, 0, FY);
   wall.addColorStop(0, '#1b2224'); wall.addColorStop(1, '#101517');
   ctx.fillStyle = wall; ctx.fillRect(0, 40, GAME_W, FY - 40);
@@ -103,7 +99,6 @@ function drawStoryLabArena() {
   ctx.strokeStyle = 'rgba(190,210,205,0.06)'; ctx.lineWidth = 1;
   for (let x = 1; x <= GAME_W; x += 90) { ctx.beginPath(); ctx.moveTo(x, 100); ctx.lineTo(x, FY); ctx.stroke(); }
 
-  // Ceiling and service pipes
   ctx.fillStyle = '#0a0d0e'; ctx.fillRect(0, 0, GAME_W, 44);
   for (const [py, pr] of [[62, 7], [80, 5]]) {
     const pg = ctx.createLinearGradient(0, py - pr, 0, py + pr);
@@ -113,7 +108,6 @@ function drawStoryLabArena() {
   ctx.fillStyle = '#0e1212';
   for (let x = 30; x < GAME_W; x += 150) ctx.fillRect(x, 50, 8, 38);
 
-  // Stencil
   ctx.font = 'bold 15px monospace';
   ctx.fillStyle = 'rgba(200,214,206,0.16)';
   _saText('CONTAINMENT  04', 30, 130);
@@ -126,7 +120,6 @@ function drawStoryLabArena() {
   ctx.beginPath(); ctx.moveTo(580, 250); ctx.lineTo(650, 158); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(640, 250); ctx.lineTo(700, 170); ctx.stroke();
 
-  // Hanging cable bundle
   ctx.strokeStyle = '#0c0f10'; ctx.lineWidth = 3;
   for (let k = 0; k < 3; k++) {
     ctx.beginPath(); ctx.moveTo(420 + k * 6, 44);
@@ -134,7 +127,7 @@ function drawStoryLabArena() {
     ctx.stroke();
   }
 
-  // Strip lights — the middle one is failing.
+  // Strip lights: the middle one is failing.
   for (const lx of [120, 450, 780]) {
     let a = 1;
     if (lx === 450) { const h = Math.sin(Math.floor(t / 3) * 12.9898) * 43758.5; a = (h - Math.floor(h)) > 0.82 ? 0.15 : 1; }
@@ -220,7 +213,7 @@ function drawStoryLabArena() {
   ctx.restore();
 }
 
-// ── Architect's Relay Station ───────────────────────────────────────────────
+// Architect's Relay Station
 function drawStoryRelayArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -276,7 +269,6 @@ function drawStoryRelayArena() {
     ctx.beginPath(); ctx.arc(tx, 30, 12 + ph * 170, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
   }
 
-  // Control building
   const bx0 = 520, bw = 150, by0 = 372;
   ctx.fillStyle = '#1a212a'; ctx.fillRect(bx0, by0, bw, FY - by0);
   ctx.fillStyle = '#2c3540'; ctx.fillRect(bx0 - 6, by0 - 6, bw + 12, 7);
@@ -287,7 +279,6 @@ function drawStoryRelayArena() {
   }
   ctx.fillStyle = '#0c1015'; ctx.fillRect(bx0 + 110, by0 + 48, 24, FY - by0 - 48);
 
-  // Dish
   const dx = 760, dy = 318;
   ctx.fillStyle = '#20272f'; ctx.fillRect(dx - 8, dy + 20, 16, FY - dy - 20);
   ctx.fillRect(dx - 30, FY - 12, 60, 12);
@@ -308,7 +299,6 @@ function drawStoryRelayArena() {
     ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo((x0 + x1) / 2, Math.max(y0, y1) + 30, x1, y1); ctx.stroke();
   }
 
-  // Perimeter fence
   ctx.fillStyle = '#1c232b';
   for (let fx = 10; fx < GAME_W; fx += 110) ctx.fillRect(fx, 418, 4, FY - 418);
   ctx.strokeStyle = 'rgba(80,95,110,0.18)'; ctx.lineWidth = 1;
@@ -318,7 +308,7 @@ function drawStoryRelayArena() {
   ctx.fillStyle = '#28303a'; ctx.fillRect(0, 418, GAME_W, 3);
 }
 
-// ── Multiversal Core ────────────────────────────────────────────────────────
+// Multiversal Core
 function drawStoryCoreArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -381,7 +371,6 @@ function drawStoryCoreArena() {
     ctx.restore();
   }
 
-  // Catwalk
   ctx.fillStyle = '#16131f'; ctx.fillRect(0, 336, GAME_W, 8);
   ctx.fillStyle = '#2e2a42'; ctx.fillRect(0, 336, GAME_W, 2);
   ctx.strokeStyle = '#1e1a2c'; ctx.lineWidth = 2;
@@ -391,7 +380,7 @@ function drawStoryCoreArena() {
   for (let x = 60; x < GAME_W; x += 180) ctx.fillRect(x, 344, 10, FY - 344);
 }
 
-// ── Neutral Dimension: the Assembly ─────────────────────────────────────────
+// Neutral Dimension: the Assembly
 function drawStoryAssemblyArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -439,7 +428,7 @@ function drawStoryAssemblyArena() {
   _saMotes('assembly', 30, '220,215,200', 0.25, 0.08, 1);
 }
 
-// ── The Creator's Interference Layer ────────────────────────────────────────
+// The Creator's Interference Layer
 function drawStoryInterferenceArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -495,7 +484,7 @@ function drawStoryInterferenceArena() {
   }
 }
 
-// ── War-Torn Dimension ──────────────────────────────────────────────────────
+// War-Torn Dimension
 function drawStoryWarArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -561,7 +550,7 @@ function drawStoryWarArena() {
   _saMotes('war_embers', 28, '255,160,80', 0.55, 0.5, -1);
 }
 
-// ── Gravity Flux World ──────────────────────────────────────────────────────
+// Gravity Flux World
 function drawStoryFluxArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -631,7 +620,7 @@ function drawStoryFluxArena() {
   }
 }
 
-// ── Shadow Realm: the Unseen Court ──────────────────────────────────────────
+// Shadow Realm: the Unseen Court
 function drawStoryShadowArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -680,7 +669,7 @@ function drawStoryShadowArena() {
   }
 }
 
-// ── Titan World ─────────────────────────────────────────────────────────────
+// Titan World
 function drawStoryTitanArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -733,7 +722,7 @@ function drawStoryTitanArena() {
   _saGlow(drift, 360, 140, '210,170,130', 0.06);
 }
 
-// ── Null Space ──────────────────────────────────────────────────────────────
+// Null Space
 function drawStoryNullArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -811,7 +800,7 @@ function drawStoryNullArena() {
   ctx.fillStyle = 'rgba(185,200,245,0.10)'; ctx.fillRect(0, sy, GAME_W, 2);
 }
 
-// ── The Quiet Expanse ───────────────────────────────────────────────────────
+// The Quiet Expanse
 function drawStoryQuietArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -833,7 +822,7 @@ function drawStoryQuietArena() {
   _saBand(330, FY, '165,190,190', 0, 0.12);
   ctx.fillStyle = 'rgba(190,210,210,0.10)'; ctx.fillRect(0, 438, GAME_W, 1);
 
-  // Drained conduits — one still has a trace of what it carried
+  // Drained conduits: one still has a trace of what it carried
   for (const [x, h] of [[200, 250], [430, 300], [860, 210]]) {
     ctx.fillStyle = '#131c1d'; ctx.fillRect(x - 5, FY - h, 10, h);
     ctx.fillStyle = 'rgba(200,220,220,0.07)'; ctx.fillRect(x - 5, FY - h, 2, h);
@@ -852,7 +841,7 @@ function drawStoryQuietArena() {
   _saMotes('quiet', 40, '200,215,215', 0.25, 0.03, -1);
 }
 
-// ── Fracture Coast ──────────────────────────────────────────────────────────
+// Fracture Coast
 function drawStoryCoastArena() {
   const t = frameCount;
   const FY = _SA_FY;
@@ -862,7 +851,6 @@ function drawStoryCoastArena() {
     glints: Array.from({ length: 18 }, () => ({ x: rng() * GAME_W, y: HZ + 6 + rng() * 90, p: (rng() * 300) | 0 })),
   }));
 
-  // Sea
   const sea = ctx.createLinearGradient(0, HZ, 0, FY);
   sea.addColorStop(0, '#1a2c3e'); sea.addColorStop(1, '#0a141e');
   ctx.fillStyle = sea; ctx.fillRect(0, HZ, GAME_W, FY - HZ);
@@ -914,7 +902,7 @@ function drawStoryCoastArena() {
   }
 }
 
-// ── Collision Realm ─────────────────────────────────────────────────────────
+// Collision Realm
 function drawStoryCollisionArena() {
   const t = frameCount;
   const FY = _SA_FY;

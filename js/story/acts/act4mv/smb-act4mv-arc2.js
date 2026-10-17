@@ -141,7 +141,7 @@ STORY_CHAPTER_REGISTRY.push(
     storeNag: '⚠️ Shadow Warden. Expert AI. 1 life. Last world before Titan.',
   },
 
-  // ─────── Arc 5-3: Titan World ─────────────────────────────────────
+  // Arc 5-3: Titan World
 
   {
     id: 98,
@@ -278,12 +278,8 @@ STORY_CHAPTER_REGISTRY.push(
     storeNag: '⚠️ Titan King. Expert AI. 1 life. This is the final world before the Creator\'s domain.',
   },
 
-  // ══════════════════════════════════════════════════════════════════
-  // ACT VI — INTO THE ARCHITECTURE (ids 70–85)
-  // The Creator's domain. The truth behind everything.
-  // No one gets to leave unchanged.
-  // ══════════════════════════════════════════════════════════════════
+  // Act VI: into the Architecture (ids 70-85)
 
-  // ─────── Arc 4-0: The Creator\'s Threshold (ids 70–77) ────────────
+  // Arc 4-0: The Creator's Threshold (ids 70-77)
 
 );

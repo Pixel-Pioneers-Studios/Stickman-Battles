@@ -1,18 +1,6 @@
 'use strict';
-// js/story/levels/ch35.js — Chapter 35 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 35 — The Core's Eye (walk → duel vs the Rift Entity)
-// Segment 4 of the Multiversal Core region (local 0..6000, geometry from `a`).
-// "At the center of everything: not a monster. A person." The Eye's inside is
-// a reliquary: the walls are niches, each holding a fragment the first bearer
-// consumed "to fill the void" — most gone dark, a few still flickering. Stair
-// galleries run along the niche walls. At the midpoint, a plain stone seat
-// worn smooth by ten thousand years, ringed by the slow orbit of its last
-// fragments. Past it, a sealed gate carries four sigils — "You need the
-// Architects. All of them." Cache shafts are the wells the spent fragments
-// sank into.
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch35.js: Chapter 35 map (The Core's Eye, walk then duel the Rift Entity).
+// Segment 4 of the Multiversal Core region, local x 0..6000. See smb-story-levels.js.
 (function () {
   const G = 440, SEAT = 3000, GATE = 5560;
   const GALLERY = [[380, 360, 100], [500, 280, 180], [1180, 350, 110], [1300, 270, 160], [2220, 360, 100], [2340, 280, 150],
@@ -22,13 +10,13 @@
   function layout() {
     const P = [];
     for (const [x, y, w] of GALLERY) _slLedge(P, x, y, w);
-    _slLedge(P, SEAT - 50, G - 46, 100);   // the seat
+    _slLedge(P, SEAT - 50, G - 46, 100);
     return P;
   }
 
   function backdrop(v) {
     _slParallax(v, 0.1, (l, r) => {
-      // The Eye's dome: a dim vault far overhead with one shaft of light
+      // Dome: a dim vault overhead, lit by one shaft of light
       const g = ctx.createRadialGradient(l + (r - l) / 2, -200, 40, l + (r - l) / 2, -200, 900);
       g.addColorStop(0, 'rgba(140,110,200,0.35)'); g.addColorStop(1, 'rgba(20,12,36,0)');
       ctx.fillStyle = g; ctx.fillRect(l - 20, -400, r - l + 40, 900);
@@ -37,7 +25,7 @@
 
   function back(v) {
     const x0 = Math.max(-400, v.x - 40), x1 = Math.min(6400, v.x + v.w + 40);
-    // Niche walls: row upon row of consumed fragments, nearly all gone dark
+    // Niche walls: consumed fragments, nearly all dark
     ctx.fillStyle = '#16101e'; ctx.fillRect(x0, v.y - 20, x1 - x0, G - v.y + 20);
     for (let row = 0; row < 9; row++) {
       const ny = G - 60 - row * 52;
@@ -58,19 +46,16 @@
         }
       }
     }
-    // Stair galleries along the niche walls
     for (const [x, y, w] of GALLERY) {
       if (!_slVisible(v, x - 20, x + w + 20)) continue;
       ctx.fillStyle = '#2e2438'; ctx.fillRect(x, y, w, 10);
       ctx.fillStyle = '#1e1628'; ctx.fillRect(x + 6, y + 10, 8, G - y - 10); ctx.fillRect(x + w - 14, y + 10, 8, G - y - 10);
     }
-    // Wells the spent fragments sank into
     for (const wx of WELLS) {
       if (!_slVisible(v, wx - 80, wx + 80)) continue;
       ctx.fillStyle = '#2e2438'; ctx.fillRect(wx - 64, G - 20, 14, 20); ctx.fillRect(wx + 50, G - 20, 14, 20);
       ctx.fillStyle = 'rgba(160,140,200,0.25)'; ctx.fillRect(wx - 46, G - 2, 92, 2);
     }
-    // The seat, worn smooth, and the last fragments' slow orbit
     if (_slVisible(v, SEAT - 400, SEAT + 400)) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       const sg = ctx.createLinearGradient(SEAT, v.y, SEAT, G);
@@ -87,11 +72,9 @@
         const fx = SEAT + Math.cos(a) * 170, fy = G - 160 + Math.sin(a) * 50;
         ctx.beginPath(); ctx.moveTo(fx, fy - 7); ctx.lineTo(fx + 5, fy); ctx.lineTo(fx, fy + 7); ctx.lineTo(fx - 5, fy); ctx.fill();
       }
-      // Ten thousand years, scratched into the floor in front of the seat
       ctx.strokeStyle = 'rgba(200,180,220,0.18)'; ctx.lineWidth = 1;
       for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.ellipse(SEAT, G, 100 + k * 50, 6 + k * 2, 0, Math.PI, 0); ctx.stroke(); }
     }
-    // The sealed gate: four Architects' sigils, one per lock
     if (_slVisible(v, GATE - 300, GATE + 300)) {
       ctx.fillStyle = '#1e1628'; ctx.fillRect(GATE - 150, G - 300, 300, 300);
       ctx.strokeStyle = '#4a3e56'; ctx.lineWidth = 8; ctx.strokeRect(GATE - 150, G - 300, 300, 300);

@@ -1,11 +1,7 @@
 'use strict';
-// smb-data-arenas.js — Arena platform/color definitions + layout randomization
-// Depends on: smb-globals.js (GAME_W)
-// Must load BEFORE smb-data-mapperks.js, smb-data-mapperks-draw.js, smb-data-weapons.js
+// Arena platform/color definitions and layout randomization. Needs GAME_W (smb-globals.js).
+// Load before the mapperks and weapons data files.
 
-// ============================================================
-// ARENA DEFINITIONS
-// ============================================================
 const ARENAS = {
   grass: {
     sky:         ['#68c0ea', '#aadaf5'],
@@ -17,17 +13,14 @@ const ARENAS = {
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.0 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // ground
-      // density zone: center high — prominent central hub
       { x: 370,  y: 185, w: 160,  h: 18 }, // centre top
       // mid-left zone
       { x: 155,  y: 268, w: 155,  h: 18 }, // left mid
       // mid-right zone
       { x: 590,  y: 268, w: 155,  h: 18 }, // right mid
-      // far-left edge — adds playable space at the extreme left
+      // far-left edge, adds playable space at the extreme left
       { x:  18,  y: 152, w: 120,  h: 16 }, // far-left high
-      // far-right edge
       { x: 762,  y: 152, w: 120,  h: 16 }, // far-right high
-      // additional low platforms filling mid zones
       { x: 280,  y: 340, w: 110,  h: 14 }, // left-centre low
       { x: 510,  y: 340, w: 110,  h: 14 }, // right-centre low
     ]
@@ -83,17 +76,11 @@ const ARENAS = {
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 1.1 },
     platforms: [
       { x: -60,  y: 438, w: 1020, h: 82, isFloor: true }, // continuous rooftop floor
-      // far-left zone — fire escape / ledge
       { x:  18,  y: 320, w:  90,  h: 15 }, // far-left ledge
-      // mid-left zone
       { x: 148,  y: 255, w: 130,  h: 15 }, // left mid
-      // centre zone — elevated hub
       { x: 365,  y: 235, w: 170,  h: 15 }, // centre mid
-      // mid-right zone
       { x: 622,  y: 255, w: 130,  h: 15 }, // right mid
-      // far-right zone
       { x: 793,  y: 320, w:  90,  h: 15 }, // far-right ledge
-      // upper cross-zone platforms
       { x: 240,  y: 155, w: 115,  h: 14 }, // left high
       { x: 545,  y: 155, w: 115,  h: 14 }, // right high
     ]
@@ -112,8 +99,7 @@ const ARENAS = {
       { x: 350, y: 225, w: 200, h: 16 },
       { x: 80,  y: 295, w: 140, h: 16 },
       { x: 680, y: 295, w: 140, h: 16 },
-      // The floor spends about a third of the fight as lava or void; these are the
-      // stepping stones that keep a floorless phase playable.
+  // The floor is lava or void about a third of the fight, so these stones keep it playable.
       { x: 205, y: 378, w: 110, h: 14 },
       { x: 585, y: 378, w: 110, h: 14 },
       { x: 150, y: 152, w: 110, h: 14 },
@@ -139,25 +125,10 @@ const ARENAS = {
     ]
   },
   sovereign: {
-    // Sovereign's personal arena — "The Circuit".
-    //
-    // ONE UNBROKEN FLOOR. A previous pass replaced this floor with a perforated
-    // plate Sovereign could slide (js/smb-circuit.js), so the voids travelled under
-    // whoever was standing on them. It was reverted: the arena had become the fight,
-    // and it silently broke the pickup layer. MAP_PERK_DEFS.sovereign hard-codes item
-    // positions against the deck geometry below, so moving the decks to 322/312/318
-    // put all three items 33/28/37px from a standing fighter's centre — outside the
-    // 28px collection radius in updateMapPerks() — making every pickup on the stage
-    // impossible to take while standing on its own deck. Fixed x pickups over decks
-    // that slid at plateF 0.45 was the second half of the same mistake.
-    //
-    // If plate-style stage control is ever revisited, the pickup layer has to move
-    // with it. CircuitPlate itself is left in the tree and goes inert on its own —
-    // it keys off isCircuitPlate, which is deliberately absent here.
-    //
-    // Deck heights are load-bearing for pickups: 335 / 320 / 335 puts each item 20px
-    // from a standing fighter's centre. Do not retune them without retuning
-    // MAP_PERK_DEFS.sovereign to match.
+    // Sovereign's arena, "The Circuit". The floor must stay one unbroken piece: a perforated floor let
+    // voids move under fighters. MAP_PERK_DEFS.sovereign places pickups against the deck geometry below.
+    // Deck heights are load-bearing: 335 / 320 / 335 puts each item 20px from a standing fighter's centre.
+    // Retune MAP_PERK_DEFS.sovereign with them.
     name:       'The Circuit',
     sky:         ['#030005', '#0d0010'],
     groundColor: '#0e0008',
@@ -169,10 +140,8 @@ const ARENAS = {
     modifiers:   { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
     platforms: [
       { x: -60, y: 460, w:1020, h: 60, isFloor: true, isFloorDisabled: false }, // index 0 — floor
-      // passUnder: ONE-WAY DECKS. A jump rises 268px (feet 460 -> apex 192), far above
-      // every deck here, so a jump from underneath used to bonk and lose 220px of
-      // height. These three are the only passUnder platforms in the game — see
-      // Fighter.checkPlatform().
+      // passUnder: one-way decks. A jump rises 268px, far above every deck, so a jump from below would bonk.
+      // See Fighter.checkPlatform().
       { x:  95, y: 335, w: 165, h: 16, isFloorDisabled: false, passUnder: true }, // index 1 — left  (one jump from floor)
       { x: 368, y: 320, w: 165, h: 16, isFloorDisabled: false, passUnder: true }, // index 2 — center (slight high ground)
       { x: 640, y: 335, w: 165, h: 16, isFloorDisabled: false, passUnder: true }, // index 3 — right (one jump from floor)
@@ -225,7 +194,7 @@ const ARENAS = {
     modifiers:   { gravityMult: 1.0, frictionMult: 1.05, hazardFrequency: 1.15 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // ground
-      // tree canopy tiers — spread across full width
+      // tree canopy tiers, spread across full width
       { x: 350,  y: 190, w: 200,  h: 18 }, // centre high branch
       { x: 112,  y: 272, w: 150,  h: 18 }, // left branch
       { x: 638,  y: 272, w: 150,  h: 18 }, // right branch
@@ -256,7 +225,7 @@ const ARENAS = {
       // upper tiers spread wide
       { x: 165,  y: 145, w: 130,  h: 16 }, // left high
       { x: 605,  y: 145, w: 130,  h: 16 }, // right high
-      // edge icebergs — extend playable corners
+      // edge icebergs, extend playable corners
       { x:   8,  y: 195, w:  80,  h: 16 }, // far-left iceberg
       { x: 812,  y: 195, w:  80,  h: 16 }, // far-right iceberg
     ]
@@ -270,9 +239,8 @@ const ARENAS = {
     deathY:      640,
     modifiers:   { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 0.9 },
     platforms: [
-      // All three slabs are ground. The right two were missing isFloor, which made
-      // drawStageBoundary() read the stage as only x 0-260 and flare a fake ring-out
-      // lip in the middle of the map (and hid the slabs from spawn/floor lookups).
+    // All three slabs are ground, so they need isFloor. Without it drawStageBoundary() reads the stage
+    // as x 0-260 and draws a fake ring-out lip.
       { x:   0, y: 440, w: 260, h: 80, isFloor: true },
       { x: 320, y: 440, w: 260, h: 80, isFloor: true },
       { x: 640, y: 440, w: 260, h: 80, isFloor: true },
@@ -296,13 +264,8 @@ const ARENAS = {
       { x: 890, y: 0,   w: 10,  h: 460 },
     ],
   },
-  // ── Nexus Bastion ──────────────────────────────────────────────────────────
-  // Built for the Nexus Defense minigame only. Twice the standard width so the
-  // rushers have a real approach lane from each gate: the Nexus sits at x=900,
-  // gates at both ends, ~800px of walk on each side. The floor is one unbroken
-  // piece because rushers never jump — any gap would kill them for free.
-  // Platforms are the player's: two watchtowers over the lanes, a crown ledge
-  // over the Nexus, and low gate ledges for dropping onto a fresh spawn.
+  // Nexus Defense only. Double width so rushers get a long lane from each gate. One unbroken floor,
+  // since rushers never jump. Watchtowers, the crown ledge and gate ledges are the player's platforms.
   nexus: {
     name:        'Nexus Bastion',
     isMinigameOnly: true,
@@ -326,25 +289,10 @@ const ARENAS = {
       { x: 810,  y: 250, w: 180,  h: 18 }, // crown ledge over the Nexus
     ],
   },
-  // ----------------------------------------------------------------
-  // NEW ARENAS
-  // ----------------------------------------------------------------
-  // ── The Sewer ──────────────────────────────────────────────────────────────
-  // A moving map with no platforms in it. Everything you can stand on is waste
-  // floating IN the sewage — rafts of garbage riding one shared current. They all
-  // move together at exactly `flowSpeed`; nothing here drifts at its own rate.
-  //
-  // The static list below is only the starting raft set. smb-sewer.js recycles
-  // it continuously: rafts that leave downstream are respawned upstream, so the
-  // river never runs out of ground behind you.
-  //
-  // `isFloor` is on one raft rather than on the sewage, because pickSafeSpawn()
-  // returns null without an isFloor platform and every respawn then crashes. The
-  // floor here is simply a floor that floats.
-  //
-  // Every raft is `passUnder`: a fighter rising out of the sewage passes through
-  // and lands on top instead of being walled out by its edge. That is what makes
-  // falling in escapable.
+  // Sewer: a moving map with no platforms. Everything you stand on floats in the sewage, and all rafts
+  // move at flowSpeed. smb-sewer.js recycles rafts so the river never runs out.
+  // Rafts are passUnder so a fighter rising out of the sewage lands on top. isFloor sits on one raft,
+  // since pickSafeSpawn() returns null without an isFloor platform.
   sewer: {
     sky:         ['#0d1410', '#1a241c'],
     groundColor: '#241f14',
@@ -353,9 +301,7 @@ const ARENAS = {
     hasLava:     false,
     deathY:      900,
     isSewer:     true,
-    // The floor here floats and recycles, so the union of isFloor platforms is
-    // not a kill boundary — the ring-out flare in drawStageBoundary() would sit
-    // on screen permanently. The boundary that matters is the sewage line.
+    // Rafts recycle, so the union of isFloor platforms is no kill boundary. The sewage line is.
     noStageBoundary: true,
     sewageY:     470,          // surface of the flow
     flowSpeed:   1.05,         // px/frame — ONE current, shared by everything
@@ -363,11 +309,8 @@ const ARENAS = {
     mapLeft:     0,
     mapRight:    1800,
     modifiers:   { gravityMult: 1.0, frictionMult: 0.94, hazardFrequency: 1.0 },
-    // raft: y is the standing surface; the body is drawn from there down into the
-    // water, so a tall one reads as a heaped pile rather than a floating ledge.
-    // Decks ride ~40px clear of the waterline. At 8px a swimmer bobbing at the
-    // surface could never get their feet above the deck to land on it — they
-    // washed straight past every raft. The freeboard IS the escape.
+    // y is the standing surface and the body draws down into the water. Decks sit ~40px above the waterline,
+    // since at 8px a swimmer could never climb onto a raft.
     platforms: [
       { x:  -60, y: 430, w: 200, h: 18, raft: true, passUnder: true },
       { x:  210, y: 398, w: 150, h: 18, raft: true, passUnder: true },
@@ -416,8 +359,7 @@ const ARENAS = {
     ]
   },
   underwater: {
-    // NOTE: isSlowMovement flag — processInput in smc-loop.js should multiply
-    // movement speed by 0.72 when currentArena.isSlowMovement is true.
+    // NOTE: isSlowMovement: processInput in smc-loop.js should multiply speed by 0.72.
     sky:            ['#01102a', '#012040'],
     groundColor:    '#003366',
     platColor:      '#004488',
@@ -550,8 +492,7 @@ const ARENAS = {
     modifiers:   { gravityMult: 0.9, frictionMult: 0.85, hazardFrequency: 0.9 },
     platforms: [
       { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
-      // NOTE: isBouncy platforms — smc-loop.js checkPlatform should apply
-      // upward velocity bounce (vy = -abs(vy)*1.4) when landing on isBouncy platforms.
+      // NOTE: isBouncy: checkPlatform in smc-loop.js should set vy = -abs(vy)*1.4 on landing.
       { x: 355, y: 190, w: 190, h: 22, isBouncy: true },
       { x: 140, y: 270, w: 160, h: 22, isBouncy: true },
       { x: 600, y: 270, w: 160, h: 22, isBouncy: true },
@@ -573,7 +514,7 @@ const ARENAS = {
     modifiers:    { gravityMult: 1.05, frictionMult: 1.0, hazardFrequency: 0.9 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40, isFloor: true },
-      // Raised dune at center — creates a natural hill shape
+      // Raised dune at center, creates a natural hill shape
       { x: 340,  y: 380, w: 220,  h: 22 }, // central dune shelf
       { x: 355,  y: 188, w: 190,  h: 18 }, // top plateau
       // Left dune shelf
@@ -585,7 +526,6 @@ const ARENAS = {
     ]
   },
 
-  // ─── ONLINE-ONLY LARGE ARENAS ────────────────────────────────────────────
   megacity: {
     name: 'Mega City', isOnlineOnly: true, isLargeMap: true,
     sky: ['#0a0a1a','#1a0a2e','#0d1a3a'],
@@ -595,7 +535,7 @@ const ARENAS = {
     mapLeft: -900, mapRight: 2700,  // hard boundary walls matching the floor edges
     platforms: [
       { x:-900, y:560, w:3600, h:40, isFloor:true },
-      // Lower tier (7) — wider spacing, slight y variation
+      // Lower tier (7), wider spacing, slight y variation
       { x:-810, y:450, w:210, h:18 },
       { x:-290, y:440, w:190, h:18 },
       { x: 250, y:455, w:200, h:18 },
@@ -603,7 +543,7 @@ const ARENAS = {
       { x:1330, y:452, w:200, h:18 },
       { x:1880, y:440, w:190, h:18 },
       { x:2470, y:455, w:210, h:18 },
-      // Mid tier (7) — staggered between lower, varied heights, centre bridge wider
+      // Mid tier (7), staggered between lower, varied heights, centre bridge wider
       { x:-570, y:345, w:180, h:18 },
       { x: -10, y:315, w:200, h:18 },
       { x: 510, y:348, w:180, h:18 },
@@ -611,14 +551,14 @@ const ARENAS = {
       { x:1600, y:345, w:180, h:18 },
       { x:2130, y:318, w:200, h:18 },
       { x:2600, y:350, w:170, h:18 },
-      // Upper tier (6) — fewer, more open
+      // Upper tier (6), fewer, more open
       { x:-620, y:215, w:175, h:18 },
       { x: -60, y:195, w:195, h:18 },
       { x: 520, y:218, w:175, h:18 },
       { x:1120, y:192, w:195, h:18 },
       { x:1720, y:215, w:175, h:18 },
       { x:2320, y:195, w:195, h:18 },
-      // Top tier (5) — sparse, contested high ground
+      // Top tier (5), sparse, contested high ground
       { x:-430, y:105, w:190, h:18 },
       { x: 280, y: 88, w:175, h:18 },
       { x: 970, y:102, w:200, h:18 },
@@ -635,7 +575,7 @@ const ARENAS = {
     mapLeft: -900, mapRight: 2700,
     platforms: [
       { x:-900, y:560, w:3600, h:40, isFloor:true },
-      // Lower tier (7) — wider spacing, slight y variation, warp-themed feel
+      // Lower tier (7), wider spacing, slight y variation, warp-themed feel
       { x:-800, y:448, w:200, h:18 },
       { x:-270, y:438, w:185, h:18 },
       { x: 270, y:452, w:195, h:18 },
@@ -643,7 +583,7 @@ const ARENAS = {
       { x:1350, y:450, w:200, h:18 },
       { x:1900, y:438, w:185, h:18 },
       { x:2460, y:450, w:200, h:18 },
-      // Mid tier (7) — staggered, wider warp-gate bridge at centre
+      // Mid tier (7), staggered, wider warp-gate bridge at centre
       { x:-560, y:342, w:178, h:18 },
       { x:  20, y:312, w:195, h:18 },
       { x: 530, y:346, w:178, h:18 },
@@ -651,14 +591,14 @@ const ARENAS = {
       { x:1620, y:342, w:178, h:18 },
       { x:2160, y:316, w:195, h:18 },
       { x:2610, y:348, w:168, h:18 },
-      // Upper tier (6) — open sky, fewer platforms
+      // Upper tier (6), open sky, fewer platforms
       { x:-610, y:212, w:172, h:18 },
       { x: -30, y:193, w:190, h:18 },
       { x: 540, y:215, w:172, h:18 },
       { x:1140, y:190, w:190, h:18 },
       { x:1740, y:212, w:172, h:18 },
       { x:2340, y:193, w:190, h:18 },
-      // Top tier (5) — rare, contested high ground
+      // Top tier (5), rare, contested high ground
       { x:-420, y:102, w:188, h:18 },
       { x: 290, y: 85, w:172, h:18 },
       { x: 990, y: 98, w:195, h:18 },
@@ -675,7 +615,7 @@ const ARENAS = {
     mapLeft: -900, mapRight: 2700,
     platforms: [
       { x:-900, y:560, w:3600, h:40, isFloor:true },
-      // Lower tier (7) — colosseum-style wider stone platforms, slight y variation
+      // Lower tier (7), colosseum-style wider stone platforms, slight y variation
       { x:-820, y:448, w:225, h:22 },
       { x:-280, y:435, w:205, h:22 },
       { x: 270, y:450, w:215, h:22 },
@@ -683,7 +623,7 @@ const ARENAS = {
       { x:1360, y:450, w:220, h:22 },
       { x:1910, y:435, w:205, h:22 },
       { x:2480, y:450, w:215, h:22 },
-      // Mid tier (7) — arena floor balconies, wide centre arch
+      // Mid tier (7), arena floor balconies, wide centre arch
       { x:-580, y:340, w:185, h:20 },
       { x:  10, y:308, w:205, h:20 },
       { x: 540, y:342, w:185, h:20 },
@@ -691,14 +631,14 @@ const ARENAS = {
       { x:1640, y:340, w:185, h:20 },
       { x:2180, y:312, w:205, h:20 },
       { x:2620, y:342, w:175, h:20 },
-      // Upper tier (6) — spectator levels, open gaps
+      // Upper tier (6), spectator levels, open gaps
       { x:-600, y:210, w:180, h:18 },
       { x: -40, y:192, w:198, h:18 },
       { x: 530, y:213, w:180, h:18 },
       { x:1130, y:190, w:198, h:18 },
       { x:1730, y:210, w:180, h:18 },
       { x:2340, y:192, w:198, h:18 },
-      // Top tier (5) — highest seating, contested and risky
+      // Top tier (5), highest seating, contested and risky
       { x:-440, y:100, w:195, h:18 },
       { x: 280, y: 83, w:180, h:18 },
       { x: 985, y: 98, w:200, h:18 },
@@ -707,30 +647,25 @@ const ARENAS = {
     ]
   },
 
-  // ── Story-only arenas (not shown in arena picker) ─────────────────────────
-  // All story arenas are 2200px wide so the player can explore before the fight.
-  // isFloor:true marks the ground platform for void-fog and spawn logic.
+// Story-only arenas (not in the picker). 2200px wide so the player can explore before the fight.
+// isFloor marks the ground for void-fog and spawn logic.
 
   homeYard: {
-    // Standard-width map (GAME_W=900). No worldWidth — camera doesn't scroll.
-    // mapLeft/mapRight match the floor edges so no invisible walls exist.
-    // Platform layout: 8 intentional platforms representing a house front yard.
-    // pickSafeSpawn('left') → porch step or left fence; pickSafeSpawn('right') → right fence or path.
-    // Both spawns naturally land in front of the house, separated by the center gap.
+    // Standard-width map (GAME_W). Floor edges match mapLeft/mapRight so there are no invisible walls.
+    // Spawns land in front of the house, either side of the centre gap.
     name: 'Home Yard', isStoryOnly: true, earthPhysics: true,
     mapLeft: 0, mapRight: 900,
     sky: ['#87CEEB','#b8dff5','#d0eeff'],
     groundColor: '#4a8030', platColor: '#6a9a40', platEdge: '#3a6020',
     hasLava: false, deathY: 560,
     platforms: [
-      // Ground — full-width grass, flush with map edges
+      // Ground, full-width grass, flush with map edges
       { x: 0,   y: 460, w: 900, h: 120, isFloor: true },
     ],
   },
   homeRooftop: {
     name: 'City Rooftop', isStoryOnly: true, earthPhysics: true,
-    // Contained to platform extent (last platform ~x3490) so the boundary portals
-    // sit just past the play area instead of 2000px of empty floor beyond it.
+    // Ends at the last platform so the boundary portals sit just past the play area.
     worldWidth: 3600, mapLeft: -50, mapRight: 3540, boundaryPortals: true,
     sky: ['#0a0d18','#141a28','#1e2538'],
     groundColor: '#1a1a22', platColor: '#252530', platEdge: '#111118',
@@ -746,8 +681,7 @@ const ARENAS = {
   },
   homeAlley: {
     name: 'City Alley', isStoryOnly: true, earthPhysics: true,
-    // Contained to the painted alley (art is GAME_W wide) so the boundary portals
-    // frame the visible scene instead of sitting 5000px out in empty floor.
+    // Bounded by the painted alley (art is GAME_W wide) so the portals frame the scene.
     worldWidth: 900, mapLeft: 0, mapRight: 900, boundaryPortals: true,
     sky: ['#1a2030','#2a3040','#3a4050'],
     groundColor: '#222222', platColor: '#303030', platEdge: '#181818',
@@ -892,8 +826,7 @@ const ARENAS = {
     ]
   },
 
-  // Story locations (art in rendering/smb-drawing-arenas4.js). All authored
-  // against a floor at y=460 — the explore world's horizon match reads it.
+  // Story locations (art in rendering/smb-drawing-arenas4.js). Floors sit at y=460 to match the explore horizon.
   storyLab: {
     name: 'Research Facility', isStoryOnly: true,
     sky: ['#0b0f10', '#121819', '#182022'],
@@ -1063,22 +996,21 @@ const ARENAS = {
     modifiers:     { gravityMult: 1.0, frictionMult: 1.0, hazardFrequency: 0.0 },
     platforms: [
       { x: -60,  y: 480, w: 1020, h: 40, isFloor: true }, // main floor
-      // low platforms flanking center — basic combo range
+      // low platforms flanking center, basic combo range
       { x: 120,  y: 340, w: 140,  h: 16 }, // left low
       { x: 640,  y: 340, w: 140,  h: 16 }, // right low
-      // mid-height pair — jump practice
+      // mid-height pair, jump practice
       { x: 230,  y: 240, w: 120,  h: 15 }, // left mid
       { x: 550,  y: 240, w: 120,  h: 15 }, // right mid
-      // centre elevated — reward for vertical play
+      // centre elevated, reward for vertical play
       { x: 370,  y: 155, w: 160,  h: 15 }, // centre top
-      // high corners — for aerial/edge-guard drills
+      // high corners, for aerial/edge-guard drills
       { x:  20,  y: 145, w: 100,  h: 14 }, // far-left high
       { x: 780,  y: 145, w: 100,  h: 14 }, // far-right high
     ]
   },
 
-  // ── Absolute Axiom's Domain — "The Fracture Point" ───────────────────────
-  // Compact focused arena: wide floor + 7 floating platforms. No scrolling.
+  // Axiom's Domain: compact arena, wide floor plus 7 floating platforms. No scrolling.
   absolute_axiom_domain: {
     name:              'The Fracture Point',
     sky:               ['#000005', '#060010', '#0a0018'],
@@ -1095,7 +1027,7 @@ const ARENAS = {
     mapRight:          2700,
     modifiers:         { gravityMult: 0.96, frictionMult: 0.98, hazardFrequency: 0.0 },
     platforms: [
-      // Floor — full world width
+      // Floor, full world width
       { x:-900, y:560, w:3600, h:50, isFloor:true },
       // Zone 1 (left)
       { x:-800, y:330, w:190, h:16 },
@@ -1106,7 +1038,7 @@ const ARENAS = {
       // Zone 3 (forest)
       { x: 100, y:328, w:165, h:16 },
       { x: 320, y:192, w:210, h:16 },
-      // Zone 4 (ice — spawn centre)
+      // Zone 4 (ice, spawn centre)
       { x: 610, y:326, w:175, h:16 },
       { x: 860, y:194, w:210, h:16 },
       { x: 940, y:108, w:130, h:14 },
@@ -1116,15 +1048,13 @@ const ARENAS = {
       // Zone 6 (storm)
       { x:1680, y:328, w:170, h:16 },
       { x:1900, y:195, w:185, h:16 },
-      // Zone 7 (void — right)
+      // Zone 7 (void, right)
       { x:2150, y:330, w:165, h:16 },
       { x:2350, y:205, w:180, h:16 },
     ]
   },
 
-  // ── The Studio — dev-only recording/showcase stage ───────────────────────
-  // Clean 3-tier layout: wide center stage flanked by two low wings.
-  // Accessible only via console: `setmap studio` or the `STUDIO` command.
+  // Dev-only studio stage. Console only: `setmap studio` or the STUDIO command.
   studio: {
     name:          'The Studio',
     sky:           ['#030810', '#060f1e'],
@@ -1144,9 +1074,6 @@ const ARENAS = {
   },
 };
 
-// ============================================================
-// ARENA LAYOUT RANDOMIZATION
-// ============================================================
 // Stores base platform positions per arena for randomization reference
 const ARENA_BASE_PLATFORMS = {};
 for (const key of Object.keys(ARENAS)) {
@@ -1159,6 +1086,6 @@ function randomizeArenaLayout(key) {
   const base  = ARENA_BASE_PLATFORMS[key];
   if (!base) return;
   const arena = ARENAS[key];
-  // Maps are fixed and identical for everyone — apply the authored base layout unchanged.
+  // Maps are fixed and identical for everyone, so apply the base layout unchanged.
   arena.platforms = base.map(p => ({ ...p }));
 }

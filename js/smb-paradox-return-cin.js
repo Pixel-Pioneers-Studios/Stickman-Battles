@@ -1,12 +1,9 @@
 'use strict';
-// smb-paradox-return-cin.js — TF kicks Paradox out + Paradox return-1000 cinematics
-// Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
+// smb-paradox-return-cin.js: TF kicks Paradox out + Paradox return-1000 cinematics
+// Depends on: smb-globals.js, smb-paradox-class.js.
 
-// ============================================================
-// TF KICKS PARADOX OUT  — fires after opening 1000-damage threshold
-// TF teleports behind Paradox and punches them off-stage.
-// After this cinematic: tfCinematicState = 'none' (fight continues normally).
-// ============================================================
+// TF kicks Paradox out after the opening 1000-damage threshold.
+// Ends with tfCinematicState = 'none' so the fight resumes.
 function _makeTFKicksParadoxOutCinematic(tf) {
   return {
     durationFrames:   300,  // 5 seconds
@@ -85,7 +82,7 @@ function _makeTFKicksParadoxOutCinematic(tf) {
       slowMotion           = 1.0;
       cinematicCamOverride = false;
       paradoxEntity        = null;
-      tfCinematicState     = 'none'; // main fight resumes normally
+      tfCinematicState     = 'none';
       if (tf) {
         tf.x = Math.max(40, Math.min(GAME_W - tf.w - 40, tf.x));
         tf.y = GAME_H - 200;
@@ -97,13 +94,10 @@ function _makeTFKicksParadoxOutCinematic(tf) {
   };
 }
 
-// ============================================================
-// PARADOX RETURN AT 1000 HP  — fires from startTFParadoxReturn1000()
-// Sequence: Paradox flashes back → brief joint fight → TF gamma rays
-//           → multiversal attacks → execute command → Paradox dies
-//           → absorption → dimension punch → Code Realm
-// ============================================================
-// Helper: reposition TF and hero to a flat, always-visible cinematic stage position
+// Paradox return at 1000 HP (startTFParadoxReturn1000).
+// Flow: Paradox returns, joint fight, gamma rays, multiversal strikes, execute,
+// absorption, dimension punch, Code Realm.
+// Moves TF and hero to a fixed, always-visible stage position.
 function _snapToCinematicStage(tf, hero) {
   const stageY = GAME_H - 120;
   if (tf)   { tf.x   = GAME_W * 0.65 - tf.w / 2;   tf.y   = stageY - tf.h;   tf.vx = 0; tf.vy = 0; }
@@ -114,7 +108,6 @@ function startTFParadoxReturn1000(tf) {
   tfCinematicState = 'paradox_death'; // reuse state to suppress normal AI
   if (tf) tf.invincible = 9999;
 
-  // Snap both entities to a guaranteed visible stage position
   const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
   _snapToCinematicStage(tf, _hero);
   if (_hero) _hero.invincible = Math.max(_hero.invincible || 0, 9999);
@@ -127,7 +120,7 @@ function startTFParadoxReturn1000(tf) {
 
 function _makeTFParadoxReturn1000Cinematic(tf) {
   return {
-    durationFrames:   900,  // 15 seconds — extended for pacing
+    durationFrames:   900,  // 15 seconds: extended for pacing
     _spawnFired:      false,
     _fightFired:      false,
     _fight2Fired:     false,
@@ -148,7 +141,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
       cinematicCamOverride = t < 14.8;
       if (cinematicCamOverride) {
         const focus = paradoxEntity || tf;
-        // Camera shifts focus: start on TF, then to Paradox during gamma, then both
+        // Camera: TF, then Paradox during gamma, then both
         if (t < 4.0) {
           cinematicZoomTarget = 1.3;
           cinematicFocusX = tf ? tf.cx() : GAME_W / 2;
@@ -164,7 +157,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         }
       }
 
-      // 0.6 s: Paradox flashes back in — spawn on cinematic stage next to hero
+      // 0.6 s: Paradox flashes back in: spawn on cinematic stage next to hero
       if (t >= 0.6 && !this._spawnFired) {
         this._spawnFired = true;
         const _stageY = GAME_H - 120 - 50;
@@ -213,7 +206,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
           showBossDialogue("End of the line.", 260);
       }
 
-      // 4.5 s: TF turns on Paradox — GAMMA RAY BURST
+      // 4.5 s: TF turns on Paradox: GAMMA RAY BURST
       if (t >= 4.5 && !this._gammaFired) {
         this._gammaFired = true;
         const gx = tf ? tf.cx() : GAME_W * 0.65;
@@ -230,7 +223,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
             particles.push(_p);
           }
         }
-        // Gamma beam visual: large shockwave ring from TF toward Paradox
+        // Gamma beam shockwave ring
         if (typeof CinFX !== 'undefined') {
           CinFX.shockwave(gx, gy, '#ffff44', { count: 3, maxR: 340, lw: 6, dur: 55 });
           CinFX.flash('#ffff44', 0.65, 22);
@@ -253,14 +246,14 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         }
       }
 
-      // 6.0 s: MULTIVERSAL STRIKE 1 — dimensional lightning bolt at Paradox
+      // 6.0 s: MULTIVERSAL STRIKE 1: dimensional lightning bolt at Paradox
       if (t >= 6.0 && !this._multiAttackFired) {
         this._multiAttackFired = true;
         const px = paradoxEntity ? paradoxEntity.cx() : GAME_W * 0.25;
         const py = paradoxEntity ? paradoxEntity.cy() : GAME_H / 2;
         screenShake = Math.max(screenShake, 40);
         if (settings.particles) {
-          // Streak from sky → Paradox
+          // Sky streak to Paradox
           for (let i = 0; i < 50 && particles.length < MAX_PARTICLES; i++) {
             const _p = _getParticle();
             const frac = i / 50;
@@ -282,7 +275,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         if (paradoxEntity) { paradoxEntity.hurtTimer = Math.max(paradoxEntity.hurtTimer, 20); }
       }
 
-      // 7.2 s: MULTIVERSAL STRIKE 2 — reality tear
+      // 7.2 s: MULTIVERSAL STRIKE 2: reality tear
       if (t >= 7.2 && !this._multiStrike2) {
         this._multiStrike2 = true;
         const px2 = paradoxEntity ? paradoxEntity.cx() : GAME_W * 0.25;
@@ -309,7 +302,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
           showBossDialogue('REALITY TEAR — TIMELINE COLLAPSE', 300);
       }
 
-      // 8.0 s: MULTIVERSAL STRIKE 3 — execute windup
+      // 8.0 s: MULTIVERSAL STRIKE 3: execute windup
       if (t >= 8.0 && !this._multiStrike3) {
         this._multiStrike3 = true;
         if (tf) {
@@ -323,7 +316,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
           showBossDialogue("You've served your purpose. End sequence.", 320);
       }
 
-      // 9.2 s: Execute command — TF charges final blow
+      // 9.2 s: Execute command: TF charges final blow
       if (t >= 9.2 && !this._executeFired) {
         this._executeFired = true;
         if (tf) {
@@ -337,7 +330,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         if (typeof CinFX !== 'undefined') CinFX.flash('#00ff88', 0.35, 14);
       }
 
-      // 11.0 s: Paradox collapses — big final burst
+      // 11.0 s: Paradox collapses: big final burst
       if (t >= 11.0 && !this._collapseFired) {
         this._collapseFired = true;
         if (paradoxEntity) {
@@ -354,8 +347,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         if (typeof showBossDialogue === 'function') showBossDialogue('...', 280);
       }
 
-      // ── Continuous Paradox movement + attacks (between spawn and gamma ray) ──
-      // Paradox actively fights TF — moves toward them and punches on cooldown.
+      // Paradox fights on its own between spawn and gamma ray.
       if (t >= 0.6 && t < 4.5 && paradoxEntity && !paradoxEntity.done && tf) {
         const pdx = tf.cx() - paradoxEntity.cx();
         // Smooth movement toward TF; hang back slightly when in punch range
@@ -367,7 +359,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         if (this._paradoxContinuousCd <= 0 && Math.abs(pdx) < 110) {
           this._paradoxContinuousCd = 48 + Math.floor(Math.random() * 20);
           paradoxEntity.punch(Math.sign(pdx));
-          // Visual flinch on TF — no actual HP change, cinematic controls that
+          // Visual flinch on TF, no HP change, cinematic controls only
           tf.hurtTimer = Math.max(tf.hurtTimer, 8);
           tf.vx        = -Math.sign(pdx) * 2.5;
           spawnParticles(tf.cx(), tf.cy(), '#00ffff', 10);
@@ -385,7 +377,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
       paradoxEntity        = null;
       _tfKCOverlay         = null;
 
-      // Mark Paradox as dead — required by _startAbsorptionThenPunch guard
+      // Mark Paradox as dead: required by _startAbsorptionThenPunch guard
       paradoxDeathComplete = true;
 
       if (tf) {

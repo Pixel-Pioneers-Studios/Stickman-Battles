@@ -1,30 +1,17 @@
-// smb-state.js — Centralized runtime state authority
-//
-// Single source of truth for:
-//   - persistent: account registry, admin overrides  (written to localStorage)
-//   - session:    online lobby metadata              (never serialized)
-//
-// DOES NOT manage:
-//   - players[], gameRunning, physics, rendering, or any game-loop globals
-//   - game save blobs (those stay in AccountManager / smb-save.js)
-//
-// Load order: must come before smb-online.js, smb-accounts.js, smb-admin.js.
-// GameState.load() is called eagerly at parse time so all downstream modules
-// can read state synchronously from their own parse-time init.
+// GameState: runtime state authority.
+// Two subtrees: `persistent` (accounts, admin overrides, saved to localStorage) and
+// `session` (online lobby metadata, never serialized). Not for players[], physics or
+// save blobs (those live in AccountManager and smb-save.js).
+// Loads before smb-online.js, smb-accounts.js and smb-admin.js. load() runs at parse
+// time, so downstream modules can read state synchronously.
 
 'use strict';
 
 const GameState = (() => {
 
-  // ── Dev flag ──────────────────────────────────────────────────────────────────
   const DEBUG_STATE = false;
 
-  // ── Internal state ────────────────────────────────────────────────────────────
-  //
-  // Explicitly split into two subtrees so callers always know what is safe
-  // to persist and what is session-only. save() writes only `persistent`;
-  // `session` is never serialized and resets to defaults on every page load.
-
+  // save() writes only `persistent`. `session` resets on every page load.
   let _state = {
     persistent: {
       activeAccountId: null,
@@ -45,13 +32,7 @@ const GameState = (() => {
     },
   };
 
-  // ── Schema validation ─────────────────────────────────────────────────────────
-
-  /**
-   * Validates the persistent subtree structure.
-   * Throws a descriptive Error if the shape is invalid.
-   * Called after load() and after every update() commit.
-   */
+  // Throws if the persistent subtree has the wrong shape. Runs after load() and each update().
   function _validatePersistent(p) {
     if (!p) throw new Error("Persistent state missing");
 
@@ -71,39 +52,24 @@ const GameState = (() => {
     }
   }
 
-  // ── Core accessors ────────────────────────────────────────────────────────────
-
-  /** Returns the full state object (both subtrees). */
   function get() { return _state; }
 
-  /** Returns only the persistent subtree. Use for account / admin data. */
   function getPersistent() { return _state.persistent; }
 
-  /** Returns only the session subtree. Use for online / transient data. */
   function getSession() { return _state.session; }
 
-  /**
-   * Shallow-merges `partial` onto the top-level state.
-   * Prefer update() for nested mutations to avoid clobbering sibling keys.
-   */
+  // Shallow merge onto the top level. Prefer update() for nested changes.
   function set(partial) {
     Object.assign(_state, partial);
   }
 
-  /**
-   * Passes a shallow-cloned draft to `fn` for mutation.
-   * Validates persistent state after mutation; commits only if valid.
-   * Always use the explicit subtree path, e.g.:
-   *   GameState.update(s => { s.persistent.activeAccountId = id; });
-   *   GameState.update(s => { s.session.online.connected = true; });
-   */
+  // Passes a draft to fn and commits only if persistent state still validates.
+  //   GameState.update(s => { s.persistent.activeAccountId = id; });
   function update(fn) {
-    // The draft is a SHALLOW copy: nested objects (accounts etc.) are shared with
-    // live state, so fn's nested mutations land immediately. A deep backup lets a
-    // validation failure roll those back instead of committing a partial write.
-    // (Persistent state is localStorage-backed, so it is JSON-safe by construction.)
+    // The draft is shallow, so fn's nested edits hit live state directly. The deep
+    // backup lets a failed validation roll them back.
     let _rollback = null;
-    try { _rollback = JSON.parse(JSON.stringify(_state.persistent)); } catch (e) { /* non-serializable: skip rollback */ }
+    try { _rollback = JSON.parse(JSON.stringify(_state.persistent)); } catch (e) { /* not serializable, so no rollback */ }
 
     const draft = {
       persistent: { ..._state.persistent },
@@ -124,24 +90,13 @@ const GameState = (() => {
     _state.session    = draft.session;
   }
 
-  // ── Convenience helper ────────────────────────────────────────────────────────
-
-  /**
-   * Returns the active account object, or null if none is set.
-   * Shorthand for getPersistent().accounts[getPersistent().activeAccountId].
-   */
+  // Active account object, or null.
   function getActiveAccount() {
     const p = _state.persistent;
     return (p.accounts && p.activeAccountId) ? (p.accounts[p.activeAccountId] || null) : null;
   }
 
-  // ── Persistence ───────────────────────────────────────────────────────────────
-
-  /**
-   * Serializes _state.persistent to localStorage under 'smb_state'.
-   * _state.session is intentionally excluded — it is runtime-only.
-   * Throws if persistent state fails validation; nothing is written in that case.
-   */
+  // Writes persistent state to localStorage. Session is never written.
   function save() {
     _validatePersistent(_state.persistent); // throws before touching localStorage
     try {
@@ -152,25 +107,16 @@ const GameState = (() => {
     }
   }
 
-  /**
-   * Loads persistent state into _state.persistent from localStorage.
-   *
-   * Priority:
-   *   1. 'smb_state' key  (written by GameState.save())
-   *   2. Legacy 'stickman_accounts' key  (written by the old AccountManager)
-   *
-   * The legacy key is never deleted — this is a non-destructive one-way
-   * migration. The next call to save() will write 'smb_state' and future
-   * loads will use that key.
-   */
+  // Loads persistent state. Reads 'smb_state', falling back to the legacy
+  // 'stickman_accounts' key. The legacy key is left in place. The next save() moves to 'smb_state'.
   function load() {
-    // ── Prefer canonical key ─────────────────────────────────────────────────
+    // Canonical key first.
     try {
       const raw = localStorage.getItem('smb_state');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
-          // Assign parsed data, then ensure required sub-objects always exist.
+          // Make sure the required sub-objects exist.
           _state.persistent = Object.assign(
             { activeAccountId: null, accounts: {}, admin: { overrides: {}, bans: { records: {} } } },
             parsed
@@ -185,7 +131,7 @@ const GameState = (() => {
       }
     } catch (e) {}
 
-    // ── Fall back: migrate legacy 'stickman_accounts' key ────────────────────
+    // Legacy migration.
     try {
       const legacy = localStorage.getItem('stickman_accounts');
       if (legacy) {
@@ -197,19 +143,13 @@ const GameState = (() => {
           if (!_state.persistent.admin.overrides) _state.persistent.admin.overrides = {};
           if (!_state.persistent.admin.bans)      _state.persistent.admin.bans      = { records: {} };
           if (!_state.persistent.admin.bans.records) _state.persistent.admin.bans.records = {};
-          // Do NOT call save() here — smb-accounts.js finalizes and saves
-          // after validating the migrated data.
+          // No save() here. smb-accounts.js validates and saves the migrated data.
         }
       }
     } catch (e) {}
   }
 
-  // ── Session helpers ───────────────────────────────────────────────────────────
-
-  /**
-   * Resets session.online to its default idle shape.
-   * Call when leaving a lobby or on clean disconnect.
-   */
+  // Resets session.online to idle. Call on leaving a lobby or a clean disconnect.
   function resetSession() {
     _state.session = {
       online: {
@@ -220,11 +160,7 @@ const GameState = (() => {
     };
   }
 
-  /**
-   * Shallow-merges `data` onto session.online.
-   * Use instead of direct mutation so all online-state writes are traceable.
-   *   GameState.setOnlineState({ lobbyId: 'abc', role: 'host', connected: true });
-   */
+  // Shallow merge onto session.online. Use this rather than mutating it, so writes are traceable.
   function setOnlineState(data) {
     _state.session.online = {
       ..._state.session.online,
@@ -232,13 +168,12 @@ const GameState = (() => {
     };
   }
 
-  // Eager load: _state is fully populated before any downstream IIFE runs.
+  // Eager load, so _state is ready before any downstream IIFE runs.
   load();
 
   return { get, getPersistent, getSession, set, update, save, load, getActiveAccount, resetSession, setOnlineState };
 
 })();
 
-// Expose on window so guards like `window.GameState && ...` work correctly.
-// `const` at script top-level is not a window property in browsers.
+// Publish on window. A top-level const is not a window property, so `window.GameState` guards need this.
 window.GameState = GameState;

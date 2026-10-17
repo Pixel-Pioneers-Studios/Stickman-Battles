@@ -1,46 +1,31 @@
 'use strict';
-// smb-paradox-intro-cin.js — _makeTFIntroCinematic — TF intro (fight start, fully scripted)
+// smb-paradox-intro-cin.js: _makeTFIntroCinematic, TF intro (fight start, fully scripted)
 // Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
 
-// ============================================================
-// TRUEFORM INTRO CINEMATIC  (fires at fight start, fully scripted)
-//
-// Sequence:
-//   0.0 s  Freeze — TF centered, Paradox + player repositioned left
-//   0.3 s  "So… you brought backup."
-//   0.7-2.4 s  6 scripted hits — TF HP falls from 10 000 → 9 000
-//   2.6 s  "Enough." — momentum halted, slowdown
-//   3.1 s  "You cannot win." — TF begins gliding toward Paradox (visible)
-//   4.9 s  GRAB complete → Paradox pinned
-//   4.9 s  NECK SNAP — white flash, ~10-frame near-freeze
-//   5.4 s  PORTAL OPEN — shockwave burst right side
-//   6.1 s  THROW — Paradox launched at portal with velocity
-//   7.2 s  PORTAL CLOSE — Paradox fades out
-//   8.3 s  "Now… face me alone." — fight begins
-// ============================================================
+// TF intro cinematic (_makeTFIntroCinematic). Fires at fight start, fully scripted.
+// Six scripted hits, the neck snap, Paradox thrown into the portal, then the fight
+// resumes with TF at 9000 HP (hard set at frame 300).
 function _makeTFIntroCinematic(tf) {
   const PORTAL_X  = GAME_W - 140;
   const PORTAL_Y  = GAME_H - 100;
   const FLOOR_Y   = GAME_H - 72;
 
-  // ── Scripted hit timings (seconds) ────────────────────────────────
+  // Scripted hit timings (seconds)
   // Paradox hits TF  (6 hits, frames ~42–144)
   const PARADOX_HITS = [0.7, 1.05, 1.4, 1.75, 2.05, 2.4];
   // Player hits TF   (5 hits, interleaved, frames ~54–150)
   const P1_HITS      = [0.9, 1.2,  1.6, 1.95, 2.3 ];
 
-  // Per-hit damage amounts — deterministic, total well above 1000 so the
-  // hard-set at frame 300 is the only source of truth for final HP.
+  // Per-hit damage. Totals exceed 1000, so the frame-300 hard set decides final HP.
   const PARADOX_HIT_DMG = [120, 130, 125, 140, 115, 135]; // sum = 765
   const P1_HIT_DMG      = [ 80,  90,  85,  95,  75];      // sum = 425
-  // Combined ≥1000, but tf.health is clamped to ≥9000 per hit AND
-  // hard-forced to exactly 9000 at t=5.0 s (frame 300).
+  // Clamped to >= 9000 per hit, then forced to exactly 9000 at frame 300 (t=5.0 s).
 
   return {
     durationFrames: 500,   // ~8.3 s at 60 fps
     _phaseLabel: { text: '— THE VOID AWAKENS —', color: '#00ffff' },
 
-    // ── State flags ──────────────────────────────────────────────────
+    // State flags
     _setupDone:          false,
     _introDialogueFired: false,
     _paradoxHitIdx:      0,
@@ -56,7 +41,7 @@ function _makeTFIntroCinematic(tf) {
     _throwVx:            0,
     _throwVy:            0,
     _closeFired:         false,
-    // Animation state — manually driven since gameFrozen skips Fighter.update()
+    // Animation driven by hand: gameFrozen skips Fighter.update()
     _heroAtkTimer:       0,  // counts down: >0 → hero shows attack pose
     _tfHurtTimer:        0,  // counts down: >0 → TF shows hurt pose / flinch
 
@@ -66,7 +51,7 @@ function _makeTFIntroCinematic(tf) {
     _heroTargetX: 0,
 
     update(t) {
-      // ── Slow-motion curve ─────────────────────────────────────────
+      // Slow-motion curve
       if      (t < 0.3)  slowMotion = Math.max(0.3,  1.0 - t * 2.33);
       else if (t < 2.5)  slowMotion = 0.30;
       else if (t < 2.85) slowMotion = Math.max(0.08, 0.30 - (t - 2.5) * 0.63);
@@ -75,7 +60,7 @@ function _makeTFIntroCinematic(tf) {
       else if (t < 6.2)  slowMotion = 0.10;
       else               slowMotion = Math.min(1.0, 0.10 + (t - 6.2) * 0.35);
 
-      // ── Camera ───────────────────────────────────────────────────
+      // Camera
       cinematicCamOverride = true;
       if (t < 2.5) {
         cinematicZoomTarget = 0.82;
@@ -91,8 +76,7 @@ function _makeTFIntroCinematic(tf) {
         cinematicFocusY     = PORTAL_Y - 20;
       }
 
-      // ── MANUAL ANIMATION STATE (gameFrozen skips Fighter.update()) ──
-      // Hero walk / attack pose driven entirely by cinematic state.
+      // Hero walk and attack pose are set here, not in Fighter.update().
       {
         const hero = this._hero;
         if (this._heroAtkTimer > 0) {
@@ -108,41 +92,36 @@ function _makeTFIntroCinematic(tf) {
           if (hero) hero.state = 'idle';
         }
 
-        // TF hurt flinch — manually decrement since update() is frozen
+        // TF hurt flinch, decremented by hand since update() is frozen
         if (this._tfHurtTimer > 0) {
           this._tfHurtTimer--;
           if (tf) { tf.hurtTimer = this._tfHurtTimer; tf.state = 'hurt'; }
         }
       }
 
-      // ── CONTINUOUS HP FLOOR CLAMP ────────────────────────────────
-      // Prevents any stray damage (class effects, particles, etc.) from
-      // pushing TF below 9000 before the deterministic force at frame 300.
+      // Stray damage (class effects, particles) must not push TF below 9000 before frame 300.
       if (tf && !this._hp9kForced && tf.health < 9000) tf.health = 9000;
 
-      // ── STEP 0: Position entities ─────────────────────────────────
+      // Step 0: position entities
       if (!this._setupDone && t >= 0.05) {
         this._setupDone = true;
 
-        // True Form: centered, full HP, abilities hard-blocked
+        // TF: centered, full HP, abilities blocked
         if (tf) {
           tf.x               = GAME_W / 2 - tf.w / 2;
           tf.y               = FLOOR_Y - tf.h;
           tf.vx              = 0; tf.vy = 0;
           tf.health          = tf.maxHealth; // 10 000
           tf.facing          = -1;           // face left toward attackers
-          // Block ALL special abilities for the duration of this cinematic.
-          // gameFrozen=true (set by startCinematic) already prevents updateAI,
-          // but postSpecialPause guards against any ability that checks it.
+        // Block all TF specials. gameFrozen stops updateAI, postSpecialPause stops the rest.
           tf.postSpecialPause = 9999;
         }
 
-        // Spawn Paradox left side (between player and TF)
+        // Paradox spawns left, between player and TF
         if (!paradoxEntity) spawnParadox(210, FLOOR_Y - 50);
         if (paradoxEntity) { paradoxEntity.facing = 1; paradoxEntity.vy = 0; }
 
-        // Reposition player: left edge, zero velocity, input already locked
-        // by gameFrozen=true — no additional input disable needed.
+        // Zero velocity. Input is already locked by gameFrozen.
         const hero = players ? players.find(p => !p.isBoss) : null;
         this._hero = hero || null;
         if (hero) {
@@ -157,15 +136,14 @@ function _makeTFIntroCinematic(tf) {
         if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.20, 18);
       }
 
-      // ── STEP 1: Intro dialogue ────────────────────────────────────
+      // Step 1: intro dialogue
       if (t >= 0.3 && !this._introDialogueFired) {
         this._introDialogueFired = true;
         if (typeof showBossDialogue === 'function')
           showBossDialogue('So\u2026 you brought backup.', 270);
       }
 
-      // ── STEP 1a: Player & Paradox approach TF (frames 0–120 / t 0–2 s) ─
-      // Both fighters walk toward TF during the positioning window.
+      // Step 1a: player and Paradox walk toward TF (frames 0-120)
       if (this._setupDone && t < 2.0) {
         const hero = this._hero;
         if (hero && hero.x < this._heroTargetX) {
@@ -182,7 +160,7 @@ function _makeTFIntroCinematic(tf) {
         }
       }
 
-      // ── STEP 2: Paradox scripted hits (frames ~42–144) ───────────
+      // Step 2: Paradox hits (frames ~42-144)
       if (this._paradoxHitIdx < PARADOX_HITS.length &&
           t >= PARADOX_HITS[this._paradoxHitIdx]) {
         const idx = this._paradoxHitIdx++;
@@ -207,9 +185,8 @@ function _makeTFIntroCinematic(tf) {
         }
       }
 
-      // ── STEP 3: Player (hero) scripted hits (frames ~54–150) ─────
-      // Player is AI-controlled for this cinematic (gameFrozen disables input).
-      // We script their position + impact visuals to show them actively fighting.
+      // Step 3: player hits (frames ~54-150). Hero is AI-driven here (gameFrozen blocks
+      // input), so position and impact visuals are scripted.
       if (this._p1HitIdx < P1_HITS.length &&
           t >= P1_HITS[this._p1HitIdx]) {
         const idx  = this._p1HitIdx++;
@@ -231,7 +208,6 @@ function _makeTFIntroCinematic(tf) {
         const px = tf ? tf.cx() : GAME_W / 2;
         const py = tf ? tf.cy() : GAME_H / 2;
 
-        // Hero-colored impact particles (white + yellow)
         spawnParticles(px, py, '#ffffff', 6);
         spawnParticles(px, py, '#ffe066', 4);
         if (hero) spawnParticles(hero.cx ? hero.cx() : hero.x, hero.y, '#ffe066', 3);
@@ -254,20 +230,17 @@ function _makeTFIntroCinematic(tf) {
         if (hero) { hero.x -= 12; hero.vx = 0; hero.vy = 0; }
       }
 
-      // ── STEP 4: HARD HP FORCE at t = 5.0 s (frame 300) ──────────
-      // This is the single source of truth for the final opening HP value.
-      // Regardless of accumulated hit damage, TF is ALWAYS at exactly 9000
-      // when the execution cinematic begins.
+      // Step 4: hard HP set at frame 300 (t=5.0 s). TF is exactly 9000 when execution starts.
       if (!this._hp9kForced && t >= 5.0) {
         this._hp9kForced = true;
         if (tf) {
-          tf.health           = 9000; // hard set — no Math.max, no Math.min
+          tf.health           = 9000; // hard set: no Math.max, no Math.min
           tf.maxHealth        = Math.max(tf.maxHealth, 9000);
           tf.postSpecialPause = 0;   // will be re-applied in onEnd guard
         }
       }
 
-      // ── STEP 5: Turning point — TF disengages from player ────────
+      // Step 5: TF disengages from player
       if (t >= 2.6 && !this._turnFired) {
         this._turnFired = true;
         if (paradoxEntity) paradoxEntity.vy = 0;
@@ -289,7 +262,7 @@ function _makeTFIntroCinematic(tf) {
         }
       }
 
-      // ── STEP 6: GRAB — TF glides visibly toward Paradox ──────────
+      // Step 6: grab, TF glides toward Paradox
       if (t >= 3.15 && !this._grabMoving) {
         this._grabMoving = true;
         if (typeof showBossDialogue === 'function')
@@ -331,7 +304,7 @@ function _makeTFIntroCinematic(tf) {
         paradoxEntity.facing = -1;
       }
 
-      // ── STEP 7: NECK SNAP ─────────────────────────────────────────
+      // Step 7: neck snap
       if (this._grabDone && t >= 4.9 && !this._snapFired) {
         this._snapFired = true;
 
@@ -359,7 +332,7 @@ function _makeTFIntroCinematic(tf) {
           showBossDialogue('This timeline ends here.', 290);
       }
 
-      // ── STEP 8: PORTAL OPEN ───────────────────────────────────────
+      // Step 8: portal open
       if (t >= 5.4 && !this._portalFired) {
         this._portalFired = true;
         if (typeof CinFX !== 'undefined') {
@@ -374,7 +347,7 @@ function _makeTFIntroCinematic(tf) {
           showBossDialogue('Back to the void.', 230);
       }
 
-      // Portal pulse — inward particle swirl
+      // Portal pulse: inward particle swirl
       if (this._portalFired && !this._closeFired) {
         this._portalPulse++;
         if (this._portalPulse % 7 === 0 && settings.particles && particles.length < MAX_PARTICLES) {
@@ -395,7 +368,7 @@ function _makeTFIntroCinematic(tf) {
         }
       }
 
-      // ── STEP 9: THROW ─────────────────────────────────────────────
+      // Step 9: throw
       if (t >= 6.1 && !this._throwFired) {
         this._throwFired = true;
         if (paradoxEntity && tf) {
@@ -420,7 +393,7 @@ function _makeTFIntroCinematic(tf) {
         this._throwVy   += 0.3;
       }
 
-      // ── STEP 10: PORTAL CLOSE ────────────────────────────────────
+      // Step 10: portal close
       if (t >= 7.2 && !this._closeFired) {
         this._closeFired = true;
         if (paradoxEntity) paradoxEntity.done = true;
@@ -441,17 +414,15 @@ function _makeTFIntroCinematic(tf) {
       cinematicCamOverride = false;
       paradoxEntity        = null;
 
-      // Guarantee TF is at exactly 9000 HP when fight resumes.
-      // (Safety net in case the cinematic was skipped or cut short.)
+      // Net in case the cinematic was cut short: TF back to 9000.
       if (tf) {
         tf.health           = 9000;
         tf.maxHealth        = Math.max(tf.maxHealth, 9000);
-        // Re-enable TF abilities for the main fight (postSpecialPause was
-        // set to 9999 in setup; give a small grace window before first attack).
+        // Grace window before TF's first special.
         tf.postSpecialPause = 4; // ~60 frames before first special
       }
 
-      // Reposition hero to a safe spawn so they aren't clipping TF
+      // Move hero to a safe spawn, away from TF
       const hero = players ? players.find(p => !p.isBoss) : null;
       if (hero && tf) {
         hero.x   = Math.max(40, tf.x - 140);
@@ -460,7 +431,7 @@ function _makeTFIntroCinematic(tf) {
         hero.vy  = 0;
       }
 
-      // Opening taunt — fight begins
+      // Opening taunt: fight begins
       if (typeof showBossDialogue === 'function')
         showBossDialogue('Now\u2026 face me alone.', 300);
     }

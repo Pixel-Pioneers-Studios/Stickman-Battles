@@ -1,8 +1,6 @@
-// Appends chapters for act4mv/smb-act4mv-null.js.
-// The Null Arc — a fracture boss who lost all identity to the void.
-// Became pure pattern: no face, no name, no memory. Only observation.
-// The player is entry 848 — the first anomaly in 4,200 years of cataloguing.
-// Slots at IDs 94–98 in the multiverse arc, after Titan World.
+// Null arc: a fracture boss who lost all identity to the void. It is pure pattern now,
+// with no face, name, or memory. The player is entry 848, the first anomaly in 4,200 years.
+// Chapters 94 to 98 of the multiverse arc, after Titan World.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -139,13 +137,9 @@ STORY_CHAPTER_REGISTRY.push(
   },
 
   {
-    // ── THE TRIAL OF SENSE — see docs/TRIALS_DESIGN.md ──────────────────────
-    // Placed immediately before the Null duel so it gates it. Null's whole
-    // problem with Kael is that it cannot model him; the trial is Null removing
-    // the one channel every one of its 847 catalogued fighters relied on.
-    // Deliberately a plain arena duel, NOT walkFight: the lantern sweep is tuned
-    // to a 900px arena (400px/s leading edge, 0.75s gap), and a 3000px explore
-    // world makes the reveal band narrower than the space it has to search.
+    // Trial of Sense (docs/TRIALS_DESIGN.md). Placed before the Null duel so it gates it.
+    // It removes the one channel Null's 847 catalogued fighters relied on.
+    // A plain arena duel, not walkFight: the lantern sweep is tuned to a 900px arena.
     id: 106, title: 'The Unseen Pattern',
     world: '\ud83c\udf00 Null Space \u2014 The Blind Vault',
     narrative: [
@@ -179,9 +173,8 @@ STORY_CHAPTER_REGISTRY.push(
     ],
     preText: 'Null\'s pattern construct is invisible. You carry the Lantern \u2014 its ability sweeps the space and marks where a body WAS, held three seconds and already stale. Its swing, its footfalls and its flinch are the only live signals. 2 lives.',
     trial: 'sense',
-    // Forced through the existing playerCaps path \u2014 the lantern is trialOnly, so
-    // it is never in the random pool and has to be granted here. noAbility must be
-    // false explicitly or the skill tree can gate away the only sense you have.
+    // Granted through playerCaps, since the lantern is trialOnly and never rolls randomly.
+    // noAbility must be false, or the skill tree could gate away the only sense you have.
     playerCaps: { weapon: 'lantern', noAbility: false },
     opponentName: 'Pattern Construct', weaponKey: 'sword', classKey: 'ninja',
     aiDiff: 'expert', opponentColor: '#6600aa',

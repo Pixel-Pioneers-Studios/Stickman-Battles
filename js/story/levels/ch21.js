@@ -1,16 +1,6 @@
 'use strict';
-// js/story/levels/ch21.js — Chapter 21 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 21 — The Approach (stealth)
-// The outer corridor of the Collector's domain: ribbed walls half machine,
-// half grown, cables hanging, the void showing through the gaps. Each sentinel
-// hangs from the ceiling as an eye whose searchlight lights exactly its
-// detection zone on the floor. Every post has a high route that clears the
-// zone (detection sits at guard y = 395): plate stairs to a cable tray, a
-// transit rail, a drifting plate, an arch bridge, a catwalk. The arena
-// entrance — a door into the collapsed dimension of chapter 22 — ends it.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 21 map (stealth). See smb-story-levels.js for the contract.
+// Each post has a high route above its detection zone (guard y = 395).
 (function () {
   const G = 440;
   const POSTS = [[700, 90], [1300, 95], [2000, 100], [2800, 90], [3500, 100]];
@@ -39,7 +29,6 @@
 
   function back(v) {
     const x0 = Math.max(-200, v.x - 40), x1 = Math.min(4400, v.x + v.w + 40);
-    // Ribbed corridor: arching ribs, membranes between, gaps onto the void
     for (let k = Math.floor(x0 / 160); k * 160 < x1; k++) {
       const rx = k * 160;
       const gap = _slHash(k + 7) < 0.25;
@@ -49,13 +38,11 @@
       ctx.fillStyle = 'rgba(190,140,255,0.10)'; ctx.fillRect(rx + 4, G - 300, 2, 260);
     }
     ctx.fillStyle = '#100a18'; ctx.fillRect(x0, G - 450, x1 - x0, 40);
-    // Hanging cables
     ctx.strokeStyle = '#0c0812'; ctx.lineWidth = 2;
     for (let k = Math.floor(x0 / 90); k * 90 < x1; k++) {
       const cx = k * 90 + _slHash(k) * 40, len = 60 + _slHash(k + 3) * 120;
       ctx.beginPath(); ctx.moveTo(cx, G - 410); ctx.quadraticCurveTo(cx + Math.sin(frameCount * 0.01 + k) * 8, G - 410 + len * 0.6, cx + 6, G - 410 + len); ctx.stroke();
     }
-    // Route furniture
     for (const [x, y, w] of ROUTES.steps) if (_slVisible(v, x, x + w)) {
       ctx.fillStyle = '#2e2440'; ctx.fillRect(x, y, w, G - y);
       ctx.fillStyle = '#4a3a66'; ctx.fillRect(x, y, w, 6);
@@ -74,7 +61,6 @@
       ctx.fillStyle = '#4a3a66'; ctx.fillRect(d.x, d.y, d.w, 8);
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(190,140,255,0.3)'; ctx.fillRect(d.x + 10, d.y + 10, d.w - 20, 4); ctx.restore();
     }
-    // Sentinel eyes with searchlights that cover their detection zones
     for (const [px, rad] of POSTS) {
       if (!_slVisible(v, px - 160, px + 160)) continue;
       const sweep = Math.sin(frameCount * 0.02 + px) * 0.12;
@@ -90,7 +76,6 @@
       ctx.fillStyle = '#ff4466'; ctx.beginPath(); ctx.arc(px + sweep * 30, G - 356, 6, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffd0d8'; ctx.beginPath(); ctx.arc(px + sweep * 30 + 1.5, G - 357.5, 2, 0, Math.PI * 2); ctx.fill();
     }
-    // The arena entrance: a great door onto the collapsed dimension
     if (_slVisible(v, DOOR - 200, DOOR + 400)) {
       ctx.fillStyle = '#0a0612'; ctx.fillRect(DOOR - 60, G - 360, 240, 360);
       ctx.fillStyle = '#3a2e50'; ctx.fillRect(DOOR - 80, G - 380, 280, 24); ctx.fillRect(DOOR - 80, G - 380, 24, 380); ctx.fillRect(DOOR + 176, G - 380, 24, 380);

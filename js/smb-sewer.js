@@ -1,17 +1,13 @@
 'use strict';
-// smb-sewer.js — The Sewer: a river of waste that carries the whole fight.
-// Depends on: smb-globals.js, smb-data-arenas.js, smb-combat.js (dealDamage),
-//             smb-particles-core.js (spawnParticles)
+// smb-sewer.js: the sewer, a river of waste that carries the whole fight.
+// Depends on smb-globals.js, smb-data-arenas.js, smb-combat.js (dealDamage), smb-particles-core.js (spawnParticles).
 //
-// Design, in one line: there are no platforms here. Everything you can stand on
-// is garbage floating in the sewage, all of it riding ONE current at one speed,
-// so holding a position means walking upstream forever. Falling in is survivable
-// and escapable — it costs you health and a lot of ground, not the match.
+// No platforms. Everything you can stand on is garbage riding one current at one speed, so
+// holding position means walking upstream. Falling in costs health and ground, not the match.
 //
 // Inert unless currentArena.isSewer: every entry point returns on its first line.
 
-// Recycling window. A raft that leaves past _R respawns behind the field at _L,
-// so there is always new ground arriving upstream.
+// Recycling: a raft past _R respawns behind the field at _L, so new ground arrives upstream.
 const SEWER_SPAWN_X   = -340;
 const SEWER_DESPAWN_X = 2050;
 const SEWER_GAP_MIN   = 90;    // clear water between consecutive rafts
@@ -19,32 +15,22 @@ const SEWER_GAP_MAX   = 210;
 
 const SEWER_DMG_INTERVAL = 24;   // frames between sewage burn ticks
 const SEWER_DMG          = 4;
-// Only a little faster than the rafts (flowSpeed 1.05): a swimmer still loses
-// ground, but slowly enough to climb onto the raft they are under instead of
-// washing past every one of them.
+// A little faster than the rafts (flowSpeed 1.05): a swimmer drifts but can climb onto the raft above.
 const SEWER_SWEEP        = 1.6;  // px/frame a swimmer is dragged downstream
 const SEWER_STROKE_VY    = -8.2; // swim stroke impulse
 const SEWER_STROKE_CD    = 16;   // frames between strokes
 
-// ── Camera-stress failsafe ───────────────────────────────────────────────────
-// Two players running to opposite ends force the camera to frame a span it
-// cannot hold, which is the standard way to grief a scrolling arena. Past
-// SEWER_STRESS_ON the river itself closes the gap: the waste BETWEEN them sinks
-// and is gone, and the waste behind the trailing fighter accelerates to carry
-// them forward. Hysteresis keeps it from flickering at the threshold, and it is
-// deliberately far outside any honest fight — normal play never sees it.
-// The arena is 1800 wide and the camera can frame roughly 1250 of it at its
-// zoom floor, so honest play routinely reaches a 1000-1200 spread. The trigger
-// has to sit well past that AND be SUSTAINED — a knockback that flings someone
-// across the map is not griefing, and sinking the river under them would be
-// punishing the victim. Two full seconds of a spread the camera cannot hold.
+// Camera-stress failsafe. Two fighters at opposite ends can make the camera frame a span it can't hold.
+// Past SEWER_STRESS_ON the river closes the gap: waste between them sinks, and waste behind the
+// trailing fighter speeds up to carry them. Honest play spreads 1000-1200, so the trigger sits past
+// that and must persist, so a knockback doesn't count.
 const SEWER_STRESS_ON    = 1500;
 const SEWER_STRESS_OFF   = 1050;
 const SEWER_STRESS_HOLD  = 120;  // frames the spread must persist before acting
 const SEWER_CATCHUP      = 3.1;  // speed multiplier for rafts behind the field
 const SEWER_TARGET_RAFTS = 8;    // river is topped back up to this many
 
-var sewerScroll    = 0;    // shared scroll accumulator — drives ALL motion
+var sewerScroll    = 0;    // shared scroll, drives all motion
 var sewerFlowPhase = 0;
 var sewerStressed  = false;
 var sewerStressT   = 0;    // frames the failsafe has been engaged (for the HUD)
@@ -71,7 +57,7 @@ function _sewerFighters() {
   return all.filter(f => f && f.health > 0);
 }
 
-// ── UPDATE ───────────────────────────────────────────────────────────────────
+// Update
 function updateSewer() {
   if (!sewerActive() || typeof gameRunning === 'undefined' || !gameRunning) return;
   const a = currentArena;
@@ -81,7 +67,7 @@ function updateSewer() {
 
   const fighters = _sewerFighters();
 
-  // ── Camera stress ─────────────────────────────────────────────────────────
+  // Camera stress
   let minX = Infinity, maxX = -Infinity;
   for (const f of fighters) {
     if (f.cx() < minX) minX = f.cx();
@@ -95,15 +81,12 @@ function updateSewer() {
 
   const midX = (minX + maxX) / 2;
 
-  // ── Drift every raft, and carry whoever is standing on it ─────────────────
-  // One speed for everything. The only exception is the stress failsafe below,
-  // which is why `speed` is computed per raft instead of being a constant.
+  // Every raft drifts at one speed, except under the stress failsafe, so speed is per raft.
   const riders = fighters;
   for (const pl of a.platforms) {
     if (!pl.raft) continue;
 
-    // Sinking rafts are on their way out: they drop through the surface and are
-    // removed. They stop carrying anyone the moment they go under.
+    // Sinking rafts drop through the surface and are removed. They carry no one once under.
     if (pl._sinking) {
       pl.y += 1.35;
       pl._sinkA = (pl._sinkA === undefined ? 1 : pl._sinkA - 0.014);
@@ -112,9 +95,9 @@ function updateSewer() {
 
     let speed = flow;
     if (sewerStressed) {
-      // Behind the field (upstream of the midpoint) = catch the stragglers up.
+      // Behind the field (upstream of the midpoint): catch the stragglers up.
       if (pl.x + pl.w < midX) speed = flow * SEWER_CATCHUP;
-      // Between them, and carrying nobody: sink it, so the gap cannot be held.
+      // Between them, carrying nobody: sink it so the gap can't be held.
       else if (pl.x > minX + 160 && pl.x + pl.w < maxX - 160) {
         const occupied = riders.some(f => {
           const feet = f.y + f.h;
@@ -129,8 +112,7 @@ function updateSewer() {
     pl.x += speed;
     const dx = pl.x - before;
 
-    // Carrying the rider is what sells "the map is moving". Move the platform
-    // without moving whoever stands on it and it reads as ice instead.
+    // Carry the rider. Moving the raft without them makes it read as ice.
     for (const f of riders) {
       if (!f.onGround) continue;
       const feet = f.y + f.h;
@@ -144,32 +126,23 @@ function updateSewer() {
   const surf = a.sewageY || 470;
   a.platforms = a.platforms.filter(p => !(p._sinking && p.y > surf + 70));
 
-  // ── Recycle: anything past the end respawns upstream, behind the field ────
+  // Recycle: rafts past the end respawn upstream.
   _sewerRecycle(a);
 
-  // ── The sewage itself ─────────────────────────────────────────────────────
+  // The sewage itself
   for (const f of riders) {
     const feet = f.y + f.h;
-    // Two different bands, and conflating them was the "I fell in and couldn't
-    // get out" bug. Being IN the sewage (burn, sweep, buoyancy) ends at the
-    // surface — but the SWIM STROKE has to keep working for a little way above
-    // it, because a raft deck rides ~40px clear of the waterline. Cutting the
-    // stroke the instant your feet broke the surface left you bobbing forever,
-    // able to reach the surface and never able to reach the deck.
+    // Two bands. IN the sewage ends at the surface, but the swim stroke keeps working a little above it,
+    // because decks ride ~40px clear of the waterline. Otherwise you bob under the deck forever.
     const inWater = feet > surf;
 
-    // Landing on anything ends the swim outright. Raft decks ride only ~40px
-    // above the waterline, which put a fighter STANDING ON A RAFT inside the
-    // breach band — so pressing jump there gave them the swim stroke (-8.2)
-    // instead of a real jump (-16). That is the "sometimes gravity feels much
-    // heavier and you jump way less high" report: a quarter of the normal jump
-    // height, and only on the low rafts.
+    // Landing on anything ends the swim. A fighter on a raft must not get the swim stroke (-8.2)
+    // instead of a jump (-16).
     if (f.onGround) { f._sewerWet = 0; f._sewerTick = 0; continue; }
 
     if (!inWater) {
-      // Breaching. The stroke keeps working for a moment after the feet clear the
-      // water so the climb can actually reach a deck — but only for a fighter who
-      // was just IN the water, never for one jumping off solid footing.
+      // Breaching: the stroke keeps working just after the feet clear the water, so a climb can reach
+      // a deck. Only for fighters who were in the water, not ones jumping off solid footing.
       if (f._sewerWet > 0) {
         f._sewerWet--;
         if (f._sewerStroke > 0) f._sewerStroke--;
@@ -187,23 +160,20 @@ function updateSewer() {
     if (f.vy > 0) f.vy *= 0.55;                     // viscous: the fall stops fast
     if (feet > surf + 30) f.vy = Math.min(f.vy, -1.6);   // buoyancy
 
-    // ── Getting out ───────────────────────────────────────────────────────────
-    // The first build had no stroke and solid-sided rafts, so a swimmer swept
-    // into a raft's edge was walled out with no way up: "I fell in and was
-    // stuck". Rafts are passUnder now (rise straight through, land on top) and
-    // jump is a swim stroke, so the surface is always one input away.
+    // Getting out
+    // Rafts are passUnder (rise through, land on top) and jump is the swim stroke, so the surface is
+    // always one input away. Solid-sided rafts once walled swimmers out.
     if (f._sewerStroke > 0) f._sewerStroke--;
     if (_sewerWantsUp(f) && !f._sewerStroke) {
       f.vy = SEWER_STROKE_VY;
       f._sewerStroke = SEWER_STROKE_CD;
-      f.canDoubleJump = true;                       // a stroke out of the water is not a jump spent
+      f.canDoubleJump = true;                       // climbing out doesn't spend the double jump
       if (typeof spawnParticles === 'function') spawnParticles(f.cx(), surf, '#9fb04a', 6);
     }
 
     if (f._sewerTick % SEWER_DMG_INTERVAL === 1 && typeof dealDamage === 'function') {
-      // Preserve an upward climb across the burn. dealDamage's hitstun zeroes
-      // velocity, which reset the swimmer's rise every 24 frames and turned the
-      // climb into a treadmill. The burn should cost health, not progress.
+      // Keep the climb across the burn. dealDamage's hitstun zeroes vy, which reset the rise every
+      // 24 frames. Damage should cost health, not progress.
       const _vy = f.vy;
       dealDamage(null, f, SEWER_DMG, 0);
       if (_vy < 0) f.vy = Math.min(f.vy, _vy);
@@ -212,9 +182,8 @@ function updateSewer() {
   }
 }
 
-// Keep the river stocked. Rafts that pass the end are re-used at the head of the
-// queue, spaced by a random gap from the current upstream-most raft, so the chain
-// stays continuous without ever becoming a solid floor.
+// Keep the river stocked: rafts past the end are reused at the head of the queue, spaced randomly
+// from the upstream-most raft. Never a solid floor.
 function _sewerRecycle(a) {
   const rafts = _sewerRafts();
   let headX = Infinity;
@@ -225,8 +194,7 @@ function _sewerRecycle(a) {
   const reseat = (pl) => {
     const gap = SEWER_GAP_MIN + Math.random() * (SEWER_GAP_MAX - SEWER_GAP_MIN);
     pl.w = 120 + Math.round(Math.random() * 120);
-    // Heights stay inside a single hop of the waterline, so a raft is never a
-    // ledge you cannot board from the water.
+    // Heights stay within one hop of the waterline, so you can board from the water.
     pl.y = Math.random() < 0.45 ? 430 - Math.round(Math.random() * 58) : 430;
     pl.x = Math.min(headX - gap - pl.w, SEWER_SPAWN_X);
     pl.h = 18;
@@ -240,40 +208,41 @@ function _sewerRecycle(a) {
     if (pl.x > SEWER_DESPAWN_X) reseat(pl);
   }
 
-  // Top the river back up. Rafts sunk by the stress failsafe are removed for
-  // good, so without this the river thins out over a long match until there is
-  // nothing left to stand on.
+  // Top the river back up. Rafts sunk by the stress failsafe are gone for good, so without this
+  // the river empties over a long match.
   let live = _sewerRafts().length;
   let guard = 0;
   while (live < SEWER_TARGET_RAFTS && guard++ < 12) {
     const pl = { x: 0, y: 430, w: 160, h: 18 };
     reseat(pl);
-    // The floor flag must always exist somewhere, or pickSafeSpawn() returns
-    // null on the next respawn and the game crashes.
+    // The floor flag must exist, or pickSafeSpawn() returns null on respawn and the game crashes.
     if (!a.platforms.some(p => p.isFloor && !p._sinking)) pl.isFloor = true;
     a.platforms.push(pl);
     live++;
   }
 }
 
-// ── DRAW: BACKGROUND (behind everything) ─────────────────────────────────────
+// Draw: background (behind everything)
 function drawSewerArena() {
   if (!sewerActive()) return;
   const a = currentArena;
   const surf = a.sewageY || 470;
   const t = sewerScroll;
-  const L = (a.mapLeft || 0) - 400, W = ((a.mapRight || GAME_W) - (a.mapLeft || 0)) + 800;
+  let L = (a.mapLeft || 0) - 400, W = ((a.mapRight || GAME_W) - (a.mapLeft || 0)) + 800;
+  // Cover whatever the camera shows (fixed boxes left a flat band when the camera pulled back).
+  const _v = typeof arenaViewRect === 'function' ? arenaViewRect() : null;
+  if (_v) { const R = Math.max(L + W, _v.x + _v.w + 20); L = Math.min(L, _v.x - 20); W = R - L; }
 
   ctx.save();
 
-  // Tunnel vault — a receding brick barrel. Every course scrolls, so the world
-  // reads as moving even when you are standing still on a raft.
+  // Tunnel vault: a receding brick barrel. Courses scroll, so the world reads as moving.
   const vaultTop = -80;
   const vg = ctx.createLinearGradient(0, vaultTop, 0, surf);
   vg.addColorStop(0,   '#11170f');
   vg.addColorStop(0.55,'#1d2619');
   vg.addColorStop(1,   '#2a3020');
   ctx.fillStyle = vg;
+  if (_v && _v.y < vaultTop) { ctx.fillStyle = '#11170f'; ctx.fillRect(L, _v.y - 10, W, vaultTop - _v.y + 12); ctx.fillStyle = vg; }
   ctx.fillRect(L, vaultTop, W, surf - vaultTop);
 
   ctx.strokeStyle = 'rgba(120,140,95,0.20)';
@@ -328,15 +297,16 @@ function drawSewerArena() {
   ctx.restore();
 }
 
-// ── DRAW: THE FLOW + THE WASTE (after the platforms) ─────────────────────────
-// Runs after drawPlatforms so a raft sits IN the sewage rather than on a painted
-// strip behind it, and so the garbage heaped on each raft covers the bare slab.
+// Draw: the flow and the waste (after platforms). Rafts sit IN the sewage, and the garbage on each covers the slab.
 function drawSewerFlow() {
   if (!sewerActive()) return;
   const a = currentArena;
   const surf = a.sewageY || 470;
   const t = sewerScroll;
-  const L = (a.mapLeft || 0) - 400, W = ((a.mapRight || GAME_W) - (a.mapLeft || 0)) + 800;
+  let L = (a.mapLeft || 0) - 400, W = ((a.mapRight || GAME_W) - (a.mapLeft || 0)) + 800;
+  // Cover whatever the camera shows (see the background pass).
+  const _v = typeof arenaViewRect === 'function' ? arenaViewRect() : null;
+  if (_v) { const R = Math.max(L + W, _v.x + _v.w + 20); L = Math.min(L, _v.x - 20); W = R - L; }
 
   ctx.save();
 
@@ -347,9 +317,9 @@ function drawSewerFlow() {
   fg.addColorStop(1,   '#222a15');
   ctx.fillStyle = fg;
   ctx.fillRect(L, surf, W, GAME_H + 280 - surf);
+  if (_v && _v.y + _v.h > GAME_H + 280) { ctx.fillStyle = '#222a15'; ctx.fillRect(L, GAME_H + 279, W, _v.y + _v.h - GAME_H - 270); }
 
-  // Surface. Both wave trains ride the SAME scroll: the flow moves as one body,
-  // so nothing on it appears to travel at its own speed.
+  // Both wave trains share one scroll, so the flow moves as one body.
   for (let lane = 0; lane < 2; lane++) {
     ctx.strokeStyle = lane ? 'rgba(190,210,110,0.28)' : 'rgba(150,170,80,0.55)';
     ctx.lineWidth = lane ? 1.5 : 2.5;
@@ -364,7 +334,7 @@ function drawSewerFlow() {
     ctx.stroke();
   }
 
-  // Loose scum riding the current — same speed as everything else.
+  // Loose scum riding the current: same speed as everything else.
   for (let i = 0; i < 26; i++) {
     const dx = L + (((i * 173.5 + t) % W) + W) % W;
     const dy = surf + 12 + ((i * 37) % 52);
@@ -373,9 +343,8 @@ function drawSewerFlow() {
     ctx.beginPath(); ctx.ellipse(dx, dy, r * 1.7, r * 0.7, 0, 0, Math.PI * 2); ctx.fill();
   }
 
-  // ── The waste you stand on ────────────────────────────────────────────────
-  // Each raft is drawn as a heap sitting IN the water: body from its deck down
-  // through the surface, junk on top, and a waterline. Nothing floats in air.
+  // The waste you stand on
+  // Each raft is a heap in the water: body from deck to surface, junk on top, waterline.
   for (const pl of (a.platforms || [])) {
     if (!pl.raft) continue;
     const alpha = pl._sinking ? Math.max(0, pl._sinkA) : 1;
@@ -406,8 +375,7 @@ function drawSewerFlow() {
       ctx.beginPath(); ctx.moveTo(px, pl.y - 2); ctx.lineTo(px, pl.y + 14); ctx.stroke();
     }
 
-    // Junk heaped on the deck — silhouettes only, kept low so it never blocks a
-    // landing. Seeded off the raft's width so a given raft always looks the same.
+    // Junk heaped on the deck. Silhouettes only, kept low so it never blocks a landing. Seeded by width.
     const seed = Math.abs(Math.round(pl.w)) % 7;
     ctx.fillStyle = '#4a4630';
     for (let j = 0; j < 3; j++) {

@@ -1,19 +1,6 @@
 'use strict';
-// js/story/levels/ch123.js — Chapter 123 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 123 — The Watcher (scavenge, 4 traces)
-// The Threshold's fracture boundary: high, windswept ground at the edge of
-// the world, grass flattened in one direction, with the Creator's fracture
-// standing on the horizon — a seam of white geometry from the ground to the
-// top of the sky. A cloaked figure has been here. Its traces are what you
-// collect, and each one is a different kind of residue: footprints in the
-// grass that still glow faintly (identity), a shape in the air that repeats
-// the same three steps (movement), ripples in a pool of standing water that
-// spell nothing but keep spreading (voice), and an outline of the figure
-// pressed into the light on top of a boulder, as if it stood there a long
-// time (presence). Boulders and a broken boundary wall are the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 123 map (scavenge, 4 traces). Contract: smb-story-levels.js.
+// Four traces left by a cloaked figure at the fracture boundary. Boulders and a broken wall are the climbs.
 (function () {
   const G = 440;
   const ECHO = [1150, 370, 110], POOL = 2000, PRESENCE = [2945, 380, 110];
@@ -27,7 +14,7 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#0e1220');
-    // The Creator's fracture on the horizon, ground to sky
+    // Creator's fracture on the horizon
     _slParallax(v, 0.05, (l, r) => {
       const fx = 3800 * 0.05 + 600;
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
@@ -38,7 +25,6 @@
       ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1;
       for (let k = 0; k < 10; k++) { const y = -200 + k * 60; ctx.strokeRect(fx - 20 + Math.sin(k) * 10, y, 40, 30); }
     });
-    // Distant ridges
     _slParallax(v, 0.15, (l, r) => {
       ctx.fillStyle = '#1a2230';
       ctx.beginPath(); ctx.moveTo(l - 40, 440);
@@ -54,24 +40,23 @@
   }
 
   function back(v) {
-    // Grass flattened by the wind toward the fracture
     ctx.strokeStyle = '#4a6a3a'; ctx.lineWidth = 1.5;
     for (let x = Math.floor(v.x / 12) * 12; x < v.x + v.w; x += 12) { const sw = 6 + Math.sin(frameCount * 0.04 + x * 0.05) * 3; ctx.beginPath(); ctx.moveTo(x, G); ctx.lineTo(x + sw, G - 10 - _slHash(x) * 6); ctx.stroke(); }
-    // Identity: footprints in the grass that still glow
+    // Trace: identity
     if (_slVisible(v, 380, 640)) for (let k = 0; k < 6; k++) { ctx.fillStyle = `rgba(200,220,255,${0.25 + 0.15 * Math.sin(frameCount * 0.05 + k)})`; ctx.beginPath(); ctx.ellipse(400 + k * 40, G - 2 - (k % 2) * 2, 8, 2, 0, 0, Math.PI * 2); ctx.fill(); }
-    // Movement: a shape in the air repeating the same three steps
+    // Trace: movement
     if (_slVisible(v, ECHO[0] - 60, ECHO[0] + ECHO[2] + 60)) {
       boulder(...ECHO);
       const st = Math.floor(frameCount / 20) % 3, cx = ECHO[0] + 20 + st * 30;
       ctx.strokeStyle = 'rgba(200,220,255,0.35)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(cx, ECHO[1] - 70, 7, 0, Math.PI * 2); ctx.moveTo(cx, ECHO[1] - 63); ctx.lineTo(cx, ECHO[1] - 30); ctx.lineTo(cx - 8 + st * 6, ECHO[1]); ctx.moveTo(cx, ECHO[1] - 30); ctx.lineTo(cx + 8 - st * 6, ECHO[1]); ctx.stroke();
     }
-    // Voice: ripples spreading across a pool of standing water
+    // Trace: voice
     if (_slVisible(v, POOL - 120, POOL + 120)) {
       ctx.fillStyle = '#1a2a3a'; ctx.beginPath(); ctx.ellipse(POOL, G - 2, 100, 6, 0, 0, Math.PI * 2); ctx.fill();
       for (let k = 0; k < 4; k++) { const t = ((frameCount + k * 30) % 120) / 120; ctx.strokeStyle = `rgba(200,220,255,${0.5 * (1 - t)})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(POOL, G - 2, 10 + t * 90, 1 + t * 5, 0, 0, Math.PI * 2); ctx.stroke(); }
     }
-    // Presence: an outline of the figure pressed into the light on a boulder
+    // Trace: presence
     if (_slVisible(v, PRESENCE[0] - 60, PRESENCE[0] + PRESENCE[2] + 60)) {
       boulder(...PRESENCE);
       const cx = PRESENCE[0] + PRESENCE[2] / 2, by = PRESENCE[1];

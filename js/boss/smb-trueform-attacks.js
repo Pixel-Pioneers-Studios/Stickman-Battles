@@ -21,7 +21,6 @@ TrueForm.prototype._doSpecial = function(move, target) {
     this._comboCount  = 0;
     this._comboDamage = 0;
     this._idleTicks   = 0;
-    // Anti-repeat tracking
     this._lastLastSpecial = this._lastSpecial;
     this._lastSpecial     = move;
     // Combo chain + multiversal cooldown grouping
@@ -35,7 +34,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
     }
     // Director: specials add intensity
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.18);
-    // Phase-based cooldown multiplier — phase 3 recharges ~45% faster
+    // Phase-based cooldown multiplier, phase 3 recharges ~45% faster
     const phase  = this.getPhase();
     // Final state (post-false-victory): halved cooldowns, boosted speed
     const _finalMult = (typeof tfFinalStateActive !== 'undefined' && tfFinalStateActive) ? 0.5 : 1.0;
@@ -43,7 +42,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
     // Burst mode: halve post-special pause so attacks chain faster
     const _burstActive = this._aggressionBurstTimer > 0;
     switch (move) {
-      // ── NEW: Void Grasp ─────────────────────────────────────
+      // Void Grasp
       case 'grasp': {
         this._graspCd = Math.ceil(50 * cdMult);
         this.postSpecialPause = 6;
@@ -51,7 +50,6 @@ TrueForm.prototype._doSpecial = function(move, target) {
         screenShake = Math.max(screenShake, 22);
         spawnParticles(this.cx(), this.cy(), '#440044', 22);
         spawnParticles(this.cx(), this.cy(), '#ffffff',  8);
-        // Pull all non-boss players toward the boss
         for (const p of players) {
           if (p.isBoss || p.health <= 0) continue;
           const ddx = this.cx() - p.cx();
@@ -63,19 +61,19 @@ TrueForm.prototype._doSpecial = function(move, target) {
             p.vy = (ddy / dd) * pull * 0.5 - 4;
           }
         }
-        // Lock slam position at telegraph time so the warning circle matches the actual hit
+        // Lock at telegraph time so the warning circle matches the hit.
         const _slamX = this.cx(), _slamY = this.cy();
         bossWarnings.push({ type: 'circle', x: _slamX, y: _slamY, r: 120,
           color: '#ff00ff', timer: 45, maxTimer: 45, label: 'SLAM INCOMING!' });
-        // Schedule a slam hit after the pull lands (~45 frames)
+        // Slam lands about 45 frames after the pull.
         tfGraspSlam = { timer: 45, slamX: _slamX, slamY: _slamY };
         break;
       }
-      // ── NEW: Reality Slash — DEFERRED with telegraph ────────
+      // Reality Slash
       case 'slash': {
         this._slashCd = Math.ceil(16 * cdMult);
         this.postSpecialPause = 5;
-        // Telegraph: show red X + slash cone at the target's current position (30 frames)
+        // Telegraph: red X and slash cone at the target (30 frames)
         const behindOff = (target.facing || 1) * 55;
         const warnX = clamp(target.cx() + behindOff, 20, GAME_W - 20);
         const warnY = clamp(target.y + target.h * 0.5, 20, 450);
@@ -83,19 +81,19 @@ TrueForm.prototype._doSpecial = function(move, target) {
           r: 30, color: '#ffffff', timer: 30, maxTimer: 30, label: 'TELEPORT!' });
         bossWarnings.push({ type: 'circle', x: warnX, y: warnY,
           r: 80, color: '#ff0044', timer: 30, maxTimer: 30, label: 'SLASH ZONE' });
-        // Lock destination at telegraph time so the warning circle matches where boss lands
+        // Lock at telegraph time so the circle marks the landing spot.
         this._pendingSlash = { timer: 30, target, behindOff, landX: warnX, landY: target.y };
         showBossDialogue('I was already there.', 100);
         break;
       }
-      // ── NEW: Gravity Well ───────────────────────────────────
+      // Gravity Well
       case 'well': {
         this._wellCd = Math.ceil(36 * cdMult);
         this.postSpecialPause = 5;
         const wellX = GAME_W / 2 + (Math.random() - 0.5) * 200;
         const wellY = 320 + Math.random() * 60;
         tfGravityWells.push({ x: wellX, y: wellY, r: 200, timer: 270, maxTimer: 270, strength: 16, bossRef: this });
-        // Telegraph: pulsing danger ring at well spawn location
+        // Pulsing danger ring at the well's spawn point.
         bossWarnings.push({ type: 'circle', x: wellX, y: wellY,
           r: 200, color: '#8800ff', timer: 40, maxTimer: 40, label: 'GRAVITY WELL!' });
         screenShake = Math.max(screenShake, 16);
@@ -104,7 +102,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         showBossDialogue('Everything falls toward me eventually.', 180);
         break;
       }
-      // ── NEW: Meteor Crash ───────────────────────────────────
+      // Meteor Crash
       case 'meteor': {
         this._meteorCd = Math.ceil(60 * cdMult);
         this.postSpecialPause = 10;
@@ -122,7 +120,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         showBossDialogue('Look up.', 220);
         break;
       }
-      // ── NEW: Shadow Clone Barrage ───────────────────────────
+      // Shadow Clone Barrage
       case 'clones': {
         this._cloneCd = Math.ceil(60 * cdMult);
         this.postSpecialPause = 4;
@@ -145,15 +143,13 @@ TrueForm.prototype._doSpecial = function(move, target) {
         showBossDialogue('Choose carefully. Only one of me is the problem.', 220);
         break;
       }
-      // ── NEW: Chain Slam Combo ───────────────────────────────
+      // Chain Slam Combo
       case 'chain': {
         this._chainCd = Math.ceil(42 * cdMult);
         this.postSpecialPause = 9;
         screenShake = Math.max(screenShake, 18);
         showBossDialogue('Don\'t stop. Neither will I.', 160);
-        // The grab teleports the target to the boss, so without a reach limit and
-        // a warning it read as a 76-damage combo landing out of nowhere from
-        // across the arena. `reach` is re-checked when the grab actually fires.
+        // Grab teleports the target in, so it needs a reach check and a warning. `reach` is rechecked when it fires.
         bossWarnings.push({ type: 'cross', x: target.cx(), y: target.cy(), r: 46,
           color: '#8800ff', timer: 20, maxTimer: 20, label: 'GRAB!' });
         bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(), r: 260,
@@ -163,8 +159,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
       }
       case 'gravity':
         tfGravityInverted = !tfGravityInverted;
-        tfGravityTimer    = tfGravityInverted ? 240 : 0; // 4s hard cap (was 10s)
-        // Sync gravityState failsafe so the loop.js cap always fires
+        tfGravityTimer    = tfGravityInverted ? 240 : 0;  // 4s hard cap
+        // Keeps gravityState in sync so the loop.js cap fires.
         if (tfGravityInverted) {
           gravityState.active   = true;
           gravityState.type     = 'reverse';
@@ -178,7 +174,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         spawnParticles(this.cx(), this.cy(), '#ffffff', 22);
         break;
       case 'warp': {
-        // Lock destination before pushing telegraph so the circle marks where TF lands
+        // Lock before the telegraph so the circle marks the landing spot.
         const _warpDestX = (this.target ? this.target.cx() : this.cx()) + (Math.random() < 0.5 ? -140 : 140);
         bossWarnings.push({ type: 'circle', x: _warpDestX, y: this.y, r: 60,
           color: '#8800ff', timer: 16, maxTimer: 16, label: 'WARP' });
@@ -195,7 +191,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       case 'floor': {
         tfFloorRemoved = true;
-        tfFloorTimer   = 1200; // 20 seconds at 60fps (tfFloorTimer is decremented every frame)
+        tfFloorTimer   = 1200;  // 20s at 60fps
         this._floorCd  = Math.ceil(120 * cdMult);
         const floorPl = currentArena.platforms.find(p => p.isFloor);
         if (floorPl) floorPl.isFloorDisabled = true;
@@ -205,11 +201,11 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
       case 'invert':
-        // Apply a timed 10s inversion instead of a permanent toggle
+        // Timed 10s inversion, not a permanent toggle.
         bossWarnings.push({ type: 'circle', x: GAME_W / 2, y: GAME_H / 2, r: 180,
           color: '#00aaff', timer: 22, maxTimer: 22, label: 'CONTROLS INVERTED!' });
         tfControlsInverted    = true;
-        tfControlsInvertTimer = 600; // 10 seconds at 60fps
+        tfControlsInvertTimer = 600;  // 10s at 60fps
         this._invertCd = Math.ceil(36 * cdMult);
         showBossDialogue('Your instincts work for me now.', 180);
         spawnParticles(this.cx(), this.cy(), '#aaaaaa', 16);
@@ -233,7 +229,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         tfPortalTeleport(this, target);
         this._portalCd = Math.ceil(24 * cdMult);
         break;
-      // ── Teleport Combo — teleport to player 3× in quick succession, attack each time ──
+      // Teleport Combo: three rapid teleport strikes
       case 'teleportCombo': {
         this._teleportComboCd = Math.ceil(48 * cdMult);
         this.postSpecialPause = 8;
@@ -241,7 +237,6 @@ TrueForm.prototype._doSpecial = function(move, target) {
         screenShake = Math.max(screenShake, 18);
         spawnParticles(this.cx(), this.cy(), '#000000', 18);
         spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
-        // Schedule 3 rapid teleport-strikes (each 18 frames apart)
         this._pendingTeleportCombo = {
           hits:   3,
           gap:    18,  // frames between each strike
@@ -250,7 +245,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         };
         break;
       }
-      // ── Gravity Crush — suck all players toward arena center, then explode outward ──
+      // Gravity Crush
       case 'gravityCrush': {
         this._gravityCrushCd = Math.ceil(60 * cdMult);
         this.postSpecialPause = 10;
@@ -258,24 +253,23 @@ TrueForm.prototype._doSpecial = function(move, target) {
         screenShake = Math.max(screenShake, 22);
         spawnParticles(GAME_W / 2, GAME_H / 2, '#440044', 30);
         spawnParticles(GAME_W / 2, GAME_H / 2, '#ffffff', 15);
-        // Telegraph warning circle at arena center
         bossWarnings.push({ type: 'circle', x: GAME_W / 2, y: GAME_H / 2,
           r: 200, color: '#8800ff', timer: 60, maxTimer: 60, label: 'CRUSH!' });
-        // Schedule the detonation after 60 frames of pull
+        // Detonates 60 frames after the pull starts.
         this._pendingGravityCrush = { timer: 60, boss: this };
         break;
       }
-      // ── NEW: Shockwave Pulse — ground variant deferred with telegraph ────────
+      // Shockwave Pulse
       case 'shockwave': {
         this._shockwaveCd = Math.ceil(20 * cdMult);
         this.postSpecialPause = 5;
         if (this.onGround) {
-          // Telegraph: expanding warning ring on ground (20 frames ≈ 0.33s)
+          // Expanding warning ring (20 frames)
           bossWarnings.push({ type: 'circle', x: this.cx(), y: this.y + this.h,
             r: 340, color: '#aa00ff', timer: 20, maxTimer: 20, label: 'SHOCKWAVE!' });
           this._pendingShockwave = { timer: 20, boss: this };
         } else {
-          // Air slam: crash down fast, wave spawns when landing
+          // Air slam: the wave spawns on landing.
           this.vy = Math.max(this.vy, 24);
           tfShockwaves.push({
             x: this.cx(), y: this.y + this.h,
@@ -288,9 +282,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── PHASE SHIFT ─────────────────────────────────────────
-      // Boss goes semi-transparent, spawns 3 position echoes.
-      // After a delay one echo is real — boss snaps there and attacks.
+      // Phase Shift
+      // Boss goes semi-transparent. One of the 3 echoes is real and attacks after a delay.
       case 'phaseShift': {
         this._phaseShiftCd = Math.ceil(38 * cdMult);
         this.postSpecialPause = 8;
@@ -300,21 +293,20 @@ TrueForm.prototype._doSpecial = function(move, target) {
         const echoes  = [0, 1, 2].map(i => ({
           x: clamp(this.cx() + (i - 1) * spread + (Math.random() - 0.5) * 80, 60, GAME_W - 60),
           y: this.y + (Math.random() - 0.5) * 60,
-          // Fake echoes drift slightly to confuse the player; real echo stays put
+          // Fake echoes drift; the real one stays put.
           driftVx: i !== realIdx ? (Math.random() - 0.5) * 1.4 : 0,
           driftVy: i !== realIdx ? (Math.random() - 0.5) * 0.6 : 0,
         }));
         tfPhaseShift = { timer: 0, maxTimer: 70, echoes, realIdx, revealed: false, bossRef: this };
         screenShake  = Math.max(screenShake, 10);
-        // Chain: calcStrike immediately after reappearing
+        // Chains into calcStrike right after reappearing.
         if (!this._pendingChainMove) this._pendingChainMove = { move: 'calcStrike', delay: 80 };
         showBossDialogue(randChoice(['Perception is a luxury.', 'Pick one. One of them will hurt you.', 'Reality is negotiable.']), 160);
         break;
       }
 
-      // ── REALITY TEAR ────────────────────────────────────────
-      // A crack opens in space between boss and player.
-      // It pulls the player toward it, then snaps shut cleanly — no residue.
+      // Reality Tear
+      // Crack opens between boss and player, pulls the player in, then snaps shut.
       case 'realityTear': {
         this._realityTearCd = Math.ceil(44 * cdMult);
         this.postSpecialPause = 7;
@@ -329,9 +321,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── CALCULATED STRIKE ────────────────────────────────────
-      // Shows a math thought bubble (boss "calculating"), then teleports
-      // to the player's predicted future position and strikes.
+      // Calculated Strike
+      // Math bubble first, then teleport to the predicted spot and strike.
       case 'calcStrike': {
         this._calcStrikeCd = Math.ceil(28 * cdMult);
         this.postSpecialPause = 6;
@@ -367,9 +358,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
           ],
         };
         const strikeDelay = 38;
-        // The ghost paths draw at 0.22/0.85 alpha and are easy to miss, but the
-        // strike lands for 34 with hitInvincibleFrames 0 after a teleport onto the
-        // target — loud enough damage to deserve the loud telegraph vocabulary.
+        // Hits 34 with no invincibility, so it gets the loud telegraph.
         bossWarnings.push({ type: 'cross', x: predictX, y: predictY, r: 44,
           color: '#aaddff', timer: strikeDelay, maxTimer: strikeDelay, label: 'STRIKE!' });
         tfMathBubble = { text: bubbleText, timer: 0, maxTimer: 38, x: this.cx(), y: this.y - 18 };
@@ -379,9 +368,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── REALITY OVERRIDE — boss rewrites game state ──────────────
-      // Briefly freezes game, teleports player close, executes attack chain.
-      // Player can dodge with jump/shield during the 20-frame execute window.
+      // Reality Override
+      // Briefly freezes the game, teleports the player close, runs the chain. Dodge in the 20-frame window.
       case 'realityOverride': {
         this._realityOverrideCd = Math.ceil(65 * cdMult);
         this.postSpecialPause   = 12;
@@ -395,7 +383,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── COLLAPSE STRIKE — slowmo + devastating teleport hit ─────
+      // Collapse Strike
       case 'collapseStrike': {
         this._collapseStrikeCd = Math.ceil(55 * cdMult);
         this.postSpecialPause  = 8;
@@ -413,7 +401,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── GRAB CINEMATIC — short scripted grab + throw ─────────────
+      // Grab Cinematic
       case 'grabCinematic': {
         this._grabCinCd       = Math.ceil(80 * cdMult);
         this.postSpecialPause = 10;
@@ -422,13 +410,12 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── GAMMA RAY BEAM ─────────────────────────────────────────────────
-      // 42-frame telegraph (thin glowing line across full arena), then 40-frame beam.
-      // Beam fires at a fixed Y; player must jump above or duck below.
+      // Gamma Ray Beam
+      // 42-frame telegraph line, then a 40-frame beam at a fixed Y. Jump above or duck below.
       case 'gammaBeam': {
         this._gammaBeamCd = Math.ceil(40 * cdMult);
         this.postSpecialPause = 14;
-        // charge phase first — tracks player Y live, then locks
+        // charge phase first, tracks player Y live, then locks
         tfGammaBeam = {
           phase: 'charge', timer: 0, maxTimer: 28,
           trackY: clamp(target.y + target.h * 0.45, 120, 440),
@@ -441,9 +428,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── NEUTRON STAR ───────────────────────────────────────────────────
-      // Pull phase (5s): gravity increased, jump height halved.
-      // Slam phase: boss rises off-screen, warns with shadow, crashes down as AoE.
+      // Neutron Star
+      // Pull (5s): more gravity, half jump height. Slam: boss crashes down as AoE.
       case 'neutronStar': {
         this._neutronStarCd = Math.ceil(52 * cdMult);
         this.postSpecialPause = 16;
@@ -466,8 +452,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── GALAXY SWEEP ───────────────────────────────────────────────────
-      // Two rotating danger arms sweep the arena for 3s. Player must stay in gaps.
+      // Galaxy Sweep
+      // Two rotating arms sweep for 3s. Stay in the gaps.
       case 'galaxySweep': {
         this._galaxySweepCd = Math.ceil(44 * cdMult);
         this.postSpecialPause = 14;
@@ -494,22 +480,18 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── MULTIVERSE FRACTURE ────────────────────────────────────────────
-      // True timeline-echo system:
-      //   show    (0-70):   3 live player clones appear at spatial offsets, boss ghosts mirror
-      //   select  (70-110): boss highlights ONE clone as the "real" timeline, locks its X
-      //   collapse(110-140): all other timelines shatter with particles
-      //   strike  (140-190): boss fires at the locked X — player must have dodged away
+      // Multiverse Fracture
+      // Phases: show (0-70), select (70-110), collapse (110-140), strike (140-190).
+      // Boss strikes the locked X, so the player has to dodge away.
       case 'multiverseFracture': {
         this._multiverseCd = Math.ceil(50 * cdMult);
         this.postSpecialPause = 16;
 
-        // 3 clone offsets (left / center / right). Player's REAL body is always at 0.
-        // Boss will select one of these offsets as the "target" — strikes that absolute X.
-        const CLONE_OFFSETS = [-200, 0, 200];          // spatial X offsets from player
+        // Clone offsets from the player's real body at 0. The boss picks one as its target.
+        const CLONE_OFFSETS = [-200, 0, 200];
         const realIdx = Math.floor(Math.random() * CLONE_OFFSETS.length);
 
-        // Boss ghost mirrors: symmetric reflections so boss also looks "duplicated"
+        // Boss ghosts mirror the arena, so it looks duplicated too.
         const bossGhosts = [
           { offsetX: -(this.cx() - GAME_W * 0.25) },   // left mirror
           { offsetX:  (GAME_W * 0.75 - this.cx()) },   // right mirror
@@ -540,9 +522,8 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── SUPERNOVA (rare — triggers once at <25% HP) ────────────────────
-      // buildup → implosion → active shockwave (r=0→340)
-      // Safe zone: stay within 45px of boss (inside the core)
+      // Supernova (rare, once below 25% HP)
+      // Buildup, implosion, then shockwave. Stay within 45px of the boss to be safe.
       case 'supernova': {
         this._supernovaCd = 9999; // one-time use per fight
         this.postSpecialPause = 22;
@@ -561,27 +542,26 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── DEPTH PHASE SHIFT STRIKE — shift to target's Z layer then attack ──
-      // TrueForm copies the player's exact Z, closes in, and lands a guaranteed hit.
+      // Depth Phase Shift Strike
+      // Copies the player's Z and closes in for a guaranteed hit.
       case 'depthPhaseShift': {
         this._depthPhaseShiftCd = Math.ceil(38 * cdMult);
         this.postSpecialPause   = 8;
         if (!target || target.health <= 0) break;
         const _tz = target.z || 0;
-        // Snap TrueForm to the same Z layer as the player (no escape via layer switch)
+        // Same Z layer as the player, so no dodge by switching layers.
         this.z = _tz;
         screenShake = Math.max(screenShake, 14);
         spawnParticles(this.cx(), this.cy(), '#000000', 12);
         spawnParticles(this.cx(), this.cy(), '#8844ff',  8);
-        // Teleport to just behind the player (same approach as 'slash')
+        // Same approach as 'slash'
         const _psDir  = target.cx() > this.cx() ? 1 : -1;
         const _psDestX = clamp(target.cx() - _psDir * 38, 20, GAME_W - 20);
         this.x = _psDestX - this.w * 0.5;
         this.y = target.y;
         this.facing = _psDir;
-        // Visual burst at landing point
         spawnParticles(this.cx(), this.cy(), '#ffffff', 10);
-        // Schedule direct melee hit (next frame — attacker and target are now same Z)
+        // Melee next frame, once both are on the same Z.
         this._pendingChainMove = { move: 'slash', delay: 2 };
         showBossDialogue(randChoice([
           'Same layer. Nowhere to go.',
@@ -594,31 +574,28 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── MULTI-LAYER FAKE — afterimages at different Z values; only one is real ──
-      // Spawns 2 shadow copies at z = -0.6 and +0.6; TrueForm stays at z = 0.
-      // Clones vanish after 3 s; only the real copy (z=0) deals damage.
+      // Multi-Layer Fake
+      // Two shadow copies at z = -0.6 and +0.6. Only the real one (z=0) deals damage.
       case 'depthLayerFake': {
         this._depthLayerFakeCd = Math.ceil(54 * cdMult);
         this.postSpecialPause  = 10;
-        // True form stays at its current Z (default 0 if not in depth phase)
         const _realZ = this.z || 0;
-        // Place two fake clones at symmetric Z offsets
         const _fakeZs = [_realZ - 0.6, _realZ + 0.6].map(v => Math.max(-1, Math.min(1, v)));
-        // Re-use tfClones array (same structure as Shadow Clones)
+        // Reuses tfClones, same shape as shadow clones.
         for (const fz of _fakeZs) {
           tfClones.push({
             x:           this.x,
             y:           this.y,
             w:           this.w,
             h:           this.h,
-            health:      1,   // dies instantly if hit
+            health:      1,  // dies on any hit
             timer:       180, // 3 s lifetime
             facing:      this.facing,
             attackTimer: 0,
             animTimer:   Math.random() * Math.PI * 2,
             isReal:      false,
             z:           fz,    // depth layer tag (read by draw/hit code)
-            _isDepthFake: true, // flag so clone update doesn't move independently
+            _isDepthFake: true,  // clone update won't move it
           });
         }
         screenShake = Math.max(screenShake, 12);
@@ -630,22 +607,20 @@ TrueForm.prototype._doSpecial = function(move, target) {
           'Find me — if depth lets you.',
           'This is how I vanish.',
         ]), 180);
-        // Warn player that multiple Z-layer entities just appeared
         bossWarnings.push({ type: 'circle', x: this.cx(), y: this.cy(),
           r: 80, color: '#aa00ff', timer: 40, maxTimer: 40, label: 'MULTI-LAYER FAKE!' });
         break;
       }
 
-      // ── DEPTH PUNISH — fires when player camps the same Z layer too long ──
-      // Strikes into that exact Z with an unavoidable beam column.
+      // Depth Punish
+      // Strikes that Z with an unavoidable beam column.
       case 'depthPunish': {
         this._depthPunishCd = Math.ceil(48 * cdMult);
         this.postSpecialPause = 6;
         if (!target || target.health <= 0) break;
         const _dpZ = target.z || 0;
-        // Shift TrueForm to the player's Z layer
         this.z = _dpZ;
-        // Wide vertical beam locked on the player's X (re-uses bossBeams infrastructure)
+        // Wide beam on the player's X (uses bossBeams).
         // Telegraph for 20 frames then active for 60 frames
         bossBeams.push({
           x:            target.cx(),
@@ -667,7 +642,6 @@ TrueForm.prototype._doSpecial = function(move, target) {
         ]), 180);
         bossWarnings.push({ type: 'circle', x: target.cx(), y: target.cy(),
           r: 60, color: '#ff0044', timer: 20, maxTimer: 20, label: 'DEPTH PUNISH!' });
-        // Reset the still-Z counter for this player so it doesn't re-trigger immediately
         const _dpIdx = players.findIndex(p => p === target);
         if (_dpIdx >= 0 && typeof tfDepthPlayerStillZ !== 'undefined') {
           tfDepthPlayerStillZ[_dpIdx] = { z: _dpZ, frames: 0 };
@@ -675,11 +649,11 @@ TrueForm.prototype._doSpecial = function(move, target) {
         break;
       }
 
-      // ── DIMENSION SHIFT — toggle game between 2D and 3D perspective ──
+      // Dimension Shift
       case 'dimension': {
         this._dimensionCd = Math.ceil(110 * cdMult);
         this.postSpecialPause = 18;
-        // Only launch if no dimension punch already active and a valid target exists
+        // Skip if a punch is already running or there is no target.
         if (!tfDimensionPunch && target && target.health > 0) {
           const punchDir = target.cx() > this.cx() ? 1 : -1;
           tfDimensionPunch = {

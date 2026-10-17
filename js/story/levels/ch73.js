@@ -1,21 +1,12 @@
 'use strict';
-// js/story/levels/ch73.js — Chapter 73 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch73.js: chapter 73 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 73 — The Crack (escape, run right)
-// Inside the loop, running for its structural flaw. The loop is one stretch of
-// corridor repeated: every plate carries the same arch, the same brazier, the
-// same cracked pillar with the same number cut in it — and every repeat is
-// more decayed than the last, until the geometry starts bending. Behind you
-// the repair mechanism re-lays the corridor: a red lattice knitting the world
-// shut as it comes. The plates are separated by repeat seams (a short jump
-// each) and every arch's lintel is a climb. At the far end the corridor folds
-// back on itself around the flaw — "dimensional geometry bending back on
-// itself" — where the arches start to bend over and the floor tilts.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 73, The Crack (escape, run right): a repeated corridor that decays,
+// with a red lattice closing in from behind.
+// Plates are joined by repeat-seam jumps. The far end folds back and the floor tilts.
 (function () {
   const PLATES = [[0, 1040, 440], [1120, 1700, 430], [1780, 2500, 440], [2580, 3200, 430], [3280, 3800, 440]];
-  const ARCH_DX = 260;                       // the repeated arch sits this far into each plate
+  const ARCH_DX = 260;  // arch offset into each plate (px)
   const FLAW = 3460;
 
   function floor() { return PLATES.map(([x0, x1, y]) => Object.assign(_slFloorSeg(x0, y, x1 - x0, 600 - y), { noDraw: true })); }
@@ -30,7 +21,6 @@
 
   function backdrop(v) {
     _slSkyAbove(v, '#0a0000');
-    // The loop seen from inside: the same corridor receding, repeated
     _slParallax(v, 0.2, (l, r) => {
       for (let i = Math.floor(l / 240) - 1; i * 240 < r + 240; i++) {
         const x = i * 240;
@@ -46,14 +36,12 @@
     ctx.fillRect(x - 10, y - 160, 16, 160); ctx.fillRect(x + 124, y - 160 + bend, 16, 160 - bend);
     ctx.fillStyle = '#3a0c0c';
     ctx.beginPath(); ctx.moveTo(x - 14, y - 160); ctx.lineTo(x + 144, y - 160 + bend); ctx.lineTo(x + 144, y - 150 + bend); ctx.lineTo(x - 14, y - 150); ctx.fill();
-    // The step: the same broken pillar in every repeat, with the same number
     ctx.fillStyle = '#240606'; ctx.fillRect(x - 120, y - 80, 90, 80);
     ctx.fillStyle = '#3a0c0c'; ctx.fillRect(x - 124, y - 84, 98, 6);
     ctx.fillStyle = 'rgba(255,90,60,0.6)'; ctx.font = 'bold 14px Georgia'; ctx.textAlign = 'center'; ctx.fillText('VII', x - 75, y - 40);
-    // The same brazier
     ctx.fillStyle = '#1a0404'; ctx.fillRect(x + 56, y - 36, 24, 36);
     _slFire(x + 54, y - 36, 28, 0.6 * (1 - decay * 0.6));
-    // Decay: cracks spread down the arch with every repeat
+    // Cracks spread further each repeat.
     for (let k = 0; k < Math.round(decay * 6); k++) {
       const cx = x + _slHash(k + x) * 140;
       ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 1.5;
@@ -62,7 +50,7 @@
   }
 
   function back(v) {
-    // The repair mechanism: a red lattice re-laying the corridor behind the wall
+    // Red lattice closing in behind the player.
     const wx = (typeof escapeWallX !== 'undefined') ? escapeWallX : -200;
     if (wx > v.x - 40) {
       ctx.save(); ctx.beginPath(); ctx.rect(v.x - 40, v.y - 40, wx - v.x + 40, v.h + 80); ctx.clip();
@@ -73,7 +61,6 @@
       ctx.restore();
     }
     for (const A of arches()) if (_slVisible(v, A.x - 140, A.x + 160)) arch(A);
-    // The flaw: the corridor folding back on itself
     if (_slVisible(v, FLAW - 500, FLAW + 400)) {
       ctx.save(); ctx.translate(FLAW, 300);
       for (let k = 0; k < 7; k++) {
@@ -108,7 +95,6 @@
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       for (let k = 0; k < (x1 - x0) / 50; k++) ctx.fillRect(x0 + 20 + k * 50, y + 18 + _slHash(k + i * 7) * 30, 3, 26);
       ctx.fillStyle = '#ff3a1a'; ctx.fillRect(x0, y, x1 - x0, 1.5);
-      // Repeat seams glow where one copy of the corridor meets the next
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       ctx.fillStyle = 'rgba(255,120,80,0.5)'; ctx.fillRect(x0 - 1, y - 14, 2, 70); ctx.fillRect(x1 - 1, y - 14, 2, 70);
       ctx.restore();

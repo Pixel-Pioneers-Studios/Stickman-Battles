@@ -1,21 +1,8 @@
-// Void Mind arc — Reckoning I: "What You Know"
-// id 171 — The first test. Memory Reconstruction.
+// Void Mind arc, Reckoning I: What You Know
+// id 171, the first test: Memory Reconstruction.
+// Wrong answers propagate into a consistent false version. Correct answers cost the player something.
 //
-// The Void Mind does not announce itself. It was here before the fracture system
-// and the fracture system existed, in part, to slow its access to structured reality.
-// That system is gone now.
-//
-// The first Reckoning tests the load-bearing belief: Veran's death.
-// The Void Mind does not argue. It presents a version and waits.
-// Wrong answers do not fail — they propagate. The Substrate reshapes
-// to accommodate the false version with perfect internal consistency.
-// Correct answers cost something. They require the player to own what happened.
-//
-// Placement note (updated): this arc is WIRED and lives at ids 171+. The old note
-// here described a pre-wiring plan (arc at 157–164, renumber "the epilogue
-// placeholder at id 156") — do NOT follow it. Id 156 is now 'The Architecture' and
-// renumbering it would break the contiguous 0–183 registry. See the id-contiguity
-// check in CLAUDE.md before moving any chapter.
+// Lives at ids 171+. Ids must stay contiguous, so check CLAUDE.md before moving one.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -45,7 +32,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The Void Mind does not argue.',
       'It has simply shown you the alternative.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the version of the ridge, made to stand in front of you.
+    // Playable beat, see _playChapterBeat in smb-story-engine-flow.js.
     beat: {
       arena: 'void', levelId: 181,
       opponentName: 'The Hooded Figure', opponentSuffix: '— the version the Void Mind offers', opponentColor: '#26202e',

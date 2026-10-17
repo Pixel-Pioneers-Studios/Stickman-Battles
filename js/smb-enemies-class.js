@@ -1,5 +1,5 @@
 'use strict';
-// smb-enemies-class.js — applyClass, updateClassWeapon, showDesc (player stat description), mirror arena AI patch
+// smb-enemies-class.js: applyClass, updateClassWeapon, showDesc (player stat description), mirror arena AI patch.
 // Depends on: smb-globals.js, smb-fighter.js, smb-data-weapons.js
 
 function applyClass(fighter, classKey) {
@@ -9,7 +9,6 @@ function applyClass(fighter, classKey) {
   fighter.maxHealth       = cls.hp;
   fighter.health          = cls.hp;
   fighter.classSpeedMult  = cls.speedMult;
-  // Knight always uses mkgauntlet — force it regardless of what was selected
   if (classKey === 'megaknight' && typeof WEAPONS !== 'undefined' && WEAPONS.mkgauntlet) {
     fighter.weapon    = WEAPONS.mkgauntlet;
     fighter.weaponKey = 'mkgauntlet';
@@ -26,12 +25,10 @@ function updateClassWeapon(player) {
 
   if (cls && cls.weapon) wEl.value = cls.weapon;
 
-  // Knight always uses mkgauntlet — lock the weapon selector
   wEl.disabled = isMK;
   if (cardGrid) {
     if (isMK) {
       cardGrid.classList.add('locked');
-      // Keep mkgauntlet visually active
       cardGrid.querySelectorAll('.sel-card').forEach(c =>
         c.classList.toggle('active', c.dataset.val === 'mkgauntlet'));
     } else {
@@ -53,15 +50,12 @@ function showDesc(player, type, key) {
     return;
   }
   title.textContent = data.title;
-  // NOTE: this function is SHADOWED — smb-menu-select.js defines showDesc() again
-  // and loads later, so that one is what actually runs. Left intact rather than
-  // deleted, but do not edit this copy expecting to see a change.
+  // Shadowed: smb-menu-select.js defines showDesc() again and loads later, so this copy never runs.
   let html = `<span class="desc-what">${data.what}</span>`;
   if (data.ability) html += `<br><span class="desc-ability">${data.ability}</span>`;
   if (data.super)   html += `<br><span class="desc-super">${data.super}</span>`;
   if (data.perk)    html += `<br><span class="desc-perk">${data.perk}</span>`;
   html += `<br><span class="desc-tip">${data.how}</span>`;
-  // Randomizer toggle
   const inPool = type === 'weapon'
     ? (!randomWeaponPool || randomWeaponPool.has(key))
     : (!randomClassPool  || randomClassPool.has(key));
@@ -73,38 +67,28 @@ function showDesc(player, type, key) {
   panel.style.display = 'block';
 }
 
-// ============================================================
-// MIRROR ARENA — AI mimic behavior patch
-// Wraps Fighter.prototype.updateAI so mirror logic fires only
-// in the 'mirror' arena without touching any other AI path.
-// ============================================================
+// Mirror arena: the AI copies the human's weapon and attack timing, with a delay.
 (function _patchMirrorAI() {
   const _origUpdateAI = Fighter.prototype.updateAI;
 
   Fighter.prototype.updateAI = function() {
-    // Mirror logic: only for non-boss AI fighters in the mirror arena
     if (currentArenaKey === 'mirror' && this.isAI && !this.isBoss && !this.isMinion) {
-      // Find the human (or first non-AI) target
       const human = players.find(p => p !== this && !p.isAI && p.health > 0);
       if (human) {
-        // ── Weapon mimic ─────────────────────────────────────────
-        // Copy the human's current weapon with a small random delay
-        // so it never feels instant / perfect.
+        // Random delay so the mimic is never instant.
         if (!this._mirrorWeaponTimer || this._mirrorWeaponTimer <= 0) {
           if (!this.isSovereignMK2 && human.weapon && this.weapon !== human.weapon) {
             this.weapon = human.weapon;
           }
-          // Reset timer: 20–40 frames before next check
+          // 20-40 frames until the next check.
           this._mirrorWeaponTimer = 20 + Math.floor(Math.random() * 21);
         } else {
           this._mirrorWeaponTimer--;
         }
 
-        // ── Attack-frequency mimic ────────────────────────────────
-        // Track when the human last attacked; mirror with a delay.
         if (human.isAttacking && !human._mirrorAttackSeen) {
           human._mirrorAttackSeen = true;
-          // Queue a delayed mirror attack (20–40 frames from now)
+          // 20-40 frames out.
           this._mirrorDelay = 20 + Math.floor(Math.random() * 21);
         }
         if (!human.isAttacking) human._mirrorAttackSeen = false;
@@ -121,7 +105,6 @@ function showDesc(player, type, key) {
       }
     }
 
-    // Always run the standard AI logic
     _origUpdateAI.call(this);
   };
 })();

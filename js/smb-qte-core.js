@@ -1,27 +1,15 @@
 'use strict';
-// smb-qte-core.js — QTE phase definitions, state objects, public API, trigger detection, _startQTE
+// smb-qte-core.js. QTE phase definitions, state objects, public API, trigger detection, _startQTE
 // Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js
 
-// smc-qte.js — True-Form Boss QTE System
-// ============================================================
-// Phases fire at HP thresholds during gameMode === 'trueform':
-//   Phase 1 "Reality Flicker"       — 75% HP (3750)
-//   Phase 2 "Multiversal Overload"  — 50% HP (2500)
-//   Phase 3 "Cosmic Erasure"        — 25% HP (1250)
-//   Phase 4 "True-Form Collapse"    — 10% HP  (500)
-//
-// Call updateQTE() each frame in gameLoop (physics phase).
-// Call drawQTE(ctx, cw, ch) in screen-space after all other draws.
-// Call resetQTEState() on backToMenu / new game start.
-// ============================================================
+// Phases fire at HP thresholds in trueform mode: 75% (3750), 50% (2500), 25% (1250), 10% (500).
+// Call updateQTE() in gameLoop (physics), drawQTE(ctx, cw, ch) in screen space, resetQTEState() on new game.
 'use strict';
 
-// ── Debug toggle ────────────────────────────────────────────────────────────
 const QTE_DEBUG = false;          // set true to force-trigger phases via cheat
 const QTE_SKIP_ALLOWED = false;   // set true so pressing Escape skips active QTE
 
-// ── P1 control mapping (mirrors Fighter constructor in smc-menu.js) ──────────
-// Key string → display glyph shown on screen
+// P1 controls: key string to display glyph.
 const _QTE_KEY_MAP = {
   'a': { label: '←',      key: 'a' },
   'd': { label: '→',      key: 'd' },
@@ -32,17 +20,14 @@ const _QTE_KEY_MAP = {
   'e': { label: 'SUPER',  key: 'e' },
 };
 
-// Mirrored: left↔right, up↔down — used in Phase 2 / Phase 4
+// Mirrored: left↔right, up↔down, used in Phase 2 / Phase 4
 const _QTE_MIRROR = { 'a': 'd', 'd': 'a', 'w': 's', 's': 'w', ' ': 'q', 'q': ' ', 'e': 'e' };
 
 // All keys as an array for random picking
 const _QTE_ALL_KEYS = Object.keys(_QTE_KEY_MAP);
 
-// ── Phase definitions ────────────────────────────────────────────────────────
 const QTE_PHASES = {
-  // ---------- Phase 1: Reality Flicker ----------
-  // Single prompts one at a time, 60-frame window each.
-  // Visual: mild screen flicker, scanlines, background tremor.
+  // Phase 1: single prompts, 60-frame window each. Mild flicker and scanlines only.
   1: {
     id: 1,
     name: 'REALITY FLICKER',
@@ -59,9 +44,7 @@ const QTE_PHASES = {
     penaltyDamage: 0.35,     // fraction of maxHealth dealt when attempt limit reached
   },
 
-  // ---------- Phase 2: Multiversal Overload ----------
-  // Three prompts appear at once (mirror clone positions); some are mirrored.
-  // Player must press all within 45 frames of each appearing.
+  // Phase 2: three prompts at once in mirror-clone positions. Press all within 45 frames.
   2: {
     id: 2,
     name: 'MULTIVERSAL OVERLOAD',
@@ -80,9 +63,7 @@ const QTE_PHASES = {
     penaltyDamage: 0.40,
   },
 
-  // ---------- Phase 3: Cosmic Erasure ----------
-  // 6–8 rapid prompts at random screen positions, 30-frame window each.
-  // Failure → near-death flash + heavy damage.
+  // Phase 3: 6-8 rapid prompts, 30-frame window. Failure is a near-death flash plus heavy damage.
   3: {
     id: 3,
     name: 'COSMIC ERASURE',
@@ -100,10 +81,7 @@ const QTE_PHASES = {
     penaltyDamage: 0.55,     // devastating — near-kill
   },
 
-  // ---------- Phase 4: True-Form Collapse ----------
-  // 9-step directional+button sequence; every other step is fully mirrored.
-  // "Plot armor": after 2 full failures the final step auto-completes.
-  // Success triggers the boss death cinematic.
+  // Phase 4: 9 steps, every other one mirrored. Plot armor: after 2 full failures the last step auto-completes.
   4: {
     id: 4,
     name: 'COSMIC AXIOM COLLAPSE',
@@ -212,50 +190,18 @@ function _qteEnsureReachable(prompt, slot, total, s) {
   prompt._total = total;
 }
 
-// ── QTE State Object ─────────────────────────────────────────────────────────
 let QTE_STATE = null; // null when no QTE active
 
 /**
- * qteState shape:
- * {
- *   phase: 1|2|3|4,
- *   def: <phase definition>,
- *   stage: 'intro'|'prompts'|'outro_success'|'outro_fail',
- *   introTimer: 0,        // counts up to 80 before prompts begin
- *   outroTimer: 0,
- *   prompts: [],          // active prompt objects
- *   promptQueue: [],      // upcoming prompt keys
- *   promptIdx: 0,         // index into queue
- *   completedCount: 0,
- *   failCount: 0,         // failures this attempt
- *   totalAttempts: 0,     // how many full restarts
- *   failedThisRound: false,
- *   chaosLevel: 0,        // 0-1, rises with each failure
- *   bossRef: <TrueForm>,
- *   playerRef: <Fighter>,
- *   _firedPhases: Set,    // which phase ids have already fired
- * }
+ * qteState: the live QTE object. Holds the phase def, stage, timers, prompts, chaosLevel and refs to the boss and player.
  */
 
 // Persistent across phases in one fight
 const _qteFiredPhases = new Set();
 
-// ── Prompt object ─────────────────────────────────────────────────────────────
-// {
-//   key: 'a',          actual key player must press
-//   displayKey: 'a',   key shown in the prompt UI (may differ if mirrored)
-//   label: '←',        display glyph
-//   displayLabel: '→', shown label (mirrored)
-//   isMirrored: bool,
-//   timer: 0,          counts up; expires at windowFrames
-//   maxTimer: 60,
-//   x: 450, y: 260,   screen position of this prompt bubble
-//   hit: false,        true once player pressed the correct key
-//   missed: bool,
-//   slot: 0,           for simultaneous mode: which of the 3 slots
-// }
+// Prompt object. key is what the player presses. displayKey/displayLabel are what's drawn (they differ when mirrored).
+// slot picks one of the 3 positions in simultaneous phases.
 
-// ── Particle / visual accumulators ──────────────────────────────────────────
 let _qteParticles    = [];  // { x, y, vx, vy, r, color, alpha, decay, type }
 let _qteRipples      = [];  // { x, y, r, maxR, alpha, color }
 let _qteFlashAlpha   = 0;   // 0-1 white/colour flash overlay
@@ -269,16 +215,12 @@ let _qteWarpGrid     = [];  // { x, y, ox, oy } warp grid nodes
 let _qteTimeline     = 0;   // global frame counter within QTE
 let _qteComboText    = null; // { text, timer, x, y, color }
 
-// ── Pre-QTE pending state ────────────────────────────────────────────────────
-// When a threshold is crossed, we enter a short warning window before firing.
-// _qtePending = { phaseId, tf, p1, timer, totalDelay }
+// When a threshold is crossed, a short warning window runs before the QTE starts.
 let _qtePending = null;
 
-// ── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Call every frame from smc-loop.js gameLoop, BEFORE drawing.
- * Returns true when a QTE is active (use to suppress normal game input).
+ * Call every frame from gameLoop, before drawing. Returns true while a QTE is active, to suppress input.
  */
 function updateQTE() {
   if (!QTE_STATE) {
@@ -310,8 +252,6 @@ function drawQTE(ctx, cw, ch) {
     const progress = _qtePending.timer / _qtePending.totalDelay; // 0 → 1
     const pulse = Math.sin(progress * Math.PI * 4) * 0.5 + 0.5; // oscillates
     const color = _phaseColor(_qtePending.phaseId);
-    // Vignette-style border flash
-    // Parse hex color to rgba
     const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
     const a = (0.25 + pulse * 0.25).toFixed(2);
     const gradient = ctx.createRadialGradient(cw * 0.5, ch * 0.5, ch * 0.3, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.7);
@@ -319,7 +259,6 @@ function drawQTE(ctx, cw, ch) {
     gradient.addColorStop(1, `rgba(${r},${g},${b},${a})`);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, cw, ch);
-    // Warning text
     if (progress > 0.3) {
       ctx.globalAlpha = Math.min(1, (progress - 0.3) / 0.3) * (0.7 + pulse * 0.3);
       ctx.font = 'bold 18px monospace';
@@ -339,31 +278,22 @@ function drawQTE(ctx, cw, ch) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Layer 1: cosmic background distortion
   _drawQTEBackground(ctx, cw, ch);
 
-  // Layer 2: warp grid
   _drawQTEWarpGrid(ctx, cw, ch);
 
-  // Layer 3: mirror clone silhouettes
   if (_qteCloneAlpha > 0) _drawQTEClones(ctx, cw, ch);
 
-  // Layer 4: ripple effects
   _drawQTERipples(ctx);
 
-  // Layer 5: prompt bubbles
   if (QTE_STATE.stage === 'prompts') _drawQTEPrompts(ctx, cw, ch);
 
-  // Layer 6: particles
   _drawQTEParticles(ctx);
 
-  // Layer 7: combo text
   if (_qteComboText) _drawQTEComboText(ctx, cw, ch);
 
-  // Layer 8: HUD — phase name + subtitle + progress bar
   _drawQTEHUD(ctx, cw, ch);
 
-  // Layer 9: flash overlay
   if (_qteFlashAlpha > 0.01) {
     ctx.globalAlpha = _qteFlashAlpha;
     ctx.fillStyle   = _qteFlashColor;
@@ -374,9 +304,7 @@ function drawQTE(ctx, cw, ch) {
   ctx.restore();
 }
 
-/**
- * Reset all QTE state — call from resetTFState() / backToMenu().
- */
+/** Reset all QTE state. Called from resetTFState() and backToMenu(). */
 function resetQTEState() {
   QTE_STATE       = null;
   if (typeof clearCombatLock === 'function') clearCombatLock('qte');
@@ -394,10 +322,7 @@ function resetQTEState() {
   _qteComboText   = null;
 }
 
-/**
- * Debug / cheat: force a specific phase (call from cheat console).
- * e.g. triggerQTEPhase(3);
- */
+/** Debug: force a phase from the cheat console, e.g. triggerQTEPhase(3). */
 function triggerQTEPhase(phaseId) {
   if (!QTE_PHASES[phaseId]) return;
   const tf  = players && players.find(p => p.isTrueForm);
@@ -408,7 +333,7 @@ function triggerQTEPhase(phaseId) {
   _startQTE(phaseId, tf, p1);
 }
 
-// ── Trigger detection (called each frame when QTE is inactive) ────────────────
+// Trigger detection, run each frame while the QTE is inactive.
 function _checkQTETriggers() {
   if (gameMode !== 'trueform' || !gameRunning) return;
   if (_qtePending) {
@@ -421,11 +346,10 @@ function _checkQTETriggers() {
 
   const hpPct = tf.health / tf.maxHealth;
 
-  // Check phases in reverse order (highest priority first)
   for (const phaseId of [4, 3, 2, 1]) {
     const def = QTE_PHASES[phaseId];
     if (!_qteFiredPhases.has(phaseId) && hpPct <= def.hpThreshold) {
-      // Mark as fired immediately so re-entry next frame doesn't double-trigger
+      // Mark fired now so the next frame can't re-trigger it.
       _qteFiredPhases.add(phaseId);
       // 0.3–0.6s delay at 60fps = 18–36 frames
       const delay = 18 + Math.floor(Math.random() * 19);
@@ -435,28 +359,24 @@ function _checkQTETriggers() {
   }
 }
 
-// ── Pre-QTE warning tick ─────────────────────────────────────────────────────
-// Runs each frame while _qtePending is set.  Checks player safety conditions
-// and fires _startQTE only when the player is in a safe, grounded state.
+// Runs each frame while a pending QTE is set. Fires _startQTE only in a safe, grounded state.
 function _tickQTEPending() {
   const pd = _qtePending;
   if (!pd) return;
 
   const { tf, p1 } = pd;
 
-  // Abort if entities are gone
   if (!tf || tf.health <= 0 || !p1 || p1.health <= 0) {
     _qtePending = null;
     return;
   }
 
-  // Apply gentle slow-motion during the warning window (0.7× speed)
+  // Slow motion during the warning window (0.7x).
   if (typeof slowMotionFor === 'function') slowMotionFor(0.7, 120);
 
   pd.timer++;
 
-  // Safety checks — only proceed once the player is in a safe state.
-  // Block if player is in an active combat state.
+  // Safety: wait until the player is out of combat.
   const SPEED_THRESHOLD = 8; // px/frame
   const playerBusy = (
     (p1.attackTimer  > 0) ||
@@ -473,8 +393,7 @@ function _tickQTEPending() {
 
   const safeToFire = !playerBusy && !bossBusy && playerGrounded;
 
-  // Wait at least totalDelay frames AND for a safe window.
-  // Hard cap: after 3× totalDelay frames always fire regardless (prevents indefinite deferral).
+  // Wait for totalDelay and a safe window. Hard cap at 3x totalDelay so it can't defer forever.
   const hardCap = pd.totalDelay * 3;
   if ((pd.timer >= pd.totalDelay && safeToFire) || pd.timer >= hardCap) {
     _qtePending = null;
@@ -482,12 +401,11 @@ function _tickQTEPending() {
   }
 }
 
-// ── QTE Initialisation ───────────────────────────────────────────────────────
 function _startQTE(phaseId, bossRef, playerRef) {
-  // Note: _qteFiredPhases.add() already called in _checkQTETriggers when pending starts
+  // Phase id is already marked fired in _checkQTETriggers.
   const def = QTE_PHASES[phaseId];
 
-  // Snap player to neutral — cancel velocity and any active combat timers
+  // Snap player to neutral, cancel velocity and any active combat timers
   if (playerRef) {
     playerRef.vx = 0;
     playerRef.vy = 0;
@@ -496,11 +414,10 @@ function _startQTE(phaseId, bossRef, playerRef) {
     if (playerRef.stunTimer    > 0) playerRef.stunTimer    = 0;
   }
 
-  // Freeze normal game physics during QTE; raise combat lock so AI cannot run
+  // Freeze normal physics. The combat lock keeps AI from running.
   if (typeof slowMotionFor === 'function') slowMotionFor(0.0, 99999); // held until QTE ends
   if (typeof setCombatLock === 'function') setCombatLock('qte');
 
-  // Build random prompt queue
   const count = def.promptCount[0] + Math.floor(Math.random() * (def.promptCount[1] - def.promptCount[0] + 1));
   const queue = _buildPromptQueue(count, def);
 
@@ -522,27 +439,21 @@ function _startQTE(phaseId, bossRef, playerRef) {
     playerRef,
   };
 
-  // Build warp grid
   _qteWarpGrid = _buildWarpGrid(16, 10);
 
-  // Camera drama
   if (typeof setCameraDrama === 'function') {
     setCameraDrama('focus', 60, bossRef, 1.35);
   }
 
-  // Strong shake
   _qteShakeExtra = 28 + phaseId * 6;
   screenShake = Math.max(screenShake, _qteShakeExtra);
 
-  // Flash
   _qteFlashColor = phaseId >= 3 ? '#ff00ff' : '#ffffff';
   _qteFlashAlpha = 0.85;
 
-  // Spawn intro burst particles
   _spawnQTEBurst(bossRef.cx(), bossRef.cy(), 40, _phaseColor(phaseId));
   _spawnQTERipple(bossRef.cx(), bossRef.cy(), _phaseColor(phaseId));
 
-  // Dialogue
   const dialogues = [
     '',
     '"The world noticed you. So did I."',

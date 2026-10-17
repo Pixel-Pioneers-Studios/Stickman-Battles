@@ -1,17 +1,7 @@
 'use strict';
-// js/story/levels/ch75.js — Chapter 75 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch75.js: chapter 75 map (defense). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 75 — What the Scar Remembers (defense)
-// Back at the Threshold where Axiom struck you down — the same black plain,
-// the dimension wall at the left edge, the machinery turning on the horizon.
-// What's new is on the right: the wound where the loop dimension collapsed,
-// a red tear still bleeding echo constructs into the void. The Void Anchor
-// (the nexus, x=450) stands between the two on a ring of threshold stones,
-// and above it Veran's signal tries to resolve — static at first, a face's
-// outline by the last wave. The stones from the Axiom fight are here, fewer
-// now: low steps either side of the anchor and one high stone over it.
-// ═════════════════════════════════════════════════════════════════════════════
+// The Threshold, with the Void Anchor (the nexus, x=450) between the dimension wall and a red tear.
 (function () {
   const G = 440, NX = 450, WOUND = 860;
   const STONES = [[110, 340, 140], [650, 340, 140], [370, 240, 160]];

@@ -1,17 +1,8 @@
 'use strict';
-// js/story/levels/ch134.js — Chapter 134 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch134.js: Chapter 134 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 134 — The First Promise (puzzle, 4 sequence locks)
-// The Memory Vault: a long gallery where the Creator's oldest records are
-// partitioned behind four sequence locks. Each lock stands on a pedestal at
-// the height puzzleSwitchDefs gives it, in front of a closed partition of
-// lattice; activating it dissolves the partition and lights what was behind
-// — a record of what the Creator was before, as a mural: a figure working
-// alone at a bench; the same figure making a promise with its hand raised;
-// the first shelter it built, too small, to keep something safe; the promise
-// broken across the middle. White vault shelving is the climbs.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 134: puzzle with four sequence locks. Lock heights come from puzzleSwitchDefs.
+// White vault shelving is the climbs.
 (function () {
   const G = 440, CORE = 3250;
   const LOCKS = [[600, 390], [1300, 355], [2100, 375], [2900, 360]];

@@ -1,18 +1,11 @@
 'use strict';
-// smb-debug-console.js — In-game developer console (GAMECONSOLE unlock, _consoleExec)
-// Depends on: smb-globals.js, smb-debug-overlay.js, smb-state.js, smb-accounts.js
-// Must load AFTER smb-debug-overlay.js, BEFORE smb-debug-jump.js
-
-// ============================================================
-// IN-GAME CONSOLE SYSTEM
-// Unlock by typing GAMECONSOLE anywhere, or via debug menu.
-// Commands mirror the existing slash-command system plus extras.
-// ============================================================
+// smb-debug-console.js: in-game developer console (_consoleExec). Unlock: type GAMECONSOLE.
+// Load after smb-debug-overlay.js, before smb-debug-jump.js.
 
 let _consoleOpen      = false;
 let _consoleHistory   = [];  // command history (up/down arrow)
 let _consoleHistIdx   = -1;
-let consoleUnlocked   = false;  // password lock — cleared each page load
+let consoleUnlocked   = false;  // password lock, reset each page load
 const _CONSOLE_PASS   = 'devmode';  // hardcoded password
 
 // Intercept native console so game logs appear in the overlay
@@ -39,8 +32,7 @@ function _consolePrint(text, color) { _consoleAppend('>', text, color || '#ccddf
 function _consoleOk(text)           { _consoleAppend('✓', text, '#44ff88'); }
 function _consoleErr(text)          { _consoleAppend('✗', text, '#ff5555'); }
 
-// Whether this session's console was opened by an admin/dev account.
-// Reset when console closes so switching accounts mid-session takes effect next open.
+// Admin/dev console session. Reset on close, so account switches apply on next open.
 let _consoleIsAdmin = false;
 
 function _consoleApplyAdminTheme(role) {
@@ -91,7 +83,6 @@ function openGameConsole() {
   const ov = document.getElementById('gameConsoleOverlay');
   if (!ov) return;
 
-  // Detect role for this session
   const _acct = (typeof AccountManager !== 'undefined' && AccountManager.getActiveAccount) ? AccountManager.getActiveAccount() : null;
   const _role = _acct ? (_acct.role || 'player') : 'player';
   const _hasAdminRole = (typeof hasPermission === 'function' && hasPermission('admin')) ||
@@ -101,12 +92,11 @@ function openGameConsole() {
 
   _consoleIsAdmin = _hasAdminRole || _hasDevRole;
 
-  // Auto-unlock for admins/devs/mods — no password gate needed
+  // Admins, devs and mods skip the password gate
   if ((_consoleIsAdmin || _hasModRole) && !consoleUnlocked) {
     consoleUnlocked = true;
   }
 
-  // Apply visual theme
   if (_hasDevRole) {
     _consoleApplyAdminTheme('dev');
   } else if (_hasAdminRole) {
@@ -138,7 +128,6 @@ function openGameConsole() {
     _consolePrint('Stickman Clash Console \u2014 type HELP for commands.', '#88bbff');
   }
 
-  // History navigation
   if (inp) {
     inp.onkeydown = (e) => {
       if (e.key === 'ArrowUp') {
@@ -171,7 +160,7 @@ function gameConsoleRun() {
   inp.value = '';
   if (!raw) return;
 
-  // Password gate — check on every submission until unlocked
+  // Password gate, check on every submission until unlocked
   if (!consoleUnlocked) {
     if (raw === _CONSOLE_PASS) {
       consoleUnlocked = true;
@@ -245,7 +234,6 @@ function _consoleExec(raw) {
     return { target, minutes, reason };
   }
 
-  // ---- HELP ----
   if (cmd === 'HELP') {
     const cmds = [
       '── General ──────────────────────────────────────────────────────',
@@ -333,14 +321,12 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- CLEAR ----
   if (cmd === 'CLEAR') {
     const log = document.getElementById('gameConsoleLog');
     if (log) log.innerHTML = '';
     return;
   }
 
-  // ---- STATUS ----
   if (cmd === 'STATUS') {
     _consolePrint('gameMode: ' + (typeof gameMode !== 'undefined' ? gameMode : '?'));
     _consolePrint('gameRunning: ' + (typeof gameRunning !== 'undefined' ? gameRunning : '?'));
@@ -352,7 +338,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SYSCHECK — health-check all major systems ----
   if (cmd === 'SYSCHECK') {
     const ok  = (s) => _consolePrint('  ✓ ' + s, '#44ff88');
     const warn = (s) => _consolePrint('  ⚠ ' + s, '#ffcc44');
@@ -420,7 +405,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- CHECK FIGHTER — detailed fighter state dump ----
   if (cmd.startsWith('CHECK FIGHTER') || cmd.startsWith('CHECK F')) {
     const who = sub === 'p2' ? 1 : 0;
     if (typeof players === 'undefined' || !players[who]) { _consoleErr('No fighter in slot ' + (who + 1)); return; }
@@ -480,10 +464,8 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- FPS ----
   if (cmd === 'FPS') { _consolePrint('FPS: ' + _dbgFpsCurrent, '#44ff88'); return; }
 
-  // ---- HEAL ----
   if (cmd.startsWith('HEAL')) {
     const who = sub || 'all';
     const _heal = (p) => { if (!p) return; p.health = p.maxHealth; p.invincible = 60; };
@@ -507,7 +489,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- KILL ----
   if (cmd.startsWith('KILL')) {
     const who = sub || 'all';
     if (typeof players === 'undefined') { _consoleErr('No game running.'); return; }
@@ -547,7 +528,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SPAWN ----
   if (cmd.startsWith('SPAWN')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -624,13 +604,8 @@ function _consoleExec(raw) {
       bot.playerNum = _num;
       bot.name      = 'BOT' + _num;
       bot.lives     = 3;
-      // Target the nearest LIVING, NON-GODMODED fighter rather than always
-      // players[0]. The old behaviour made the classic "watch a boss fight a
-      // bot" setup fail quietly: you godmode yourself and spawn a bot, and the
-      // bot locks onto invincible you instead of the boss — so it flees toward
-      // you while the boss chases it, and (because bosses like Sovereign are
-      // counter-punchers whose conversions need the opponent to commit) it
-      // never opens a single punish window. The fight crawls.
+      // Target the nearest living, non-godmoded fighter, not players[0]. Otherwise a boss-vs-bot
+      // fight crawls: the bot chases an invincible player instead of the boss and never opens a punish window.
       bot.target = (() => {
         const _cands = [...players, ...(typeof minions !== 'undefined' ? minions : [])]
           .filter(f => f && f !== bot && f.health > 0 && f.godmode !== true);
@@ -648,7 +623,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SUMMON ----
   if (cmd.startsWith('SUMMON')) {
     if (typeof gameRunning === 'undefined' || !gameRunning) { _consoleErr('Start a game first.'); return; }
     if (sub === 'god') {
@@ -676,7 +650,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- STUDIO — recording/showcase stage ----
   if (cmd === 'STUDIO') {
     if (typeof gameRunning === 'undefined' || !gameRunning) { _consoleErr('Start a game first, then run STUDIO.'); return; }
     if (typeof ARENAS === 'undefined' || !ARENAS['studio']) { _consoleErr('Studio arena not found.'); return; }
@@ -688,10 +661,8 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETMAP ----
   if (cmd.startsWith('SETMAP')) {
-    // Arena keys are camelCase (homeYard, bossSanctum) but `sub` is lowercased,
-    // so resolve case-insensitively against both keys and display names.
+    // Arena keys are camelCase but `sub` is lowercased, so match case-insensitively on keys and names.
     let mapKey = null;
     if (typeof ARENAS !== 'undefined' && sub) {
       const norm = v => String(v || '').toLowerCase().replace(/[\s_-]/g, '');
@@ -713,7 +684,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETWEAPON ----
   if (cmd.startsWith('SETWEAPON')) {
     const wKey = sub;
     const who  = (parts[2] || 'p1').toLowerCase();
@@ -724,7 +694,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETCLASS ----
   if (cmd.startsWith('SETCLASS')) {
     const cKey = sub;
     const who  = (parts[2] || 'p1').toLowerCase();
@@ -735,7 +704,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- LIVES ----
   if (cmd.startsWith('LIVES')) {
     const n   = parseInt(parts[1]);
     const who = (parts[2] || 'all').toLowerCase();
@@ -749,7 +717,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- GODMODE ----
   if (cmd.startsWith('GODMODE')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -771,7 +738,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- BOTS ----
   if (cmd.startsWith('BOTS')) {
     if (sub === 'reset') {
       if (typeof players !== 'undefined') players.filter(p => p.isAI).forEach(p => { p._aiState = 'approach'; p._stuckFrames = 0; });
@@ -783,7 +749,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- DEBUG ----
   if (cmd.startsWith('DEBUG')) {
     if (typeof debugMode !== 'undefined') {
       debugMode = sub !== 'off';
@@ -792,7 +757,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SLOW ----
   if (cmd.startsWith('SLOW')) {
     if (typeof timeScale !== 'undefined') {
       timeScale  = sub === 'off' ? 1.0 : 0.25;
@@ -802,7 +766,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- COINS ----
   if (cmd === 'COINS') {
     const action = sub || 'show';
     const parseAmt = () => {
@@ -842,7 +805,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- PAUSE / RESUME ----
   if (cmd === 'PAUSE' || cmd === 'RESUME') {
     if (typeof pauseGame !== 'function' || typeof resumeGame !== 'function') {
       _consoleErr('Pause system not available.');
@@ -862,7 +824,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- REVIVE / RESPAWN ----
   if (cmd === 'REVIVE' || cmd === 'RESPAWN') {
     if (typeof players === 'undefined' || players.length === 0) {
       _consoleErr('No active game.');
@@ -898,7 +859,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- UNLOCKALL ----
   if (cmd === 'UNLOCKALL') {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -910,7 +870,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- UNLOCK ----
   if (cmd.startsWith('UNLOCK')) {
     if (sub === 'trueform') {
       if (typeof setAccountFlagWithRuntime === 'function') {
@@ -936,7 +895,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- GRANT UNLOCK <type> <accountId> (admin only) ----
   // Supported types and their save keys:
   //   creator       → bossBeaten         (Creator / Phase-1 boss fight)
   //   trueform      → trueform            (True Form fight)
@@ -988,7 +946,7 @@ function _consoleExec(raw) {
       }
     }
 
-    // 2. Try online peer (targeted — recipient checks their own account ID)
+    // 2. Try online peer (targeted: the recipient checks their own account ID)
     if (typeof NetworkManager !== 'undefined' && typeof NetworkManager.getSlotByAccountId === 'function') {
       const slot = NetworkManager.getSlotByAccountId(grantTarget);
       if (slot !== null && slot !== undefined && slot >= 0) {
@@ -1009,7 +967,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETWEAPON <weaponName> [p1|p2] ----
   if (cmd.startsWith('SETWEAPON')) {
     const parts = raw.trim().split(/\s+/);
     const wName = (parts[1] || '').toLowerCase();
@@ -1026,7 +983,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- EVAL (raw JS) ----
   if (raw.toLowerCase().startsWith('eval ')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -1034,7 +990,7 @@ function _consoleExec(raw) {
     const code = raw.slice(5);
     try {
       // eslint-disable-next-line no-eval
-      const result = eval(code); // intentional: developer console feature
+      const result = eval(code);  // intentional
       _consoleOk(String(result));
     } catch(err) {
       _consoleErr(err.message);
@@ -1050,7 +1006,6 @@ function _consoleExec(raw) {
   }
   if (typeof handleChaosConsoleCmd === 'function' && handleChaosConsoleCmd(raw)) return;
 
-  // ---- PATHFINDING DEBUG ----
   if (cmd === 'PF' || cmd === 'PATHFINDING') {
     if (sub === 'graph') {
       window._pfShowGraph = !window._pfShowGraph;
@@ -1079,7 +1034,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- MAP ANALYZE ----
   if (cmd === 'MAPS ANALYZE') {
     analyzeAllMaps().forEach(r => { console.log(formatMapAnalysis(r)); });
     _consoleOk('Map analysis printed to browser console.');
@@ -1101,7 +1055,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ── SOVEREIGN Ω console commands ──────────────────────────────────────
   if (cmd === 'SOV STATS' || cmd === 'SOVEREIGN STATS') { if (typeof showSovereignStats === 'function') showSovereignStats(!adaptiveAIDebug); return; }
   if (cmd === 'SOV PREDICT' || cmd === 'SOVEREIGN PREDICT') { if (typeof showSovereignPredictions === 'function') showSovereignPredictions(); return; }
   if (cmd === 'SOV RESET' || cmd === 'SOVEREIGN RESET') { if (typeof resetSovereignMK2 === 'function') resetSovereignMK2(); return; }
@@ -1130,7 +1083,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ── Genome training commands ──────────────────────────────────────────────
   const _ok = (s) => _consolePrint('  ✓ ' + s, '#44ff88');
   if (cmd.startsWith('SOVEREIGN:TRAIN') || cmd.startsWith('SOV:TRAIN')) {
     if (typeof SMK2Trainer === 'undefined') { _ok('SMK2Trainer not loaded.'); return; }
@@ -1185,7 +1137,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ── SETHP ─────────────────────────────────────────────────────────────
   if (parts[0].toLowerCase() === 'sethp') {
     // sethp <value>  |  sethp p1|p2|player|boss|all <value>
     let target = 'all', valStr;
@@ -1212,7 +1163,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETCHAPTER (dev only) ----
   if (cmd.startsWith('SETCHAPTER')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -1227,14 +1177,13 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- STARTMATCH (dev only) ----
   if (cmd.startsWith('STARTMATCH')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
     }
     const matchType = sub || 'p1vsbot';
     if (typeof gameRunning !== 'undefined' && gameRunning && typeof backToMenu === 'function') backToMenu();
-    // "1p vs bot" is mode '2p' with p2IsBot=true — there is no separate '1p' mode
+    // "1p vs bot" is mode '2p' with p2IsBot=true, there is no separate '1p' mode
     const isVsBot = matchType === 'p1vsbot' || matchType === '1p' || matchType === 'bot' || matchType === '1pvbot';
     const modeMap = { '2p': '2p', 'boss': 'boss', 'trueform': 'trueform', 'training': 'training', 'adaptive': 'adaptive', 'sovereign': 'sovereign' };
     const resolvedMode = isVsBot ? '2p' : (modeMap[matchType] || '2p');
@@ -1246,7 +1195,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- STARTBOSS (dev only) ----
   if (cmd.startsWith('STARTBOSS')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -1259,7 +1207,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- UNLOCKALLSKILLS (dev only) ----
   if (cmd === 'UNLOCKALLSKILLS') {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -1272,7 +1219,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETACCOUNTROLE (dev only) ----
   if (cmd.startsWith('SETACCOUNTROLE')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) {
       _consoleErr('Permission denied — developer role required.'); return;
@@ -1299,7 +1245,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- WHO / ACCOUNTS ----
   if (cmd === 'WHO' || cmd === 'ACCOUNTS') {
     if (typeof AccountManager === 'undefined') { _consoleErr('AccountManager not available.'); return; }
     const _active = AccountManager.getActiveAccount();
@@ -1314,7 +1259,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- WHOAMI ----
   if (cmd === 'WHOAMI') {
     if (typeof adminWhoAmI === 'function') {
       adminWhoAmI();
@@ -1324,7 +1268,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- NET STATUS / NET PEERS ----
   if (cmd === 'NET STATUS') {
     if (typeof adminNetStatus === 'function') {
       adminNetStatus();
@@ -1352,7 +1295,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- BAN / TEMPBAN / BANPEER / BANIP / UNBAN / BANLIST ----
   if (cmd.startsWith('BANIP')) {
     const parsed = _parseBanArgs(1);
     if (!parsed.target) { _consoleErr('Usage: banip <target> [minutes] [reason]'); return; }
@@ -1428,7 +1370,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- VERSION ----
   if (cmd === 'VERSION') {
     _consolePrint('Stickman Clash (Stickman Battles)', '#88bbff');
     _consolePrint('Build: ' + (typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : 'dev'), '#88bbff');
@@ -1439,7 +1380,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- TIME ----
   if (cmd === 'TIME' || cmd === 'GAMETIME') {
     const fc = typeof frameCount !== 'undefined' ? frameCount : '?';
     const secs = typeof frameCount !== 'undefined' ? (frameCount / 60).toFixed(1) : '?';
@@ -1448,7 +1388,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SETSPEED ----
   if (cmd.startsWith('SETSPEED')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) { _consoleErr('Permission denied — developer role required.'); return; }
     const spd = parseFloat(parts[1]);
@@ -1459,7 +1398,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- GRAVITY ----
   if (cmd.startsWith('GRAVITY')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) { _consoleErr('Permission denied — developer role required.'); return; }
     const gv = parseFloat(parts[1]);
@@ -1470,7 +1408,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- NOCLIP ----
   if (cmd.startsWith('NOCLIP')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) { _consoleErr('Permission denied — developer role required.'); return; }
     if (typeof players === 'undefined' || !players.length) { _consoleErr('No active game.'); return; }
@@ -1488,7 +1425,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- RELOAD ----
   if (cmd === 'RELOAD') {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) { _consoleErr('Permission denied — developer role required.'); return; }
     _consolePrint('Reloading…', '#ffaa44');
@@ -1496,7 +1432,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- BOSS PHASE ----
   if (cmd === 'BOSS PHASE' || (parts[0].toUpperCase() === 'BOSS' && parts[1] && parts[1].toLowerCase() === 'phase')) {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) { _consoleErr('Permission denied — developer role required.'); return; }
     const targetPhase = parseInt(parts[2], 10);
@@ -1511,7 +1446,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- ARENA LIST ----
   if (cmd === 'ARENA LIST') {
     if (typeof ARENAS === 'undefined') { _consoleErr('ARENAS not available.'); return; }
     _consolePrint('Available arenas:', '#44aaff');
@@ -1522,7 +1456,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- WEAPON LIST ----
   if (cmd === 'WEAPON LIST') {
     if (typeof WEAPONS === 'undefined') { _consoleErr('WEAPONS not available.'); return; }
     _consolePrint('Available weapons:', '#44aaff');
@@ -1533,7 +1466,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- CLASS LIST ----
   if (cmd === 'CLASS LIST') {
     if (typeof CLASSES === 'undefined') { _consoleErr('CLASSES not available.'); return; }
     _consolePrint('Available classes:', '#44aaff');
@@ -1544,7 +1476,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- STORY LIST ----
   if (cmd === 'STORY LIST') {
     if (typeof hasPermission === 'function' && !hasPermission('dev')) { _consoleErr('Permission denied — developer role required.'); return; }
     if (typeof STORY_CHAPTERS === 'undefined') { _consoleErr('STORY_CHAPTERS not available.'); return; }
@@ -1555,7 +1486,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- ACCOUNT INFO ----
   if (cmd.startsWith('ACCOUNT INFO') || (parts[0].toUpperCase() === 'ACCOUNT' && parts[1] && parts[1].toLowerCase() === 'info')) {
     if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('admin')) { _consoleErr('Permission denied — admin role required.'); return; }
     if (typeof AccountManager === 'undefined') { _consoleErr('AccountManager not available.'); return; }
@@ -1582,7 +1512,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- BANCHECK ----
   if (cmd.startsWith('BANCHECK')) {
     if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('moderator')) { _consoleErr('Permission denied — moderator role required.'); return; }
     const checkTarget = parts.slice(1).join(' ').trim();
@@ -1603,7 +1532,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- NOTIFY ----
   if (cmd.startsWith('NOTIFY')) {
     if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('moderator')) { _consoleErr('Permission denied — moderator role required.'); return; }
     const notifyMsg = parts.slice(1).join(' ').trim();
@@ -1624,7 +1552,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SYNC ----
   // Pulls the latest ban list from the server and merges it locally.
   if (cmd === 'SYNC' || cmd === 'SYNC BANS') {
     if (!_consoleIsAdmin && typeof hasPermission === 'function' && !hasPermission('admin')) { _consoleErr('Permission denied — admin role required.'); return; }
@@ -1649,7 +1576,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- SERVER STATUS ----
   if (cmd === 'SERVER' || cmd === 'SERVER STATUS') {
     const serverUrl = (typeof SERVER_CONFIG !== 'undefined') ? SERVER_CONFIG.url : '';
     if (!serverUrl) { _consolePrint('Server: (not configured — offline mode)', '#ffaa44'); return; }
@@ -1663,7 +1589,7 @@ function _consoleExec(raw) {
     return;
   }
 
-  // Handle NOTIFY_DISPLAY (received from broadcast — render it locally)
+  // Handle NOTIFY_DISPLAY (received from broadcast): render it locally
   if (cmd.startsWith('NOTIFY_DISPLAY')) {
     const displayMsg = raw.slice('NOTIFY_DISPLAY '.length).trim();
     if (typeof _showNotification === 'function') { _showNotification(displayMsg); }
@@ -1671,7 +1597,6 @@ function _consoleExec(raw) {
     return;
   }
 
-  // ---- CAMTRACE ---- camera recorder (see js/smb-camera-trace.js)
   if (cmd.startsWith('CAMTRACE')) {
     if (typeof camTrace === 'undefined') { _consoleErr('camTrace not loaded'); return; }
     if (sub === '' || sub === 'arm') {
@@ -1707,3 +1632,612 @@ function _consoleExec(raw) {
   _consoleErr('Unknown command: ' + parts[0] + '  (type HELP for list)');
 }
 
+
+// ════════════════════════════════════════════════════════════════════════════
+// Console extensions: more commands, $ helpers for eval, chained commands,
+// macros, live watches, and Tab autocomplete for commands and JavaScript.
+// Wraps _consoleExec the same way smb-ai-console.js and smb-attacktest-gui.js do,
+// so anything this block doesn't handle falls through to the original.
+// ════════════════════════════════════════════════════════════════════════════
+(function() {
+  const _MACRO_KEY = 'smb_console_macros';
+  const X = { infSuper: false, noCd: false, aiFreeze: false, speed: 1, grav: null, frozen: false, stepUntil: -1, watches: [] };
+  const _gravOrig = new Map();
+  const _geval = (0, eval);
+
+  const _isDev = () => typeof hasPermission !== 'function' || hasPermission('dev');
+  const _devOnly = () => { if (_isDev()) return true; _consoleErr('Permission denied — developer role required.'); return false; };
+  const _inGame = () => {
+    if (typeof gameRunning !== 'undefined' && gameRunning && typeof players !== 'undefined' && players.length) return true;
+    _consoleErr('Start a match first.'); return false;
+  };
+
+  // ── Who's who ──────────────────────────────────────────────────────────────
+  function _me() {
+    if (typeof players === 'undefined' || !players.length) return null;
+    return players.find(p => p && !p.isAI && !p.isRemote) || players[0];
+  }
+  function _everyone() {
+    const out = typeof players !== 'undefined' ? [...players] : [];
+    if (typeof minions !== 'undefined') out.push(...minions);
+    if (typeof trainingDummies !== 'undefined') out.push(...trainingDummies);
+    return out.filter(Boolean);
+  }
+  // me | p1..p8 | all | boss | bots | enemies | minions | <name fragment>
+  function _who(sel, dflt) {
+    const s = String(sel || dflt || 'me').toLowerCase();
+    const all = _everyone(), m = _me();
+    if (s === 'me') return m ? [m] : [];
+    const slot = s.match(/^p?(\d)$/);
+    if (slot) return typeof players !== 'undefined' && players[+slot[1] - 1] ? [players[+slot[1] - 1]] : [];
+    if (s === 'all') return all;
+    if (s === 'boss') return all.filter(p => p.isBoss || p.isTrueForm);
+    if (s === 'bot' || s === 'bots') return all.filter(p => p.isAI && !p.isBoss && p !== m);
+    if (s === 'minion' || s === 'minions') return typeof minions !== 'undefined' ? [...minions] : [];
+    if (s === 'enemies' || s === 'foes') return all.filter(p => p !== m && (p.isAI || p.isBoss));
+    return all.filter(p => String(p.name || '').toLowerCase().includes(s));
+  }
+  const _label = p => (p && (p.name || (p.constructor && p.constructor.name))) || '?';
+  const _whoNames = list => list.length ? list.map(_label).join(', ') : 'nobody';
+
+  // ── $ helpers for eval ─────────────────────────────────────────────────────
+  const _helpers = {
+    $me: () => _me(), $p1: () => (typeof players !== 'undefined' ? players[0] : undefined),
+    $p2: () => (typeof players !== 'undefined' ? players[1] : undefined),
+    $boss: () => _who('boss')[0], $all: () => _everyone(), $enemies: () => _who('enemies'),
+    $bots: () => _who('bots'), $arena: () => (typeof currentArena !== 'undefined' ? currentArena : undefined),
+  };
+  for (const k in _helpers) {
+    if (!(k in window)) Object.defineProperty(window, k, { get: _helpers[k], configurable: true });
+  }
+  window.$find  = (name) => _who(name)[0];
+  window.$super = (p) => { for (const f of [].concat(p || _me())) if (f) { f.superMeter = 100; f.superReady = true; } return 'super full'; };
+  window.$heal  = (p) => { for (const f of [].concat(p || _me())) if (f) f.health = f.maxHealth; return 'healed'; };
+  window.$tp    = (p, x, y) => { p = p || _me(); if (p) { p.x = x - p.w / 2; p.y = y - p.h; p.vx = 0; p.vy = 0; } return p && [Math.round(p.x), Math.round(p.y)]; };
+  window.$set   = (p, props) => { for (const f of [].concat(p)) if (f) Object.assign(f, props); return props; };
+  window.$run   = (cmd) => { window._consoleExec(cmd); };
+  window.$props = (o) => _propNames(o).join('  ');
+
+  // ── Pretty results ─────────────────────────────────────────────────────────
+  function _fmt(v, depth) {
+    depth = depth === undefined ? 1 : depth;
+    if (v === undefined) return 'undefined';
+    if (v === null) return 'null';
+    const t = typeof v;
+    if (t === 'string') return depth < 1 ? JSON.stringify(v) : v;
+    if (t === 'number') return Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000);
+    if (t !== 'object' && t !== 'function') return String(v);
+    if (t === 'function') {
+      const src = Function.prototype.toString.call(v);
+      const sig = src.match(/^[^{=]*?\(([^)]*)\)/);
+      return 'ƒ ' + (v.name || 'anonymous') + '(' + (sig ? sig[1].replace(/\s+/g, ' ').slice(0, 60) : '') + ')';
+    }
+    if (typeof v.health === 'number' && typeof v.x === 'number' && typeof v.cx === 'function') {
+      return _label(v) + ' {hp ' + Math.round(v.health) + '/' + Math.round(v.maxHealth) +
+        (typeof v.lives === 'number' ? ', lives ' + v.lives : '') + ', weapon ' + (v.weaponKey || '?') +
+        ', class ' + (v.charClass || '?') + ', x ' + Math.round(v.x) + ', y ' + Math.round(v.y) +
+        ', super ' + Math.round(v.superMeter || 0) + (v.isAI ? ', AI' : '') + (v.godmode ? ', GOD' : '') + '}';
+    }
+    if (depth < 1) return Array.isArray(v) ? 'Array(' + v.length + ')' : (v.constructor && v.constructor.name !== 'Object' ? v.constructor.name : '{…}');
+    if (Array.isArray(v) || v instanceof Set) {
+      const arr = [...v];
+      return (v instanceof Set ? 'Set' : 'Array') + '(' + arr.length + ') [' + arr.slice(0, 12).map(x => _fmt(x, 0)).join(', ') + (arr.length > 12 ? ', …' : '') + ']';
+    }
+    if (v instanceof Map) return 'Map(' + v.size + ')';
+    const keys = Object.keys(v);
+    const name = v.constructor && v.constructor.name !== 'Object' ? v.constructor.name + ' ' : '';
+    return name + '{' + keys.slice(0, 20).map(k => k + ': ' + _fmt(v[k], 0)).join(', ') + (keys.length > 20 ? ', … ' + (keys.length - 20) + ' more' : '') + '}';
+  }
+
+  function _evalAndPrint(code) {
+    try {
+      const r = _geval(code);
+      window.$_ = r;
+      if (r && typeof r.then === 'function') {
+        _consolePrint('Promise… (result arrives below)', '#8899bb');
+        r.then(v => { window.$_ = v; _consoleOk(_fmt(v)); }, e => _consoleErr(String(e && e.message || e)));
+      } else {
+        _consoleOk(_fmt(r));
+      }
+    } catch (e) { _consoleErr(e.message); }
+  }
+
+  // ── Per-frame toggles ──────────────────────────────────────────────────────
+  function _frame() {
+    requestAnimationFrame(_frame);
+    if (typeof gameRunning === 'undefined' || !gameRunning) {
+      if (X.frozen) { X.frozen = false; hitStopFrames = 0; }
+      return;
+    }
+    const m = _me();
+    if (m && X.infSuper) { m.superMeter = 100; m.superReady = true; }
+    if (m && X.noCd) { m.cooldown = 0; m.cooldown2 = 0; m.abilityCooldown = 0; m.abilityCooldown2 = 0; }
+    if (X.aiFreeze) {
+      for (const p of _everyone()) {
+        if (p === m || !p.isAI || p.health <= 0) continue;
+        p._aiHoldUntil = frameCount + 2;
+        if (p.onGround) p.vx *= 0.5;
+      }
+    }
+    if (X.speed !== 1 && !activeCinematic && !(typeof activeFinisher !== 'undefined' && activeFinisher)) slowMotion = X.speed;
+    if (X.grav !== null && currentArena) {
+      if (!_gravOrig.has(currentArena)) _gravOrig.set(currentArena, currentArena.modifiers);
+      const mods = currentArena.modifiers || {};
+      if (mods.gravityMult !== X.grav) currentArena.modifiers = Object.assign({}, mods, { gravityMult: X.grav });
+    }
+    if (X.frozen && frameCount >= X.stepUntil) hitStopFrames = 1e9;
+    if (X.watches.length && frameCount % 6 === 0) _drawWatches();
+  }
+  requestAnimationFrame(_frame);
+
+  function _onOff(arg, cur) {
+    const a = String(arg || '').toLowerCase();
+    if (a === 'on' || a === '1' || a === 'true') return true;
+    if (a === 'off' || a === '0' || a === 'false') return false;
+    return !cur;
+  }
+
+  // ── Watches ────────────────────────────────────────────────────────────────
+  function _drawWatches() {
+    let box = document.getElementById('_conWatch');
+    if (!X.watches.length) { if (box) box.remove(); return; }
+    if (!box) {
+      box = document.createElement('div');
+      box.id = '_conWatch';
+      box.style.cssText = 'position:fixed;top:8px;left:8px;z-index:9998;background:rgba(8,8,18,0.85);border:1px solid #3366ff;' +
+        'border-radius:6px;padding:5px 9px;font:11px "Courier New",monospace;color:#cfe;pointer-events:none;max-width:46vw';
+      document.body.appendChild(box);
+    }
+    box.innerHTML = X.watches.map((w, i) => {
+      let v;
+      try { v = _fmt(_geval(w), 0); } catch (e) { v = '⚠ ' + e.message; }
+      const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      return '<div><span style="color:#7f9cff">' + (i + 1) + '. ' + esc(w) + '</span> = ' + esc(v) + '</div>';
+    }).join('');
+  }
+
+  // ── Macros ─────────────────────────────────────────────────────────────────
+  function _macros() { try { return JSON.parse(localStorage.getItem(_MACRO_KEY) || '{}') || {}; } catch (e) { return {}; } }
+  function _saveMacros(m) { try { localStorage.setItem(_MACRO_KEY, JSON.stringify(m)); return true; } catch (e) { return false; } }
+
+  // ── Scenarios ──────────────────────────────────────────────────────────────
+  function _whenInGame(fn) {
+    const t0 = performance.now();
+    const iv = setInterval(() => {
+      if (typeof gameRunning !== 'undefined' && gameRunning && typeof players !== 'undefined' && players.length && frameCount > 30) { clearInterval(iv); fn(); }
+      else if (performance.now() - t0 > 10000) { clearInterval(iv); _consoleErr('Match did not start in time.'); }
+    }, 100);
+  }
+  const SCENARIOS = {
+    sandbox:  { d: 'godmode, infinite super, no cooldowns, frozen AI', run: () => _chain('godmode me on; infsuper on; nocd on; aifreeze on') },
+    finisher: { d: 'every enemy at 1 HP and your super full — test finishers', run: () => {
+      if (!_inGame()) return;
+      for (const p of _who('enemies')) if (!(p.isTrueForm && typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired)) p.health = 1;
+      _chain('super me'); } },
+    clutch:   { d: 'you at 15% HP on your last life, super full, enemies healed', run: () => {
+      if (!_inGame()) return;
+      const m = _me(); m.health = Math.max(1, Math.round(m.maxHealth * 0.15)); if (typeof m.lives === 'number') m.lives = 1;
+      for (const p of _who('enemies')) p.health = p.maxHealth;
+      _chain('super me'); } },
+    crowd:    { d: 'spawn N bots with random weapons and classes (default 4)', run: (n) => {
+      if (!_inGame()) return;
+      const W = Object.keys(WEAPONS), C = Object.keys(CLASSES), pick = a => a[Math.floor(Math.random() * a.length)];
+      for (let i = 0; i < Math.min(12, parseInt(n, 10) || 4); i++) window._consoleExec('spawn bot ' + pick(W) + ' ' + pick(C)); } },
+    duel:     { d: 'start a vs-bot match with your weapon and class: scenario duel <weapon> [class]', run: (w, c) => {
+      window._consoleExec('startmatch p1vsbot');
+      _whenInGame(() => { if (w) _chain('setweapon ' + w + ' me' + (c ? '; setclass ' + c + ' me' : '')); _consoleOk('Duel ready.'); }); } },
+    boss3:    { d: 'boss fight at phase 3 (starts one if needed)', run: () => {
+      if (_who('boss').length) { window._consoleExec('boss phase 3'); return; }
+      window._consoleExec('startboss boss');
+      _whenInGame(() => window._consoleExec('boss phase 3')); } },
+    slowmo:   { d: 'quarter speed with hitboxes on', run: () => { _chain('speed 0.25'); debugMode = true; showHitboxes = true; } },
+    reset:    { d: 'turn every toggle off and heal everyone', run: () => {
+      X.infSuper = X.noCd = X.aiFreeze = false;
+      if (X.frozen) { X.frozen = false; hitStopFrames = 0; }
+      _chain('speed 1; grav reset');
+      if (typeof gameRunning !== 'undefined' && gameRunning) _chain('godmode me off; heal all'); } },
+  };
+
+  function _chain(line) {
+    for (const part of String(line).split(';')) { const c = part.trim(); if (c) window._consoleExec(c); }
+  }
+
+  // ── Command catalog (autocomplete + help) ──────────────────────────────────
+  const WHO = ['me', 'p1', 'p2', 'all', 'boss', 'bots', 'enemies', 'minions'];
+  const ON = ['on', 'off'];
+  const keysOf = name => () => { try { return Object.keys(_geval(name) || {}); } catch (e) { return []; } };
+  const W = keysOf('WEAPONS'), C = keysOf('CLASSES'), A = keysOf('ARENAS');
+  const CMDS = [
+    // new
+    ['super', 'fill super meter', [WHO]], ['infsuper', 'keep your super full', [ON]], ['nocd', 'no cooldowns for you', [ON]],
+    ['cd', 'reset cooldowns once', [WHO]], ['dmg', 'damage multiplier: dmg <x> [who]', [['1', '2', '5', '999'], WHO]],
+    ['hp', 'set health: hp <n|max|%> [who]', [['max', '1', '50%'], WHO]], ['tp', 'teleport: tp <x> <y> [who]  or  tp <who> <toWho>', [WHO, WHO]],
+    ['aifreeze', 'AI stands still', [ON]], ['speed', 'game speed that sticks (0.1–1)', [['0.1', '0.25', '0.5', '1']]],
+    ['grav', 'gravity multiplier that works', [['0.3', '0.6', '1.6', '2.5', 'reset']]], ['freeze', 'freeze time', [ON]],
+    ['step', 'advance N frames while frozen', [['1', '5', '10', '60']]], ['inspect', 'show a fighter in detail', [WHO]],
+    ['props', 'list properties: props <expression>', []], ['find', 'search global names: find <text>', []],
+    ['watch', 'live readout: watch <expression> | watch clear | watch del <n>', [['clear', 'del', '$me.health', '$me.superMeter', 'slowMotion', 'frameCount']]],
+    ['scenario', 'set up a situation', [() => Object.keys(SCENARIOS), W, C]], ['macro', 'save/run command lists', [['save', 'run', 'list', 'del'], () => Object.keys(_macros())]],
+    ['after', 'run later: after <seconds> <command>', [['1', '3', '5']]], ['repeat', 'repeat <n> <command>', [['3', '5', '10']]],
+    ['js', 'evaluate JavaScript (same as eval, prettier output)', []], ['eval', 'evaluate JavaScript', []],
+    // existing
+    ['help', 'command list', []], ['clear', 'clear output', []], ['status', 'game state summary', []], ['syscheck', 'health-check systems', []],
+    ['check fighter', 'fighter dump', [['p1', 'p2']]], ['fps', 'current FPS', []], ['time', 'frame count and clock', []], ['version', 'build info', []],
+    ['heal', 'restore health', [WHO]], ['kill', 'kill fighters', [WHO]], ['sethp', 'set HP: sethp [who] <n>', [['p1', 'p2', 'player', 'boss', 'all']]],
+    ['lives', 'lives <n> [p1|p2|all]', [['1', '3', '99'], ['p1', 'p2', 'all']]], ['revive', 'respawn fighters', [WHO]],
+    ['godmode', 'invincible + fly', [WHO, ON]], ['setmap', 'change arena', [A]], ['setweapon', 'setweapon <key> [who]', [W, WHO]],
+    ['setclass', 'setclass <key> [who]', [C, WHO]], ['slow', 'slow motion', [ON]], ['pause', 'pause game', [['on', 'off', 'toggle']]],
+    ['spawn', 'spawn entity', [['bot', 'dummy', 'minion', 'forestbeast', 'yeti', 'god', 'absoluteaxiom'], W, C]],
+    ['summon', 'summon god/axiom', [['god', 'absoluteaxiom']]], ['bots', 'bots reset|kill', [['reset', 'kill']]],
+    ['boss phase', 'force boss phase', [['1', '2', '3']]], ['arena list', 'arena keys', []], ['weapon list', 'weapon keys', []],
+    ['class list', 'class keys', []], ['story list', 'story chapters', []], ['coins', 'coins show|set|give|take', [['show', 'set', 'give', 'take']]],
+    ['unlock', 'unlock trueform|megaknight', [['trueform', 'megaknight']]], ['unlockall', 'unlock everything', []],
+    ['unlockallskills', 'unlock all items', []], ['setchapter', 'setchapter <id> (0-based)', []],
+    ['startmatch', 'start a match', [['p1vsbot', '2p', 'boss', 'trueform', 'training', 'adaptive', 'sovereign']]],
+    ['startboss', 'start a boss fight', [['boss', 'trueform']]], ['studio', 'recording stage', []], ['debug', 'debug overlay', [ON]],
+    ['brain', 'trained brain plays P2', [['on', 'off']]], ['read', 'brain read layer', [ON]], ['sov stats', 'Sovereign stats', []],
+    ['sov predict', 'Sovereign predictions', []], ['sov reset', 'reset Sovereign', []], ['tf adapt', 'TrueForm adaptation', []],
+    ['tf profile', 'TrueForm player profile', []], ['camtrace', 'camera trace', [['arm', 'start', 'stop', 'mark', 'report']]],
+    ['maps analyze', 'analyze all maps', []], ['map analyze', 'analyze one map', [A]], ['pf', 'pathfinding debug', []],
+    ['who', 'list accounts', []], ['whoami', 'your identity', []], ['net status', 'network role', []], ['net peers', 'peer roster', []],
+    ['server', 'server health', []], ['sync', 'pull bans', []], ['notify', 'notify <message>', []], ['banlist', 'active bans', []],
+    ['ban', 'ban <target> [min] [reason]', []], ['tempban', 'tempban <target> <min>', []], ['unban', 'unban <target>', []],
+    ['kick', 'kick <target>', []], ['bancheck', 'bancheck <target>', []], ['account info', 'account info <id>', []],
+    ['grant unlock', 'grant unlock <type> <accountId>', [['creator', 'trueform', 'sovereign', 'absoluteaxiom', 'god', 'bossrush', 'megaknight', 'damnation']]],
+    ['setaccountrole', 'setaccountrole <id> <role>', []], ['reload', 'reload page', []], ['atk', 'attack sandbox', [['help', 'list', 'gui', 'summon', 'all', 'reset']]],
+    ['vector', 'AI console mode', []],
+  ];
+  const _cmdNames = new Set(CMDS.map(c => c[0].split(' ')[0]));
+
+  // ── Command handling ───────────────────────────────────────────────────────
+  function _handle(raw) {
+    const s = raw.trim();
+    const parts = s.split(/\s+/);
+    const c0 = parts[0].toLowerCase();
+    const a1 = parts[1], a2 = parts[2];
+
+    if (c0 === 'js' || c0 === 'eval' || s.startsWith('=')) {
+      if (!_devOnly()) return true;
+      _evalAndPrint(s.startsWith('=') ? s.slice(1) : s.slice(parts[0].length));
+      return true;
+    }
+    // Chains: "heal all; super me; speed 0.5"
+    if (s.includes(';') && c0 !== 'macro') { _chain(s); return true; }
+
+    switch (c0) {
+      case 'help': {
+        if (a1) return false;
+        _origExec(raw);
+        _consolePrint('── More (Tab completes commands and JavaScript) ──────────────', '#556688');
+        for (const [n, d] of CMDS.slice(0, 22)) _consolePrint(n.padEnd(14) + '— ' + d, '#ffcc66');
+        _consolePrint('$me $p1 $p2 $boss $all $enemies $bots $arena, $find(name) $super(p) $heal(p) $tp(p,x,y) $set(p,{…}) $run(cmd), $_ = last result', '#ffcc66');
+        _consolePrint('Chain with ;  e.g.  heal all; super me; speed 0.5     Shortcut: =expr is js expr', '#ffcc66');
+        return true;
+      }
+      case 'super': {
+        if (!_devOnly() || !_inGame()) return true;
+        const t = _who(a1, 'me'); window.$super(t); _consoleOk('Super full: ' + _whoNames(t)); return true;
+      }
+      case 'infsuper': if (!_devOnly()) return true; X.infSuper = _onOff(a1, X.infSuper); _consoleOk('Infinite super ' + (X.infSuper ? 'ON' : 'OFF')); return true;
+      case 'nocd':     if (!_devOnly()) return true; X.noCd = _onOff(a1, X.noCd); _consoleOk('No cooldowns ' + (X.noCd ? 'ON' : 'OFF')); return true;
+      case 'aifreeze': if (!_devOnly()) return true; X.aiFreeze = _onOff(a1, X.aiFreeze); _consoleOk('AI freeze ' + (X.aiFreeze ? 'ON' : 'OFF')); return true;
+      case 'cd': {
+        if (!_devOnly() || !_inGame()) return true;
+        const t = _who(a1, 'me'); t.forEach(f => { f.cooldown = 0; f.cooldown2 = 0; f.abilityCooldown = 0; f.abilityCooldown2 = 0; });
+        _consoleOk('Cooldowns reset: ' + _whoNames(t)); return true;
+      }
+      case 'dmg': {
+        if (!_devOnly() || !_inGame()) return true;
+        const x = parseFloat(a1); if (!(x > 0)) { _consoleErr('Usage: dmg <multiplier> [who]   (1 = normal)'); return true; }
+        const t = _who(a2, 'me'); t.forEach(f => { f.dmgMult = x; }); _consoleOk('Damage ×' + x + ': ' + _whoNames(t)); return true;
+      }
+      case 'hp': {
+        if (!_devOnly() || !_inGame()) return true;
+        const t = _who(a2, 'me');
+        if (!a1) { _consoleErr('Usage: hp <n|max|50%> [who]'); return true; }
+        t.forEach(f => {
+          const v = a1 === 'max' ? f.maxHealth : a1.endsWith('%') ? f.maxHealth * parseFloat(a1) / 100 : parseFloat(a1);
+          if (!isNaN(v)) f.health = Math.max(1, Math.min(f.maxHealth, Math.round(v)));
+        });
+        _consoleOk('HP set: ' + _whoNames(t)); return true;
+      }
+      case 'tp': {
+        if (!_devOnly() || !_inGame()) return true;
+        if (!isNaN(parseFloat(a1)) && !isNaN(parseFloat(a2))) {
+          const t = _who(parts[3], 'me'); t.forEach(f => window.$tp(f, parseFloat(a1), parseFloat(a2)));
+          _consoleOk('Teleported ' + _whoNames(t)); return true;
+        }
+        const src = _who(a1, 'me'), dst = _who(a2, 'me')[0];
+        if (!dst || !src.length) { _consoleErr('Usage: tp <x> <y> [who]   or   tp <who> <toWho>'); return true; }
+        src.forEach((f, i) => { if (f !== dst) window.$tp(f, dst.cx() + (i + 1) * 60 * (dst.facing || 1), dst.y + dst.h); });
+        _consoleOk('Moved ' + _whoNames(src) + ' to ' + _label(dst)); return true;
+      }
+      case 'speed': case 'setspeed': {
+        if (!_devOnly()) return true;
+        const v = parseFloat(a1); if (!(v > 0 && v <= 1)) { _consoleErr('Usage: speed <0.05–1>   (sticks until speed 1)'); return true; }
+        X.speed = v; if (v === 1) slowMotion = 1; _consoleOk('Game speed ' + v + '×'); return true;
+      }
+      case 'grav': case 'gravity': {
+        if (!_devOnly()) return true;
+        if (!a1) { _consolePrint('Gravity multiplier: ' + (X.grav === null ? 'arena default' : X.grav), '#88bbff'); return true; }
+        if (a1 === 'reset' || a1 === 'off') {
+          X.grav = null; for (const [ar, mods] of _gravOrig) ar.modifiers = mods; _gravOrig.clear();
+          _consoleOk('Gravity back to arena default'); return true;
+        }
+        const g = parseFloat(a1); if (!(g >= 0)) { _consoleErr('Usage: grav <multiplier>|reset'); return true; }
+        X.grav = g; _consoleOk('Gravity ×' + g); return true;
+      }
+      case 'noclip': if (!_devOnly()) return true; _consolePrint('noclip never worked — godmode includes flight through floors (jump = up, shield = down).', '#ffaa44'); return true;
+      case 'freeze': {
+        if (!_devOnly() || !_inGame()) return true;
+        X.frozen = _onOff(a1, X.frozen); X.stepUntil = -1; hitStopFrames = X.frozen ? 1e9 : 0;
+        _consoleOk(X.frozen ? 'Time frozen — "step N" advances N frames, "freeze off" resumes' : 'Time resumed'); return true;
+      }
+      case 'step': {
+        if (!_devOnly() || !_inGame()) return true;
+        const n = Math.max(1, parseInt(a1, 10) || 1);
+        X.frozen = true; X.stepUntil = frameCount + n; hitStopFrames = 0; return true;
+      }
+      case 'inspect': {
+        if (!_devOnly() || !_inGame()) return true;
+        const t = _who(a1, 'me'); if (!t.length) { _consoleErr('Nobody matches "' + a1 + '"'); return true; }
+        for (const f of t) {
+          _consoleOk(_fmt(f));
+          _consolePrint('  state ' + f.state + '  vx ' + (f.vx || 0).toFixed(1) + ' vy ' + (f.vy || 0).toFixed(1) + '  onGround ' + f.onGround +
+            '  stun ' + (f.stunTimer || 0) + '  invincible ' + (f.invincible || 0) + '  dmgMult ' + (f.dmgMult === undefined ? 1 : f.dmgMult) +
+            '  cd ' + (f.cooldown || 0) + '/' + (f.abilityCooldown || 0) + '  shielding ' + !!f.shielding, '#aabbdd');
+        }
+        window.$_ = t.length === 1 ? t[0] : t; return true;
+      }
+      case 'props': {
+        if (!_devOnly()) return true;
+        try { const o = _geval(s.slice(parts[0].length)); _consolePrint(_propNames(o).join('  ') || '(none)', '#aabbdd'); }
+        catch (e) { _consoleErr(e.message); }
+        return true;
+      }
+      case 'find': {
+        if (!a1) { _consoleErr('Usage: find <text>'); return true; }
+        const q = a1.toLowerCase();
+        const hits = _globalNames().filter(n => n.toLowerCase().includes(q)).slice(0, 80);
+        _consolePrint(hits.length ? hits.join('  ') : 'No globals contain "' + a1 + '"', '#aabbdd'); return true;
+      }
+      case 'watch': {
+        if (!_devOnly()) return true;
+        if (!a1) { _consolePrint(X.watches.length ? X.watches.map((w, i) => (i + 1) + '. ' + w).join('   ') : 'No watches. watch <expression>', '#aabbdd'); return true; }
+        if (a1 === 'clear') { X.watches = []; _drawWatches(); _consoleOk('Watches cleared'); return true; }
+        if (a1 === 'del') { X.watches.splice((parseInt(a2, 10) || 0) - 1, 1); _drawWatches(); return true; }
+        X.watches.push(s.slice(parts[0].length).trim()); _drawWatches(); _consoleOk('Watching ' + X.watches[X.watches.length - 1]); return true;
+      }
+      case 'scenario': {
+        const sc = SCENARIOS[(a1 || '').toLowerCase()];
+        if (!sc) {
+          _consolePrint('Scenarios:', '#88bbff');
+          for (const k in SCENARIOS) _consolePrint('  ' + k.padEnd(10) + SCENARIOS[k].d, '#aabbdd');
+          return true;
+        }
+        if (!_devOnly()) return true;
+        sc.run(a2, parts[3]); return true;
+      }
+      case 'macro': {
+        const m = _macros(), sub = (a1 || 'list').toLowerCase();
+        if (sub === 'list') {
+          const ks = Object.keys(m);
+          if (!ks.length) _consolePrint('No macros. macro save <name> <cmd; cmd; …>', '#aabbdd');
+          ks.forEach(k => _consolePrint('  ' + k + ' = ' + m[k], '#aabbdd'));
+          return true;
+        }
+        if (sub === 'save') {
+          const body = s.replace(/^\S+\s+\S+\s+\S+\s*/, '').trim();
+          if (!a2 || !body) { _consoleErr('Usage: macro save <name> <command; command; …>'); return true; }
+          m[a2.toLowerCase()] = body;
+          _saveMacros(m) ? _consoleOk('Saved macro "' + a2 + '" — run it with: ' + a2.toLowerCase()) : _consoleErr('Could not save (storage blocked)');
+          return true;
+        }
+        if (sub === 'del') { delete m[(a2 || '').toLowerCase()]; _saveMacros(m); _consoleOk('Deleted ' + a2); return true; }
+        if (sub === 'run' && m[(a2 || '').toLowerCase()]) { _chain(m[a2.toLowerCase()]); return true; }
+        _consoleErr('Usage: macro save|run|list|del'); return true;
+      }
+      case 'after': {
+        const sec = parseFloat(a1), rest = s.split(/\s+/).slice(2).join(' ');
+        if (!(sec >= 0) || !rest) { _consoleErr('Usage: after <seconds> <command>'); return true; }
+        setTimeout(() => { _consolePrint('> ' + rest + '  (after ' + sec + 's)', '#ffffff'); _chain(rest); }, sec * 1000);
+        _consoleOk('Scheduled in ' + sec + 's'); return true;
+      }
+      case 'repeat': {
+        const n = Math.min(50, parseInt(a1, 10) || 0), rest = s.split(/\s+/).slice(2).join(' ');
+        if (!n || !rest) { _consoleErr('Usage: repeat <n> <command>'); return true; }
+        for (let i = 0; i < n; i++) _chain(rest);
+        return true;
+      }
+    }
+    // A saved macro name typed on its own runs the macro.
+    const mac = _macros()[c0];
+    if (mac && parts.length === 1 && !_cmdNames.has(c0)) { _chain(mac); return true; }
+    // godmode/setweapon/setclass in the original only know p1/p2; route other targets here.
+    if ((c0 === 'setweapon' || c0 === 'setclass') && a2 && !/^p?[12]$/i.test(a2)) {
+      if (!_inGame()) return true;
+      const t = _who(a2);
+      for (const f of t) {
+        if (c0 === 'setweapon' && WEAPONS[a1]) { f.weapon = WEAPONS[a1]; f.weaponKey = a1; }
+        if (c0 === 'setclass' && CLASSES[a1] && typeof applyClass === 'function') applyClass(f, a1);
+      }
+      _consoleOk(c0.slice(3) + ' ' + a1 + ': ' + _whoNames(t)); return true;
+    }
+    if (c0 === 'godmode' && a1 && !/^(p?[12]|on|off|all|everyone)$/i.test(a1)) {
+      if (!_devOnly() || !_inGame()) return true;
+      const on = (a2 || 'on').toLowerCase() !== 'off', t = _who(a1);
+      t.forEach(f => { f.godmode = on; f._godmode = on; f.invincible = on ? 999999 : 0; });
+      _consoleOk('Godmode ' + (on ? 'ON' : 'OFF') + ': ' + _whoNames(t)); return true;
+    }
+    return false;
+  }
+
+  const _origExec = window._consoleExec;
+  window._consoleExec = function(raw) {
+    if (raw && _handle(String(raw))) return;
+    _origExec(raw);
+  };
+
+  // ── Autocomplete ───────────────────────────────────────────────────────────
+  const _CURATED = ['players', 'minions', 'trainingDummies', 'gameMode', 'gameRunning', 'currentArena', 'currentArenaKey', 'ARENAS',
+    'WEAPONS', 'CLASSES', 'settings', 'slowMotion', 'hitStopFrames', 'frameCount', 'activeCinematic', 'isCinematic', 'paused',
+    'debugMode', 'showHitboxes', 'storyModeActive', 'onlineMode', 'camZoomTarget', 'camXCur', 'camYCur', 'screenShake',
+    'bossFloorState', 'tfGravityInverted', 'tfControlsInverted', 'GAME_W', 'GAME_H', 'projectiles', 'damageTexts', 'particles',
+    'dealDamage', 'applyClass', 'spawnParticles', 'triggerFinisher', 'STORY_CHAPTER_REGISTRY', 'GameState', 'AccountManager'];
+  let _fileGlobals = null;
+  function _loadFileGlobals() {
+    if (_fileGlobals) return;
+    _fileGlobals = [];
+    if (location.protocol === 'file:') return;
+    fetch('tools/audit/globals.json').then(r => r.ok ? r.json() : null)
+      .then(j => { if (j && Array.isArray(j.globals)) _fileGlobals = j.globals; }).catch(() => {});
+  }
+  function _globalNames() {
+    const set = new Set([..._CURATED, ...Object.keys(_helpers), '$find', '$super', '$heal', '$tp', '$set', '$run', '$props', '$_']);
+    for (const n of _fileGlobals || []) set.add(n);
+    for (const k of Object.getOwnPropertyNames(window)) if (/^[A-Za-z_$][\w$]*$/.test(k) && !/^on[a-z]/.test(k) && !/^webkit/i.test(k)) set.add(k);
+    return [...set];
+  }
+  function _propNames(o) {
+    if (o === null || o === undefined) return [];
+    const seen = new Set(), out = [];
+    let cur = typeof o === 'object' || typeof o === 'function' ? o : Object(o);
+    while (cur && cur !== Object.prototype && cur !== Function.prototype) {
+      for (const k of Object.getOwnPropertyNames(cur)) if (!seen.has(k) && k !== 'constructor' && /^[A-Za-z_$][\w$]*$/.test(k)) { seen.add(k); out.push(k); }
+      cur = Object.getPrototypeOf(cur);
+    }
+    return out;
+  }
+  function _hint(v) {
+    const t = typeof v;
+    if (t === 'number') return String(Number.isInteger(v) ? v : Math.round(v * 100) / 100);
+    if (t === 'boolean') return String(v);
+    if (t === 'string') return JSON.stringify(v.length > 24 ? v.slice(0, 24) + '…' : v);
+    if (t === 'function') return 'ƒ';
+    if (Array.isArray(v)) return 'Array(' + v.length + ')';
+    if (v && t === 'object') return (v.constructor && v.constructor.name) || 'object';
+    return t;
+  }
+
+  // Returns { items:[{text, hint}], from } where from = index in the input the completion replaces.
+  function _suggest(val) {
+    const seg0 = val.lastIndexOf(';') + 1;
+    const lead = val.slice(seg0).match(/^\s*/)[0].length;
+    const segStart = seg0 + lead, seg = val.slice(segStart);
+    if (!seg) return null;
+    const js = seg.match(/^(?:js|eval)\s+|^=/i);
+    if (js) {
+      const code = seg.slice(js[0].length);
+      const tail = code.match(/[\w$.\[\]]*$/)[0];
+      const dot = tail.lastIndexOf('.');
+      const partial = dot >= 0 ? tail.slice(dot + 1) : tail;
+      if (!/^[\w$]*$/.test(partial)) return null;
+      const from = val.length - partial.length;
+      if (dot >= 0) {
+        const base = tail.slice(0, dot);
+        // Only plain property chains are evaluated, so completing never calls a function.
+        if (!/^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\[\d+\])*$/.test(base)) return null;
+        let obj; try { obj = _geval(base); } catch (e) { return null; }
+        // Internal _names sink below the public ones unless the user typed the underscore.
+        const names = _propNames(obj).filter(n => n.startsWith(partial)).sort((a, b) => (a[0] === '_') - (b[0] === '_') || a.localeCompare(b));
+        return { from, items: names.slice(0, 60).map(n => { let v; try { v = obj[n]; } catch (e) {} return { text: n, hint: _hint(v) }; }) };
+      }
+      if (!partial) return null;
+      _loadFileGlobals();
+      const names = _globalNames().filter(n => n.startsWith(partial)).sort((a, b) => a.length - b.length || a.localeCompare(b));
+      return { from, items: names.slice(0, 60).map(n => { let v; try { v = _geval(n); } catch (e) {} return { text: n, hint: _hint(v) }; }) };
+    }
+    const lower = seg.toLowerCase();
+    const toks = seg.split(/\s+/);
+    // Whole-command matches (handles two-word commands like "boss phase").
+    if (!/\s$/.test(seg) || toks.length <= 1) {
+      const cmdHits = CMDS.filter(c => c[0].startsWith(lower) && c[0] !== lower);
+      if (toks.length <= 2 && cmdHits.length) return { from: segStart, items: cmdHits.map(c => ({ text: c[0], hint: c[1] })) };
+    }
+    // Argument completion.
+    const spec = CMDS.slice().sort((a, b) => b[0].length - a[0].length).find(c => lower.startsWith(c[0] + ' '));
+    if (!spec) return null;
+    const argText = seg.slice(spec[0].length + 1);
+    const args = argText.split(/\s+/);
+    const idx = args.length - 1, partial = args[idx] || '';
+    let src = spec[2][idx];
+    if (spec[0] === 'macro' && idx === 1 && args[0] === 'save') src = null;
+    if (!src) return null;
+    const list = (typeof src === 'function' ? src() : src).filter(o => o.toLowerCase().startsWith(partial.toLowerCase()) && o !== partial);
+    return list.length ? { from: val.length - partial.length, items: list.slice(0, 60).map(o => ({ text: o, hint: '' })) } : null;
+  }
+
+  let _ac = null, _acItems = [], _acIdx = -1, _acFrom = 0;
+  function _acBox() {
+    if (_ac) return _ac;
+    const ov = document.getElementById('gameConsoleOverlay');
+    if (!ov) return null;
+    _ac = document.createElement('div');
+    _ac.style.cssText = 'position:absolute;left:28px;bottom:34px;min-width:260px;max-width:70vw;max-height:190px;overflow-y:auto;display:none;' +
+      'background:rgba(14,16,34,0.98);border:1px solid #3366ff;border-radius:6px;font:12px "Courier New",monospace;z-index:2;box-shadow:0 -4px 16px rgba(0,0,0,.5)';
+    ov.appendChild(_ac);
+    _ac.addEventListener('mousedown', e => {
+      const row = e.target.closest('[data-i]');
+      if (row) { e.preventDefault(); _acIdx = +row.dataset.i; _acAccept(); }
+    });
+    return _ac;
+  }
+  function _acRender() {
+    const box = _acBox(); if (!box) return;
+    if (!_acItems.length) { box.style.display = 'none'; return; }
+    const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    box.innerHTML = _acItems.map((it, i) =>
+      '<div data-i="' + i + '" style="padding:2px 8px;cursor:pointer;display:flex;gap:14px;justify-content:space-between;' +
+      (i === _acIdx ? 'background:#23306a;color:#fff' : 'color:#cfe') + '"><span>' + esc(it.text) + '</span>' +
+      '<span style="color:#7f8bb5">' + esc(it.hint || '') + '</span></div>').join('');
+    box.style.display = 'block';
+    const sel = box.children[_acIdx]; if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+  function _acUpdate() {
+    const inp = document.getElementById('gameConsoleInput'); if (!inp) return;
+    if (inp.selectionStart !== inp.value.length) { _acItems = []; _acRender(); return; }
+    let r = null; try { r = _suggest(inp.value); } catch (e) {}
+    _acItems = r ? r.items : []; _acFrom = r ? r.from : 0; _acIdx = -1;
+    _acRender();
+  }
+  function _acAccept() {
+    const inp = document.getElementById('gameConsoleInput'); if (!inp || !_acItems.length) return;
+    const it = _acItems[Math.max(0, _acIdx)];
+    const isJs = /(?:^|;)\s*(?:js|eval)\s|(?:^|;)\s*=/i.test(inp.value);
+    inp.value = inp.value.slice(0, _acFrom) + it.text + (isJs ? '' : ' ');
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+    _acUpdate();
+  }
+
+  let _acWired = false;
+  function _acWire() {
+    if (_acWired) return;
+    const inp = document.getElementById('gameConsoleInput'); if (!inp) return;
+    _acWired = true;
+    _loadFileGlobals();
+    inp.addEventListener('input', _acUpdate);
+    inp.addEventListener('blur', () => setTimeout(() => { _acItems = []; _acRender(); }, 120));
+    // Capture on document runs before the input's own history handler and the global Enter handler.
+    document.addEventListener('keydown', e => {
+      if (e.target !== inp) return;
+      const open = _acItems.length > 0;
+      const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+      if (e.key === 'Tab') {
+        stop();
+        if (!open) _acUpdate();
+        if (_acItems.length) _acAccept();
+      } else if (open && e.key === 'ArrowDown') { stop(); _acIdx = (_acIdx + 1) % _acItems.length; _acRender(); }
+      else if (open && e.key === 'ArrowUp') { stop(); _acIdx = _acIdx <= 0 ? _acItems.length - 1 : _acIdx - 1; _acRender(); }
+      else if (open && e.key === 'Enter' && _acIdx >= 0) { stop(); _acAccept(); }
+      else if (open && e.key === 'Escape') { stop(); _acItems = []; _acRender(); }
+      else if (e.key === 'Enter') { _acItems = []; _acRender(); }
+    }, true);
+  }
+  const _origOpen = window.openGameConsole;
+  window.openGameConsole = function() {
+    _origOpen.apply(this, arguments);
+    _acWire();
+    const inp = document.getElementById('gameConsoleInput');
+    if (inp) inp.placeholder = 'type a command… Tab completes · HELP for list · =expr runs JavaScript';
+  };
+})();

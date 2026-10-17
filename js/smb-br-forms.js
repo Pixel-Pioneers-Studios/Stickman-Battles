@@ -1,15 +1,11 @@
 'use strict';
-// smb-br-forms.js — Battle Royale creature forms.
-// Kill the beast or the yeti and you become it: no weapons, the creature's body,
-// moves, speed and toughness, and a form health bar that sits on top of your own.
-// When the form's health is gone you shed it and are back to your own fighter,
-// holding your own weapon. Bots earn forms the same way the player does.
-// Depends on: smb-fighter.js, smb-combat.js, smb-enemies-core.js (ForestBeast,
-//             creatureFoes), smb-enemies-creatures.js (Yeti), smb-battleroyale.js
+// Battle Royale creature forms. Killing a beast or yeti turns you into it: its body, moves and speed,
+// with a form health bar on top of your own. When the form dies you shed it and get your weapon back.
+// Depends on smb-fighter.js, smb-combat.js, smb-enemies-core.js (ForestBeast, creatureFoes),
+// smb-enemies-creatures.js (Yeti), smb-battleroyale.js.
 //
-// A form is a set of instance properties grafted onto the fighter and removed
-// again on shedding. The fighter object never changes identity, so nothing that
-// holds a reference to it (players[], minions[], targets, the camera) notices.
+// Forms are instance properties grafted onto the fighter and removed on shedding. The fighter
+// object keeps its identity, so references (players[], minions[], the camera) stay valid.
 
 const BR_FORMS = {
   beast: {
@@ -30,7 +26,7 @@ const BR_FORMS = {
   },
 };
 const BR_FORM_LIFESTEAL = 0.35;   // share of damage dealt that refills the form
-const BR_FORM_OFFER_F   = 360;    // the player has 6s to take a form; silence declines
+const BR_FORM_OFFER_F   = 360;    // 6s to accept, silence declines
 const BR_FORM_FIELDS = ['weapon', 'weaponKey', 'dmgMult', 'kbResist', 'kbBonus', 'classSpeedMult',
                         'w', 'h', '_noWhiffGuard', '_wxExtraJumps', 'isRaged'];
 const BR_FORM_METHODS = ['attack', 'ability', 'useSuper', 'activateSuper', 'draw'];
@@ -48,7 +44,7 @@ function _brFormIsLocal(f) {
   return typeof _brIsAudibleHit !== 'function' || _brIsAudibleHit(f, f);
 }
 
-// ── Grant / shed ────────────────────────────────────────────
+// Grant and shed
 function brGrantForm(f, kind) {
   const def = BR_FORMS[kind];
   if (!f || !def || f.health <= 0) return;
@@ -61,13 +57,13 @@ function brGrantForm(f, kind) {
     saved.own[m] = Object.prototype.hasOwnProperty.call(f, m) ? f[m] : _BR_FORM_NONE;
   }
 
-  // Keep the feet where they were: the new body grows up from the ground.
+  // Keep the feet planted; the new body grows up from the ground.
   const feet = f.y + f.h, cx = f.cx();
   f.w = def.w; f.h = def.h;
   f.x = cx - def.w / 2; f.y = feet - def.h;
 
-  // A stand-in weapon so the bot brain and the AI's range checks have something
-  // honest to read. noSwingHitbox: damage comes only from the form's own moves.
+  // Stand-in weapon so bot AI range checks read something real.
+  // noSwingHitbox: damage comes only from the form's own moves.
   f.weapon = Object.assign({}, WEAPONS[def.weaponBase], {
     name: def.label + ' FORM', type: 'melee', range: def.range, cooldown: def.cooldown,
     abilityCooldown: def.abilityCd, noSwingHitbox: true, endlag: 0,
@@ -140,9 +136,8 @@ function _brShedForm(f, silent) {
     damageTexts.push(new DamageText(f.cx(), f.y - 30, 'FORM BROKEN', '#ffaa88'));
 }
 
-// ── Damage pipeline hooks (called from dealDamage) ──────────
-// Returns the damage that gets through to the body. Storm, lava and other
-// attacker-less damage skips the form: it is the ring's job to end a match.
+// Damage hooks
+// Returns the damage that reaches the body. Attacker-less damage (storm, lava) skips the form.
 function brFormAbsorb(target, dmg, attacker) {
   const fm = target._brForm;
   if (!fm || fm.broken || dmg <= 0 || !attacker) return dmg;
@@ -170,7 +165,7 @@ function brFormOnHit(attacker, target, dmg) {
     damageTexts.push(new DamageText(attacker.cx(), attacker.y - 18, '+' + n, '#44ff88'));
 }
 
-// ── Moves ───────────────────────────────────────────────────
+// Moves
 function _brFormCanAct(f) {
   if (typeof isCinematic !== 'undefined' && isCinematic) return false;
   if (f.health <= 0 || f.stunTimer > 0 || f.ragdollTimer > 0 || f.shielding) return false;
@@ -291,7 +286,7 @@ function _brFormSlamImpact(f, fm) {
   else f._freezeZones.push({ x: f.cx(), y: gy, r: 110, timer: 240, maxTimer: 240 });
 }
 
-// ── Per-frame ───────────────────────────────────────────────
+// Per-frame
 function brUpdateForms() {
   const all = players.concat(minions);
   for (const f of all) {
@@ -299,7 +294,7 @@ function brUpdateForms() {
     if (f._brFormPending) {
       const k = f._brFormPending;
       f._brFormPending = null;
-      // The player chooses (F takes it, G or waiting turns it down); bots always take it.
+      // Player chooses (F accepts, G or waiting declines). Bots always accept.
       if (f.health > 0) {
         if (!f.isAI && players.indexOf(f) !== -1) f._brFormOffer = { kind: k, until: frameCount + BR_FORM_OFFER_F };
         else brGrantForm(f, k);
@@ -358,7 +353,7 @@ function _brFormTick(f, fm) {
   }
 }
 
-// ── Draw ────────────────────────────────────────────────────
+// Draw
 function _brFormDraw() {
   const fm = this._brForm;
   if (!fm) return Fighter.prototype.draw.call(this);
@@ -367,8 +362,8 @@ function _brFormDraw() {
   if (fm.swipe > 0 && this.health > 0) _brFormDrawSwipe(this, fm);
 }
 
-// Creature bodies have no swing pose of their own, so the strike is drawn as
-// the trail it leaves: three claw rakes for the beast, one heavy arc for the yeti.
+// Creature bodies have no swing pose, so the strike is drawn as its trail:
+// three claw rakes for the beast, one heavy arc for the yeti.
 function _brFormDrawSwipe(f, fm) {
   const t = fm.swipe / 10;
   const cx = f.cx() + f.facing * (f.w * 0.55), cy = f.cy();

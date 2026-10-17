@@ -1,7 +1,5 @@
 // Appends chapters for act4mv/smb-act4mv-seraph.js.
-// The Seraph Arc — a fracture boss whose purpose was inverted by the void.
-// They were a healer. Now they drain. They didn't choose this and can't stop it.
-// The player's fragment pulls toward them — crystallized void energy recognizing its source.
+// The Seraph Arc, a fracture boss whose purpose was inverted by the void.
 // Slots at IDs 108–112 in the multiverse arc, after the Collision Realm.
 STORY_CHAPTER_REGISTRY.push(
 

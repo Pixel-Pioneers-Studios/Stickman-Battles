@@ -1,22 +1,11 @@
 'use strict';
-// smb-finisher-weapon — Depends on: smb-finisher-helpers.js
+// smb-finisher-weapon.js: depends on smb-finisher-helpers.js
 
-// ============================================================
 // WEAPON FINISHER DEFINITIONS
-// ============================================================
-// Every weapon finisher follows the same 6-phase structure as
-// the boss finishers:
-//   Phase 1: bars in, slow-mo 0.25, camera frames both fighters
-//   Phase 2: attacker wind-up approach, energy aura builds
-//   Phase 3: DEEP FREEZE (slowMo 0.07) — 10 frames before impact
-//   Phase 4: STRIKE — full speed, shake, flash, particles, shockwave
-//   Phase 5: aftermath — target flies, camera tracks & zooms impact
-//   Phase 6: bars out, camera restore
-// All finishers include weapon-flavored subtitles.
-// ============================================================
+// Weapon finishers share a 6-phase shape: bars in and slow-mo, attacker approach, deep freeze
+// (slowMo 0.07) for 10 frames before impact, strike, aftermath, bars out. Subtitles are weapon-flavoured.
 
-// opts (all optional) are merged verbatim and consumed by the finisher engine's shared
-// presentation layer: { swing, impact, face } — see smb-finisher-engine.js.
+// opts are merged verbatim and read by the finisher engine: { swing, impact, face }.
 function _wfDef(name, accent, dur, setupFn, updateFn, drawFn, opts) {
   return Object.assign(
     { name, accentColor: accent, duration: dur, setup: setupFn, update: updateFn, draw: drawFn },
@@ -24,14 +13,13 @@ function _wfDef(name, accent, dur, setupFn, updateFn, drawFn, opts) {
   );
 }
 
-// Both fighters end up facing the same way — used by the pass-through finishers
-// (ghost step / iaijutsu) so the attacker lands with its back to the victim.
+// Both fighters end up facing the same way. Pass-through finishers (ghost step, iaijutsu)
+// need that so the attacker lands with its back to the victim.
 function _wfPassThroughFace(passFrame) {
   return (att, tgt, timer, data) =>
     timer < passFrame ? null : [data.dir, data.dir];
 }
 
-// ── Shared helpers ───────────────────────────────────────────
 function _wfBaseSetup(att, tgt, data) {
   data.ax0=att.x; data.ay0=att.y;
   data.tx0=tgt.x; data.ty0=tgt.y;
@@ -43,12 +31,9 @@ function _wfTick(timer, totalDur, data) {
   // Bars animate in (0-12f) and out (last 14f)
   if (timer < 12)              data.bars = timer/12;
   if (timer > totalDur-14)     data.bars = Math.max(0,(totalDur-timer)/14);
-  // Shockwave expand + fade
   if (data.shockR>0){ data.shockR+=11; data.shockAlpha=Math.max(0,data.shockAlpha-0.035); }
-  // Aura pulse
   data.auraR = data.auraR ? data.auraR : 0;
 }
-// Radial energy aura around attacker
 function _wfDrawAura(ctx, att, color, alpha, r, scX, scY, ox, oy) {
   if (alpha <= 0 || r <= 0) return;
   ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
@@ -63,17 +48,16 @@ function _wfDrawAura(ctx, att, color, alpha, r, scX, scY, ox, oy) {
 
 const WEAPON_FINISHERS = {
 
-  // ── sword ────────────────────────────────────────────────────
   sword: _wfDef('GHOST STEP','rgba(100,160,255,1)',122,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashLines=[]; data.ghostTrail=[];
-      // Attacker appears on the OPPOSITE side of the target after the pass-through
+      // Attacker reappears on the far side of the target
       data.otherSideX = data.dir>0 ? data.tx0+tgt.w+46 : data.tx0-att.w-46;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:38,fn(){
-          // Teleport through — attacker snaps to opposite side, slash lines burst out
+          // Teleport through. Slash lines burst out.
           data.slashLines=[
             {x0:tgt.cx()-data.dir*65,y0:tgt.cy()-16,x1:tgt.cx()+data.dir*65,y1:tgt.cy()-16,a:1.0},
             {x0:tgt.cx()-data.dir*58,y0:tgt.cy()+3, x1:tgt.cx()+data.dir*58,y1:tgt.cy()+3, a:1.0},
@@ -90,9 +74,7 @@ const WEAPON_FINISHERS = {
         {frame:92,fn(){ CinCam.restore(); }},
       ]); },
     (att,tgt,timer,data)=>{ _tickTimeline(data.tl,timer); _wfTick(timer,122,data);
-      // Fade slash lines
       for(const sl of data.slashLines) sl.a=Math.max(0,sl.a-0.036);
-      // Fade ghost trail
       for(const g of data.ghostTrail) g.a=Math.max(0,g.a-0.025);
       data.ghostTrail=data.ghostTrail.filter(g=>g.a>0);
       if(timer<12){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
@@ -109,7 +91,7 @@ const WEAPON_FINISHERS = {
         if(timer%2===0) data.ghostTrail.push({x:att.x,y:att.y,w:att.w,h:att.h,a:0.52});
       }
       else{
-        // Attacker on the opposite side, target falls FORWARD and DOWN
+        // Target falls forward and down
         att.x=data.otherSideX; att.y=data.ay0;
         const p=Math.min(1,(timer-38)/52);
         tgt.x=data.tx0+data.dir*_finEaseOut(p)*36;
@@ -122,14 +104,12 @@ const WEAPON_FINISHERS = {
       _finBars(ctx,data.bars); _finVignette(ctx,0.44);
       _wfDrawAura(ctx,att,'rgba(100,160,255,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      // Ghost afterimage trail
       for(const g of data.ghostTrail){
         ctx.globalAlpha=g.a*0.55; ctx.fillStyle='#2255aa';
         ctx.shadowColor='#88ccff'; ctx.shadowBlur=20;
         ctx.fillRect(g.x,g.y,g.w,g.h);
       }
       ctx.globalAlpha=1; ctx.shadowBlur=0;
-      // Horizontal slash lines through target
       for(const sl of data.slashLines){
         if(sl.a<=0) continue;
         ctx.strokeStyle=`rgba(140,200,255,${sl.a})`; ctx.lineWidth=2+sl.a*5;
@@ -149,7 +129,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:26,dur:16}, impact:38, face:_wfPassThroughFace(38) }
   ),
 
-  // ── hammer ───────────────────────────────────────────────────
   hammer: _wfDef('EARTH SHATTER','rgba(200,140,40,1)',125,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.hLift=0;
       data.tl=_makeTimeline([
@@ -181,7 +160,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:26,dur:20}, impact:42 , approach:{ at:12, dur:14, gap:26 } }
   ),
 
-  // ── gun ──────────────────────────────────────────────────────
   gun: _wfDef('BULLET TIME','rgba(220,220,60,1)',118,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.bulletX=0;data.bulletY=0;data.bulletDone=false;
       data.tl=_makeTimeline([
@@ -220,7 +198,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:28,dur:12}, impact:40 }
   ),
 
-  // ── axe ──────────────────────────────────────────────────────
   axe: _wfDef('SPINNING FURY','rgba(255,80,40,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.spinAngle=0;
       data.tl=_makeTimeline([
@@ -251,7 +228,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:22,dur:20}, impact:40 , approach:{ at:10, dur:12, gap:24 } }
   ),
 
-  // ── spear ────────────────────────────────────────────────────
   spear: _wfDef('CELESTIAL IMPALE','rgba(40,200,255,1)',132,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data);
       data.impaleX=0; data.apexY=0; data.pillarAlpha=0;
@@ -263,24 +239,22 @@ const WEAPON_FINISHERS = {
         {frame:12,fn(){ CinCam.focusOn(att); }},
         {frame:28,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.65); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=14; }},
         {frame:38,fn(){
-          // IMPACT — target launches straight up
+          // Impact: target launches straight up
           data.impaleX=tgt.cx(); data.apexY=data.ty0-140; data.pillarAlpha=1;
           spawnParticles(tgt.cx(),tgt.cy(),'#44ccff',32);
           spawnParticles(tgt.cx(),tgt.cy(),'#ffffff',14);
           CinCam.slowMo(0.45); CinCam.focusOn(tgt); CinCam.zoomTo(1.5);
         }},
         {frame:60,fn(){
-          // Apex — deep freeze as target hangs at peak
+          // Apex: deep freeze as target hangs at peak
           CinCam.slowMo(0.06); CinCam.zoomTo(1.7);
         }},
         {frame:68,fn(){
-          // CRASH DOWN — full speed
           CinCam.slowMo(1.0); CinCam.zoomTo(1.35);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
           if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();
         }},
         {frame:76,fn(){
-          // Ground slam impact
           data.shockR=1; data.shockAlpha=1;
           spawnParticles(data.impaleX,data.groundY-18,'#44ccff',60);
           spawnParticles(data.impaleX,data.groundY-18,'#ffffff',24);
@@ -294,25 +268,21 @@ const WEAPON_FINISHERS = {
       else if(timer<28){ const p=(timer-12)/16; att.x=data.ax0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=p*0.78; data.auraR=20+p*28; }
       else if(timer<38){ const p=(timer-28)/10; att.x=data.ax0+data.dir*_finEaseIn(p)*72; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0.88; data.auraR=48; }
       else if(timer<60){
-        // Target rockets STRAIGHT UP
         const p=(timer-38)/22;
         att.x=data.ax0+data.dir*72; att.y=data.ay0;
         tgt.x=data.impaleX-tgt.w/2; tgt.y=_finLerp(data.ty0,data.apexY,_finEaseOut(p));
         data.auraAlpha=Math.max(0,data.auraAlpha-0.03);
       }
       else if(timer<68){
-        // Hang at apex
         att.x=data.ax0+data.dir*72; att.y=data.ay0;
         tgt.x=data.impaleX-tgt.w/2; tgt.y=data.apexY;
       }
       else if(timer<76){
-        // CRASH straight down
         const p=(timer-68)/8;
         att.x=data.ax0+data.dir*72; att.y=data.ay0;
         tgt.x=data.impaleX-tgt.w/2; tgt.y=_finLerp(data.apexY,data.groundY-tgt.h,_finEaseIn(p));
       }
       else{
-        // Target slumped on ground
         att.x=data.ax0+data.dir*72; att.y=data.ay0;
         tgt.x=data.impaleX-tgt.w/2; tgt.y=data.groundY-tgt.h;
         data.auraAlpha=Math.max(0,data.auraAlpha-0.04);
@@ -323,7 +293,6 @@ const WEAPON_FINISHERS = {
       _finBars(ctx,data.bars); _finVignette(ctx,0.42);
       _wfDrawAura(ctx,att,'rgba(40,200,255,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      // Spear shaft during approach
       if(timer>=12&&timer<38){
         ctx.strokeStyle='rgba(80,220,255,0.78)';ctx.lineWidth=4;ctx.shadowColor='#44ccff';ctx.shadowBlur=22;
         ctx.beginPath();ctx.moveTo(att.cx(),att.cy());ctx.lineTo(att.cx()-data.dir*68,att.cy());ctx.stroke();
@@ -338,7 +307,6 @@ const WEAPON_FINISHERS = {
         ctx.fillStyle=grd;
         ctx.fillRect(data.impaleX-18,data.apexY,36,data.ty0-data.apexY);
       }
-      // Ground shockwave — half-circle erupting upward from the floor
       if(data.shockR>0&&data.shockAlpha>0){
         ctx.strokeStyle=`rgba(40,200,255,${data.shockAlpha})`;ctx.lineWidth=6;ctx.shadowColor='#44ccff';ctx.shadowBlur=30;
         ctx.beginPath();ctx.arc(data.impaleX,data.groundY,data.shockR,Math.PI,0);ctx.stroke();
@@ -352,7 +320,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:26,dur:14}, impact:38 }
   ),
 
-  // ── scythe ───────────────────────────────────────────────────
   scythe: _wfDef("REAPER'S SWEEP",'rgba(80,255,120,1)',122,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.sweepAngle=Math.PI*1.5;
       data.tl=_makeTimeline([
@@ -384,7 +351,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:20,dur:22}, impact:40 , approach:{ at:10, dur:10, gap:34 } }
   ),
 
-  // ── fryingpan ────────────────────────────────────────────────
   fryingpan: _wfDef('SWEET DREAMS','rgba(255,180,220,1)',115,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data);
       data.tl=_makeTimeline([
@@ -413,7 +379,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:20,dur:20}, impact:38 }
   ),
 
-  // ── bow ──────────────────────────────────────────────────────
   bow: _wfDef('ARROW STORM','rgba(160,220,80,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.arrows=[];
       data.tl=_makeTimeline([
@@ -444,7 +409,6 @@ const WEAPON_FINISHERS = {
     , { swing:{at:24,dur:14}, impact:40 }
   ),
 
-  // ── combat ─────────────────────────────────────────────
   combat: _wfDef('KNOCKOUT','rgba(255,80,80,1)',118,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data);
       data.tl=_makeTimeline([
@@ -474,12 +438,9 @@ const WEAPON_FINISHERS = {
   ),
 };
 
-// ============================================================
-// CLASS FINISHER DEFINITIONS
-// ============================================================
+// Class finisher definitions
 const CLASS_FINISHERS = {
 
-  // ── thor ─────────────────────────────────────────────────────
   thor: _wfDef('STORMBEARER','rgba(80,160,255,1)',125,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.bolts=[];
       data.tl=_makeTimeline([
@@ -510,7 +471,6 @@ const CLASS_FINISHERS = {
     , { swing:{at:24,dur:18}, impact:40 , approach:{ at:12, dur:12, gap:26 } }
   ),
 
-  // ── kratos ───────────────────────────────────────────────────
   kratos: _wfDef('UNDYING RAGE','rgba(220,60,60,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.ragePulse=0;
       data.tl=_makeTimeline([
@@ -540,7 +500,6 @@ const CLASS_FINISHERS = {
     , { swing:{at:22,dur:20}, impact:40 }
   ),
 
-  // ── ninja ────────────────────────────────────────────────────
   ninja: _wfDef('SHADOW STRIKE','rgba(100,100,200,1)',118,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data);
       data.tl=_makeTimeline([
@@ -571,7 +530,6 @@ const CLASS_FINISHERS = {
     , { swing:{at:26,dur:14}, impact:38 , approach:{ at:12, dur:14, gap:22 } }
   ),
 
-  // ── gunner ───────────────────────────────────────────────────
   gunner: _wfDef('EXECUTION','rgba(255,200,50,1)',118,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.muzzleFlash=0; data.bX=0; data.bY=0; data.bDone=false;
       data.tl=_makeTimeline([
@@ -605,7 +563,6 @@ const CLASS_FINISHERS = {
     , { swing:{at:28,dur:12}, impact:40 }
   ),
 
-  // ── paladin ──────────────────────────────────────────────────
   paladin: _wfDef('HOLY JUDGMENT','rgba(255,240,120,1)',125,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.holyR=0;
       data.tl=_makeTimeline([
@@ -637,7 +594,6 @@ const CLASS_FINISHERS = {
     , { swing:{at:28,dur:16}, impact:42 , approach:{ at:12, dur:16, gap:18 } }
   ),
 
-  // ── berserker ────────────────────────────────────────────────
   berserker: _wfDef('BLOOD FRENZY','rgba(200,0,60,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.frenzyAngle=0;
       data.tl=_makeTimeline([
@@ -667,7 +623,6 @@ const CLASS_FINISHERS = {
     , { swing:[{at:20,dur:9},{at:29,dur:11}], impact:38 , approach:{ at:10, dur:10, gap:20 } }
   ),
 
-  // ── archer ───────────────────────────────────────────────────
   archer: _wfDef('VOLLEY','rgba(120,200,80,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.volArrows=[];
       for(let i=0;i<7;i++) data.volArrows.push({p:0,delay:i*0.09,cx:0,cy:0});
@@ -702,7 +657,6 @@ const CLASS_FINISHERS = {
     , { swing:{at:24,dur:14}, impact:40 }
   ),
 
-  // ── megaknight ───────────────────────────────────────────────
   megaknight: _wfDef('FINAL JUDGMENT','rgba(220,180,40,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.leapY=0;
       // Clamp slam landing Y so attacker never goes below the floor
@@ -736,10 +690,7 @@ const CLASS_FINISHERS = {
     , { swing:{at:28,dur:18}, impact:44 }
   ),
 
-  // ── nullblade (Sovereign's signature weapon) ─────────────────
-  // VOID RECKONING: Sovereign dashes forward and opens a null-space
-  // slash that erases everything in its path — blade trace, crimson
-  // shockwave, brief screen-void (black flash), aftermath fire.
+  // Void Reckoning: Sovereign dashes in and opens a null-space slash that erases its path.
   nullblade: _wfDef('VOID RECKONING','rgba(220,40,0,1)',124,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.slashFired=false; data.slashAngle=0;
       data.tracers=[]; data.voidFlash=0;
@@ -756,11 +707,10 @@ const CLASS_FINISHERS = {
       if(timer<10){ att.x=data.ax0;att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0; }
       // Phase 2 (10-28): dash approach with red aura
       else if(timer<28){ const p=(timer-10)/18; att.x=data.ax0+data.dir*_finEaseOut(p)*50; att.y=data.ay0; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=p*0.9; data.auraR=32+p*22; }
-      // Phase 3 (28-38): freeze — blade drawn back
+      // Phase 3 (28-38): freeze: blade drawn back
       else if(timer<38){ att.x=data.ax0+data.dir*50; tgt.x=data.tx0;tgt.y=data.ty0; data.auraAlpha=0.9; data.auraR=54; }
       // Phase 4+ (38-): target launches
       else{ const p=Math.min(1,(timer-38)/62); tgt.x=data.tx0+data.dir*_finEaseOut(p)*95; tgt.y=data.ty0-_finEaseOut(p)*22; att.x=data.ax0+data.dir*50; data.auraAlpha=Math.max(0,data.auraAlpha-0.036); }
-      // Blade tracers (crimson afterimage lines)
       if(timer>=28&&timer<=42&&data.slashFired){ data.tracers.push({x:att.cx(),y:att.cy(),a:0.85,fr:0}); }
       for(const tr of data.tracers){ tr.a=Math.max(0,tr.a-0.055); tr.fr++; }
       data.tracers=data.tracers.filter(tr=>tr.a>0);
@@ -770,7 +720,6 @@ const CLASS_FINISHERS = {
       _finBars(ctx,data.bars); _finVignette(ctx,0.50);
       _wfDrawAura(ctx,att,'rgba(220,40,0,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
-      // Crimson blade tracers
       for(const tr of data.tracers){
         ctx.strokeStyle=`rgba(220,40,0,${tr.a})`; ctx.lineWidth=2+tr.a*3;
         ctx.shadowColor='#cc2200'; ctx.shadowBlur=14;
@@ -778,7 +727,6 @@ const CLASS_FINISHERS = {
         ctx.moveTo(tr.x,tr.y); ctx.lineTo(tr.x+Math.cos(data.slashAngle)*44,tr.y+Math.sin(data.slashAngle)*44);
         ctx.stroke();
       }
-      // Shockwave ring
       if(data.shockR>0&&data.shockAlpha>0){
         ctx.strokeStyle=`rgba(220,40,0,${data.shockAlpha})`; ctx.lineWidth=5+data.shockAlpha*4;
         ctx.shadowColor='#ff2200'; ctx.shadowBlur=24;
@@ -786,7 +734,7 @@ const CLASS_FINISHERS = {
         _finImpactLines(ctx,tgt.cx(),tgt.cy(),12,data.shockR*0.45,'#ff3300',3.5);
       }
       ctx.restore();
-      // Void flash — brief black-out on impact (Null Blade erases)
+      // Brief black-out on impact
       if(data.voidFlash>0) _finFlash(ctx,Math.min(1,data.voidFlash/8)*0.75,0,0,0);
       if(timer>=42&&timer<=50) _finFlash(ctx,(50-timer)/8*0.72,220,40,0);
       if(timer>60&&timer<116) _finSubtitle(ctx,'"There was never any other outcome."',t);

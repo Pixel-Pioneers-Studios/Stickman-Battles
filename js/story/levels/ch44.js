@@ -1,16 +1,8 @@
 'use strict';
-// js/story/levels/ch44.js — Chapter 44 map. See smb-story-levels.js for the contract.
+// Chapter 44 map. Contract in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 44 — The Fragment Breathes (escape)
-// "A fracture pressure wave is sweeping the ice dimension from behind." The
-// approach to the summit is an ice shelf, and the wave has already broken it
-// into floes over a fracture chasm glowing violet below. Floes ride at
-// slightly different heights with short gaps (one jump each — the wave
-// punishes hesitation, not precision). Frozen pressure ridges stand on the
-// floes as cover and high steps. The Summit Refuge is a lit shelter cut into
-// the cliff at the far end; the summit spire of chapter 43 rises behind it.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 44, The Fragment Breathes (escape). Floes are one jump apart; the wave punishes
+// hesitation, not precision.
 (function () {
   const FLOES = [[0, 560, 440], [640, 1100, 430], [1180, 1500, 450], [1580, 1900, 440], [1980, 2500, 420],
                  [2580, 2950, 445], [3030, 3450, 430], [3530, 4400, 440]];

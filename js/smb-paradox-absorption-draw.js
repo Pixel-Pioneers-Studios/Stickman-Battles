@@ -1,11 +1,9 @@
 'use strict';
-// smb-paradox-absorption-draw.js — Absorption draw with ctx arg, memories draw, KC overlay update+draw
+// smb-paradox-absorption-draw.js. Absorption draw with ctx arg, memories draw, KC overlay update+draw
 // Depends on: smb-globals.js, smb-paradox-class.js (and preceding splits in chain)
 
-// ABSORPTION SCENE (ctx-param version) — strong visual clarity
-// Called from smb-drawing.js / smb-loop.js with explicit ctx arg.
+// Absorption scene draw with an explicit ctx. Called from smb-drawing.js and smb-loop.js.
 // The no-arg drawTFAbsorptionScene() above handles in-loop calls.
-// ============================================================
 function drawTFAbsorptionSceneWithCtx(ctx) {
   const sc = tfAbsorptionScene;
   if (!sc) return;
@@ -13,27 +11,24 @@ function drawTFAbsorptionSceneWithCtx(ctx) {
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-  // Dark overlay — deepens during flash
+  // Dark overlay, deepens during flash
   ctx.globalAlpha = 1;
   ctx.fillStyle = `rgba(0,0,0,${0.6 + sc.flashAlpha * 0.4})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // --------------------------------------------------
-  // MEMORY PHASE
+  // Memory phase
   if (sc.phase === 'memories') {
     drawTFAbsorptionMemories(ctx, sc);
   }
 
-  // --------------------------------------------------
-  // MERGE EFFECT — purple tint signals convergence
+  // Merge: purple tint signals convergence
   if (sc.phase === 'merge') {
     ctx.globalAlpha = 0.3;
     ctx.fillStyle = '#aa55ff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // --------------------------------------------------
-  // POWER SURGE — white flash at peak intensity
+  // Power surge: white flash at peak intensity
   if (sc.phase === 'power_surge') {
     ctx.globalAlpha = sc.flashAlpha;
     ctx.fillStyle = '#ffffff';
@@ -43,17 +38,9 @@ function drawTFAbsorptionSceneWithCtx(ctx) {
   ctx.restore();
 }
 
-// ============================================================
-// ABSORPTION MEMORY FLASHES  — Paradox backstory visual flashes
-// Shown in sequence during the absorption scene after Paradox dies.
-// Each flash is a brief, fragmented glimpse — enough for the player
-// to piece together what Paradox was and why it fought.
-//
-// CANON: Paradox was constructed during the multiversal war to fight
-// beside Axiom. An error in its design caused it to turn against
-// everything. It was not malicious — it was broken. It has been
-// fighting since the error, unable to stop.
-// ============================================================
+// Absorption memory flashes: fragmented glimpses of Paradox's backstory, shown in sequence after it dies.
+// Canon: Paradox was built in the multiversal war to fight beside Axiom. A design error turned it against
+// everything. It was broken, not malicious.
 function drawTFAbsorptionMemories(ctx, sc) {
   // Cycle through 7 memories (length of _TF_ABSORPTION_MEMORIES)
   const t = sc.memoryIndex % 7;
@@ -64,7 +51,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
   switch (t) {
 
     case 0:
-      // Flash 1: Construction — clean, cold, clinical. Paradox was made deliberately.
+      // Flash 1: Construction, clean, cold, clinical. Paradox was made deliberately.
       ctx.font = 'bold 13px monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#aaddff';
@@ -93,7 +80,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
       ctx.stroke();
       ctx.font = '11px sans-serif'; ctx.fillStyle = '#aaddff';
       ctx.fillText('AXIOM', ax, GAME_H / 2 - 70);
-      // Paradox (right) — slightly glitched outline
+      // Paradox (right), slightly glitched outline
       const px2 = GAME_W / 2 + 40;
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = '#aa55ff'; ctx.shadowColor = '#aa55ff'; ctx.shadowBlur = 18;
@@ -110,7 +97,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
       break;
 
     case 2:
-      // Flash 3: The error — red diagnostic text, glitchy
+      // Flash 3: The error, red diagnostic text, glitchy
       ctx.font = 'bold 14px monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff4444';
@@ -125,12 +112,12 @@ function drawTFAbsorptionMemories(ctx, sc) {
       break;
 
     case 3:
-      // Flash 4: Paradox turns — silhouette facing away, hostile aura
+      // Flash 4: Paradox turns, silhouette facing away, hostile aura
       ctx.strokeStyle = '#ff4444';
       ctx.lineWidth = 2.5;
       ctx.shadowColor = '#ff4444';
       ctx.shadowBlur = 22;
-      // Paradox silhouette facing away (mirrored arms — aggressive stance)
+      // Paradox silhouette facing away (mirrored arms, aggressive stance)
       const px3 = GAME_W / 2;
       ctx.fillStyle = '#ff4444';
       ctx.beginPath(); ctx.arc(px3, GAME_H / 2 - 55, 7, 0, Math.PI * 2); ctx.fill();
@@ -146,7 +133,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
       break;
 
     case 4:
-      // Flash 5: A voice — first person. Brief. Incomplete.
+      // Flash 5: A voice, first person. Brief. Incomplete.
       ctx.font = 'italic 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ccaaff';
@@ -156,7 +143,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
       break;
 
     case 5:
-      // Flash 6: The war — Paradox fighting alone, endless. Abstract.
+      // Flash 6: The war. Paradox fighting alone, endless. Abstract.
       ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff8844';
@@ -183,9 +170,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
   ctx.restore();
 }
 
-// ============================================================
-// TF-KILLS-PARADOX OVERLAY  — update + draw helpers
-// ============================================================
+// TF-kills-Paradox overlay: update and draw helpers
 function updateTFKCOverlay() {
   if (!_tfKCOverlay) return;
   const o = _tfKCOverlay;
@@ -232,7 +217,7 @@ function drawTFKCOverlay() {
   const o = _tfKCOverlay;
   const frame = o.frame || 0;
 
-  // ── WORLD SPACE: lock rings around Paradox ──────────────────
+  // World space: lock rings around Paradox
   if (o.lockActive && paradoxEntity && (o.lockAlpha || 0) > 0) {
     const px = paradoxEntity.cx();
     const py = paradoxEntity.cy();
@@ -266,7 +251,6 @@ function drawTFKCOverlay() {
     ctx.restore();
   }
 
-  // ── SCREEN SPACE ────────────────────────────────────────────
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   const sw = canvas.width, sh = canvas.height;

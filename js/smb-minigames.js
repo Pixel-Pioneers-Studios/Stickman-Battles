@@ -1,8 +1,6 @@
 'use strict';
 
-// ============================================================
-// MINIGAMES
-// ============================================================
+// Survival, KotH, Chaos Match and Defense minigames.
 let minigameType      = 'survival'; // 'survival' | 'koth' | 'chaos' | 'sports' | 'defense'
 let survivalWave      = 0;
 let survivalEnemies   = [];         // alive enemies this wave
@@ -15,8 +13,10 @@ let kothPoints       = [0, 0];     // points for P1, P2
 let kothTimer        = 0;          // game timer
 let kothZoneX        = GAME_W / 2; // center of hill zone
 let kothWinnerIdx    = -1;         // index into players[] of KotH winner; -1 = no winner yet
+// endGame() reads this for the banner and winner. The guard stops a condition that stays true
+// for several frames from scheduling endGame() every frame.
+let minigameResult   = null;       // { text, color, winner }
 
-// --- Chaos modifiers ---
 const CHAOS_MODS = [
   { id: 'giant',        label: '👾 GIANT',         desc: 'Players are huge' },
   { id: 'tiny',         label: '🐜 TINY',           desc: 'Players are tiny' },
@@ -30,36 +30,32 @@ const CHAOS_MODS = [
 ];
 let currentChaosModifiers = new Set(); // active modifier ids this wave
 
-// Gravity Storm: a smooth oscillating gravity multiplier read by Fighter physics.
-// Stays exactly 1.0 whenever the modifier is off so no other mode is affected.
+// Gravity Storm: oscillating gravity multiplier read by Fighter physics.
+// Exactly 1.0 when off, so other modes are unaffected.
 let chaosGravityMult  = 1.0;
 let _chaosGravPhase   = 0;
 
-// --- Nexus Defense ---
 const DEFENSE_WAVE_GOAL = 10;
 let defenseNexusHp    = 100;
 let defenseNexusMaxHp = 100;
 let defenseWave       = 0;
 let defenseEnemies    = [];
 let defenseWaveDelay  = 0;
-// Rushers leave the gates one at a time instead of all on one frame, so a
-// single defender can actually move between lanes.
+// Rushers leave one at a time, so one defender can move between lanes.
 let defenseSpawnQueue = [];   // [{ fromLeft }]
 let defenseSpawnTimer = 0;
-const DEFENSE_SPAWN_GAP   = 40;   // frames between releases
+const DEFENSE_SPAWN_GAP   = 40;   // frames between releases on wave 1; shrinks per wave
 const DEFENSE_NEXUS_REGEN = 25;   // Nexus HP restored per cleared wave
 const DEFENSE_CONTACT_DMG = 10;   // Nexus HP lost per rusher that reaches it
+const DEFENSE_BRUTE_DMG   = 15;   // ...and per brute
 // Gate centres on the Nexus Bastion arena (drawNexusArena reads these too).
 const NEXUS_GATE_L_X = 60;
 const NEXUS_GATE_R_X = 1740;
-// Every minigame that actually has a card and a system behind it. selectMinigame
-// is reachable from the network layer (a host can broadcast a type), so unknown
-// values are rejected here rather than setting minigameType to something no
-// update/draw path handles.
+// Valid minigame types. selectMinigame can be called from the network, so reject unknown values.
 const MINIGAME_TYPES = ['survival', 'koth', 'chaos', 'sports', 'defense'];
 
 function selectMinigame(type) {
-  // Soccer became one sport inside the Sports Arena; older hosts still send it.
+  // Older hosts still send 'soccer'. It is a sport inside the Sports Arena now.
   if (type === 'soccer') {
     type = 'sports';
     if (typeof selectSport === 'function') selectSport('soccer');
@@ -72,12 +68,10 @@ function selectMinigame(type) {
   document.querySelectorAll('#minigamePanel .mode-card').forEach(c => c.classList.remove('active'));
   const card = document.getElementById('mgCard' + type.charAt(0).toUpperCase() + type.slice(1));
   if (card) card.classList.add('active');
-  // Show/hide survival sub-options
   const survOpts = document.getElementById('survivalOptions');
   if (survOpts) survOpts.style.display = type === 'survival' ? 'flex' : 'none';
   const sportsOpts = document.getElementById('sportsOptions');
   if (sportsOpts) sportsOpts.style.display = type === 'sports' ? 'flex' : 'none';
-  // Refresh selectMode UI so P2 panel visibility toggles correctly
   selectMode('minigames');
 }
 
@@ -100,7 +94,7 @@ function setSurvivalGoal(waves) {
   const btn = document.getElementById(map[waves]); if (btn) btn.classList.add('active');
 }
 
-// Chaos Match minigame — add one modifier every 15s during 1v1
+// Chaos Match: one modifier every 15s in 1v1.
 let chaosMatchTimer = 0;
 let _chaosModNotif = null; // { label, desc, timer }
 
@@ -109,24 +103,19 @@ function showChaosModNotification(mod) {
 }
 
 function addOneChaosModifier() {
-  // Get IDs not yet active
   const available = CHAOS_MODS.filter(m => !currentChaosModifiers.has(m.id));
-  if (!available.length) return; // all already active
+  if (!available.length) return;
   const newMod = available[Math.floor(Math.random() * available.length)];
-  // If at cap (10), remove a random existing one
   if (currentChaosModifiers.size >= 10) {
     const existing = [...currentChaosModifiers];
     const toRemove = existing[Math.floor(Math.random() * existing.length)];
     currentChaosModifiers.delete(toRemove);
   }
   currentChaosModifiers.add(newMod.id);
-  // Survival only ever rolls 3 at once, so Chaos Match is where every modifier can stack
+  // Survival rolls 3 modifiers at once. Chaos Match stacks them all.
   if (currentChaosModifiers.size >= CHAOS_MODS.length && typeof unlockAchievement === 'function') unlockAchievement('chaos_all');
-  // Apply modifier effects to current players
-  applyChaosModifiers();
-  // Show notification
+  applyChaosModifiers(newMod.id);
   showChaosModNotification(newMod);
-  // Update icon bar
   updateChaosModIcons();
 }
 
@@ -150,6 +139,8 @@ function updateChaosMatch() {
 
 function rollChaosModifiers() {
   clearChaosModifiers();
+  // Survival's wave modifiers are what the menu's Chaos Mode toggle turns on.
+  if (typeof chaosMode === 'undefined' || !chaosMode) return;
   const count = survivalWave >= 7 ? 3 : survivalWave >= 4 ? 2 : 1;
   const pool = [...CHAOS_MODS];
   for (let i = 0; i < count; i++) {
@@ -158,23 +149,26 @@ function rollChaosModifiers() {
     currentChaosModifiers.add(pool.splice(idx, 1)[0].id);
   }
   applyChaosModifiers();
-  // Show modifier banners
   const labels = [...currentChaosModifiers].map(id => CHAOS_MODS.find(m => m.id === id)?.label || id).join('  ');
   if (labels) damageTexts.push(new DamageText(GAME_W / 2, 120, labels, '#ff88ff'));
 }
 
-function applyChaosModifiers() {
+// onlyNew: Chaos Match re-applies the whole set, so one-shot effects (1 HP, weapon reroll)
+// only run for the newly added modifier.
+function applyChaosModifiers(onlyNew) {
   const humanPlayers = players.filter(p => !p.isBoss);
+  const fresh = id => currentChaosModifiers.has(id) && (!onlyNew || onlyNew === id);
   humanPlayers.forEach(p => {
-    // Idempotent: never overwrite a saved original with an already-scaled value
-    // (Chaos Match applies modifiers repeatedly without clearing in between —
-    // re-saving caused unbounded hitbox drift across waves).
+    // Save the original once. Chaos Match re-applies without clearing, so re-saving
+    // the scaled value compounded hitboxes across waves.
     if (p._chaosOrigW === undefined) { p._chaosOrigW = p.w; p._chaosOrigH = p.h; }
     if (p._chaosOrigDrawScale === undefined) p._chaosOrigDrawScale = p.drawScale || 1;
-    if (currentChaosModifiers.has('giant'))  { p.w = Math.floor(p.w * 1.55); p.h = Math.floor(p.h * 1.55); p.drawScale = (p._chaosOrigDrawScale || 1) * 1.55; }
-    if (currentChaosModifiers.has('tiny'))   { p.w = Math.floor(p.w * 0.55); p.h = Math.floor(p.h * 0.55); p.drawScale = (p._chaosOrigDrawScale || 1) * 0.55; }
-    if (currentChaosModifiers.has('sudden_death')) p.health = 1;
-    if (currentChaosModifiers.has('weapon_swap') && WEAPON_KEYS.length) {
+    // Scale from the saved original, so a re-apply cannot compound.
+    const sc = (currentChaosModifiers.has('giant') ? 1.55 : 1) * (currentChaosModifiers.has('tiny') ? 0.55 : 1);
+    p.w = Math.floor(p._chaosOrigW * sc); p.h = Math.floor(p._chaosOrigH * sc);
+    p.drawScale = (p._chaosOrigDrawScale || 1) * sc;
+    if (fresh('sudden_death') && p.health > 0) p.health = 1;
+    if (fresh('weapon_swap') && WEAPON_KEYS.length) {
       const newKey = randChoice(WEAPON_KEYS);
       p.weaponKey = newKey; p.weapon = Object.assign({}, WEAPONS[newKey]);
     }
@@ -224,17 +218,22 @@ function updateChaosModIcons() {
 }
 
 function initMinigame() {
-  // Clear defense-mode properties that bleed across matches if not cleaned up here
   players.forEach(function(p) {
     if (!p.isBoss) {
       delete p.attackCooldownMult;
       delete p._nexusKBBoost;
     }
   });
+  minigameResult    = null;
   survivalWave      = 0;
   survivalEnemies   = [];
   survivalWaveDelay = 180; // 3s before first wave
-  // survivalTeamMode / survivalFriendlyFire / survivalWaveGoal / survivalInfinite keep their menu values
+  // The players are one side. Without a shared _teamId, the P2 bot treated P1 as any nearby target.
+  players.forEach(function(p) {
+    if (p.isBoss) return;
+    delete p._mgDown;
+    if ((minigameType === 'survival' && survivalTeamMode) || minigameType === 'defense') p._teamId = 'mg_players';
+  });
   clearChaosModifiers();
   kothPoints        = [0, 0];
   kothTimer         = 0;
@@ -243,7 +242,6 @@ function initMinigame() {
   chaosMatchTimer = 0;
   if (minigameType === 'sports' && typeof initSports === 'function') initSports();
   if (minigameType === 'chaos') {
-    // Reset all players to standard settings; updateChaosMatch will add first mod on frame 1
     clearChaosModifiers();
   }
   if (minigameType === 'defense') {
@@ -258,15 +256,13 @@ function initMinigame() {
                      currentArena.platforms.find(function(p) { return p.isFloor; });
     defenseNexusX = (currentArena && currentArena.worldWidth) ? currentArena.worldWidth / 2 : GAME_W / 2;
     defenseNexusY = _floorPl ? _floorPl.y : GAME_H - 80;
-    // Start the defender beside the Nexus, not at the arena's left spawn —
-    // on the Bastion that is 800px from the thing being defended.
+    // Start the defender beside the Nexus. The Bastion is 800px wide.
     players.forEach(function(p, i) {
       if (p.isBoss) return;
       p.x = defenseNexusX + (i === 0 ? -90 : 60) - p.w / 2;
       p.y = defenseNexusY - p.h - 2;
       p.spawnX = p.x; p.spawnY = defenseNexusY;
     });
-    // Defense mode: faster attacking, bigger knockback for player(s)
     players.forEach(function(p) {
       if (!p.isBoss) {
         p.attackCooldownMult = 0.55; // 45% shorter attack cooldowns
@@ -280,7 +276,7 @@ function spawnSurvivalWave() {
   survivalWave++;
   // Wave 1 = 1 enemy (easy), scales up to max 5 enemies
   const waveSize = Math.min(1 + Math.floor(survivalWave / 2), 5);
-  const diff     = survivalWave <= 3 ? 'easy' : survivalWave <= 6 ? 'medium' : 'hard';
+  const diff     = survivalWave <= 4 ? 'easy' : survivalWave <= 8 ? 'medium' : 'hard';
   const targets  = players.filter(p => !p.isBoss && p.health > 0);
   if (!targets.length) return;
   for (let i = 0; i < waveSize; i++) {
@@ -289,14 +285,15 @@ function spawnSurvivalWave() {
       { left:null, right:null, jump:null, attack:null, ability:null, super:null }, true, diff);
     bot.name     = `W${survivalWave}#${i + 1}`;
     bot.lives    = 1;
+    // Wave enemies target only the player side. Retargeting each other soaked their own damage.
+    bot._teamId  = 'mg_enemy';
     bot.personality = randChoice(['aggressive', 'defensive', 'trickster', 'sniper']);
-    bot.dmgMult  = Math.min(0.5 + survivalWave * 0.06, 1.0); // starts at 0.56x, scales to 1x by wave 8+
+    bot.dmgMult  = Math.min(0.5 + survivalWave * 0.05, 0.95); // 0.55x on wave 1, 0.95x from wave 9
     bot.target   = targets[i % targets.length];
     bot.playerNum = 2;
     minions.push(bot);
     survivalEnemies.push(bot);
   }
-  // Survival wave achievements
   if (survivalWave >= 5)  unlockAchievement('wave_5');
   if (survivalWave >= 10) unlockAchievement('wave_10');
   if (currentChaosModifiers.size >= 3) unlockAchievement('chaos_survivor');
@@ -311,10 +308,15 @@ function spawnSurvivalWave() {
 
 function spawnDefenseWave() {
   defenseWave++;
-  const waveSize = Math.min(1 + Math.floor(defenseWave * 0.6), 6);
+  // Two defenders cover both lanes at once, so they face half as many again.
+  const _defenders = players.filter(function(p) { return !p.isBoss; }).length;
+  const waveSize = Math.round(Math.min(1 + Math.floor(defenseWave * 0.7), 7) * (_defenders > 1 ? 1.5 : 1));
   // Alternate sides, starting from a random one, so both lanes stay live.
+  // From wave 7 every third rusher is a brute.
   const _firstLeft = Math.random() < 0.5;
-  for (let i = 0; i < waveSize; i++) defenseSpawnQueue.push({ fromLeft: (i % 2 === 0) === _firstLeft });
+  for (let i = 0; i < waveSize; i++) {
+    defenseSpawnQueue.push({ fromLeft: (i % 2 === 0) === _firstLeft, brute: defenseWave >= 7 && i % 3 === 2 });
+  }
   defenseSpawnTimer = 0;
   const _tx = typeof defenseNexusX !== 'undefined' ? defenseNexusX : GAME_W / 2;
   damageTexts.push(new DamageText(_tx, 80, `WAVE ${defenseWave}!`, '#ff8844'));
@@ -322,25 +324,36 @@ function spawnDefenseWave() {
   if (typeof SoundManager !== 'undefined' && SoundManager.waveStart) SoundManager.waveStart();
 }
 
-function _releaseDefenseRusher(fromLeft) {
-  const speed = Math.min(1.1 + defenseWave * 0.1, 2.4); // rushers get faster each wave
+function _releaseDefenseRusher(fromLeft, brute) {
+  const speed = Math.min(1.25 + defenseWave * 0.11, 2.7) * (brute ? 0.7 : 1); // rushers get faster each wave
   const _wide = currentArena && currentArena.worldWidth;
   const gateX = _wide ? (fromLeft ? NEXUS_GATE_L_X : NEXUS_GATE_R_X)
                       : (fromLeft ? 50 : GAME_W - 50);
   const bot = new Fighter(gateX, 80, `hsl(${10 + Math.random() * 25},85%,50%)`, randChoice(WEAPON_KEYS),
     { left: null, right: null, jump: null, attack: null, ability: null, super: null }, false, 'easy');
+  if (brute) {
+    // Hitbox and body scale together, so the brute reads heavy and is no harder to hit.
+    bot.w = Math.round(bot.w * 1.6); bot.h = Math.round(bot.h * 1.6);
+    bot.drawScale = 1.6;
+  }
   bot.x = gateX - bot.w / 2;
   const _floorPl = currentArena && currentArena.platforms && currentArena.platforms.find(function(p) { return p.isFloor; });
   if (_floorPl) bot.y = _floorPl.y - bot.h - 2;
   bot.name        = 'Rusher';
   bot.lives       = 1;
-  // A full 150-HP fighter per rusher made wave 4 (4 rushers, 600 HP) outrun any
-  // single defender. Rushers are fodder that scales gently instead.
-  bot.maxHealth   = 40 + defenseWave * 6;
+  bot._teamId     = 'mg_enemy';
+  // A full 150-HP fighter per rusher let wave 4 outrun a single defender. Rushers are fodder.
+  bot.maxHealth   = Math.round((40 + defenseWave * 7) * (brute ? 1.5 : 1));
   bot.health      = bot.maxHealth;
-  bot.dmgMult     = 0;    // rushers deal no combat damage — they only damage the nexus on contact
+  if (brute) {
+    // Slow, heavy, hard to shove back through the gate.
+    bot._defenseBrute = true;
+    bot.kbResist  = 0.55;
+    bot.name      = 'Brute';
+  }
+  bot.dmgMult     = 0;  // Rushers deal no combat damage. Only nexus contact hurts.
   bot._defenseRusher = true;
-  bot._defenseSpeed  = speed; // always positive — direction computed from position each frame
+  bot._defenseSpeed  = speed;  // always positive; direction is computed from position each frame
   bot._defenseFromLeft = fromLeft;
   bot._defenseLastHp   = bot.health;
   bot._defenseStagger  = 0;
@@ -350,16 +363,42 @@ function _releaseDefenseRusher(fromLeft) {
   if (typeof spawnParticles === 'function') spawnParticles(gateX, bot.y + bot.h / 2, '#ff5530', 10);
 }
 
+// Ends the minigame once, with its own banner. winner null = the players lost.
+function _minigameFinish(text, color, winner, delay, sub) {
+  if (minigameResult) return;
+  minigameResult = { text: text, color: color, winner: winner || null, sub: sub || '' };
+  setTimeout(function() { if (gameRunning && gameMode === 'minigames') endGame(); }, delay || 2500);
+}
+
+// Survival fighters out of lives come here instead of the generic one-left rule. Returns true when handled.
+// Team: fallen sit out until the next wave clears. Competitive: last one standing wins.
+function minigameOnPlayerOut(p) {
+  if (gameMode !== 'minigames' || minigameType !== 'survival' || !p || p.isBoss) return false;
+  p._mgDown = true;
+  p.invincible = 9999;
+  const standing = players.filter(q => !q.isBoss && !q._mgDown && q.lives > 0);
+  if (!standing.length) {
+    _minigameFinish('WIPED OUT', '#ff4444', null, 1800, 'Reached wave ' + survivalWave);
+  } else if (survivalFriendlyFire && standing.length === 1) {
+    damageTexts.push(new DamageText(GAME_W / 2, 120, `${standing[0].name} WINS!`, '#ffdd44'));
+    _minigameFinish(`${standing[0].name} WINS!`, standing[0].color, standing[0], 2000);
+  }
+  return true;
+}
+
 function updateMinigame() {
-  if (!gameRunning) return;
+  if (!gameRunning || minigameResult) return;
   const livePlayers = players.filter(p => !p.isBoss && (p.health > 0 || p.invincible > 0));
   if (!livePlayers.length) return;
 
   if (minigameType === 'survival') {
     survivalEnemies = survivalEnemies.filter(e => e.health > 0);
-    // Keep enemy targets pointed at a living player
-    const liveTargets = players.filter(p => !p.isBoss && p.health > 0);
-    survivalEnemies.forEach((e, i) => { if (liveTargets.length) e.target = liveTargets[i % liveTargets.length]; });
+    // Keep enemy targets on a living player. Only dead targets are re-pinned, since re-pinning
+    // every frame overrode the brain's own retarget.
+    const liveTargets = players.filter(p => !p.isBoss && p.health > 0 && !p._mgDown);
+    survivalEnemies.forEach((e, i) => {
+      if (liveTargets.length && !liveTargets.includes(e.target)) e.target = liveTargets[i % liveTargets.length];
+    });
     // In team mode, bot players also need targets pointing at survival enemies
     if (survivalTeamMode) {
       const liveEnemies = survivalEnemies.filter(e => e.health > 0);
@@ -371,27 +410,21 @@ function updateMinigame() {
       });
     }
 
-    // --- Competitive: check if only one human player remains ---
-    if (survivalFriendlyFire) {
-      const humanAlive = players.filter(p => !p.isBoss && !p.isAI && p.health > 0);
-      if (humanAlive.length === 1 && players.filter(p => !p.isBoss && !p.isAI).length > 1) {
-        // One survivor wins — clear enemies, award win
-        minions.forEach(m => { m.health = 0; });
-        survivalEnemies = [];
-        damageTexts.push(new DamageText(GAME_W / 2, 120, `${humanAlive[0].name} WINS!`, '#ffdd44'));
-        clearChaosModifiers();
-        setTimeout(endGame, 2000);
-        return;
-      }
-    }
-
     if (survivalWaveDelay > 0) {
       survivalWaveDelay--;
       if (survivalWaveDelay === 0) spawnSurvivalWave();
     } else if (survivalEnemies.length === 0 && minions.filter(m => m.health > 0).length === 0) {
-      // Wave cleared — heal (team mode heals everyone; competitive must not
-      // revive rival bots between waves)
-      players.forEach(p => { if (!p.isBoss && (survivalTeamMode || p.health > 0)) p.health = Math.min(p.maxHealth, p.health + 25); });
+      // Wave cleared: heal the living. Team mode revives the fallen at half health.
+      players.forEach(p => {
+        if (p.isBoss) return;
+        if (p._mgDown) {
+          if (!survivalTeamMode) return;
+          p._mgDown = false; p.lives = 1;  // second chance, not a reset
+          p.respawn();
+          p.health = Math.ceil(p.maxHealth / 2);
+          damageTexts.push(new DamageText(p.cx(), p.y - 20, 'BACK IN!', '#44ff88'));
+        } else if (p.health > 0) p.health = Math.min(p.maxHealth, p.health + 25);
+      });
       survivalWaveDelay = 210;
 
       const waveGoal = survivalInfinite ? Infinity : survivalWaveGoal;
@@ -402,7 +435,8 @@ function updateMinigame() {
         clearChaosModifiers();
         if (!survivalInfinite) {
           unlockAchievement('survival_win');
-          setTimeout(endGame, 2500);
+          _minigameFinish(survivalTeamMode && players.length > 1 ? 'SURVIVED!' : 'YOU SURVIVED!', '#44ff88',
+            players.find(p => !p.isBoss && !p._mgDown && !p.isAI) || players[0], 2500, `All ${survivalWaveGoal} waves cleared`);
           return;
         }
         survivalWave = 0; // infinite: keep going
@@ -411,41 +445,68 @@ function updateMinigame() {
   } else if (minigameType === 'koth') {
     kothTimer++;
     const p1 = players[0], p2 = players[1];
-    // Check who's in the zone (200px wide centered on kothZoneX)
+    // Zone is the 200px column centred on kothZoneX.
     const zoneLeft = kothZoneX - 100, zoneRight = kothZoneX + 100;
-    const p1InZone = p1 && p1.health > 0 && p1.cx() > zoneLeft && p1.cx() < zoneRight && p1.onGround;
-    const p2InZone = p2 && p2.health > 0 && p2.cx() > zoneLeft && p2.cx() < zoneRight && p2.onGround;
+    // Airborne still counts, since the zone is the whole column.
+    const p1InZone = p1 && p1.health > 0 && p1.cx() > zoneLeft && p1.cx() < zoneRight;
+    const p2InZone = p2 && p2.health > 0 && p2.cx() > zoneLeft && p2.cx() < zoneRight;
     if (p1InZone && !p2InZone) kothPoints[0]++;
     if (p2InZone && !p1InZone) kothPoints[1]++;
     // Win at 1800 frames (30 seconds of uncontested zone)
     const WIN_FRAMES = 1800;
     if (kothPoints[0] >= WIN_FRAMES || kothPoints[1] >= WIN_FRAMES) {
       kothWinnerIdx = kothPoints[0] >= WIN_FRAMES ? 0 : 1;
-      setTimeout(endGame, 600);
+      const _kw = players[kothWinnerIdx];
+      _minigameFinish((_kw ? _kw.name : 'P' + (kothWinnerIdx + 1)) + ' WINS!', _kw ? _kw.color : '#ffdd44', _kw, 600, 'King of the Hill');
     }
   } else if (minigameType === 'chaos') {
     updateChaosMatch();
-    // Chaos match is just 1v1 — no special logic, just let normal 2P combat happen with modifiers
   } else if (minigameType === 'defense') {
     defenseEnemies = defenseEnemies.filter(function(e) { return e.health > 0; });
 
-    // Drive each rusher toward the nexus and check for contact
+    // The defender takes the rusher nearest the crystal, not the nearest enemy.
+    players.forEach(function(p) {
+      if (!p.isAI || p.isBoss || p.health <= 0) return;
+      var _best = null, _bd = Infinity;
+      for (var _bi = 0; _bi < defenseEnemies.length; _bi++) {
+        var _be = defenseEnemies[_bi];
+        var _d = Math.abs(_be.cx() - defenseNexusX);
+        if (_d < _bd) { _bd = _d; _best = _be; }
+      }
+      p.target = _best;
+    });
+
     var _nexusReached = false;
     for (var _di = 0; _di < defenseEnemies.length; _di++) {
       var _de = defenseEnemies[_di];
       if (!_de || _de.health <= 0) continue;
 
-      // A hit staggers the rusher. Steering used to overwrite vx every frame,
-      // which erased every hit's knockback on the very next frame.
-      if (_de.health < _de._defenseLastHp) _de._defenseStagger = 26;
+      // Hits stagger the rusher. Steering must not overwrite vx each frame, or knockback vanishes.
+      if (_de.health < _de._defenseLastHp) _de._defenseStagger = _de._defenseBrute ? 12 : 26;
       _de._defenseLastHp = _de.health;
       if (_de._defenseStagger > 0) _de._defenseStagger--;
       var _toDx = defenseNexusX - _de.cx();
-      // While staggered or stunned the knockback carries and friction bleeds
-      // it off; afterwards the rusher resumes its march at full speed.
+      // Stagger and stun knockback decays with friction, then the rusher resumes its march.
       if (_de._defenseStagger <= 0 && !(_de.stunTimer > 0)) {
-        _de.vx = (_toDx >= 0 ? 1 : -1) * (_de._defenseSpeed || 2.0);
+        const _dir = _toDx >= 0 ? 1 : -1;
+        _de.vx = _dir * (_de._defenseSpeed || 2.0);
+        // Walking into a planted defender only gave it free hits, so rushers vault. Later waves vault sooner.
+        if (_de.onGround && !_de._defenseBrute && (_de._defenseHopCd || 0) <= 0) {
+          const _blk = players.find(function(p) {
+            return !p.isBoss && p.health > 0 && Math.abs(p.y + p.h - (_de.y + _de.h)) < 40 &&
+                   (p.cx() - _de.cx()) * _dir > 0 && Math.abs(p.cx() - _de.cx()) < 70 + defenseWave * 4;
+          });
+          if (_blk && Math.random() < Math.min(0.15 + defenseWave * 0.03, 0.4)) {
+            _de.vy = -15;
+            _de.vx = _dir * Math.max(4.5, (_de._defenseSpeed || 2.0) * 2);
+            _de._defenseStagger = 0;
+            _de._defenseHopCd = 50;
+          } else if (_blk) _de._defenseHopCd = 20;
+        }
       }
+      if (_de._defenseHopCd > 0) _de._defenseHopCd--;
+      // Mid-vault the rusher keeps its jump carry instead of the walk speed.
+      if (!_de.onGround && _de._defenseHopCd > 30 && _de._defenseStagger <= 0) _de.vx = (_toDx >= 0 ? 1 : -1) * Math.max(4.5, (_de._defenseSpeed || 2.0) * 2);
 
       // Ring-out: a rusher knocked back through its own gate is banished.
       if (currentArena && currentArena.worldWidth && _de._defenseStagger > 0 &&
@@ -461,7 +522,7 @@ function updateMinigame() {
       var _ddx = Math.abs(_de.cx() - defenseNexusX);
       var _ddy = Math.abs((_de.y + (_de.h || 50)) - defenseNexusY);
       if (_ddx < 50 && _ddy < 60) {
-        defenseNexusHp -= DEFENSE_CONTACT_DMG;
+        defenseNexusHp -= _de._defenseBrute ? DEFENSE_BRUTE_DMG : DEFENSE_CONTACT_DMG;
         _de.health = 0;
         screenShake = Math.max(screenShake, 14);
         if (typeof spawnParticles === 'function') spawnParticles(defenseNexusX, defenseNexusY - 30, '#ff4422', 14);
@@ -475,32 +536,30 @@ function updateMinigame() {
     if (_nexusReached) {
       damageTexts.push(new DamageText(defenseNexusX, GAME_H / 2 - 40, 'NEXUS DESTROYED!', '#ff2200'));
       clearChaosModifiers();
-      setTimeout(endGame, 2500);
+      _minigameFinish('NEXUS DESTROYED', '#ff4422', null, 2500, 'Fell on wave ' + defenseWave + ' of ' + DEFENSE_WAVE_GOAL);
       return;
     }
 
-    // Release queued rushers one at a time
     if (defenseSpawnQueue.length > 0) {
       if (defenseSpawnTimer > 0) defenseSpawnTimer--;
       else {
-        _releaseDefenseRusher(defenseSpawnQueue.shift().fromLeft);
-        defenseSpawnTimer = DEFENSE_SPAWN_GAP;
+        const _q = defenseSpawnQueue.shift();
+        _releaseDefenseRusher(_q.fromLeft, _q.brute);
+        defenseSpawnTimer = Math.max(18, DEFENSE_SPAWN_GAP - defenseWave * 2);
       }
     }
 
-    // Wave timer / spawn next wave
     if (defenseWaveDelay > 0) {
       defenseWaveDelay--;
       if (defenseWaveDelay === 0) spawnDefenseWave();
     } else if (defenseSpawnQueue.length === 0 && defenseEnemies.filter(function(e) { return e.health > 0; }).length === 0) {
-      // Wave cleared — repair the Nexus and queue next. (Rushers deal no
-      // combat damage, so the old player heal here did nothing.)
+      // Wave cleared: repair the Nexus and queue the next wave.
       defenseNexusHp = Math.min(defenseNexusMaxHp, defenseNexusHp + DEFENSE_NEXUS_REGEN);
       if (defenseWave >= 5) unlockAchievement('nexus_defender');
       if (defenseWave >= DEFENSE_WAVE_GOAL) {
         damageTexts.push(new DamageText(defenseNexusX, 110, `NEXUS DEFENDED!  ${DEFENSE_WAVE_GOAL} WAVES!`, '#44ff88'));
         unlockAchievement('nexus_defender');
-        setTimeout(endGame, 2500);
+        _minigameFinish('NEXUS DEFENDED!', '#44ff88', players[0], 2500, `All ${DEFENSE_WAVE_GOAL} waves held`);
         return;
       }
       damageTexts.push(new DamageText(defenseNexusX, 110, 'Wave cleared!  Nexus +' + DEFENSE_NEXUS_REGEN, '#44ff88'));
@@ -509,10 +568,8 @@ function updateMinigame() {
   }
 }
 
-// Renamed off `drawDefenseNexus` — smb-story-engine-modes.js defines that name
-// too and loads LATER, so this body never ran and the Defense minigame drew no
-// nexus at all. The two are not interchangeable: this one reads defenseNexusHp,
-// the story one reads defenseNexusHP.
+// Not named drawDefenseNexus: the story engine defines that name and loads later.
+// This reads defenseNexusHp. The story one reads defenseNexusHP, a different variable.
 function drawMinigameDefenseNexus() {
   if (!gameRunning || minigameType !== 'defense') return;
   var _cx = defenseNexusX, _cy = defenseNexusY;
@@ -522,7 +579,6 @@ function drawMinigameDefenseNexus() {
 
   ctx.save();
 
-  // Outer glow
   var _grd = ctx.createRadialGradient(_cx, _cy - 30, 4, _cx, _cy - 30, 48 * _pulse);
   _grd.addColorStop(0, _col + 'bb');
   _grd.addColorStop(1, 'rgba(0,0,0,0)');
@@ -531,7 +587,6 @@ function drawMinigameDefenseNexus() {
   ctx.arc(_cx, _cy - 30, 48 * _pulse, 0, Math.PI * 2);
   ctx.fill();
 
-  // Crystal (diamond shape)
   ctx.fillStyle = _col;
   ctx.strokeStyle = 'rgba(255,255,255,0.6)';
   ctx.lineWidth = 2;
@@ -544,7 +599,6 @@ function drawMinigameDefenseNexus() {
   ctx.fill();
   ctx.stroke();
 
-  // Inner highlight shard
   ctx.fillStyle = 'rgba(255,255,255,0.28)';
   ctx.beginPath();
   ctx.moveTo(_cx - 2,  _cy - 58);
@@ -553,7 +607,6 @@ function drawMinigameDefenseNexus() {
   ctx.closePath();
   ctx.fill();
 
-  // HP bar
   var _barW = 80, _barH = 8;
   var _bx = _cx - _barW / 2, _by = _cy - 82;
   ctx.fillStyle = 'rgba(0,0,0,0.65)';
@@ -564,7 +617,6 @@ function drawMinigameDefenseNexus() {
   ctx.lineWidth = 1;
   ctx.strokeRect(_bx, _by, _barW, _barH);
 
-  // Label
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 10px Arial';
   ctx.textAlign = 'center';
@@ -578,8 +630,7 @@ function drawMinigameDefenseNexus() {
 function drawMinigameHUD() {
   if (!gameRunning) return;
   ctx.save();
-  // Pin to the screen. This ran under the camera transform, so on any zoomed
-  // or scrolled view the wave counter floated somewhere in the world.
+  // Pinned to the screen. Under the camera transform the counter drifted on zoomed views.
   ctx.setTransform(canvas.width / GAME_W, 0, 0, canvas.height / GAME_H, 0, 0);
   if (minigameType === 'sports') {
     if (typeof drawSportsHUD === 'function') drawSportsHUD();
@@ -591,7 +642,6 @@ function drawMinigameHUD() {
       ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
       ctx.fillText(`Next wave in ${Math.ceil(survivalWaveDelay / 60)}s`, GAME_W / 2, GAME_H - 44);
     }
-    // Chaos modifier badges
     if (currentChaosModifiers.size > 0) {
       const mods = [...currentChaosModifiers].map(id => CHAOS_MODS.find(m => m.id === id)?.label || id);
       ctx.font = 'bold 11px Arial'; ctx.textAlign = 'right';
@@ -618,19 +668,7 @@ function drawMinigameHUD() {
       ctx.fillText('Next wave in ' + Math.ceil(defenseWaveDelay / 60) + 's', GAME_W / 2, GAME_H - 44);
     }
   } else if (minigameType === 'koth') {
-    // Draw zone indicator
-    const zoneLeft = kothZoneX - 100;
-    ctx.fillStyle = 'rgba(255,220,0,0.10)';
-    ctx.fillRect(zoneLeft, 0, 200, GAME_H);
-    ctx.strokeStyle = 'rgba(255,220,0,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
-    ctx.strokeRect(zoneLeft + 1, 0, 198, GAME_H);
-    ctx.setLineDash([]);
-    // Zone label
-    ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
-    ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
-    ctx.fillText('KING ZONE', kothZoneX, 62);
-    ctx.shadowBlur = 0;
-    // Top score bar — drawn in screen space so it stays fixed below the DOM HUD
+    // Top score bar, screen space so it stays under the DOM HUD.
     const p1 = players[0], p2 = players[1];
     const WIN_FRAMES = 1800;
     ctx.save();
@@ -652,25 +690,41 @@ function drawMinigameHUD() {
       ctx.fillText(`${p.name}  ${Math.floor(pts / 60)}s / 30s`, tx, by + 22);
     });
     ctx.restore();
-    // Time-in-zone counter ABOVE each player's head (game/camera space)
-    [p1, p2].forEach((p, i) => {
-      if (!p || p.health <= 0) return;
-      const t = Math.floor(kothPoints[i] / 60);
-      if (t === 0) return;
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 11px Arial';
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = '#000'; ctx.shadowBlur = 5;
-      ctx.fillText(`${t}s`, p.cx(), p.y - 22);
-      ctx.shadowBlur = 0;
-    });
   }
   ctx.restore();
 }
 
+// World space, drawn under the camera with the arena. Screen space made the zone drift on zoom.
+function drawKothZone() {
+  if (!gameRunning || minigameType !== 'koth') return;
+  ctx.save();
+  const zoneLeft = kothZoneX - 100;
+  ctx.fillStyle = 'rgba(255,220,0,0.10)';
+  ctx.fillRect(zoneLeft, 0, 200, GAME_H);
+  ctx.strokeStyle = 'rgba(255,220,0,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+  ctx.strokeRect(zoneLeft + 1, 0, 198, GAME_H);
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+  ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
+  ctx.fillText('KING ZONE', kothZoneX, 62);
+  ctx.shadowBlur = 0;
+  const p1 = players[0], p2 = players[1];
+  [p1, p2].forEach((p, i) => {
+    if (!p || p.health <= 0) return;
+    const t = Math.floor(kothPoints[i] / 60);
+    if (t === 0) return;
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 11px Arial';
+    ctx.fillStyle = p.color;
+    ctx.shadowColor = '#000'; ctx.shadowBlur = 5;
+    ctx.fillText(`${t}s`, p.cx(), p.y - 22);
+    ctx.shadowBlur = 0;
+  });
+  ctx.restore();
+}
+
 function confirmResetProgress() {
-  // Signed-in: stamp the reset into the cloud snapshot first (clear() also drops the auth session),
-  // so the next sync cannot merge the old remote save back. Capped wait; offline falls through.
+  // Cloud reset first, so the next sync can't merge the old save back. Offline falls through.
   if (window.__SMB_RESET_PUSHED || !(window.SupabaseBridge && SupabaseBridge.pushReset)) { _confirmResetProgressLocal(); return; }
   window.__SMB_RESET_PUSHED = true;
   Promise.race([
@@ -680,15 +734,13 @@ function confirmResetProgress() {
 }
 
 function _confirmResetProgressLocal() {
-  // Wipe ALL localStorage keys — both smc_ prefixed and the consolidated save blob
+  // Wipe all localStorage keys, both smc_ and the consolidated save blob.
   localStorage.clear();
-  // The beforeunload/visibilitychange flush in smb-save.js (and GameState.save)
-  // would write the in-memory save straight back before the reload lands, so
-  // the wipe silently undid itself. Nothing may touch storage from here on.
+  // Nothing may write storage after this, or the unload flush undoes the wipe.
   window.__SMB_WIPING__ = true;
   try { Storage.prototype.setItem = function() {}; } catch (e) {}
 
-  // Flash confirmation then reload the page so all in-memory state resets too
+  // Flash, then reload so in-memory state resets too.
   const msg = document.createElement('div');
   msg.textContent = 'All progress wiped. Reloading...';
   msg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.95);color:#ffaa44;padding:16px 28px;border-radius:8px;font-size:1.1rem;font-weight:bold;z-index:9999;pointer-events:none';
@@ -696,20 +748,17 @@ function _confirmResetProgressLocal() {
   setTimeout(() => { location.reload(); }, 1200);
 }
 
-// ============================================================
-// ETERNAL DAMNATION ARC — wave management + escape system
-// ============================================================
+// ETERNAL DAMNATION ARC: wave management and escape.
 
 function spawnDamnationWave() {
   if (!damnationActive) return;
   const wave = damnationCheckpoint > damnationWave ? damnationCheckpoint : damnationWave;
   damnationWave = wave;
 
-  // Remove any remaining echo fighters from the previous wave
   players = players.filter(p => !p.isEcho);
 
   if (wave === 0) {
-    // Wave 1: three minion echoes — all on team 99 so they don't attack each other
+    // Wave 1: three minion echoes, all on team 99 so they don't fight each other
     for (let i = 0; i < 3; i++) {
       const echo = new Minion(200 + i * 200, 300);
       echo.isEcho = true;
@@ -717,37 +766,32 @@ function spawnDamnationWave() {
       echo.color = '#880000';
       echo.health = 150;
       echo.maxHealth = 150;
-      echo.lives = 1; // echoes die once — no respawn
+      echo.lives = 1;  // echoes die once
       echo.target = players[0] || null;
       players.push(echo);
     }
   } else if (wave === 1) {
-    // Wave 2: one Boss echo
     const echoB = new Boss();
     echoB.isEcho = true;
     echoB._teamId = 99;
     echoB.color = '#770000';
     echoB.health = 1200;
     echoB.maxHealth = 1200;
-    echoB.lives = 1; // echoes die once — no respawn
+    echoB.lives = 1;  // echoes die once
     echoB.target = players[0] || null;
-    // Suppress mid-fight cinematics on echo boss
     ['75', 'paradox50', '40', '10'].forEach(k => echoB._cinematicFired.add(k));
     players.push(echoB);
     if (players[0]) players[0].target = echoB;
   } else if (wave === 2) {
-    // Wave 3: one TrueForm echo
     const echoTF = new TrueForm();
     echoTF.isEcho = true;
     echoTF._teamId = 99;
     echoTF.color = '#660000';
     echoTF.health = 2500;
     echoTF.maxHealth = 2500;
-    echoTF.lives = 1; // echoes die once — no respawn
+    echoTF.lives = 1;  // echoes die once
     echoTF.target = players[0] || null;
-    // Story scale: reduce damage output on echo
     echoTF.dmgMult = 0.6;
-    // Suppress intro + all threshold cinematics
     ['entry', 'qte75', '50', 'paradox1000', 'qte25', '15'].forEach(k =>
       echoTF._cinematicFired.add(k));
     players.push(echoTF);
@@ -760,24 +804,21 @@ function updateDamnation() {
   const p1 = players[0];
   if (!p1) return;
 
-  // Pulse timer for visual effects
   damnationPulse = (damnationPulse + 1) % 120;
 
-  // Wave 0 → 1: all minion echoes dead
   if (damnationWave === 0) {
     const minionEchoes = players.filter(p => p.isEcho && !p.isBoss && !p.isTrueForm);
     if (minionEchoes.length > 0 && minionEchoes.every(p => p.health <= 0 || p.isDead)) {
       damnationWave = 1;
       spawnDamnationWave();
     }
-  // Wave 1 → 2: boss echo dead
   } else if (damnationWave === 1) {
     const bossEchoes = players.filter(p => p.isEcho && p.isBoss);
     if (bossEchoes.length > 0 && bossEchoes.every(p => p.health <= 0 || p.isDead)) {
       damnationWave = 2;
       spawnDamnationWave();
     }
-  // Wave 2 done: TrueForm echo dead — orb/portal system handles victory from here
+  // TrueForm echo dead: the orb and portal system handles victory from here.
   } else if (damnationWave === 2) {
     const tfEchoes = players.filter(p => p.isEcho && p.isTrueForm);
     if (tfEchoes.length > 0 && tfEchoes.every(p => p.health <= 0 || p.isDead)) {
@@ -785,7 +826,6 @@ function updateDamnation() {
     }
   }
 
-  // Collect anchor orbs
   for (let i = damnationAnchorOrbs.length - 1; i >= 0; i--) {
     const orb = damnationAnchorOrbs[i];
     orb.frame++;
@@ -795,7 +835,6 @@ function updateDamnation() {
       damnationAnchors++;
       if (typeof SoundManager !== 'undefined' && SoundManager.pickup) SoundManager.pickup();
       damnationAnchorOrbs.splice(i, 1);
-      // Open portal once 8 anchors collected
       if (!damnationPortalActive && damnationAnchors >= 8) {
         damnationPortalActive = true;
         damnationPortal = { x: GAME_W / 2, y: 200, frame: 0 };
@@ -807,7 +846,6 @@ function updateDamnation() {
     }
   }
 
-  // Check portal escape
   if (damnationPortalActive && damnationPortal) {
     damnationPortal.frame++;
     const dx = p1.cx() - damnationPortal.x;
@@ -822,12 +860,10 @@ function escapeDamnation() {
   if (damnationEscaped) return;
   damnationEscaped = true;
   damnationActive  = false;
-  // Flash white to signal escape
   if (typeof screenFlash === 'function') screenFlash('#ffffff', 20);
   if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
-  // Remove all echo fighters
   players = players.filter(p => !p.isEcho);
-  // End the match — story engine will advance to Ch. 93
+  // End the match. The story engine advances to Ch. 93
   if (typeof endGame === 'function') {
     const p1 = players[0];
     endGame(p1 ? p1.playerNum : 1);

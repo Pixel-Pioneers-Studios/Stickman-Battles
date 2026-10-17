@@ -1,17 +1,10 @@
 'use strict';
 
-// ============================================================
-// STICKMAN EVOLUTION — CREATOR STUDIO (map + weapon designer)
-// Opened from the main menu Designer card. The live in-match map editor
-// (Training, F4) lives further down and shares only the small style helpers.
-//
-// Both editors draw with the game's own renderer: while the menu is up the
-// game canvas is idle, so each frame the arena (or a real Fighter) is drawn
-// into it with drawBackground/drawPlatforms/Fighter.draw and copied into the
-// editor canvas. What you edit is what you play.
-// ============================================================
+// Creator studio: map and weapon designer, opened from the menu's Designer card.
+// The Training live editor (F4) is further down and shares only the style helpers.
+// Both draw with the game's own renderer, so what you edit is what you play.
 
-// ---- Map editor state ----
+// Map editor state.
 let _dPlatforms  = [];          // platforms being edited
 let _dHazards    = new Set();   // hazard keys (see _D_HAZARDS)
 let _dSelected   = null;        // index of selected platform
@@ -40,12 +33,12 @@ function designerToggleSnap() {
   if (btn) { btn.textContent = `Snap ${_dSnapGrid ? 'on' : 'off'}`; btn.classList.toggle('on', _dSnapGrid); }
 }
 
-// Arenas a custom map can be built on: single-screen (900 wide), not story- or
-// boss-only. Filtered again at runtime against ARENAS.
+// Arenas a custom map can be built on: single-screen, not story or boss only.
+// Filtered again at runtime against ARENAS.
 const _D_BASES = ['grass', 'city', 'forest', 'ice', 'lava', 'space', 'ruins', 'cave', 'colosseum',
   'cyberpunk', 'underwater', 'volcano', 'desert', 'haunted', 'mushroom', 'clouds', 'suburb', 'rural', 'sewer'];
 
-// Every hazard here is wired to a real engine system (see _dBuildArena).
+// Each hazard is wired to a real engine system (see _dBuildArena).
 const _D_HAZARDS = [
   { k: 'lava',      label: 'Lava floor',   tip: 'Falling below the floor line burns' },
   { k: 'lowgrav',   label: 'Low gravity',  tip: 'Floaty jumps, long air time' },
@@ -58,7 +51,7 @@ const _D_HAZARDS = [
 ];
 const _D_HAZARD_KEYS = new Set(_D_HAZARDS.map(h => h.k));
 
-// ---- PRESET LAYOUTS ----
+// Preset layouts.
 const _D_PRESETS = {
   arena: [
     { x: -60, y: 480, w: 1020, h: 40, isFloor: true },
@@ -96,12 +89,12 @@ function designerApplyPreset(name) {
   _dSyncControls();
 }
 
-// ---- Icons (the game's own SVG set, smb-icons.js) ----
+// Icons: the game's own SVG set (smb-icons.js).
 function _dIco(name) {
   return `<svg class="smb-icon cs-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><use href="#i-${name}"/></svg>`;
 }
 
-// ---- Styles: one stylesheet, the menu's tokens (SMB.css :root) ----
+// Styles. One stylesheet, using the menu's tokens from SMB.css :root.
 function _dInjectStyle() {
   if (document.getElementById('csStyle')) return;
   const st = document.createElement('style');
@@ -198,7 +191,7 @@ function _dInjectStyle() {
   document.head.appendChild(st);
 }
 
-// ---- Build the whole studio (once) ----
+// Build the whole studio, once.
 function _dBuildOverlay() {
   if (document.getElementById('designerOverlay')) return;
   _dInjectStyle();
@@ -335,7 +328,7 @@ function _dBuildOverlay() {
   _wFillBaseGrid();
 }
 
-// Style builders kept for the Training live editor further down.
+// Style builders, also used by the Training live editor.
 function _dBtnStyle(accentColor, isActive) {
   const c = accentColor || 'rgba(255,255,255,0.7)';
   return `background:${isActive ? 'rgba(68,255,136,0.16)' : 'rgba(255,255,255,0.06)'};
@@ -344,7 +337,7 @@ function _dBtnStyle(accentColor, isActive) {
     font-size:0.76rem;font-family:inherit;transition:background 0.12s;`;
 }
 
-// Make element draggable via a handle
+// Make an element draggable by a handle.
 function _dMakeDraggable(el, handle) {
   let ox = 0, oy = 0, sx = 0, sy = 0;
   handle.addEventListener('mousedown', (e) => {
@@ -380,7 +373,7 @@ function openDesigner() {
   _dCtx    = _dCanvas.getContext('2d');
   _dSetupCanvasEvents();
   _dInstallKeys();
-  // A fresh studio starts on the base arena's real layout, never a blank grid.
+  // A fresh studio starts from the base arena's real layout, not a blank grid.
   if (_dPlatforms.length === 0) designerChangeBase(true);
   _dLoadSaved();
   _wHydrateLibrary();
@@ -398,10 +391,8 @@ function closeDesigner() {
   if (_dKeyHandler) { document.removeEventListener('keydown', _dKeyHandler, true); _dKeyHandler = null; }
 }
 
-// ── In-game Training Mode Designer ───────────────────────────
-// A compact live-edit panel that appears while the game runs.
-// All platform changes update currentArena.platforms in real time.
-// Human player gets godmode + free flight while open.
+// In-game Training designer: a live-edit panel. Edits update currentArena.platforms
+// in real time. The human gets godmode and flight while it's open.
 
 let _tdSelectedIdx = -1; // selected platform index in live editor
 
@@ -464,7 +455,7 @@ function openTrainingDesigner() {
   document.body.appendChild(panel);
   _dMakeDraggable(panel, document.getElementById('_tdDragHandle'));
 
-  // Click on game canvas to place platform
+  // Click the game canvas to place a platform.
   canvas.addEventListener('click', _tdCanvasClick);
   _tdRefreshList();
 }
@@ -489,10 +480,10 @@ function _tdToggleSnap() {
 
 function _tdScreenToGame(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  // Convert CSS pixels → canvas pixels
+  // CSS pixels to canvas pixels.
   const canvasPx = (clientX - rect.left) * (canvas.width  / rect.width);
   const canvasPy = (clientY - rect.top)  * (canvas.height / rect.height);
-  // Invert the current camera transform (setTransform(scX,0,0,scY,tx,ty))
+  // Invert the camera transform.
   const m = ctx.getTransform();
   return {
     x: (canvasPx - m.e) / m.a,
@@ -502,10 +493,10 @@ function _tdScreenToGame(clientX, clientY) {
 
 function _tdCanvasClick(e) {
   if (!trainingDesignerOpen || !currentArena) return;
-  // Only place if not clicking in the panel area
+  // Skip clicks inside the panel.
   if (e.clientX > window.innerWidth - 280 && e.clientY < 500) return;
   const gp = _tdScreenToGame(e.clientX, e.clientY);
-  // Center the new platform on the cursor
+  // Centre the new platform on the cursor.
   const gx = _tdSnapV(gp.x - 60);
   const gy = _tdSnapV(gp.y - 8);
   currentArena.platforms.push({ x: gx, y: gy, w: 120, h: 16 });
@@ -583,7 +574,7 @@ function _tdExport() {
 
 function _tdImport() {
   document.getElementById('_dImportModal')?.remove();
-  // Reuse the map import modal but apply to live arena
+  // Reuses the map import modal, applied to the live arena.
   const modal = document.createElement('div');
   modal.id = '_dImportModal';
   modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:3000;
@@ -625,7 +616,7 @@ function _tdImportFromText() {
 
 function _tdApplyPreset(name) {
   if (!currentArena) return;
-  // Re-randomize the layout for the current arena key (restores defaults)
+  // Re-randomise the layout for this arena (restores defaults).
   if (typeof randomizeArenaLayout === 'function') randomizeArenaLayout(currentArenaKey);
   _tdSelectedIdx = -1;
   _tdRefreshList();
@@ -637,9 +628,7 @@ function _dInputStyle() {
     border-radius:5px;padding:4px 6px;font-family:monospace;font-size:0.75rem;box-sizing:border-box;`;
 }
 
-// ============================================================
-// CREATOR STUDIO — MAP EDITOR
-// ============================================================
+// Creator studio: map editor.
 
 function designerTab(tab) {
   const mp = document.getElementById('designerMapPanel');
@@ -661,7 +650,7 @@ function _dBaseList() {
 function _dFillBaseSelect() {
   const sel = document.getElementById('dBaseArena');
   if (!sel) return;
-  // Display names come from the Versus arena list, which already has them.
+  // Display names come from the Versus arena list.
   const label = (k) => {
     const o = document.querySelector(`#arenaSelect option[value="${k}"]`);
     const t = (o && o.textContent.trim()) || (ARENAS[k] && ARENAS[k].name) || k;
@@ -671,8 +660,7 @@ function _dFillBaseSelect() {
   sel.value = _dBaseArena;
 }
 
-// The hazards a base arena brings with it on its own, so starting from Ice gives
-// you the ice, the wind and the yeti without hunting for toggles.
+// Hazards a base arena brings along. Starting from Ice gives its ice, wind and yeti.
 function _dBaseHazards(key) {
   const a = (typeof ARENAS !== 'undefined' && ARENAS[key]) || {};
   const h = [];
@@ -693,8 +681,8 @@ function _dBaseLayout(key) {
     x: p.x, y: p.y, w: p.w, h: p.h || 14, isFloor: !!p.isFloor, oscX: 0, oscY: 0 }));
 }
 
-// silent: opening the studio. Otherwise a base change on an edited map asks
-// first, because it replaces the layout.
+// silent when opening the studio. Otherwise a base change on an edited map asks
+// first, since it replaces the layout.
 function designerChangeBase(silent) {
   const sel = document.getElementById('dBaseArena');
   const next = (sel && sel.value) || _dBaseArena;
@@ -718,7 +706,7 @@ function designerResetToBase() {
   _dSyncControls();
 }
 
-// ---- PLATFORM TOOLS ----
+// Platform tools.
 function _dPush() { _dHistory.push(JSON.stringify(_dPlatforms)); if (_dHistory.length > 80) _dHistory.shift(); }
 
 function designerAddPlatform() {
@@ -783,7 +771,7 @@ function _dSyncControls() {
   for (const id of ['dPlatW', 'dPlatH', 'dPlatFloor', 'dPlatMoving']) document.getElementById(id).disabled = !pl;
 }
 
-// ---- HAZARDS ----
+// Hazards.
 function designerToggleHazard(h) {
   if (!_D_HAZARD_KEYS.has(h)) return;
   if (_dHazards.has(h)) _dHazards.delete(h);
@@ -807,7 +795,7 @@ function designerSyncMeta() {
   _dMeta.sky  = document.getElementById('dSkyOn').checked ? document.getElementById('dSkyColor').value : null;
 }
 
-// ---- KEYBOARD ----
+// Keyboard.
 function _dInstallKeys() {
   if (_dKeyHandler) return;
   _dKeyHandler = (e) => {
@@ -831,11 +819,11 @@ function _dInstallKeys() {
       pl.x += nudge[0] * step; pl.y = Math.max(0, Math.min(520 - pl.h, pl.y + nudge[1] * step));
     }
   };
-  // Capture phase: the game's own key handlers must not see studio keys.
+  // Capture phase, so the game's key handlers don't see studio keys.
   document.addEventListener('keydown', _dKeyHandler, true);
 }
 
-// ---- CANVAS EVENTS ----
+// Canvas events.
 function _dSetupCanvasEvents() {
   const cv = _dCanvas;
   const _toGame = (cx, cy) => {
@@ -935,10 +923,8 @@ function _dSetupCanvasEvents() {
   };
 }
 
-// ---- RENDER: the game's own renderer, borrowed while the menu is up ----
-// Draws `draw` into the idle game canvas at worldW x worldH, then copies the
-// result into `target`. Returns false when the game canvas is busy (a match is
-// running) so callers can fall back.
+// Render with the game's own renderer while the menu is up. Draws into the idle game
+// canvas at worldW x worldH, then copies to `target`. Returns false if a match is running.
 function _dRenderViaGame(target, worldW, worldH, draw) {
   if (typeof canvas === 'undefined' || typeof ctx === 'undefined' || !canvas) return false;
   if (typeof gameRunning !== 'undefined' && gameRunning) return false;
@@ -961,8 +947,7 @@ function _dRenderViaGame(target, worldW, worldH, draw) {
   return ok;
 }
 
-// Build the playable arena object for a map spec. The single source of truth:
-// the editor view, Play, saved maps and share codes all go through here.
+// Build the playable arena for a map spec. Editor view, Play, saves and share codes all use this.
 function _dBuildArena(spec) {
   const base = (typeof ARENAS !== 'undefined' && (ARENAS[spec.base] || ARENAS.grass)) || {};
   const hz = new Set(spec.hazards || []);
@@ -972,8 +957,7 @@ function _dBuildArena(spec) {
     return pl;
   });
   if (!platforms.length) platforms = _dBaseLayout(spec.base).map(p => Object.assign({}, p));
-  // Spawning needs a ground platform (pickSafeSpawn). If the author marked none,
-  // the widest of the lowest platforms becomes the ground.
+  // Spawning needs a ground platform (pickSafeSpawn). If none is marked, the widest low platform is used.
   if (!platforms.some(p => p.isFloor)) {
     const g = platforms.slice().sort((a, b) => (b.y - a.y) || (b.w - a.w))[0];
     if (g) g.isFloor = true;
@@ -1036,12 +1020,12 @@ function _dDrawEditor() {
   const spec = _dCurrentSpec();
 
   if (!_dDrawArenaReal(dc, spec)) {
-    // Fallback (a match is running underneath): flat schematic.
+    // A match is running underneath, so draw a flat schematic.
     dc.fillStyle = spec.sky || '#141926'; dc.fillRect(0, 0, W, H);
     for (const pl of _dPlatforms) { dc.fillStyle = pl.isFloor ? '#3d4a5c' : '#556070'; dc.fillRect(pl.x * sx, pl.y * sy, pl.w * sx, pl.h * sy); }
   }
 
-  // Grid only while snapping, faint enough to read the art through.
+  // Grid only while snapping, faint enough to see the art through.
   if (_dSnapGrid) {
     dc.strokeStyle = 'rgba(255,255,255,0.06)'; dc.lineWidth = 1;
     dc.beginPath();
@@ -1084,8 +1068,7 @@ function _dDrawEditor() {
   }
 }
 
-// ---- MAP SPECS ----
-// A spec is the whole map as plain data. Saves, share codes and Play all use it.
+// Map specs. A spec is the whole map as plain data. Saves, share codes and Play all use it.
 //   { v:1, name, base, sky|null, hazards:[...], platforms:[{x,y,w,h,isFloor,oscX}] }
 function _dCurrentSpec() {
   return {
@@ -1099,9 +1082,8 @@ function _dCurrentSpec() {
 const _dNum = (v, lo, hi, d) => { v = Number(v); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d; };
 const _dCleanName = (s, d, max) => (String(s == null ? '' : s).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, max) || d);
 
-// Accepts anything a player might paste: share codes' payload, the current spec,
-// or the pre-September save/export shape { meta, platforms, hazards, base }.
-// Everything is clamped; nothing from outside reaches the page unescaped.
+// Accepts a share payload, a current spec, or the older { meta, platforms, hazards, base }
+// shape. Everything is clamped, and nothing reaches the page unescaped.
 function _dSanitizeMapSpec(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const legacy = raw.meta && typeof raw.meta === 'object';
@@ -1137,8 +1119,7 @@ function _dApplySpec(spec) {
   _dSyncControls();
 }
 
-// ---- SHARE CODES ----
-// "SE-MAP1." / "SE-WPN1." + base64url(JSON). Platforms pack to [x,y,w,h,flags].
+// Share codes: "SE-MAP1." or "SE-WPN1." + base64url(JSON). Platforms pack to [x,y,w,h,flags].
 function _dB64(s) { return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function _dUnB64(s) {
   s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '=';
@@ -1160,7 +1141,7 @@ function _dCodeToMap(text) {
   } catch (e) { return null; }
 }
 
-// ---- SAVE / LIBRARY ----
+// Save and library.
 function _dGetSaves() {
   try { const o = JSON.parse(localStorage.getItem('smc_custom_maps') || '{}'); return o && typeof o === 'object' ? o : {}; }
   catch (e) { return {}; }
@@ -1172,7 +1153,7 @@ function _dPutSaves(saves) {
 function _dSlug(name) { return String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 32) || 'map'; }
 function _dMapKey(spec) { return '_custom_' + _dSlug(spec.name); }
 
-// Registers the map as a selectable arena and returns its ARENAS key.
+// Registers the map as an arena and returns its ARENAS key.
 function _dRegisterMap(spec) {
   const key = _dMapKey(spec);
   if (typeof ARENAS !== 'undefined') ARENAS[key] = _dBuildArena(spec);
@@ -1184,7 +1165,7 @@ function designerSave(quiet) {
   designerSyncMeta();
   const spec = _dCurrentSpec();
   const saves = _dGetSaves();
-  // Same name overwrites, so saving twice doesn't make duplicates.
+  // Same name overwrites, so saving twice makes no duplicate.
   for (const [k, v] of Object.entries(saves)) {
     const s = _dSanitizeMapSpec(v.spec || v);
     if (s && _dSlug(s.name) === _dSlug(spec.name)) delete saves[k];
@@ -1227,7 +1208,7 @@ function _dDeleteSave(key) {
   _dLoadSaved();
 }
 
-// ---- PLAY ----
+// Play.
 function designerPlay() {
   designerSyncMeta();
   const spec = _dCurrentSpec();
@@ -1242,7 +1223,7 @@ function designerPlay() {
   if (typeof startGame === 'function') startGame();
 }
 
-// ---- SHARE / IMPORT ----
+// Share and import.
 function _dModal(html) {
   document.getElementById('csModal')?.remove();
   const m = document.createElement('div');
@@ -1303,7 +1284,7 @@ function designerImport() {
   });
 }
 
-// ---- misc helpers (shared with the Training live editor) ----
+// Helpers, shared with the Training live editor.
 function _dToast(msg, isError) {
   const t = document.createElement('div');
   t.textContent = msg;
@@ -1335,7 +1316,7 @@ function _dExportAsFile(text, filename) {
   _dToast('File downloaded');
 }
 
-// Used by the Training live editor's Export.
+// Used by the Training live editor's export.
 function _dShowExportModal(text, filename, title, altCodeText) {
   const code = altCodeText || text;
   const m = _dModal(`<h3>${_escHtml(title || 'Export')}</h3>
@@ -1358,7 +1339,7 @@ function _dInjectArenaOption(key, label) {
   grp.appendChild(opt);
 }
 
-// Restore saved maps into ARENAS + the arena list on page load.
+// Restore saved maps into ARENAS and the arena list on page load.
 function _dRestoreCustomMapsToDropdown() {
   for (const v of Object.values(_dGetSaves())) {
     const spec = _dSanitizeMapSpec(v.spec || v);
@@ -1366,13 +1347,9 @@ function _dRestoreCustomMapsToDropdown() {
   }
 }
 
-// ============================================================
-// CREATOR STUDIO — WEAPON BUILDER
-// A custom weapon starts from a real weapon and inherits its art, swing and
-// (by default) its signature ability; the player retunes the numbers inside a
-// power budget. The engine sees an ordinary weapon: the custom key is aliased
-// to the base in WEAPON_SPRITES / WEAPON_SWINGS, so nothing in Fighter changes.
-// ============================================================
+// Creator studio: weapon builder. A custom weapon starts from a real one, with its art,
+// swing and ability, and the player retunes the numbers within a power budget. The custom
+// key is aliased to the base in WEAPON_SPRITES and WEAPON_SWINGS, so Fighter is unchanged.
 
 const _W_BASES = [
   { k: 'sword', icon: 'sword' }, { k: 'katana', icon: 'katana' }, { k: 'axe', icon: 'axe' },
@@ -1389,9 +1366,9 @@ const _W_ABILITIES = [
   { k: 'bolt',   label: 'Energy bolt', hint: 'Fires a projectile.' },
   { k: 'heal',   label: 'Mend',        hint: 'Heals 12% of max health. Recharge is at least 6s.' },
 ];
-// Slider ranges in engine units (frames, px). Cooldowns display in seconds.
+// Slider ranges in engine units (frames, px). Cooldowns show in seconds.
 const _W_RANGE = { damage: [6, 26], range: [55, 150], cooldown: [18, 66], kb: [4, 24], abilityCooldown: [120, 480] };
-const _W_BUDGET = 36;   // the power formula below scores Spear 34.9, Electric Staff 36.4, Sword 22.4
+const _W_BUDGET = 36;   // power score: Spear 34.9, Electric Staff 36.4, Sword 22.4
 
 let _wSpec = null;          // spec being edited
 let _wEditKey = null;       // library key when editing a saved weapon
@@ -1428,7 +1405,7 @@ function _wSanitize(raw) {
     cooldown: _dNum(raw.cooldown, r.cooldown[0], r.cooldown[1], 36), kb: _dNum(raw.kb != null ? raw.kb : raw.kbForce, r.kb[0], r.kb[1], 10),
     ability, abilityCooldown: _dNum(raw.abilityCooldown, r.abilityCooldown[0], r.abilityCooldown[1], 180) };
   if (s.ability === 'heal') s.abilityCooldown = Math.max(360, s.abilityCooldown);
-  // Over-budget weapons (old saves, hand-edited codes) are scaled back to fair.
+  // Over-budget weapons (old saves, hand-edited codes) are scaled back.
   const p = designerWeaponPower(s);
   if (p > _W_BUDGET) s.damage = Math.max(r.damage[0], Math.floor(s.damage * _W_BUDGET / p));
   return s;
@@ -1490,8 +1467,7 @@ function designerRegisterWeapon(key, spec) {
   return window.CUSTOM_WEAPONS[key];
 }
 
-// Saved weapons come back from localStorage as plain data (no ability function,
-// no aliases). Rebuild every one from its spec; migrate the old studio list too.
+// Saved weapons load as plain data (no ability function, no aliases). Rebuild each from its spec.
 function _wHydrateLibrary() {
   window.CUSTOM_WEAPONS = window.CUSTOM_WEAPONS || {};
   for (const [k, w] of Object.entries(window.CUSTOM_WEAPONS)) {
@@ -1511,7 +1487,7 @@ function _wHydrateLibrary() {
   if (typeof refreshCustomWeaponOptions === 'function') refreshCustomWeaponOptions();
 }
 
-// ---- UI ----
+// UI.
 function _wFillBaseGrid() {
   const g = document.getElementById('wBaseGrid');
   if (!g) return;
@@ -1563,7 +1539,7 @@ function wSync() {
   document.getElementById('wAbilHint').textContent = s.ability === 'signature'
     ? `${base.abilityName || 'Signature'}: the ${base.name || s.base}'s own ability.` : (ab ? ab.hint : '');
 
-  // Power: the raw slider value, before sanitizing scales it back.
+  // Raw slider value, before sanitizing scales it back.
   const p = designerWeaponPower(Object.assign({}, s, { damage: raw.dmg }));
   const pct = Math.round(p / _W_BUDGET * 100);
   const over = p > _W_BUDGET + 0.01;
@@ -1593,7 +1569,7 @@ function _wRefreshPreviewFighter() {
   } catch (e) { _wPreviewFighter = null; }
 }
 
-// Real fighter, real weapon art: idle for a beat, then a swing, on a loop.
+// Real fighter and weapon art: idle for a beat, then swing, on a loop.
 function _wDraw() {
   const cv = document.getElementById('weaponPreviewCanvas');
   if (!cv) return;
@@ -1621,7 +1597,7 @@ function _wDraw() {
   }
 }
 
-// ---- LIBRARY ----
+// Library.
 function _wLibrary() {
   return Object.entries(window.CUSTOM_WEAPONS || {}).filter(([k, w]) => k.startsWith('_custom_') && k !== '_custom_preview' && w && w._spec);
 }
@@ -1629,7 +1605,7 @@ function _wLibrary() {
 function wSaveWeapon(quiet) {
   const s = _wReadSpec();
   if (!s) return null;
-  // Same name overwrites, like maps.
+  // Same name overwrites, as with maps.
   let key = _wEditKey && window.CUSTOM_WEAPONS[_wEditKey] ? _wEditKey : null;
   for (const [k, w] of _wLibrary()) if (w._spec.name.toLowerCase() === s.name.toLowerCase()) key = k;
   key = key || ('_custom_' + Date.now().toString(36));
@@ -1637,7 +1613,7 @@ function wSaveWeapon(quiet) {
   _wEditKey = key;
   if (typeof saveCustomWeaponsData === 'function') {
     const prev = window.CUSTOM_WEAPONS._custom_preview;
-    delete window.CUSTOM_WEAPONS._custom_preview;   // never persist the preview slot
+    delete window.CUSTOM_WEAPONS._custom_preview;   // never persisted
     saveCustomWeaponsData();
     window.CUSTOM_WEAPONS._custom_preview = prev;
   }
@@ -1726,13 +1702,12 @@ function wImportWeapon() {
   });
 }
 
-// ---- WEAPON TEST HUD (Training, after "Test on a dummy") ----
-// Reads damage off the dummies' health rather than hooking dealDamage.
+// Weapon test HUD (Training). Reads damage from the dummies' health, not dealDamage.
 function drawDesignerTestHUD(c) {
   const T = window._wTest;
   if (!T || !c) return;
   if (typeof gameRunning === 'undefined' || !gameRunning || gameMode !== 'training') {
-    if (T.started) window._wTest = null;   // left Training: the test is over
+    if (T.started) window._wTest = null;   // left Training, so the test ends
     return;
   }
   const p1 = players && players[0];
@@ -1773,9 +1748,9 @@ function drawDesignerTestHUD(c) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Restore persisted custom weapons, then rebuild them (ability fns + art aliases).
+  // Restore saved custom weapons and rebuild them (ability fns and art aliases).
   if (typeof loadCustomWeaponsData === 'function') loadCustomWeaponsData();
-  // Defer so ARENAS / WEAPON_SPRITES / menu dropdowns all exist.
+  // Defer so ARENAS, WEAPON_SPRITES and the menu dropdowns exist first.
   setTimeout(() => {
     try { _wHydrateLibrary(); } catch (e) {}
     try { _dRestoreCustomMapsToDropdown(); } catch (e) {}

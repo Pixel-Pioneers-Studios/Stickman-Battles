@@ -1,5 +1,5 @@
 'use strict';
-// smb-finisher-void — Depends on: smb-finisher-helpers.js
+// smb-finisher-void: Depends on: smb-finisher-helpers.js
 
 const FIN_VOID_SLAM = {
   name: 'VOID SLAM',
@@ -18,10 +18,8 @@ const FIN_VOID_SLAM = {
     // Snap boss to near target
     data.bossSnapX = data.tx0 - data.dir * 28;
     data.bossSnapY = data.ty0;
-    // Target's peak position
     data.peakX = data.tx0;
     data.peakY = data.ty0 - data.liftH;
-    // Shockwave
     data.shockR = 0;
     data.shockAlpha = 0;
     data.dialogue = _FIN_DIALOGUE.trueform[Math.floor(Math.random() * _FIN_DIALOGUE.trueform.length)];
@@ -44,31 +42,30 @@ const FIN_VOID_SLAM = {
           CinCam.shake(14);
           spawnParticles(att.cx(), att.cy(), '#aa00ff', 18);
       }},
-      // Frame 28: lift begins — slow-mo deepens
+      // Frame 28: lift begins, slow-mo deepens
       { frame: 28, fn() { CinCam.slowMo(0.18); } },
-      // Frame 55: at peak — pause briefly, Dutch tilt for drama
+      // Frame 55: at peak: pause briefly, Dutch tilt for drama
       { frame: 55, fn() {
           CinCam.slowMo(0.08);
           CinCam.zoomTo(1.5);
           CinCam.focusMidpoint(att, tgt);
           CinCam.shake(8);
           CinCam.tilt(data.dir > 0 ? 4 : -4);
-          // Speed lines radiating from attacker — "holding them in the air" feel
+          // Speed lines radiating from the attacker
           CinFX.speedLines(att.cx(), att.cy(), '#aa00ff', { count: 20, maxLen: 180, dur: 18, spread: Math.PI * 2 });
       }},
-      // Frame 80: SLAM DOWN — full speed, snap tilt back
+      // Frame 80: slam down at full speed, snap tilt back
       { frame: 80, fn() {
           CinCam.slowMo(1.0);
           CinCam.zoomTo(1.1);
           CinCam.tilt(0);
-          // Directional speed lines pointing down as they plunge
           CinFX.speedLines(tgt.cx(), tgt.cy(), '#ffffff', { count: 18, maxLen: 200, dur: 20, spread: 0.9, dir: Math.PI * 0.5 });
       }},
-      // Frame 105: impact — shockwave + heavy directional shake + impact frame
+      // Frame 105: impact (shockwave, directional shake, impact frame)
       { frame: 105, fn() {
           data.shockR = 1;
           data.shockAlpha = 1;
-          // Directional shake: push downward (y=1) then snap back
+          // Shake downward (y=1), then snap back
           CinCam.directionalShake(52, 0, 1);
           spawnParticles(data.tx0+tgt.w/2, data.ty0+tgt.h, '#aa00ff', 50);
           spawnParticles(data.tx0+tgt.w/2, data.ty0+tgt.h, '#ffffff', 20);
@@ -92,11 +89,9 @@ const FIN_VOID_SLAM = {
   update(att, tgt, timer, data) {
     _tickTimeline(data.timeline, timer);
 
-    // Bars lerp
     if (timer < 15)     data.bars = timer / 15;
     if (timer > 170)    data.bars = Math.max(0, (185 - timer) / 15);
 
-    // Shockwave expand
     if (data.shockR > 0) {
       data.shockR += 12;
       data.shockAlpha = Math.max(0, data.shockAlpha - 0.03);
@@ -119,12 +114,11 @@ const FIN_VOID_SLAM = {
     } else if (timer <= 80) {
       tgt.x = data.peakX; tgt.y = data.peakY;
 
-    // Phase 4 (80-105): slam down — fast
+    // Phase 4 (80-105): slam down, fast
     } else if (timer <= 105) {
       const t2 = (timer - 80) / 25;
       tgt.y = _finLerp(data.peakY, data.ty0 + tgt.h*0.2, _finEaseIn(t2));
       tgt.x = data.peakX;
-      // boss follows slam
       att.y = _finLerp(data.bossSnapY - data.liftH*0.6, data.bossSnapY, _finEaseIn(t2));
 
     // Phase 5 (105+): locked on floor
@@ -136,20 +130,17 @@ const FIN_VOID_SLAM = {
     att.vx = 0; att.vy = 0;
     tgt.vx = 0; tgt.vy = 0;
 
-    // Cinematic cam focus tracking (between events)
+    // Cam focus tracking between events
     if (timer > 28 && timer < 80) CinCam.focusMidpoint(att, tgt);
   },
 
   draw(ctx, att, tgt, t, timer, data) {
     const { scX, scY, ox, oy } = _finGameTransform();
 
-    // Letterbox
     _finBars(ctx, data.bars);
 
-    // Vignette
     _finVignette(ctx, Math.min(0.55, t * 2));
 
-    // Purple aura around boss
     if (timer < 105) {
       const aura = Math.min(1, timer / 30);
       ctx.save(); ctx.setTransform(scX, 0, 0, scY, ox, oy);
@@ -162,7 +153,7 @@ const FIN_VOID_SLAM = {
       ctx.restore();
     }
 
-    // Void chains: wavy lines from boss hand to player while lifting
+    // Void chains from boss hand to player while lifting
     if (timer > 20 && timer < 105) {
       ctx.save(); ctx.setTransform(scX, 0, 0, scY, ox, oy);
       ctx.strokeStyle = `rgba(180,50,255,0.6)`; ctx.lineWidth = 2;
@@ -184,7 +175,7 @@ const FIN_VOID_SLAM = {
       ctx.restore();
     }
 
-    // Impact shockwave
+
     if (data.shockR > 0 && data.shockAlpha > 0) {
       ctx.save(); ctx.setTransform(scX, 0, 0, scY, ox, oy);
       ctx.strokeStyle = `rgba(180,50,255,${data.shockAlpha})`;
@@ -194,7 +185,6 @@ const FIN_VOID_SLAM = {
       ctx.restore();
     }
 
-    // Flash on slam
     if (timer >= 105 && timer <= 113) {
       _finFlash(ctx, (113-timer)/8 * 0.85, 120, 0, 200);
     }

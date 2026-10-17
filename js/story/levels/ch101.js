@@ -1,18 +1,8 @@
 'use strict';
-// js/story/levels/ch101.js — Chapter 101 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch101.js: chapter 101 map. Contract is in smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 101 — Titan King (walk → duel vs the Titan King, 1 life)
-// The Throne Plateau. The walk crosses the top of the plateau through the
-// King's court: banners hung from poles as tall as trees, braziers the size
-// of wells, the kneeling statues of everyone who served the throne. At the
-// midpoint the throne itself, against the sky — a seat of stone you could
-// fit a house on, and the King rising from it when you walk out onto the
-// flagstones in front ("It stood up"); after the fight the court beyond is
-// empty and the next fracture is a glow over the plateau's edge ("the
-// Creator's domain is next"). The stepped dais blocks of the court are the
-// climbs; the cache shafts are drains cut into the flagstones.
-// ═════════════════════════════════════════════════════════════════════════════
+// Ch101 (Titan King): walk, then duel the Titan King with 1 life. Dais blocks are the climbs;
+// cache shafts are drains cut into the flagstones.
 (function () {
   const G = 440, THRONE = 3000, EDGE = 5650;
   const DAIS = [[520, 360, 120], [640, 280, 120], [1150, 350, 120], [1270, 270, 120], [2210, 360, 110], [2320, 280, 110],

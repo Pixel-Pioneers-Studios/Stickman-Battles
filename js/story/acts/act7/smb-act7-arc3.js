@@ -1,7 +1,5 @@
 // Appends chapters for act7/smb-act7-arc3.js.
-// The Absolute Axiom arc — the siege, not the duel.
-// The caged voice. The Paradox manifestation, spending itself.
-// Two phases. Alone but whole. Peak form. The oldest room, empty at last.
+// The Absolute Axiom arc: the siege, not the duel. Two phases, then the oldest room.
 STORY_CHAPTER_REGISTRY.push(
 
   {

@@ -1,16 +1,7 @@
 'use strict';
-// js/story/levels/ch27.js — Chapter 27 map. See smb-story-levels.js for the contract.
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 27 — Creator's Mark (puzzle, 4 mechanisms)
-// The inner threshold of the Fracture Core. The Creator's hexagonal mark is
-// carved into the far seal; four mechanisms break it, spread across a vertical
-// warp chamber: two tower levels, a lift, and a pit (positions mirrored in
-// the chapter's puzzleSwitchDefs). The order zig-zags — 1 in the pit, 2 on the
-// high tower, 3 on the lift's top stop, 4 at the bottom of the west wall —
-// so the player has to read the room. Each solved mechanism lights one
-// segment of the mark. "It's letting you."
-// ═════════════════════════════════════════════════════════════════════════════
+// js/story/levels/ch27.js: Chapter 27 map (Creator's Mark, puzzle with 4 mechanisms). See smb-story-levels.js.
+// Mechanism order zig-zags (pit, high tower, lift top, west wall), so the room has to be read.
+// Positions are mirrored in the chapter's puzzleSwitchDefs.
 (function () {
   const FLOOR = [[0, 1500, 440], [1500, 1760, 540], [1760, 3800, 440]];
   const TOWER = [[2100, 360, 110], [2160, 280, 100], [2220, 200, 110], [2300, 120, 140]];
@@ -26,14 +17,13 @@
     _slMover(P, 'lift', LIFT.x, LIFT.y - LIFT.travel / 2, LIFT.w, 0, LIFT.travel / 2, 0.014, 0);
     _slLedge(P, LIFT_TOP.x, LIFT_TOP.y, LIFT_TOP.w);
     for (const [x, y, w] of WEST) _slLedge(P, x, y, w);
-    _slLedge(P, 1500, 490, 50); _slLedge(P, 1710, 490, 50);   // pit steps out
+    _slLedge(P, 1500, 490, 50); _slLedge(P, 1710, 490, 50);
     return P;
   }
 
   function backdrop(v) {
     _slSkyAbove(v, '#0a0418');
     _slParallax(v, 0.1, (l, r) => {
-      // Warp tunnel streaks converging on the seal
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       for (let k = 0; k < 40; k++) {
         const a = _slHash(k) * Math.PI * 2, t = ((frameCount * 4 + k * 40) % 600) / 600;
@@ -54,7 +44,6 @@
       ctx.strokeStyle = 'rgba(200,160,255,0.10)'; ctx.lineWidth = 1;
       ctx.beginPath(); for (let a = 0; a < 6; a++) ctx.lineTo(px + 110 + Math.cos(a * Math.PI / 3) * 40, 100 + Math.sin(a * Math.PI / 3) * 40); ctx.closePath(); ctx.stroke();
     }
-    // Pit with the first mechanism
     if (_slVisible(v, 1400, 1800)) {
       ctx.fillStyle = '#0a0414'; ctx.fillRect(1500, 440, 260, 100);
       ctx.fillStyle = '#2a1e44'; ctx.fillRect(1500, 490, 50, 50); ctx.fillRect(1710, 490, 50, 50);
@@ -62,21 +51,17 @@
       const g = ctx.createRadialGradient(1630, 540, 4, 1630, 540, 120); g.addColorStop(0, 'rgba(200,160,255,0.3)'); g.addColorStop(1, 'rgba(200,160,255,0)');
       ctx.fillStyle = g; ctx.fillRect(1500, 420, 260, 120); ctx.restore();
     }
-    // West wall shelves
     for (const [x, y, w] of WEST) if (_slVisible(v, x, x + w)) { ctx.fillStyle = '#2a1e44'; ctx.fillRect(x, y, w, 10); ctx.fillStyle = 'rgba(200,160,255,0.4)'; ctx.fillRect(x, y + 10, w, 2); }
-    // Tower
     if (_slVisible(v, 2080, 2460)) for (const [x, y, w] of TOWER) {
       ctx.fillStyle = '#241838'; ctx.fillRect(x, y, w, 440 - y);
       ctx.fillStyle = '#3a2a5a'; ctx.fillRect(x, y, w, 6);
     }
-    // Lift + top stop
     if (_slVisible(v, 2760, 3100)) {
       ctx.fillStyle = '#241838'; ctx.fillRect(LIFT.x - 10, 160, 8, 280); ctx.fillRect(LIFT.x + LIFT.w + 2, 160, 8, 280);
       const lf = _slPlat(currentArena, 'lift');
       if (lf) { ctx.fillStyle = '#3a2a5a'; ctx.fillRect(lf.x, lf.y, lf.w, 10); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = 'rgba(200,160,255,0.35)'; ctx.fillRect(lf.x + 8, lf.y + 10, lf.w - 16, 3); ctx.restore(); }
       ctx.fillStyle = '#2a1e44'; ctx.fillRect(LIFT_TOP.x, LIFT_TOP.y, LIFT_TOP.w, 10);
     }
-    // The Creator's seal: a hex mark in segments, one lit per solved mechanism
     if (_slVisible(v, SEAL - 300, SEAL + 400)) {
       const solved = (typeof puzzleStep !== 'undefined') ? puzzleStep : 0;
       ctx.fillStyle = '#0e0618'; ctx.fillRect(SEAL - 40, 440 - 380, 340, 380);

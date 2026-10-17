@@ -1,8 +1,4 @@
-// smb-act5-bridge.js — Chapters 145–148: The Companion Arc, Part 1
-// Bridge between the True Form's resolution (ch. 144) and the road to God's domain.
-// Axiom walked out of the collapsed outer form — freed, diminished, dying.
-// These chapters are the quiet after the war: the freed man, the cost,
-// the soul-bond that keeps him alive, and the trail that points down.
+// Chapters 145-148, the companion arc. Bridges ch144 to the road to God's domain.
 
 STORY_CHAPTER_REGISTRY.push(
 
@@ -10,12 +6,8 @@ STORY_CHAPTER_REGISTRY.push(
     id: 151, title: 'The Silence After',
     world: '🌌 Void — Aftermath',
     type: 'branch',
-    // Saga III opens here. The companion arc is already a strong re-establishing
-    // opener — the antagonist of the previous saga standing beside you, changed —
-    // but it assumes you watched True Form resolve one chapter earlier. This makes
-    // the RELATIONSHIP legible without the fight that produced it, which is the
-    // whole load-bearing requirement of a cold open here.
-    // Never plays on the combined build; see _isSagaOpener in smb-story-engine-flow.js.
+    // Saga III opener. Reads cold: the rival's fight happened one chapter earlier, so this
+    // re-establishes the relationship. Never plays on the combined build (see _isSagaOpener).
     sagaColdOpen: [
       'You came out of the void with your hands still shaking.',
       '',
@@ -60,7 +52,7 @@ STORY_CHAPTER_REGISTRY.push(
       'And next to you, in the middle of the void,',
       'stood the man who had built all of it.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat.
     afterNarrative: [
       'Not the Creator. Not Cosmic Axiom.',
       'A man. Medium height. Tired eyes.',
@@ -80,7 +72,7 @@ STORY_CHAPTER_REGISTRY.push(
       'It wasn\'t an apology.',
       'It was a measurement.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the first quiet walk out of the void, nothing hunting you.
+    // Playable beat: quiet walk out of the void, nothing hunting you.
     beat: {
       type: 'exploration', exploreMode: 'traversal',
       arena: 'void', style: 'void', worldLength: 3400,
@@ -134,7 +126,7 @@ STORY_CHAPTER_REGISTRY.push(
       'packed around fragment energy that was never crystallized,',
       'never discrete, never bonded.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat.
     afterNarrative: [
       'Now the corruption was gone,',
       'and the energy sat exposed inside him',
@@ -157,7 +149,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       '"It does not feel slow."',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the exposed energy draws hollow echoes; hold the line beside him.
+    // Playable beat: the exposed energy draws hollow echoes.
     beat: {
       type: 'exploration', exploreMode: 'defense',
       arena: 'void', style: 'void', worldLength: 900,
@@ -210,7 +202,7 @@ STORY_CHAPTER_REGISTRY.push(
       'that held dangerous things in place —',
       'was exactly wrong.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat.
     afterNarrative: [
       'His first attempts were walls. The energy went through them.',
       'His next were channels. The energy ignored them.',
@@ -236,7 +228,7 @@ STORY_CHAPTER_REGISTRY.push(
       '',
       'The light under his skin steadied.',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): three nodes; building them is exactly wrong.
+    // Playable beat: three nodes. Building them is the wrong move.
     beat: {
       type: 'exploration', exploreMode: 'puzzle',
       arena: 'void', style: 'void', worldLength: 2800,
@@ -279,8 +271,7 @@ STORY_CHAPTER_REGISTRY.push(
     id: 154, title: 'The Compass Points',
     world: '🌌 Void — The Trail',
     type: 'branch',
-    // Axiom shows Kael what the fragment is for — clearing this unlocks the
-    // Fragment weapon and Adept class (smb-weapons-ext.js).
+    // Clearing this unlocks the Fragment weapon and Adept class (smb-weapons-ext.js).
     unlocksFragment: true,
     narrative: [
       'You had been walking a long time.',
@@ -309,7 +300,7 @@ STORY_CHAPTER_REGISTRY.push(
       'It did not last. But it happened —',
       'and for exactly that long, the man was all the way back.',
     ],
-    // Narration after the beat; staged from the same scene spec (see _playBranchAfterNarrative).
+    // Narration after the beat.
     afterNarrative: [
       'Then the compass moved, and he went still.',
       '',
@@ -341,7 +332,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"And it does not leave trails, Kael."',
       '"It leaves invitations."',
     ],
-    // Playable beat (see _playChapterBeat in smb-story-engine-flow.js): the torn strap gives; gather the spilled pack before the void takes it.
+    // Playable beat: gather the spilled pack before the void takes it.
     beat: {
       type: 'exploration', exploreMode: 'scavenge',
       arena: 'void', style: 'void', worldLength: 3000,

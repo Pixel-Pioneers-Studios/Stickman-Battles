@@ -1,7 +1,5 @@
-// Appends chapters for act4mv/smb-act4mv-thresh.js.
-// The Thresh Arc — a fracture boss who became pure force.
-// They didn't want this. The Collision Realm is grief with nowhere to go.
-// Slots at IDs 117–120 in the multiverse arc, after Fracture Coast (VAEL), before The Betrayal.
+// Thresh arc chapters (IDs 117-120). Loads after Fracture Coast (VAEL), before The Betrayal.
+// A fracture boss who became pure force.
 STORY_CHAPTER_REGISTRY.push(
 
   {
@@ -75,11 +73,8 @@ STORY_CHAPTER_REGISTRY.push(
     preText: 'A dimensional anchor — the only stable ground in the Collision Realm. Thresh\'s impact constructs are incoming. Three waves. Hold it.',
     survivalWaves: 3,
     waveSize: 2,
-    // THE TRIAL OF CONTROL — see docs/TRIALS_DESIGN.md. Layered ON TOP of the
-    // existing defence hold rather than replacing it: Thresh's own line is that
-    // the constructs are "testing whether you hold still when the world tries to
-    // move", so the world moves. Gravity and the controls invert on a readable
-    // tell (horizontal violet = gravity, vertical amber = controls).
+    // Trial of Control (docs/TRIALS_DESIGN.md), layered on the defence hold.
+    // Gravity and controls invert on a readable tell: violet horizontal = gravity, amber vertical = controls.
     trial: 'control',
     opponentName: 'Impact Construct',
     weaponKey: 'hammer',

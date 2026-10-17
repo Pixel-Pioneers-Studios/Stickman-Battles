@@ -1,21 +1,12 @@
 'use strict';
-// smb-story-engine-explore.js — Exploration chapter: platform gen, enemy scaling, side portal, _launchExplorationChapter
-// Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
+// Exploration chapters: platform gen, enemy scaling, side portal, _launchExplorationChapter.
+// Depends on smb-globals.js and the story registry.
 
-// ============================================================
-// EXPLORATION CHAPTER SYSTEM
-// ============================================================
 
-// Hidden-loot chest sites for walk→fight (duel) worlds. Shared by the platform
-// generator (climb stubs + perch / tunnel geometry) and the loot placer (chest
-// coordinates) so the two can never drift apart. Positions are per-segment
-// (caller adds region offset).
-//
-// Earth-like worlds (underground=true) hide each chest in an underground tunnel
-// chamber reached through a shaft in the ground; other worlds keep the sky-perch
-// climb. Geometry constants shared by generator, loot placer, and renderer:
-//   surface top 440, ceiling bottom 528 (surface slab h=88),
-//   tunnel space 528–648, bedrock 648+ (solid — no void underneath).
+// Hidden-loot chest sites for walk→fight worlds. The platform generator and the loot placer
+// both use these, so they can't drift. Positions are per segment (caller adds region offset).
+// Earth-like worlds (underground=true) hide chests in tunnels off a shaft; others use a sky perch.
+// Earth geometry: surface top 440, ceiling bottom 528, tunnel 528-648, bedrock 648+.
 const _EXP_SURF_Y  = 440;
 const _EXP_CEIL_B  = 528;
 const _EXP_BED_Y   = 648;   // upper tunnel floor (top of the slab between the two tiers)
@@ -26,17 +17,14 @@ var _exploreChapterBeaten = false;  // beaten chapter → suppress normal mob sp
 var _exploreEnterFromRight = false; // backtrack: next exploration launch spawns at the world's exit end
 var exploreBackChapter = null;      // chapter id the LEFT edge backtracks into (null = hard wall)
 
-// Any chapter that generates a walkable world — walk→fight duels and every
-// exploration mode alike. Both are launched by _launchExplorationChapter, so
-// both can be walked into from the right.
+// Any walkable world: walk→fight duels and every exploration mode. All launch via
+// _launchExplorationChapter, so all can be walked into from the right.
 function _storyChapterIsWalkable(ch) {
   return !!ch && (ch.walkFight === true || ch.type === 'exploration');
 }
 
-// Resolve the backtrack target for a chapter: the nearest earlier chapter that
-// has a walkable world and has been beaten. Pure narrative/branch chapters have
-// no world of their own, so they are stepped over rather than blocking the way
-// back; a set-piece arena fight is a real wall and stops the search.
+// Backtrack target: nearest earlier beaten chapter with a walkable world. Narrative chapters
+// are skipped. An arena set-piece fight is a wall and stops the search.
 function _storyBackChapterFor(chId) {
   if (chId == null || typeof STORY_CHAPTERS2 === 'undefined') return null;
   const beaten = Array.isArray(_story2 && _story2.defeated) ? _story2.defeated : [];
@@ -57,12 +45,9 @@ function _exploreChestSites(segLen, underground) {
   if (!underground) return sites;
   for (const st of sites) {
     st.underground = true;
-    // Two-tier switchback maze (d = the way the upper tunnel runs):
-    //   shaft ↓ → upper tunnel runs d, past a drop hole, on to a DEAD END;
-    //   the drop hole ↓ → lower tunnel doubles back (-d) under the shaft to the
-    //   cache, with a short nook on the far side of the hole.
-    // Every climb out is a ~100px single jump onto a wall-hugging stub (the same
-    // step the original escape used), so no skill-tree double jump is needed.
+    // Two-tier switchback: shaft drops into an upper tunnel that dead-ends past a drop hole,
+    // and the hole leads down to the cache. Each climb is a ~100px jump onto a wall stub,
+    // so no double jump is needed.
     const d = st.dir;
     const span = (a, b) => [Math.min(a, b), Math.max(a, b)];
     st.upper  = span(st.baseX - d * 60,  st.baseX + d * 760);
@@ -72,9 +57,8 @@ function _exploreChestSites(segLen, underground) {
     st.x1 = Math.max(st.upper[1], st.lower[1]);
     st.chestX = st.baseX - d * 244;           // 56px off the lower tunnel's far wall
     st.chestY = _EXP_LOW_FLR - 30;
-    // Weak guard posts: the upper tunnel between shaft and hole, and the lower
-    // tunnel between hole and cache. Which of them are manned is seeded per
-    // cache in the loot pass, so a world is identical on every reload.
+    // Weak guard posts between shaft and hole, and between hole and cache. Which are manned
+    // is seeded per cache, so worlds are identical on reload.
     st.posts = [
       { x: st.baseX + d * 250, floorY: _EXP_BED_Y },
       { x: st.baseX + d * 120, floorY: _EXP_LOW_FLR },
@@ -83,13 +67,9 @@ function _exploreChestSites(segLen, underground) {
   return sites;
 }
 
-// ── Level stars (100% completion) ────────────────────────────────────────────
-// A level is 100% when it is cleared AND every hidden cache in it is open.
-// Caches exist only in walk→fight/duel worlds: two per chapter, keyed
-// '<chapterId>:c<site>' in _story2.lootTaken (the healing crystal is a health
-// resource, not treasure, and does not count). A level with no caches is 100%
-// on clear. The cinematic-run opener plays as film and never builds a world,
-// so it can hold no caches.
+// A level is 100% when cleared and every hidden cache is open. Caches only exist in walk→fight
+// worlds (two per chapter, keyed '<chapterId>:c<site>' in _story2.lootTaken). Healing crystals
+// don't count. No caches means 100% on clear.
 function storyChapterLootKeys(chIdx) {
   const ch = (typeof STORY_CHAPTERS2 !== 'undefined') ? STORY_CHAPTERS2[chIdx] : null;
   if (!ch || ch.noFight) return [];
@@ -108,7 +88,7 @@ function storyChapterStarred(chIdx) {
   const lp = storyChapterLootProgress(chIdx);
   return lp.got >= lp.total;
 }
-// Stars across the active saga (the whole story on a 'full' build).
+// Stars across the active saga.
 function storyStarTally() {
   let stars = 0, total = 0;
   if (typeof STORY_CHAPTERS2 === 'undefined') return { stars, total };
@@ -120,7 +100,7 @@ function storyStarTally() {
   return { stars, total };
 }
 
-// Seeded 0..1 per string key — cache guard rolls must not change between loads.
+// Seeded 0..1 per key. Guard rolls must not change between loads.
 function _exploreKeyRand(key, salt) {
   let s = (salt | 0) ^ 0x9e3779b9;
   for (let i = 0; i < key.length; i++) s = Math.imul(s ^ key.charCodeAt(i), 2654435761);
@@ -129,9 +109,8 @@ function _exploreKeyRand(key, salt) {
   return s / 4294967296;
 }
 
-// Earth-like exploration styles get grounded terrain (plateaus/structures, no
-// floating platforms) and an underground chest layer. Fracture/void/space/lava
-// worlds keep floating geometry — it fits their reality.
+// Earth-like styles get grounded terrain and an underground chest layer. Other worlds keep
+// floating geometry.
 function _exploreIsEarthStyle(ch) {
   const st = (ch && ch.style) ||
     (typeof _storyExploreStyleForWorld === 'function' ? _storyExploreStyleForWorld(ch && ch.world) : 'city');
@@ -139,7 +118,6 @@ function _exploreIsEarthStyle(ch) {
 }
 
 function _exploreGenPlatforms(worldLen, seed, ch) {
-  // Deterministic seeded pseudo-random (LCG)
   let s = (seed * 1234567 + 89101) | 0;
   const rng = () => { s = (s * 1664525 + 1013904223) & 0xffffffff; return (s >>> 0) / 0xffffffff; };
 
@@ -148,10 +126,8 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
   const isEarthDuel = !!(ch && ch.walkFight && _exploreIsEarthStyle(ch));
   const _level = (typeof storyLevelFor === 'function') ? storyLevelFor(ch) : null;
 
-  // ── Solid floor ───────────────────────────────────────────────────────────
-  // Earth-like duel worlds: thick surface slabs with shaft gaps down to a tunnel
-  // layer, sealed by full-width bedrock (no void — falling lands in the tunnel).
-  // Everything else: one continuous floor (players never fall into the void).
+    // Earth-like duel worlds: thick slabs with shaft gaps down to a tunnel layer, sealed by
+    // bedrock. Everything else gets one continuous floor, so no falling into the void.
   if (isEarthDuel) {
     const sites = _exploreChestSites(worldLen, true);
     const gaps = sites
@@ -164,9 +140,8 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
     }
     plats.push({ x: cur, y: _EXP_SURF_Y, w: worldLen - cur, h: _EXP_CEIL_B - _EXP_SURF_Y, isFloor: true });
     plats.push({ x: 0, y: _EXP_LOW_FLR, w: worldLen, h: 140, isBedrock: true });
-    // Seal every underground band with solid rock except the carved openings,
-    // so each tunnel is a true dead-end maze (also stops entities being clamped
-    // into dark dead space between caches).
+    // Seal each underground band with rock except the carved openings, so tunnels are dead ends
+    // and entities can't clamp into dead space.
     const _fillBand = (y0, y1, openings) => {
       let ux = 0;
       for (const [a, b] of openings.slice().sort((p, q) => p[0] - q[0])) {
@@ -179,23 +154,19 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
     _fillBand(_EXP_BED_Y, _EXP_LOW_TOP, sites.map(st => [st.holeX - _EXP_SHAFT_HALF, st.holeX + _EXP_SHAFT_HALF]));
     _fillBand(_EXP_LOW_TOP, _EXP_LOW_FLR, sites.map(st => st.lower));
     for (const st of sites) {
-      // Escape stub (tunnel floor → stub → surface in two jumps) hugs the shaft
-      // wall on the side AWAY from the tunnel, leaving a 56px fall gap on the
-      // tunnel side. A centred stub seals the hole — the player lands on it and
-      // can neither drop past it nor walk sideways (head still inside the shaft).
+      // Escape stub hugs the shaft wall away from the tunnel, leaving a 56px fall gap on the tunnel
+      // side. A centred stub would seal the hole.
       plats.push(st.dir < 0
         ? { x: st.baseX + 10, y: 548, w: 36, h: 12 }   // tunnel runs left → stub right
         : { x: st.baseX - 46, y: 548, w: 36, h: 12 }); // tunnel runs right → stub left
-      // Drop-hole stub, same rule: the lower tunnel's cache lies -dir from the
-      // hole, so the stub hugs the +dir wall. 100px up from the lower floor,
-      // then 72px up and sideways onto the slab.
+      // Drop-hole stub hugs the +dir wall, since the lower cache is on the -dir side.
+      // 100px up, then 72px sideways onto the slab.
       plats.push(st.dir > 0
         ? { x: st.holeX + 10, y: _EXP_LOW_FLR - 100, w: 36, h: 12 }
         : { x: st.holeX - 46, y: _EXP_LOW_FLR - 100, w: 36, h: 12 });
     }
   } else if (_level && typeof _level.floor === 'function') {
-    // Authored floor: raised/sunken sections. The first segment must sit at 440 —
-    // the renderer and camera read the first isFloor platform as the ground line.
+    // First segment must sit at 440. The renderer and camera read it as the ground line.
     plats.push(..._level.floor(worldLen));
   } else {
     plats.push({ x: 0, y: 440, w: worldLen, h: 80, isFloor: true });
@@ -229,11 +200,8 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
       }
     }
   } else if (_exploreIsEarthStyle(ch)) {
-    // ── Grounded terrain: plateaus/structures rising from the ground ────────
-    // No floating platforms in earth-like worlds — everything connects down.
-    // Applies to ALL earth exploration modes (duel/stealth/objective/…), not
-    // just walk→fight. Kept clear of: spawn area, checkpoint/duel zones, shaft
-    // entrances, authored enemy/guard posts, and the goal approach.
+    // Grounded terrain: plateaus rising from the ground, no floating platforms. Applies to all earth
+    // exploration modes. Kept clear of spawns, checkpoints, shaft entrances, guard posts and the goal.
     const chestSites = isEarthDuel ? _exploreChestSites(worldLen, true) : [];
     const cps = [];
     if (ch.walkFight === true || ch.exploreMode === 'duel') cps.push(worldLen * 0.5);
@@ -254,7 +222,7 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
         posts.some(px => sx + w > px - 150 && sx < px + 150);
       if (!blocked) {
         plats.push({ x: sx, y: _EXP_SURF_Y - h, w, h, isStructure: true });
-        // Wide plateaus sometimes carry a second stepped tier
+        // Wide plateaus sometimes get a second tier
         if (w > 300 && rng() < 0.5) {
           const w2 = 120 + Math.floor(rng() * 90);
           plats.push({ x: sx + Math.floor(rng() * (w - w2)), y: _EXP_SURF_Y - h - 52, w: w2, h: 52, isStructure: true });
@@ -263,7 +231,7 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
       sx += w + 300 + Math.floor(rng() * 460);
     }
     if (mode === 'objective') {
-      // Grounded goal structure (stepped pyramid) instead of floating pads
+      // Goal is a stepped pyramid, not floating pads
       const goalBase = worldLen - 620;
       plats.push({ x: goalBase,      y: 360, w: 190, h: 80, isStructure: true });
       plats.push({ x: goalBase + 40, y: 308, w: 110, h: 52, isStructure: true });
@@ -275,7 +243,7 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
     const isCity = exploreStyle === 'city';
 
     if (isCity) {
-      // ── City-style: wide rooftop sections at consistent height with gaps ──
+      // City-style: wide rooftops at one height with gaps
       for (let wx = 200; wx < worldLen - 400; wx += 300 + Math.floor(rng() * 180)) {
         const bldW = 220 + Math.floor(rng() * 160);
         const bldY = 370 + Math.floor(rng() * 30);
@@ -285,7 +253,6 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
         }
       }
     } else {
-      // ── Mid-level platforms ─────────────────────────────────────────────────
       for (let wx = 250; wx < worldLen - 500; wx += 240 + Math.floor(rng() * 200)) {
         plats.push({
           x: wx + Math.floor(rng() * 80),
@@ -295,7 +262,6 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
         });
       }
 
-      // ── High platforms ──────────────────────────────────────────────────────
       for (let wx = 500; wx < worldLen - 700; wx += 380 + Math.floor(rng() * 280)) {
         plats.push({
           x: wx + Math.floor(rng() * 120),
@@ -314,13 +280,10 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
     }
   }
 
-  // ── Hidden-loot chest perches (non-earth walk→fight worlds only) ──────────
-  // Each site is an optional vertical climb off the main corridor ending in a
-  // perch that holds a chest (placed by the loot pass in _launchExplorationChapter).
-  // Earth-like worlds hide chests underground instead (see isEarthDuel above).
+  // Chest perches (non-earth walk→fight worlds): an optional climb off the corridor ends in a
+  // perch with a chest. Earth worlds hide chests underground.
   if (ch && ch.walkFight && !isEarthDuel) {
-    // Authored maps put their own ledges and gaps around these climbs; as solid
-    // slabs they bonk a player jumping a gap underneath, so make them one-way.
+    // Authored ledges would bonk a jump from below, so make these one-way.
     const _pu = _level ? { passUnder: true } : {};
     for (const site of _exploreChestSites(worldLen)) {
       const b = site.baseX;
@@ -333,10 +296,8 @@ function _exploreGenPlatforms(worldLen, seed, ch) {
   return plats;
 }
 
-// Story AI intelligence floor by (original) chapter index — early chapters keep
-// dumb bots, later chapters sharpen toward the dumb-AI ceiling ('expert').
-// Breakpoints mirror the survival-wave _diffTier. Only raises toward the tier;
-// never lowers an author's deliberately-set aiDiff. Elites read one tier sharper.
+// Story AI floor by original chapter index. Early chapters keep dumb bots, later ones sharpen
+// toward 'expert'. Only raises the tier, never lowers an author's aiDiff. Elites get one tier more.
 const _STORY_AI_RANK = ['easy', 'medium', 'hard', 'expert'];
 function _storyFloorAiDiff(current, chapterId, elite) {
   const id = chapterId || 0;
@@ -348,9 +309,8 @@ function _storyFloorAiDiff(current, chapterId, elite) {
 function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   if (!unit) return unit;
   const elite = !!opts.elite;
-  // Units can pass through here twice (startGame, then the post-spawn sweep in
-  // _onStoryFightStart). Restore the unscaled stats so neither the chapter
-  // scaling nor the difficulty layer compounds.
+  // Units pass through here twice (startGame, then _onStoryFightStart). Restore unscaled stats
+  // so scaling doesn't compound.
   if (unit._storyRaw) {
     unit.maxHealth          = unit._storyRaw.maxHealth;
     unit.dmgMult            = unit._storyRaw.dmgMult;
@@ -360,9 +320,8 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   }
   const diff = typeof _storyDiffCfg === 'function' ? _storyDiffCfg() : null;
 
-  // Use the ORIGINAL chapter id for scaling — after phase expansion, _activeStory2Chapter.id
-  // can be 200+ (each original chapter fans into ~3 phases), which would give 17× multipliers
-  // and produce 2000+ HP elites. _origId tracks the pre-expansion index (0–79).
+  // Use the original chapter id. After phase expansion _activeStory2Chapter.id can be 200+,
+  // which would give 17x multipliers. _origId is the pre-expansion index (0-79).
   const origId = (typeof _activeStory2Chapter !== 'undefined'
     && _activeStory2Chapter
     && _activeStory2Chapter._origId !== undefined)
@@ -373,24 +332,21 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   const s = getScaling(effId + (_storyPerformanceBonus() / 0.08 | 0));
   const PLAYER_HP = 100; // Fighter base maxHealth
 
-  // ── HP ───────────────────────────────────────────────────────
-  // Standard enemy: capped at 2× player HP (200).  Elite: 3× (300).
+  // Standard: capped at 2x player HP (200). Elite: 3x (300).
   const hpBase = unit.maxHealth || unit.health || 100;
   const rawHP  = Math.round(hpBase * (s.enemyHP / 100) * (elite ? 1.5 : 1));
   unit.maxHealth = Math.min(rawHP, Math.round((elite ? PLAYER_HP * 3 : PLAYER_HP * 2) * (diff ? diff.hpCap : 1)));
   unit.health    = unit.maxHealth;
 
-  // ── Damage ───────────────────────────────────────────────────
-  // Standard: ≤ 25% player HP per hit.  Elite: ≤ 32% (still survivable with 2 hits).
+  // Standard: at most 25% player HP per hit. Elite: 32%.
   const dmgCap    = (elite ? PLAYER_HP * 0.32 : PLAYER_HP * 0.25) * (diff ? diff.dmgCap : 1);
   const scaledDmg = Math.min(getScaling(origId + (_storyPerformanceBonus() / 0.08 | 0)).enemyDamage, dmgCap);
   unit.dmgMult    = (unit.dmgMult || 1) * (scaledDmg / 12); // 12 = median base weapon damage
-  // The cap is per hit, so it has to be checked against the unit's own weapon:
-  // scaled off the median, an axe or hammer landed well past it.
+  // The cap is per hit, so check it against the unit's own weapon. Scaled off the median,
+  // an axe or hammer would land well past it.
   const wDmg = unit.weapon && unit.weapon.damage;
   if (!unit.isBoss && wDmg > 0) unit.dmgMult = Math.min(unit.dmgMult, dmgCap / wDmg);
 
-  // ── Attack speed / AI ────────────────────────────────────────
   unit.attackCooldownMult = Math.max(0.58, (unit.attackCooldownMult || 1) * (elite ? 0.72 : 0.86));
   unit.aiDiff             = _storyFloorAiDiff(unit.aiDiff, effId, elite);
   unit.aiReact            = elite ? 0 : unit.aiReact;
@@ -398,10 +354,8 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
   unit._storyPredict      = 0.10 + Math.min(0.18, effId * 0.0035) + (elite ? 0.12 : 0);
   unit._storyDodgeChance  = elite ? 0.14 : 0.05;
 
-  // ── Onboarding mercy band ────────────────────────────────
-  // The first encounters teach controls — they must pressure, not melt, the
-  // player. Softer damage, slower cadence, no prediction. Elites (optional
-  // challenges like the Vault Warden) are exempt.
+  // Onboarding: the first encounters teach controls, so they pressure but don't melt the player.
+  // Softer damage, slower cadence, no prediction. Elites are exempt.
   if (!elite && origId < (diff ? diff.mercyTo : 6)) {
     const gentle = origId < 3;
     unit.maxHealth = Math.min(unit.maxHealth, gentle ? 120 : 160);
@@ -412,7 +366,6 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
     unit._storyDodgeChance  = 0.02;
   }
 
-  // ── Difficulty layer ─────────────────────────────────────
   if (diff) {
     unit.maxHealth          = Math.max(1, Math.round(unit.maxHealth * diff.hp));
     unit.health             = unit.maxHealth;
@@ -425,8 +378,7 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
       unit.aiDiff = _STORY_AI_RANK[Math.min(3, _STORY_AI_RANK.indexOf(diff.ai) + (elite ? 1 : 0))];
     }
   }
-  // A branch chapter's playable beat (see _playChapterBeat) is a beat, not a full
-  // chapter fight: `beatScale` (0..1) trims its enemies' health and damage.
+  // A branch chapter's playable beat is only a beat. beatScale (0..1) trims its enemy health and damage.
   const _bs = (typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) ? _activeStory2Chapter.beatScale : 0;
   if (_bs > 0 && _bs < 1 && !unit.isBoss) {
     unit.maxHealth = Math.max(1, Math.round(unit.maxHealth * _bs));
@@ -446,9 +398,8 @@ function _storyPhaseExploreCap(chId) {
 
 function _storyBuildSidePortal(ch) {
   if (!ch || ch.id < 6) return null;
-  // Seeded per chapter — the world must be identical on every reload (one-map illusion).
-  // Murmur-style hash first: a raw LCG seeded with consecutive ids gives correlated
-  // first draws (whole runs of chapters all with/without portals).
+  // Seeded per chapter so the world is the same on every reload. The hash is murmur-style because a
+  // raw LCG seeded with consecutive ids gives correlated first draws.
   let s = ch.id | 0;
   s = Math.imul(s ^ (s >>> 16), 2246822519);
   s = Math.imul(s ^ (s >>> 13), 3266489917);
@@ -500,12 +451,9 @@ function _storyEnterSidePortal(portal, p1, ch) {
   if (!isBossRift) _exploreSpawnEnemy({ ...eliteB, wx: p1.x + 220, health: 160, isElite: true, isSidePortalEnemy: true }, p1);
 }
 
-// ── One-map regions ─────────────────────────────────────────────────────────
-// Consecutive same-world walkFight chapters stitched into a single continuous
-// world. Launching any member chapter builds the whole region; the player
-// starts at that chapter's segment and can see neighbouring segments' terrain.
-// Segment boundaries award the crossed chapter's rewards without ending the
-// match; only the final segment's exit ends the chapter normally.
+// One-map regions: consecutive walkFight chapters stitched into one world. Launching any member
+// builds the whole region. Crossing a segment boundary awards its rewards without ending the match.
+// Only the last segment's exit ends the chapter.
 const STORY_REGIONS = [
   { name: 'Multiversal Core', chapters: [32, 33, 34, 35], segLen: 6000 },
 ];
@@ -514,7 +462,7 @@ function _storyRegionFor(chId) {
   return null;
 }
 
-// Build the duel-opponent def for a walkFight chapter (main + optional second).
+// Duel-opponent def for a walkFight chapter (main + optional second).
 function _storyBuildDuelOpponent(ch) {
   return {
     name:      ch.opponentName  || 'Enemy',
@@ -538,24 +486,21 @@ function _launchExplorationChapter(ch) {
   const _storyModal = document.getElementById('storyModal');
   if (_storyModal) _storyModal.style.display = 'none';
 
-  // Apply world modifiers for this chapter
   worldId        = getWorldForChapter(ch.id);
   currentWorld   = STORY_WORLDS[worldId] || null;
   worldModifiers = currentWorld ? currentWorld.modifier : null;
 
-  // Apply multiverse arc
   const _arcEx = getStoryArc(ch.id);
   if (_arcEx) storyCurrentArc = _arcEx.id;
 
-  // One-map region: stitch every member chapter's segment into one world
   const _region = (ch.walkFight === true) ? _storyRegionFor(ch.id) : null;
   exploreRegion = null;
   exploreStartX = null;
   window._exploreBackArmed = false; // reverse loading zone re-arms once the player walks in
-  // Reverse loading zone target: a region backtracks out of its FIRST chapter.
+  // Reverse loading zone: a region backtracks out of its first chapter.
   exploreBackChapter = _storyBackChapterFor(_storyRegionFor(ch.id) ? _storyRegionFor(ch.id).chapters[0] : ch.id);
 
-  // Walk→fight worlds get a GoW-scale minimum length; regions stitch N of them.
+  // Walk→fight worlds get a GoW-scale minimum length.
   const _earth = (ch.walkFight === true) && _exploreIsEarthStyle(ch);
   const worldLen = _region ? _region.segLen * _region.chapters.length
     : (ch.walkFight === true) ? Math.max(ch.worldLength || 5200, 6000)
@@ -563,8 +508,7 @@ function _launchExplorationChapter(ch) {
   const goalX    = ch.objectX    || (worldLen - 350);
   let plats;
   if (_region) {
-    // Each segment's full generated geometry (floors, bedrock, structures) offset
-    // into place — floors are contiguous across segment boundaries by construction.
+    // Segment geometry is offset into place, so floors line up across boundaries.
     plats = [];
     _region.chapters.forEach((cid, i) => {
       const segCh = STORY_CHAPTERS2[cid] || ch;
@@ -577,16 +521,11 @@ function _launchExplorationChapter(ch) {
     plats = _exploreGenPlatforms(worldLen, ch.id, ch);
   }
 
-  // Theme inheritance: the chapter's authored `arena:` used to be discarded
-  // entirely once the world became an explore world, so all 55 walkFight
-  // chapters rendered the same fallback navy sky + generic city tiles. Adopt
-  // that arena's palette (and hand its key to the renderer as `themeKey`) so
-  // the authored look survives the one-map conversion. Explicit per-chapter
-  // sky/groundColor/platColor still win over the inherited palette.
+  // Theme inheritance: adopt the authored arena's palette so the look survives the one-map conversion.
+  // Explicit sky/groundColor/platColor still win.
   const _theme = (typeof ARENAS !== 'undefined' && ch.arena && ARENAS[ch.arena]) ? ARENAS[ch.arena] : null;
   const _level = (!_region && typeof storyLevelFor === 'function') ? storyLevelFor(ch) : null;
 
-  // Inject exploration arena into ARENAS under temp key
   const arenaKey = '__explore__';
   ARENAS[arenaKey] = {
     sky:           ch.sky         || (_level && _level.sky)         || (_theme && _theme.sky)         || ['#0a0a1e', '#1a1a2e'],
@@ -595,21 +534,18 @@ function _launchExplorationChapter(ch) {
     platEdge:      ch.platEdge    || (_theme && _theme.platEdge)    || null,
     themeKey:      (_theme && ch.arena) || null,
     storyLevel:    _level ? ((typeof storyLevelId === 'function') ? storyLevelId(ch) : ch.id) : null,
-    // Region: each member chapter with an authored map draws its own segment.
+    // Region: each member chapter with a map draws its own segment.
     storyRegion:   (_region && typeof STORY_LEVELS !== 'undefined')
       ? _region.chapters.map((cid, i) => ({ id: cid, off: i * _region.segLen, len: _region.segLen })).filter(sg => STORY_LEVELS[sg.id])
       : null,
     noGroundFill:  !!(_level && _level.noGroundFill),
-    // Render-only: the lava drawer needs a surface height. hasLava is NOT
-    // inherited — that is a damage hazard, not part of the look.
+    // Render-only: the lava drawer needs a surface height. hasLava is not inherited, since it is a damage hazard.
     lavaY:         (_theme && _theme.lavaY) || null,
-    // Horizon alignment: bespoke arena art is authored against that arena's own
-    // floor height; the explore world's floor sits at _EXP_SURF_Y (440).
+    // Bespoke arena art is authored against its own floor. The explore floor is at _EXP_SURF_Y (440).
     themeFloorY:   _theme ? ((_theme.platforms || []).find(pl => pl.isFloor) || {}).y ?? null : null,
     worldWidth:    worldLen,
-    // Worlds with a backtrack target open the left edge — it's the reverse
-    // loading zone (walking off it returns to the previous chapter's world).
-    // With nowhere to go back to, the edge stays a wall.
+    // A backtrack target opens the left edge as the reverse loading zone. With nowhere to go back to,
+    // the edge stays a wall.
     mapLeft:       (ch.walkFight === true || exploreBackChapter != null) ? 60 : GAME_W / 2,
     mapRight:      worldLen - 50, // let player reach the full world including goalX
     deathY:        640,
@@ -618,13 +554,11 @@ function _launchExplorationChapter(ch) {
     exploreStyle:  ch.style || 'city',
     platforms:     plats,
   };
-  // Authored hazard rules (e.g. a lava crossing): damage-bearing arena props that
-  // the theme inheritance above deliberately does not carry over.
+  // Authored hazards (e.g. a lava crossing) that the theme inheritance above does not carry over.
   if (_level && _level.exploreProps) Object.assign(ARENAS[arenaKey], _level.exploreProps);
   if (_earth) {
-    // Underground layer: no void beneath earth worlds — bedrock seals the world,
-    // the death plane sits far below as a failsafe, and the camera may pan down
-    // into the tunnel space.
+    // No void under earth worlds. Bedrock seals the world, the death plane is a far-below failsafe,
+    // and the camera may pan down into the tunnels.
     ARENAS[arenaKey].deathY = 1600;
     ARENAS[arenaKey].worldBottom = _EXP_LOW_FLR + 150;
     ARENAS[arenaKey].hasUnderground = true;
@@ -646,14 +580,12 @@ function _launchExplorationChapter(ch) {
     ARENA_BASE_PLATFORMS[arenaKey] = plats.map(p => ({ ...p }));
   }
 
-  // Set exploration globals
   exploreActive    = true;
   exploreWorldLen  = worldLen;
   exploreGoalX     = goalX;
   exploreGoalName  = ch.objectName || 'Exit';
   exploreGoalFound = false;
-  // Clear-the-area gate resets with the world: a stale seal reason or a leaked
-  // force-spawn drain would follow the player into the next level.
+  // The clear gate resets with the world, so a stale seal or force-spawn drain can't follow the player.
   exploreGoalBlocked     = 0;
   exploreGoalBlockReason = '';
   window._exploreForceSpawnAll = false;
@@ -661,13 +593,11 @@ function _launchExplorationChapter(ch) {
   if (typeof storySidequestsReset === 'function') storySidequestsReset();
   exploreCheckpoints = [];
   exploreCheckpointIdx = -1;
-  // Authored spawn: a map whose raised ledges would win pickSafeSpawn (and may hang
-  // over a hazard) names the x the player should start on.
+  // A map whose ledges would win pickSafeSpawn (and may hang over a hazard) names the start x.
   if (_level && _level.startX != null) exploreStartX = _level.startX;
   if (_region) {
-    // One duel checkpoint per segment, each carrying its own chapter's opponent.
-    // Checkpoints behind the launched chapter's segment start pre-hit so walking
-    // left through beaten territory never re-fires old duels.
+    // One duel checkpoint per segment, each with its own opponent. Checkpoints behind the launched
+    // segment start pre-hit so old duels don't re-fire.
     const _myIdx = _region.chapters.indexOf(ch.id);
     _region.chapters.forEach((cid, i) => {
       const segCh = STORY_CHAPTERS2[cid] || ch;
@@ -682,16 +612,13 @@ function _launchExplorationChapter(ch) {
       name: _region.name,
       segLen: _region.segLen,
       chapters: _region.chapters.slice(),
-      // Boundaries behind the launched segment start done — the player spawns
-      // past them; they must not fire completions on the first frame.
+      // Boundaries behind the launched segment start done, so they don't fire on frame one.
       boundaries: _region.chapters.slice(0, -1).map((cid, i) => ({ x: (i + 1) * _region.segLen, chId: cid, done: i < _myIdx })),
     };
     exploreStartX = _myIdx > 0 ? _myIdx * _region.segLen + 100 : null;
   } else {
-    // Duel (walk→fight) chapters always get exactly ONE checkpoint — it hosts the
-    // chapter's authored duel; more would replay the same opponent per checkpoint.
-    // noCheckpointFights: a branch chapter's playable beat (see _playChapterBeat) has no
-    // generic arena-lock waves; its authored enemies are the whole encounter.
+    // A duel chapter gets exactly one checkpoint, which hosts its authored duel.
+    // noCheckpointFights: a branch beat has no generic arena waves.
     const checkpointCount = ch.noCheckpointFights ? 0
       : (ch.walkFight === true || ch.exploreMode === 'duel') ? 1
       : (ch.worldLength >= 5200 ? 2 : 1);
@@ -699,12 +626,9 @@ function _launchExplorationChapter(ch) {
       exploreCheckpoints.push({ x: Math.floor((worldLen * i) / (checkpointCount + 1)), hit: false });
     }
   }
-  // Rest checkpoints: a beacon every ~1500px of a long walkable world, no fight
-  // attached. Reaching one records where a game-over Retry resumes, so losing
-  // the last life 5000px in no longer means walking the whole map again. Kept
-  // clear of the fight checkpoints, shafts and surface structures (a resume must
-  // never land inside a plateau). Modes whose state is positional or timed —
-  // escape walls, chases, defense posts, puzzles — keep the full restart.
+  // Rest checkpoint every ~1500px of a long walkable world, with no fight. A game-over Retry resumes here.
+  // Kept clear of fight checkpoints, shafts and structures. Escape, chase, defense and puzzle modes keep
+  // the full restart.
   const _restOK = ch.walkFight === true ||
     (!ch.chaseTimer && !['escape', 'defense', 'puzzle', 'survival'].includes(ch.exploreMode));
   if (_restOK && worldLen >= 3000) {
@@ -712,7 +636,7 @@ function _launchExplorationChapter(ch) {
     const _ug = ARENAS[arenaKey].undergroundRects || [];
     const _blocked = x => plats.some(p => p.isStructure && x + 40 > p.x && x - 40 < p.x + p.w) ||
       _ug.some(r => r.kind === 'shaft' && x + 70 > r.x && x - 70 < r.x + r.w) ||
-      // Authored floors can have open pits; a resume point needs ground under it.
+      // Authored floors can have pits; a resume point needs ground under it.
       !plats.some(p => p.isFloor && p.h > 20 && x - 60 >= p.x && x + 60 <= p.x + p.w);
     for (let x = 1500; x < worldLen - 900; x += 1500) {
       let rx = x;
@@ -723,24 +647,23 @@ function _launchExplorationChapter(ch) {
     }
     exploreCheckpoints.sort((a, b) => a.x - b.x);
   }
-  // Backtrack entry: the player walked off the LEFT edge of the next world, so
-  // spawn them at this world's exit end. Everything behind the spawn point
-  // pre-hits so old duels/boundary completions never re-fire on frame one.
+  // Walked off the left edge of the next world, so spawn at this world's exit end. Everything behind
+  // the spawn pre-hits so old duels don't re-fire.
   if (_exploreEnterFromRight) {
     _exploreEnterFromRight = false;
-    // Stay clear of the exit itself — re-entering on top of the goal would
-    // instantly re-complete the chapter and bounce the player forward again.
+    // Stay clear of the exit, or re-entering would instantly complete the chapter.
     exploreStartX = Math.max(120, Math.min(worldLen - 620, goalX - 260));
     exploreCheckpoints.forEach(cp => { if (cp.x < exploreStartX) cp.hit = true; });
     if (exploreRegion) exploreRegion.boundaries.forEach(b => { b.done = true; });
   }
-  // Strip ranged weapons from exploration enemies if this chapter hasn't been beaten yet.
-  // On a BEATEN chapter, normal mobs stay gone — only guards and special enemies
-  // (relic guards, chest guardians, stealth sentries) still spawn.
+  // Strip ranged weapons from unbeaten exploration enemies. Beaten chapters keep normal mobs gone once
+  // killed. Guards and special enemies always respawn. Kills are recorded as '<chId>:f<index>' in lootTaken.
   const _expBeaten = Array.isArray(_story2.defeated) && _story2.defeated.includes(ch.id);
   _exploreChapterBeaten = _expBeaten;
+  const _foesKilled = _story2.lootTaken || {};
   exploreSpawnQ = (ch.spawnEnemies || [])
-    .filter(e => !_expBeaten || e.isGuard || e.isElite || ch.exploreMode === 'stealth')
+    .map((e, i) => Object.assign({}, e, { _foeKey: ch.id + ':f' + i }))
+    .filter(e => !_expBeaten || e.isGuard || e.isElite || ch.exploreMode === 'stealth' || !_foesKilled[e._foeKey])
     .map(e => {
       if (_expBeaten) return e;
       const isRng = typeof WEAPONS !== 'undefined' && WEAPONS[e.weaponKey] && WEAPONS[e.weaponKey].type === 'ranged';
@@ -755,31 +678,26 @@ function _launchExplorationChapter(ch) {
   storyChaseMaxTimer = storyChaseTimer;
   storeSurvivalState = null; // cleared for every exploration chapter; set below for survival
 
-  // Reset all special-mode active flags so stale state never leaks between chapters
+  // Reset special-mode flags so stale state doesn't leak between chapters
   stealthModeActive  = false;
   escapeModeActive   = false;
   defenseModeActive  = false;
   scavengeModeActive = false;
   puzzleModeActive   = false;
 
-  // New modes: initialise after startGame() via setTimeout
+  // New modes: init after startGame() via setTimeout
   const _exploreMode = ch.exploreMode;
 
-  // Walk→fight→walk duel wrapper: one checkpoint locks the arena and spawns the
-  // chapter's real opponent; generic pressure/ambush spawns are suppressed.
+  // Duel wrapper: one checkpoint locks the arena and spawns the real opponent. Generic spawns are suppressed.
   exploreDuelMode = (ch.exploreMode === 'duel' || ch.walkFight === true);
   exploreDuelOpponent = exploreDuelMode ? _storyBuildDuelOpponent(ch) : null;
 
-  // Loot: coins (money), an EXP orb, and a post-fight healing crystal along the walk path.
-  // Persistent health: carry HP from the previous walk→fight chapter (applied on the
-  // first exploration frame, once the player exists — full if none saved).
+  // Loot: coins, an EXP orb, and a healing crystal on the walk path. Carry HP from the previous walk→fight
+  // chapter, applied on the first frame (full if none saved).
   exploreSeedHealth = (exploreDuelMode && _story2.health != null) ? _story2.health : null;
 
-  // Game-over Retry from the last rest checkpoint (armed by the retry screen).
-  // Everything behind the resume point is treated as already walked: its
-  // checkpoints pre-hit, region boundaries done, queued roamers dropped (the
-  // exit gate would otherwise force-spawn them ahead of the player). Guards
-  // at fixed posts stay. A resume is a fresh body, so it starts at full HP.
+  // Game-over Retry from the last rest checkpoint. Everything behind it counts as walked: checkpoints
+  // pre-hit, boundaries done, queued roamers dropped. Fixed guards stay. A resume gets full HP.
   const _res = _story2.cpResume;
   if (window._storyResumeCpFor === ch.id && _res && _res.chId === ch.id &&
       _res.x > 0 && _res.x < worldLen - 400) {
@@ -795,21 +713,17 @@ function _launchExplorationChapter(ch) {
 
   explorePickups = [];
   if (exploreDuelMode) {
-    // One-time loot: a taken pickup stays gone forever (persisted per chapter+index).
+    // Taken pickups stay gone (saved per chapter+index).
     _story2.lootTaken = _story2.lootTaken || {};
-    // For regions each segment gets its own chapter-keyed loot run; a plain
-    // walkFight chapter is just a single segment at offset 0.
+    // Each region segment gets its own chapter-keyed loot run. A plain walkFight chapter is one segment.
     const _segs = exploreRegion
       ? exploreRegion.chapters.map((cid, i) => ({ cid, off: i * exploreRegion.segLen, len: exploreRegion.segLen }))
       : [{ cid: ch.id, off: 0, len: worldLen }];
     _segs.forEach(seg => {
       const _cpObj = exploreCheckpoints.find(c => c.x >= seg.off && c.x < seg.off + seg.len);
       const _cpX = _cpObj ? _cpObj.x : seg.off + Math.floor(seg.len / 2);
-      // Hidden-loot pass: treasure lives in CHESTS on optional climb perches off the
-      // golden path (see _exploreChestSites), not handed out on the walk line.
-      // The post-fight healing crystal stays on the path — it's a health resource,
-      // not treasure (death fully heals; crystals + Super are the only other heals).
-      // Key '2' kept for the crystal so pre-chest saves don't regenerate taken ones.
+      // Treasure lives in chests on optional perches (see _exploreChestSites), not the walk line.
+      // The healing crystal stays on the path. Key '2' is kept so older saves don't regenerate taken crystals.
       const _loot = [
         { x: Math.min(seg.off + seg.len - 220, _cpX + 520), y: 356, type: 'heal', icon: '💠', value: 60, key: seg.cid + ':2' },
       ];
@@ -817,9 +731,8 @@ function _launchExplorationChapter(ch) {
         const elite = site.tier === 'elite';
         const _key = seg.cid + ':c' + si;
         const _chestX = seg.off + (site.underground ? site.chestX : site.baseX + 10);
-        // Weak guards, sometimes (seeded per cache): elite caches always get one
-        // and often two, minor caches half the time. Replaces the Vault Warden —
-        // a hidden cache is a reward for looking, not a second boss fight.
+        // Weak guards: elite caches always get one, often two. Minor caches get one half the time.
+        // A hidden cache is a reward for looking, not a boss fight.
         const _r = _exploreKeyRand(_key, 1);
         let _guards = [];
         if (site.underground) {
@@ -841,10 +754,8 @@ function _launchExplorationChapter(ch) {
           key: _key,
         });
       });
-      // Authored extras (level.loot): off-path chests behind a jump, and richer
-      // ones watched by an OPTIONAL elite (isChestGuardian — exempt from the
-      // clear gate, leashed to its post). Keyed ':x<id>' so the c0/c1 star keys
-      // are untouched.
+      // Authored extras (level.loot): off-path chests behind a jump, and richer ones guarded by an optional
+      // elite. Keyed ':x<id>' so the c0/c1 star keys stay the same.
       const _lvLoot = (typeof STORY_LEVELS !== 'undefined' && STORY_LEVELS[seg.cid] && typeof STORY_LEVELS[seg.cid].loot === 'function')
         ? STORY_LEVELS[seg.cid].loot(seg.len) : [];
       (_lvLoot || []).forEach(d => {
@@ -864,7 +775,7 @@ function _launchExplorationChapter(ch) {
   }
 
   if (ch.exploreMode === 'survival') {
-    // Lock the camera to the compact 900px arena — no scrolling
+    // Lock camera to the 900px arena
     ARENAS[arenaKey].mapLeft   = 0;
     ARENAS[arenaKey].mapRight  = GAME_W;
     ARENAS[arenaKey].worldWidth = GAME_W;
@@ -896,12 +807,11 @@ function _launchExplorationChapter(ch) {
     if (sidePortal) exploreSidePortals.push(sidePortal);
   }
 
-  // Game config
   selectedArena = arenaKey;
   gameMode      = 'exploration';
   p2IsBot       = false;
 
-  // Ability progression (mirror fight chapter logic) — skill tree only
+  // Ability progression: skill tree only
   const id  = ch._origId !== undefined ? ch._origId : ch.id; // use original id for difficulty scaling
   const _sk = _story2.skillTree || {};
   storyPlayerOverride = {
@@ -915,7 +825,7 @@ function _launchExplorationChapter(ch) {
     jumpMult:     1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
 
-  // Ability toasts are now shown only when purchased in the skill tree
+  // Ability toasts show only when bought in the skill tree
 
   storyModeActive     = true;
   storyCurrentLevel   = Math.min(8, Math.floor(id / 5) + 1);
@@ -933,23 +843,23 @@ function _launchExplorationChapter(ch) {
   if (typeof selectLives === 'function') selectLives(ch.playerLives || 3);
   infiniteMode = false;
 
-  // A stale escort from an earlier level must not follow the player in here.
+  // A stale escort must not follow the player in here.
   if (typeof escortCleanup === 'function') escortCleanup();
   if (typeof escortArm === 'function') escortArm(ch.escortNPC ? ch : null);
   startGame();
   setTimeout(() => {
     if (players[0]) _applySkillTreeToPlayer(players[0]);
-    // Optional side objectives (smb-story-sidequests.js) — need the arena and the player
+    // Optional side objectives (smb-story-sidequests.js). Needs the arena and player.
     if (typeof storySidequestsArm === 'function') storySidequestsArm(ch);
-    // Initialise special explore modes after players[] is populated
+    // Init special modes after players[] is populated
     if (_exploreMode === 'stealth'  && typeof initStealthMode  === 'function') initStealthMode(ch);
     if (_exploreMode === 'escape'   && typeof initEscapeMode   === 'function') initEscapeMode(ch);
     if (_exploreMode === 'defense'  && typeof initDefenseMode  === 'function') initDefenseMode(ch);
     if (_exploreMode === 'scavenge' && typeof initScavengeMode === 'function') initScavengeMode(ch);
     if (_exploreMode === 'puzzle'   && typeof initPuzzleMode   === 'function') initPuzzleMode(ch);
-    // Creature mini-boss peak — walkFight and exploration chapters both land here.
+    // Creature mini-boss peak: walkFight and exploration both land here.
     if (ch.miniBoss && typeof _storySpawnMiniBoss === 'function') _storySpawnMiniBoss(ch);
-    // The Trials — armed once the world and both fighters exist.
+    // The Trials, armed once the world and both fighters exist.
     if (ch.trial && typeof _storyArmTrial === 'function') _storyArmTrial(ch);
     else if (!ch.trial && typeof resetTrialState === 'function') resetTrialState();
   }, 80);

@@ -1,13 +1,8 @@
 'use strict';
 
-// ============================================================
-// NETWORK MANAGER — WebRTC peer-to-peer via PeerJS
-// Star topology: all guests connect to HOST.
-// HOST: registers named PeerID "smcgame-<ROOMCODE>", manages up to 9 guests.
-// GUESTS: connect to host, receive slot assignment (1-9).
-// HOST relays all player states to all guests each tick.
-// Supports up to 10 players total (slots 0-9, slot 0 = HOST).
-// ============================================================
+// NetworkManager: WebRTC peer-to-peer over PeerJS, star topology.
+// Host registers PeerID "smcgame-<ROOMCODE>" and relays player state to guests.
+// Up to 10 players (slots 0-9, slot 0 = host).
 const NetworkManager = (() => {
   let _peer = null;
   let _connections = []; // all active DataConnections (host: N guests; guest: 1 to host)
@@ -159,10 +154,8 @@ const NetworkManager = (() => {
     if (el) el.textContent = msg;
   }
 
-  // ── Chat moderation ────────────────────────────────────────────────────────
-  // Portals hosting the game (CrazyGames among them) require moderated chat.
-  // Extend CHAT_BLOCKLIST with the platform's published word sheet; matching is
-  // done on a de-obfuscated copy so l33t-speak and padding still get caught.
+  // Chat moderation. Portals (CrazyGames among them) require it. Extend CHAT_BLOCKLIST
+  // from the platform's word sheet. Matching runs on a de-obfuscated copy.
   const CHAT_BLOCKLIST = [
     'fuck', 'shit', 'bitch', 'cunt', 'asshole', 'bastard', 'dick', 'piss',
     'whore', 'slut', 'fag', 'nigger', 'nigga', 'retard', 'rape', 'kys'
@@ -183,8 +176,7 @@ const NetworkManager = (() => {
     return CHAT_BLOCKLIST.some(bad => norm.indexOf(bad) !== -1);
   }
 
-  // Self-censored spellings ("f*ck") lose the masked letter entirely once
-  // stripped, so treat '*' as a single-character wildcard.
+  // '*' is a single-character wildcard, so "f*ck" still matches.
   function _chatStarMatch(word) {
     const s = String(word).toLowerCase().replace(/[^a-z*]/g, '');
     if (s.indexOf('*') === -1) return false;
@@ -208,9 +200,7 @@ const NetworkManager = (() => {
   // Returns the message with blocked words masked, or '' if nothing is left.
   function _chatModerate(text) {
     const raw = String(text);
-    // Spaced-out evasion ("f u c k") survives per-word checks. Only runs of
-    // single letters are rejoined — collapsing the whole message instead makes
-    // ordinary sentences collide ("i love grapes" contains a blocked word).
+    // Rejoin only runs of single letters ("f u c k"). Collapsing the whole message would false-positive on "i love grapes".
     if (_chatHasSpacedEvasion(raw)) return '';
 
     const words = raw.split(/(\s+)/);
@@ -229,8 +219,7 @@ const NetworkManager = (() => {
   function _appendChatMsg(sender, text) {
     const el = document.getElementById('chatMessages');
     if (!el) return;
-    // Filter on render so remote messages are moderated too — a modified peer
-    // must not be able to push raw text onto another player's screen.
+    // Filter on render too, so a modified peer can't push raw text onto another screen.
     const clean = _chatModerate(text);
     if (!clean) return;
     const d = document.createElement('div');
@@ -258,6 +247,8 @@ const NetworkManager = (() => {
     if (el) el.style.display = on ? 'flex' : 'none';
   }
 
+  const _P2P_BLOCKED_MSG = 'Could not open a duel room on this network. Use Play With Friends above — it works on school and office networks.';
+
   function _initPeer(peerId) {
     _peer = peerId ? new Peer(peerId, { debug: 0 }) : new Peer({ debug: 0 });
     return new Promise((resolve, reject) => {
@@ -266,7 +257,7 @@ const NetworkManager = (() => {
     });
   }
 
-  // HOST: receives connections from guests
+  // Host: accepts guest connections.
   function _setupHostListeners() {
     _peer.on('connection', conn => {
       const guestPeerId = conn.peer || null;
@@ -301,8 +292,7 @@ const NetworkManager = (() => {
         showToast('Player ' + (guestSlot + 1) + ' joined!');
         _broadcast({ type: 'playerCount', count: _slotCount });
         _renderLobbySettings();
-        // Bring the new guest immediately in line with the host's current picks
-        // so they never sit in the lobby showing stale defaults.
+        // Sync the new guest to the host's current picks so the lobby isn't stale.
         conn.send({
           type: 'gameEvent', event: 'startGameSettings',
           arena: typeof selectedArena !== 'undefined' ? selectedArena : 'random',
@@ -312,7 +302,7 @@ const NetworkManager = (() => {
           sportsType: typeof sportsType !== 'undefined' ? sportsType : 'soccer',
           allowCustomWeapons: typeof onlineAllowCustomWeapons !== 'undefined' ? onlineAllowCustomWeapons : false,
         });
-        // Late-join: send full story state so guest can reconstruct current scene
+        // Late join: send full story state so the guest can rebuild the scene.
         if (typeof storyModeActive !== 'undefined' && storyModeActive && typeof _story2 !== 'undefined') {
           const _bossEntity = typeof players !== 'undefined' && players.find(p => p && p.isBoss);
           conn.send({
@@ -326,7 +316,7 @@ const NetworkManager = (() => {
       });
 
       conn.on('data', msg => {
-        // One malformed packet from a peer must not crash the host's handler chain.
+        // A malformed packet must not crash the handler chain.
         try { _handleMessage(guestSlot, conn, msg); }
         catch (e) { console.warn('[net] dropped malformed message from slot ' + guestSlot + ':', e); }
       });
@@ -335,8 +325,7 @@ const NetworkManager = (() => {
         _slotCount = Math.max(1, _slotCount - 1);
         const forced = !!_forcedCloseSlots[guestSlot];
         _clearSlot(guestSlot);
-        // Always neutralize the slot's fighter — even on forced (ban/kick) closes,
-        // which previously left a ghost fighter in players[] with null remote state.
+        // Always neutralize the slot's fighter, including forced (ban/kick) closes.
         if (typeof players !== 'undefined' && players[guestSlot]) {
           players[guestSlot].health = 0;
           players[guestSlot].lives  = 0;
@@ -364,8 +353,7 @@ const NetworkManager = (() => {
         break;
 
       case 'projState': {
-        // Owner's projectile snapshot. The host trusts the connection's slot; a guest
-        // trusts the slot the host stamped when relaying.
+        // Host trusts the connection's slot. Guests trust the slot the host stamped.
         const _ps = _isHost ? fromSlot : msg.slot;
         if (!Array.isArray(msg.p) || msg.p.length > 16 || !Number.isInteger(_ps) || _ps === _localSlot) break;
         if (typeof NetProj !== 'undefined' && typeof players !== 'undefined' && players[_ps] && players[_ps].isRemote) {
@@ -407,11 +395,9 @@ const NetworkManager = (() => {
         break;
 
       case 'hitEvent': {
-        // Only the owning slot may author its own hit packets.
-        // This prevents a client from spoofing hits as another player.
+        // Only the owning slot may send its hit packets, so no spoofing.
         if (fromSlot !== 0 && fromSlot !== msg.attackerSlot) return;
-        // Never trust client-sent numbers: NaN poisons health math permanently,
-        // and unclamped dmg/kb is a cheat vector. Clamp to plausible ranges.
+        // Never trust client numbers. NaN poisons health math, and unclamped dmg/kb is a cheat.
         const _hDmg = Number(msg.dmg), _hKb = Number(msg.kb);
         if (!Number.isInteger(msg.targetSlot) || !Number.isFinite(_hDmg) || !Number.isFinite(_hKb)) return;
         if (typeof dealDamage === 'function' && players[msg.targetSlot]) {
@@ -443,9 +429,7 @@ const NetworkManager = (() => {
         break;
 
       case 'playerCount':
-        // Guests never tracked this, so _slotCount stayed 1 on their side for
-        // the whole session — anything asking "is anyone else here?" got the
-        // wrong answer on every client except the host.
+        // Guests must track this too, or _slotCount stays 1 on their side.
         if (!_isHost && typeof msg.count === 'number') _slotCount = msg.count;
         _setStatus('Players: ' + msg.count + '/' + _maxPlayers);
         _renderLobbySettings();
@@ -486,8 +470,7 @@ const NetworkManager = (() => {
       // Kill the remote player so endGame() resolves the correct winner
       const leaver = players[slotWhoLeft !== undefined ? slotWhoLeft : (1 - _localSlot)];
       if (leaver) { leaver.health = 0; leaver.lives = 0; leaver._disconnected = true; }
-      // Only end the match when NO active opponent remains — in >2-player rooms
-      // a single disconnect used to end the game for everyone.
+      // End the match only when no active opponent remains.
       const _local = players[_localSlot];
       const _activeOpponents = players.filter(p =>
         p && p !== _local && !p._disconnected && (p.health > 0 || (p.lives || 0) > 0));
@@ -511,14 +494,8 @@ const NetworkManager = (() => {
     return msg.event === 'chat';
   }
 
-  // Apply a host-authored match setting bundle on a guest.
-  //
-  // ORDER MATTERS. selectMinigame() internally calls selectMode('minigames'),
-  // so applying minigameType after the mode used to overwrite gameMode: a host
-  // on 1v1 shipped its default minigameType 'survival' and every guest booted
-  // into Survival. Minigame selection is now only routed through selectMinigame
-  // when the mode actually is 'minigames', and gameMode is stamped LAST so it
-  // is always the host's value.
+  // Apply the host's match settings on a guest. Order matters: selectMinigame()
+  // calls selectMode('minigames'), so gameMode is stamped last.
   function _applyHostSettings(msg) {
     if (!msg) return;
     if (msg.arena && typeof selectArena === 'function') selectArena(msg.arena);
@@ -536,7 +513,7 @@ const NetworkManager = (() => {
       onlineAllowCustomWeapons = !!msg.allowCustomWeapons;
     }
     if (msg.chaosMode !== undefined && typeof chaosMode !== 'undefined') chaosMode = !!msg.chaosMode;
-    // Stamp the mode last — nothing above may be allowed to override it.
+    // Stamped last so nothing above can override it.
     gameMode = mode;
     if (typeof selectMode === 'function') selectMode(mode);
     gameMode = mode;
@@ -583,11 +560,11 @@ const NetworkManager = (() => {
       }
       _renderLobbySettings();
     } else if (msg.event === 'startGameSettings') {
-      // Lobby-time settings snapshot. Same payload as 'startGame' but does NOT launch.
+      // Lobby-time settings snapshot. Same payload as 'startGame', but no launch.
       if (!_isHost) _applyHostSettings(msg);
       _renderLobbySettings();
     } else if (msg.event === 'startGame') {
-      // Guest receives host's start signal — sync settings then launch
+      // Guest got the host's start signal. Sync settings, then launch.
       if (!_isHost) {
         _applyHostSettings(msg);
         window._onlineLaunchInProgress = true;
@@ -597,25 +574,13 @@ const NetworkManager = (() => {
     } else if (msg.event === 'playerLeft') {
       _handleOpponentLeft(msg.slot !== undefined ? msg.slot : undefined);
     } else if (msg.event === 'consoleCmd') {
-      // Remote console execution is OPT-IN only (set window._smbAllowRemoteConsole
-      // = true in a trusted dev session): a malicious or compromised host could
-      // otherwise execute arbitrary console commands on every guest client.
+      // Remote console exec is opt-in (window._smbAllowRemoteConsole = true in dev).
+      // Otherwise a compromised host could run commands on every guest.
       if (msg.cmd && typeof _consoleExec === 'function' && window._smbAllowRemoteConsole === true) {
         _consoleExec(msg.cmd);
       }
     } else if (msg.event === 'grantUnlock') {
-      // Admin-issued targeted unlock — only apply if this client's active account matches
-      const active = window.AccountManager ? AccountManager.getActiveAccount() : null;
-      if (active && msg.targetAccountId && active.id === msg.targetAccountId && msg.unlock) {
-        if (typeof _rewardUnlockSetter === 'function') {
-          _rewardUnlockSetter(msg.unlock, true);
-        } else if (typeof setAccountFlag === 'function') {
-          setAccountFlag(['unlocks', msg.unlock], true);
-        }
-        if (typeof _consolePrint === 'function') {
-          _consolePrint('🔓 ' + msg.unlock + ' unlocked by an admin!', '#9966cc');
-        }
-      }
+      // Ignored: any peer can send this, and it would write into the guest's save.
     } else if (msg.event === 'story_sync') {
       // Client: apply host story state without restarting the scene
       if (!_isHost && typeof _story2 !== 'undefined' && msg.chapter !== undefined) {
@@ -641,7 +606,7 @@ const NetworkManager = (() => {
         }
       }
     } else if (msg.event === 'story_state') {
-      // Deep late-join sync — reconstruct current story state from host snapshot
+      // Deep late-join sync from the host's story snapshot.
       if (!_isHost && typeof _story2 !== 'undefined') {
         if (msg.story2)   Object.assign(_story2, msg.story2);
         if (msg.bossHealth !== undefined) {
@@ -666,10 +631,16 @@ const NetworkManager = (() => {
     for (const c of _connections) { if (c && c.open) c.send(msg); }
   }
 
-  // ─── PUBLIC API ───────────────────────────────────────────────────────────
+  // Public API
 
   async function connect(roomCode, maxPlayers) {
     maxPlayers = maxPlayers || 2;
+    // Duel rooms are PeerJS peer-to-peer, which some school networks block. Friends rooms use the lobby server.
+    if (typeof Peer === 'undefined') {
+      _setStatus('Duel rooms are blocked on this network');
+      showToast(_P2P_BLOCKED_MSG, 7000);
+      return;
+    }
     if (_peer) { _peer.destroy(); _peer = null; }
     _roomCode = roomCode.toUpperCase().trim();
     _maxPlayers = Math.min(10, Math.max(2, maxPlayers));
@@ -705,13 +676,12 @@ const NetworkManager = (() => {
       const modeRow = document.getElementById('onlineGameModeRow');
       if (modeRow) modeRow.style.display = 'flex';
       _clearChat();
-      // The chat widget is a floating in-match overlay — showing it on the
-      // lobby screen just covered the player-config panels.
+      // Chat is an in-match overlay. Showing it in the lobby covers the config panels.
       _setChatVisible(typeof gameRunning !== 'undefined' && gameRunning);
       _renderLobbySettings();
     } catch (err) {
       if (err.type === 'unavailable-id') {
-        // Room exists — join as GUEST
+        // Room exists. Join as guest.
         if (_peer) _peer.destroy();
         _peer = null;
         await _initPeer(undefined); // auto-generated ID
@@ -721,6 +691,7 @@ const NetworkManager = (() => {
         _setStatus('Joining room...');
         const conn = _peer.connect(hostId, { reliable: true });
         _connections = [conn];
+        setTimeout(() => { if (_connections[0] === conn && !conn.open) showToast(_P2P_BLOCKED_MSG, 7000); }, 15000);
 
         conn.on('open', () => {
           _log('Connected to host');
@@ -769,16 +740,14 @@ const NetworkManager = (() => {
         conn.on('error', e => showToast('Connection error: ' + e));
       } else {
         _setStatus('Connection failed: ' + (err.message || err.type));
-        showToast('Failed to connect');
+        showToast(_P2P_BLOCKED_MSG, 7000);
         throw err;
       }
     }
   }
 
-  // Full teardown of the online session. Every trace of the room has to go:
-  // leaving one used to leave onlineMode true, which made the NEXT offline match
-  // (training especially) spawn a frozen "remote" opponent nobody drove, and
-  // re-showed the online chat log over it.
+  // Full teardown of the online session. Leftover onlineMode would make the next
+  // offline match spawn a frozen "remote" opponent.
   function disconnect() {
     _disconnectReason = 'manual';
     _broadcast({ type: 'gameEvent', event: 'playerLeft', slot: _localSlot });
@@ -802,8 +771,7 @@ const NetworkManager = (() => {
     onlineMode = false;
     onlineLocalSlot = 0;
     if (typeof localPlayerSlot !== 'undefined') localPlayerSlot = 0;
-    // Any fighter still flagged as network-driven has no driver now. Retire it
-    // rather than leaving an invulnerable, motionless clone on the field.
+    // A network-driven fighter with no driver would linger invulnerable, so retire it.
     if (typeof players !== 'undefined' && Array.isArray(players)) {
       for (const p of players) {
         if (p && p.isRemote) {
@@ -825,10 +793,7 @@ const NetworkManager = (() => {
     _renderLobbySettings();
   }
 
-  // ─── LOBBY PANEL STATE ────────────────────────────────────────────────────
-  // One function owns the whole panel's appearance so host/guest/disconnected
-  // states can never disagree. Guests see the host's picks read-only instead of
-  // buttons that silently no-op.
+  // Lobby panel state. One function owns the appearance. Guests see the host's picks read-only.
   function _renderLobbySettings() {
     const panel = document.getElementById('onlinePanel');
     if (!panel) return;
@@ -898,8 +863,7 @@ const NetworkManager = (() => {
     }
   }
 
-  // Reflect the live values onto the buttons — guests need this because their
-  // settings arrive over the wire, not from a click.
+  // Guests need this, since their settings arrive over the wire, not from a click.
   function _syncSettingButtons() {
     const mode = (typeof gameMode !== 'undefined' && _connected) ? gameMode : _onlineGameMode;
     document.querySelectorAll('#onlineGameModeRow [data-onlinemode]').forEach(b => {
@@ -1018,7 +982,7 @@ const NetworkManager = (() => {
     });
   }
 
-  // Legacy getRemoteState() with no arg — returns slot 1 state for 2P compat
+  // Legacy getRemoteState() with no arg. Returns slot 1 for 2P compat.
   function getRemoteStateLegacy() {
     const otherSlot = _localSlot === 0 ? 1 : 0;
     return getRemoteState(otherSlot);
@@ -1073,7 +1037,7 @@ const NetworkManager = (() => {
   }
 
   function tick(localPlayer) {
-    // localPlayer param kept for legacy API compat — we use players[_localSlot] instead
+    // localPlayer param kept for legacy API compat. Uses players[_localSlot].
     _sendTimer++;
     if (_sendTimer >= Math.ceil(60 / SEND_HZ)) {
       _sendTimer = 0;
@@ -1137,14 +1101,14 @@ const NetworkManager = (() => {
     const now = Date.now();
     let found = 0;
     const seen = {};
-    // LobbyManager rooms first — the shared Public Server belongs at the top.
+    // LobbyManager rooms first. The shared Public Server goes at the top.
     if (window.LobbyManager && typeof LobbyManager.listLobbies === 'function') {
       let lobbies = [];
       try { lobbies = LobbyManager.listLobbies() || []; } catch (e) {}
       for (const lob of lobbies) {
         if (!lob || !lob.id || seen[lob.id]) continue;
         // The persistent public server has its own dedicated button right
-        // above this list — listing it here too was the same door twice.
+        // above this list, so listing it here too would show it twice.
         if (lob.persistent) { seen[lob.id] = true; continue; }
         seen[lob.id] = true;
         found++;
@@ -1184,8 +1148,7 @@ const NetworkManager = (() => {
         const btn = document.createElement('button');
         btn.className = 'online-chip-btn';
         btn.textContent = 'Join';
-        // Fill the code AND connect — filling the field alone left people
-        // staring at a populated input wondering what to press next.
+        // Fill the code and connect. A filled field alone leaves people stuck.
         btn.onclick = () => {
           const inp = document.getElementById('onlineRoomCode');
           if (inp) inp.value = d.code;
@@ -1200,9 +1163,7 @@ const NetworkManager = (() => {
     if (!found) list.innerHTML = '<span class="online-empty">No open rooms right now.</span>';
   }
 
-  // Host-only setters. Each one mutates local state, tells every guest, then
-  // hands the panel's appearance back to _renderLobbySettings() — no setter
-  // touches button classes itself any more, so the panel cannot drift.
+  // Host-only setters. Each updates state, tells guests, then calls _renderLobbySettings().
   function _hostOnly() {
     if (_connected && !_isHost) { showToast('Only the host can change match settings'); return false; }
     return true;
@@ -1215,7 +1176,7 @@ const NetworkManager = (() => {
     if (typeof selectMode === 'function') selectMode(mode);
     gameMode = mode;
     // Minigames mode needs minigameType applied through selectMinigame; every
-    // other mode must NOT touch it (selectMinigame forces gameMode='minigames').
+    // Other modes must not touch it, since selectMinigame forces gameMode='minigames'.
     if (mode === 'minigames' && typeof selectMinigame === 'function' && typeof minigameType !== 'undefined') {
       selectMinigame(minigameType);
       gameMode = 'minigames';
@@ -1272,18 +1233,12 @@ const NetworkManager = (() => {
   };
 })();
 
-// Top-level `const` does not become a window property, so the ~40
-// `window.NetworkManager && …` guards scattered across the admin, lobby,
-// CrazyGames and console modules were all silently falsy — every branch behind
-// one of them (the whole LobbyManager → NetworkManager.connect path included)
-// was dead code. Publish the singleton so those guards mean what they say.
+// Publish on window. A top-level const is not a window property, so the
+// `window.NetworkManager` guards in other modules were always falsy.
 window.NetworkManager = NetworkManager;
 
-// ============================================================
-// STANDALONE FUNCTIONS (called from HTML onclick, etc.)
-// ============================================================
-// Leaving the room from the menu — full teardown so no online state survives
-// into the next offline match.
+// Standalone functions (called from HTML onclick).
+// Leaving the room from the menu. Full teardown, so no online state survives.
 function networkLeaveRoom() {
   if (window.NetworkManager) NetworkManager.disconnect();
   NetworkManager.showToast('Left the room');
@@ -1350,10 +1305,7 @@ function networkStartGame() {
   }, 120);
 }
 
-// ============================================================
-// VOICE CHAT SCAFFOLD (push-to-talk, peer-to-peer WebRTC)
-// Lightweight: no server. Mic stream sent directly to peers via PeerJS MediaConnection.
-// ============================================================
+// Voice chat (push-to-talk). Peer to peer, no server. The mic stream goes straight to peers via PeerJS MediaConnection.
 window._voiceChat = (function() {
   let _localStream     = null; // microphone MediaStream
   let _mediaConns      = [];   // PeerJS MediaConnection array (one per remote peer)
@@ -1444,9 +1396,8 @@ window._voiceChat = (function() {
   return { init, destroy, answerIncoming };
 })();
 
-// ── Boot: put the online panel into its disconnected state ───────────────────
-// Guarantees the panel's host/guest/connected classes exist before any click,
-// so step 2 can never render before there is a room to configure.
+// Boot: put the online panel in its disconnected state, so the panel classes
+// exist before any click.
 (function () {
   const _boot = () => { try { NetworkManager.renderLobby(); } catch (e) {} };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _boot);

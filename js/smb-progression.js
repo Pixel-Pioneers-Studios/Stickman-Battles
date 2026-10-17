@@ -1,40 +1,8 @@
-// smb-progression.js — Ship Progression + Fracture System
-// -------------------------------------------------------
-// LORE CONTEXT
-// ─────────────────────────────────────────────────────────
-// Axiom was a hero in his home branch. After proving himself,
-// he gathered allies — the closest friends he had ever known.
-// Together they discovered a fracture: a tear between multiversal layers.
-// Inside it they found power without limit — power to reshape reality,
-// to create and to destroy.
-//
-// That power destroyed them from within. Identity blurred.
-// Trust collapsed. They went to war across branches.
-//
-// Each of them — Vael, Kael, Sora, and others — seized a branch
-// and became its ruler. Axiom did the same.
-//
-// The Axiom who won control of THIS branch is the entity now known
-// as the Creator — and beneath the Creator shell, True Form.
-// He is the strongest entity in the game. No branch ruler surpasses him.
-//
-// The player is Axiom at an EARLIER point — before the corruption.
-// He was attacked without warning. That attack is the starting motivation.
-// Investigation reveals who is pulling the strings.
-// The answer forces a path: find and defeat True Form.
-//
-// PARADOX was built during the war as a weapon — a construct
-// designed to fight alongside Axiom. It can be reused as a boss
-// or ally across story moments.
-// -------------------------------------------------------
-// Depends on: smb-globals.js (SHIP, FRACTURES, fracturePreview* globals)
-// Must load: after smb-story-engine.js, before smb-multiverse.js
-// -------------------------------------------------------
+// smb-progression.js: Ship progression and the fracture system.
+// Depends on: smb-globals.js (ship, fractures, fracturePreview* globals).
+// Load after smb-story-engine.js, before smb-multiverse.js.
 'use strict';
-
-// ============================================================
-// SHIP PART MANAGEMENT
-// ============================================================
+// Ship part management
 
 /**
  * Award a ship part to the player.
@@ -96,13 +64,11 @@ function _onShipBuilt() {
     }
 }
 
-// ============================================================
-// FRACTURE SYSTEM
-// ============================================================
+// Fracture system
 
 /**
  * Mark a fracture as visible/enterable.
- * @param {string} id — fracture id from FRACTURES array
+ * @param {string} id: fracture id from fractures array
  */
 function unlockFracture(id) {
     const f = FRACTURES.find(f => f.id === id);
@@ -116,8 +82,8 @@ function unlockFracture(id) {
  * Attempt to interact with the nearest unlocked fracture.
  * Call this from player input when the "use" key is pressed.
  *
- * @param {{ x: number, y: number }} player  — current player position
- * @param {boolean} usePressed               — true on the frame "use" was pressed
+ * @param {{ x: number, y: number }} player : current player position
+ * @param {boolean} usePressed              : true on the frame "use" was pressed
  */
 function checkFractureInteraction(player, usePressed) {
     if (!usePressed || fracturePreviewActive) return;
@@ -145,7 +111,7 @@ function checkFractureInteraction(player, usePressed) {
 /**
  * Enter a short (10-second) preview of a branch.
  * Spawns one branch guardian enemy in a small arena; force-exits after 600 frames.
- * Drops the CRYSTAL ship part on first completion.
+ * Drops the crystal ship part on first completion.
  */
 function enterFracturePreview(id) {
     const f = FRACTURES.find(f => f.id === id);
@@ -170,7 +136,7 @@ function enterFracturePreview(id) {
         showBossDialogue(`"${f.rulerLore}"`, 220);
     }
 
-    // Spawn guardian — one medium-difficulty enemy with arena-appropriate settings
+    // Spawn guardian: one medium-difficulty enemy with arena-appropriate settings
     _spawnFractureGuardian(f, /*isPreview=*/true);
 
     f.previewed = true;
@@ -178,13 +144,9 @@ function enterFracturePreview(id) {
     _saveFractureState();
 }
 
-// ============================================================
-// FULL BRANCH ARCS
-// ============================================================
-// Each branch is a three-stage run inside the current arena: two guardian
-// waves, then the named ruler. It reuses the existing Fighter/applyClass
-// spawn path (same as the preview guardian) so no new entity type is needed.
-// State lives here and is ticked by updateFractureBranch() from the game loop.
+// Full branch arcs
+// A branch run is three stages in the current arena: two guardian waves, then the
+// named ruler. Reuses the Fighter/applyClass spawn path. Ticked by updateFractureBranch().
 
 let fractureBranchActive = false;   // true while a full branch run is in progress
 let fractureBranchId     = null;    // fracture id being run
@@ -256,7 +218,7 @@ function updateFractureBranch() {
     // Stage cleared.
     if (fractureBranchStage >= 2) { _endFractureBranch(true); return; }
 
-    // Clear out the corpses before the next wave so players[] doesn't grow.
+    // Clear corpses so players[] does not grow.
     for (let i = players.length - 1; i >= 0; i--) {
         const p = players[i];
         if (p && (p._isFractureGuardian || p._isBranchRuler)) players.splice(i, 1);
@@ -307,7 +269,7 @@ function _spawnBranchRuler(f) {
     ruler.name       = def.name;
     ruler._isBranchRuler = true;
     if (typeof applyClass === 'function') applyClass(ruler, def.classKey);
-    // applyClass can overwrite authored health — restore the ruler's HP after it.
+    // applyClass can overwrite authored health: restore the ruler's HP after it.
     ruler.hp = ruler.maxHp = ruler.health = ruler.maxHealth = def.hp;
 
     players.push(ruler);
@@ -398,13 +360,11 @@ function _exitFracturePreview() {
     }
 }
 
-// ============================================================
-// INTERNAL HELPERS
-// ============================================================
+// Internal helpers
 
 /**
  * Spawn a branch guardian enemy for the fracture preview.
- * Uses existing Fighter/enemy infrastructure — no new classes.
+ * Uses existing Fighter/enemy infrastructure: no new classes.
  */
 function _spawnFractureGuardian(fracture, isPreview) {
     if (!Array.isArray(players) || players.length === 0) return;
@@ -436,11 +396,11 @@ function _spawnFractureGuardian(fracture, isPreview) {
         guardian.maxHealth   = guardianHp;
         guardian.lives       = 1;
         guardian.aiDiff      = def.aiDiff;
-        guardian.name        = def.name;   // was unset — the HUD rendered a blank nameplate
+        guardian.name        = def.name;   // was unset: the HUD rendered a blank nameplate
         guardian._isFractureGuardian = true;
 
         if (typeof applyClass === 'function') applyClass(guardian, def.classKey);
-        // applyClass can overwrite authored health — restore the guardian's HP after it,
+        // applyClass can overwrite authored health: restore the guardian's HP after it,
         // the same way the ruler spawn does.
         guardian.hp = guardian.maxHp = guardian.health = guardian.maxHealth = guardianHp;
 
@@ -448,9 +408,7 @@ function _spawnFractureGuardian(fracture, isPreview) {
     }
 }
 
-// ============================================================
-// LORE INJECTION — DIALOGUE HOOKS
-// ============================================================
+// Lore injection: dialogue hooks
 
 /**
  * Lore lines that can be surfaced at key story moments.
@@ -469,7 +427,7 @@ const LORE_LINES = {
     true_form_revelation:  '"The Creator is a shell. What\'s inside is what I became."',
     final_approach:        '"This branch is his. He built it. I have to end it."',
 
-    // Paradox — construct built for war
+    // Paradox: construct built for war
     paradox_intro:         '"Paradox wasn\'t born. It was built. Designed to fight beside me."',
     paradox_reappears:     '"Still operational. Of course it is."',
 
@@ -505,10 +463,10 @@ function loreLine(key) {
 }
 
 /**
- * Fire a lore moment — show the line as an in-fight subtitle.
+ * Fire a lore moment: show the line as an in-fight subtitle.
  * Deduped via storyEventFired so it only fires once per session.
  *
- * @param {string} key  — LORE_LINES key
+ * @param {string} key : LORE_LINES key
  * @param {string} [color='#ccaaff']
  */
 function fireLoreMoment(key) {
@@ -529,19 +487,17 @@ function fireLoreMoment(key) {
     }
 }
 
-// ============================================================
-// PLAYER MOTIVATION SYSTEM
-// Grounds the player's reason for progressing — no abstraction.
-// ============================================================
+// Player motivation
+// Why the player is progressing.
 
 /**
  * Motivation stages mirror the story acts.
  * Called by story chapter completion hooks to update the displayed motivation.
  *
- * Stage 0 — default: survival (attacked without cause)
- * Stage 1 — investigation: who is controlling the attackers?
- * Stage 2 — understanding: True Form runs this branch; he will not stop
- * Stage 3 — commitment: the only way to end it is to reach True Form
+ * Stage 0: default: survival (attacked without cause)
+ * Stage 1: investigation: who is controlling the attackers?
+ * Stage 2: understanding: True Form runs this branch; he will not stop
+ * Stage 3: commitment: the only way to end it is to reach True Form
  */
 const MOTIVATION_STAGES = [
     { stage: 0, text: 'You were attacked. Find out why.' },
@@ -579,11 +535,9 @@ function currentMotivationText() {
     return MOTIVATION_STAGES[motivationStage]?.text || '';
 }
 
-// ============================================================
-// LABORATORY INFILTRATION — side mission launcher
+// Laboratory infiltration side mission launcher
 // Call startLabInfiltration() from any menu button or trigger.
 // Chapter id 93 must be registered in smb-lab-infiltration.js.
-// ============================================================
 
 /**
  * Launch the Laboratory Infiltration side mission.
@@ -597,9 +551,7 @@ function startLabInfiltration() {
     }
 }
 
-// ============================================================
-// PERSISTENCE — thin wrappers around localStorage
-// ============================================================
+// Persistence: thin wrappers around localStorage
 
 function _saveShipState() {
     if (typeof saveGame === 'function') { saveGame(); }
@@ -610,8 +562,7 @@ function _saveFractureState() {
 }
 
 function _loadProgressionState() {
-    // Primary: load from GameState account data (set by smb-save.js)
-    // smb-save.js loads at position 37, smb-progression.js at 45, so GameState is available.
+    // Primary source: GameState account data (smb-save.js loads earlier, so GameState exists).
     const _acct = (window.GameState) ? GameState.getActiveAccount() : null;
     if (_acct && _acct.data && typeof _acct.data.version === 'number') {
         const _pd = _acct.data.progression || {};
@@ -631,7 +582,7 @@ function _loadProgressionState() {
         try {
             if (typeof _pd.motivationStage === 'number') motivationStage = Math.min(3, _pd.motivationStage);
         } catch(e) {}
-        // Also apply storyProgress here so STORY_PROGRESS is correct when story files load
+        // Apply storyProgress here too, so STORY_PROGRESS is right when story files load
         const _sp = _acct.data.storyProgress;
         if (_sp && window.STORY_PROGRESS) {
             if (typeof _sp.act     === 'number') STORY_PROGRESS.act     = _sp.act;
@@ -642,14 +593,12 @@ function _loadProgressionState() {
     }
 }
 
-// Load saved state on script execution
+// Load saved state at script load
 _loadProgressionState();
 
-// ============================================================
-// STORY PROGRESS HELPERS
+// Story progress helpers
 // Operate on window.STORY_PROGRESS (defined in smb-globals.js).
 // All helpers are safe to call before/after game start.
-// ============================================================
 
 /** Jump directly to a specific act (0–9). Resets chapter to 0. */
 function setAct(n) {
@@ -677,7 +626,7 @@ function hasStoryFlag(key) {
     return !!(window.STORY_PROGRESS && STORY_PROGRESS.flags[key]);
 }
 
-// ── Persistence ──────────────────────────────────────────────
+// Persistence
 
 function _saveStoryProgress() {
     if (typeof saveGame === 'function') { saveGame(); }

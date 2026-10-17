@@ -1,17 +1,13 @@
 'use strict';
-// js/story/scenes/act3.js — cinematic scene specs for act3.
-// Split out of the former single-file js/smb-story-scenes.js; content unchanged.
-// Every file here merges into the shared window.STORY_SCENE_SPECS, so load order
-// AMONG these files does not matter — only that they all load BEFORE
-// js/smb-story-narrative-scene.js, which reads the table.
-//
-// 9 specs — chapter ids: 50, 51, 52, 53, 54, 56, 58, 61, 64
+// js/story/scenes/act3.js: cinematic scene specs.
+// Merge into window.STORY_SCENE_SPECS. These must load before js/smb-story-narrative-scene.js.
+// Chapters 50, 51, 52, 53, 54, 56, 58, 61, 64.
 
 window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
 
 (function (S) {
 
-  // ── Chapter 50 — The Probe ──────────────────────────────────────────────────
+  // Chapter 50: The Probe
   S[50] = {
     bg: 'fracture',
     npcColor: '#bbbbdd',
@@ -129,9 +125,9 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 51 — The Split (branch) ─────────────────────────────────────────
+  // Chapter 51: The Split (branch)
   S[51] = {
-    // The Assembly Hall, at the end of chapter 49's map
+    // Assembly Hall, end of ch49 map
     bg: 'level', level: { ch: 49, x: 3500 },
     npcColor: '#2266bb',
     beats: [
@@ -194,17 +190,15 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
         bubbleX: 0.40,
       },
       {
-        // The fragment reacts. Not to the argument — to the Third Architect's certainty.
-        // Player turns. Already decided before anyone else in the room.
         letterbox: true,
         playerExpr: 'focused',
         camAnim: [
           { at: 0,  zoom: 1.35, cx: 0.50, cy: 0.50 },
-          { at: 50, zoom: 1.52, cx: 0.32, cy: 0.48 }, // push tight to player — they're the only still thing
+          { at: 50, zoom: 1.52, cx: 0.32, cy: 0.48 }, // tight on the player
         ],
         playerPos: [
           { at: 0,  x: 0.28, state: 'idle', facing: 1, expr: 'focused' },
-          { at: 35, x: 0.27, state: 'look', facing: 1, expr: 'focused' }, // looks at the Third Architect directly
+          { at: 35, x: 0.27, state: 'look', facing: 1, expr: 'focused' },
         ],
         npcPos:    [{ at: 0, x: 0.66, state: 'idle', facing: -1 }],
         effectsBehind: [
@@ -218,7 +212,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 52 — Rogue Faction ──────────────────────────────────────────────
+  // Chapter 52: Rogue Faction
   S[52] = {
     bg: 'city',
     npcColor: '#cc8833',
@@ -305,11 +299,11 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 53 — What Veran Didn't Say (branch) ─────────────────────────────
+  // Chapter 53: What Veran Didn't Say (branch)
   S[53] = {
-    // The Assembly Hall, at the end of chapter 49's map
+    // Assembly Hall, end of ch49 map
     bg: 'level', level: { ch: 49, x: 3500 },
-    npcColor: '#88aaff',
+    npcColor: '#3ddc84',
     beats: [
       {
         letterbox: true,
@@ -422,10 +416,10 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 54 — The Upload ──────────────────────────────────────────────────
+  // Chapter 54: The Upload
   S[54] = {
     bg: 'fracture',
-    npcColor: '#88aaff',
+    npcColor: '#3ddc84',
     beats: [
       {
         letterbox: true,
@@ -515,7 +509,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 56 — Signal Maze (exploration with narrative) ───────────────────
+  // Chapter 56: Signal Maze
   S[56] = {
     bg: 'city',
     npcColor: '#8844ff',
@@ -590,7 +584,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 58 — Converted ──────────────────────────────────────────────────
+  // Chapter 58: Converted
   S[58] = {
     bg: 'forest',
     npcColor: '#557799',
@@ -662,7 +656,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 61 — Against the Architect ──────────────────────────────────────
+  // Chapter 61: Against the Architect
   S[61] = {
     bg: 'ice',
     npcColor: '#2266bb',
@@ -768,7 +762,7 @@ window.STORY_SCENE_SPECS = window.STORY_SCENE_SPECS || {};
     ],
   };
 
-  // ── Chapter 64 — The Enforcer ────────────────────────────────────────────────
+  // Chapter 64: The Enforcer
   S[64] = {
     bg: 'ruins',
     npcColor: '#cc0044',

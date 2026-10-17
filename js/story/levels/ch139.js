@@ -1,17 +1,8 @@
 'use strict';
-// js/story/levels/ch139.js — Chapter 139 map (story ARENA, gauntlet). See smb-story-levels.js.
+// Chapter 139 map (story arena, gauntlet). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 139 — Between Forms (3-wave gauntlet, one screen)
-// The Recalibration Chamber, while the Creator rebuilds itself. The room is
-// half dismantled: the white panels hang open on their hinges with the
-// lattice behind them exposed and being rewritten, lines of it erasing and
-// redrawing in a slow scan. In the middle of the back wall the Creator's
-// recalibration frame stands empty, a tall violet outline with the progress
-// of its rebuild filling it from the bottom. Residual constructs leak out of
-// the open panels. Built on the Creator arena's rules (as before); the
-// ledges are panels that have come loose and lodged in the frame.
-// ═════════════════════════════════════════════════════════════════════════════
+// Between Forms: three waves on one screen. The Creator is mid-rebuild, so the
+// room is half dismantled. Uses the Creator arena rules; the ledges are loose panels.
 (function () {
   const G = 460;
   const LEDGES = [[80, 300, 150, 16], [670, 300, 150, 16], [340, 220, 220, 16], [180, 140, 120, 14], [600, 140, 120, 14]];
@@ -25,18 +16,15 @@
   function backdrop(v) {
     _slSkyAbove(v, '#080012');
     ctx.fillStyle = '#1a1030'; ctx.fillRect(v.x - 10, v.y - 10, v.w + 20, G - v.y + 10);
-    // Lattice being rewritten in a slow scan
     const scan = (frameCount * 2) % 520;
     _slLattice(-40, 0, 980, G, 0.15, 20);
     ctx.fillStyle = 'rgba(200,190,255,0.12)'; ctx.fillRect(-40, scan - 6, 980, 12);
-    // Panels hanging open on their hinges
     for (let k = 0; k < 8; k++) {
       const x = -20 + k * 120, ang = 0.25 + 0.15 * Math.sin(frameCount * 0.01 + k);
       ctx.save(); ctx.translate(x, 30); ctx.transform(Math.cos(ang), 0, 0, 1, 0, 0);
       ctx.fillStyle = '#d8d4e4'; ctx.fillRect(0, 0, 100, 380); ctx.strokeStyle = '#7864c8'; ctx.strokeRect(0, 0, 100, 380);
       ctx.restore();
     }
-    // The empty recalibration frame, filling as the rebuild progresses
     const fill = (frameCount % 3600) / 3600;
     ctx.fillStyle = 'rgba(120,100,220,0.25)'; ctx.fillRect(400, 60 + 300 * (1 - fill), 100, 300 * fill);
     ctx.strokeStyle = '#a088ff'; ctx.lineWidth = 3; ctx.strokeRect(400, 60, 100, 300);

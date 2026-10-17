@@ -1,15 +1,10 @@
 'use strict';
 
-// ============================================================
-// SPORTS ARENA — minigameType 'sports'
-// ============================================================
-// One stadium, four sports. Nobody takes health damage (dealDamage zeroes it),
-// but every hit still knocks back and stuns, so fighting the other player is
-// how you win the ball. Each weapon's ability doubles as a signature ball move
-// (fired when the ball is in range at the moment the ability goes off), and a
-// super near the ball turns it into a burning homing shot that bowls people over.
-//
-// Load order: after smb-minigames.js (initMinigame calls initSports).
+// Sports arena (minigameType 'sports'): four sports on one stadium.
+// Nobody takes health damage, but hits still knock back and stun, so fighting wins the ball.
+// Weapon abilities double as ball moves when the ball is in range.
+// A super near the ball makes a burning homing shot.
+// Load after smb-minigames.js (initMinigame calls initSports).
 
 const SPORTS = {
   soccer:     { name: 'SOCCER',     win: 5,  balls: 1, r: 15, grav: 0.55, bounce: 0.75, maxSpd: 14,
@@ -72,15 +67,14 @@ function selectSport(key) {
   if (d) d.textContent = SPORTS[key].desc + ' — first to ' + SPORTS[key].win + '.';
 }
 
-// ── Setup ────────────────────────────────────────────────────
 function _sportsBuildPlatforms() {
   const pls = [
     { x: 0,   y: SPORTS_FLOOR_Y, w: 900, h: 60, isFloor: true },
     { x: 0,   y: 0, w: 10, h: SPORTS_FLOOR_Y },
     { x: 890, y: 0, w: 10, h: SPORTS_FLOOR_Y },
   ];
-  // Volleyball and dodgeball keep each team on its own half. The divider is
-  // full height so nobody hops the net; the ball ignores platforms entirely.
+  // Volleyball and dodgeball keep teams on their own half. The divider is full height, so nobody hops it.
+  // The ball ignores platforms.
   if (sportsType === 'volleyball' || sportsType === 'dodgeball') {
     pls.push({ x: SPORTS_NET.x, y: 0, w: SPORTS_NET.w, h: SPORTS_FLOOR_Y, noDraw: true });
   }
@@ -142,7 +136,6 @@ function initSports() {
   _sportsServe(0);
 }
 
-// ── Geometry helpers ─────────────────────────────────────────
 function _sportsTeamDir(team) { return team === 0 ? 1 : -1; }
 
 function _sportsOpponent(p) {
@@ -224,7 +217,6 @@ function _sportsPopText(x, y, text, color) {
   }
 }
 
-// ── Signature moves (ability / super near the ball) ─────────
 function _sportsApplyMove(p, kind) {
   const b = _sportsNearestBall(p, kind === 'super' ? 260 : 160);
   if (!b) return;
@@ -317,8 +309,7 @@ function _sportsApplyMove(p, kind) {
   if (SoundManager && SoundManager.heavyHit) SoundManager.heavyHit();
 }
 
-// Called from dealDamage for every hit in the sports arena. A fighter who gets
-// hit coughs up whatever ball they were carrying or standing on.
+// Called from dealDamage on every hit here. A hit fighter drops the ball they carry or stand on.
 function sportsOnHit(attacker, target, kb) {
   if (!isSportsMode() || !target) return;
   const dir = attacker ? (target.cx() >= attacker.cx() ? 1 : -1) : (target.facing || 1) * -1;
@@ -334,7 +325,6 @@ function sportsOnHit(attacker, target, kb) {
   }
 }
 
-// ── Ball physics ─────────────────────────────────────────────
 function _sportsStepBall(b) {
   const S = SPORTS[sportsType];
   b.prevY = b.y;
@@ -402,7 +392,6 @@ function _sportsStepBall(b) {
   if (b.fire > 0) b.fire--;
   if (b.charged > 0) b.charged--;
 
-  // Floor
   if (b.y + b.r > SPORTS_FLOOR_Y) {
     b.y  = SPORTS_FLOOR_Y - b.r;
     b.vy = -Math.abs(b.vy) * S.bounce;
@@ -415,10 +404,9 @@ function _sportsStepBall(b) {
       return;
     }
   }
-  // Ceiling
   if (b.y - b.r < 0) { b.y = b.r; b.vy = Math.abs(b.vy) * 0.6; }
 
-  // Side walls — soccer leaves the goal mouths open
+  // Side walls: soccer leaves the goal mouths open.
   const inGoalY = sportsType === 'soccer' && b.y > SPORTS_GOALS[0].y + 4;
   if (b.x - b.r < 10 && !inGoalY)          { b.x = 10 + b.r;          b.vx =  Math.abs(b.vx) * 0.65; if (b.fx && b.fx.type !== 'orbit') b.fx = null; }
   if (b.x + b.r > GAME_W - 10 && !inGoalY) { b.x = GAME_W - 10 - b.r; b.vx = -Math.abs(b.vx) * 0.65; if (b.fx && b.fx.type !== 'orbit') b.fx = null; }
@@ -431,7 +419,6 @@ function _sportsStepBall(b) {
   if (sportsType === 'volleyball') _sportsNetCollide(b);
   if (sportsType === 'basketball') _sportsHoopCollide(b);
 
-  // Drag + speed cap
   if (!noCap && !(b.fx && b.fx.type === 'lob')) b.vx *= 0.993;
   const cap = noCap ? 26 : S.maxSpd;
   const spd = Math.hypot(b.vx, b.vy);
@@ -465,7 +452,6 @@ function _sportsNetCollide(b) {
 
 function _sportsHoopCollide(b) {
   for (const h of SPORTS_HOOPS) {
-    // Backboard
     const bx0 = h.boardX - 3, bx1 = h.boardX + 3, by0 = h.rimY - 100, by1 = h.rimY + 10;
     if (b.y > by0 && b.y < by1 && b.x + b.r > bx0 && b.x - b.r < bx1) {
       b.x  = b.x < h.boardX ? bx0 - b.r : bx1 + b.r;
@@ -532,7 +518,6 @@ function _sportsBallVsPlayers(b) {
       continue; // it ploughs through instead of stopping
     }
 
-    // Guarding fighters wall the ball back hard
     if (touching && p.shielding && cd <= 0) {
       const dir = b.x >= p.cx() ? 1 : -1;
       b.vx = dir * Math.max(6, Math.abs(b.vx) * 0.9); b.vy = -Math.abs(b.vy) * 0.5 - 3;
@@ -550,7 +535,6 @@ function _sportsBallVsPlayers(b) {
       continue;
     }
 
-    // Body contact
     const ox = b.x - p.cx(), oy = b.y - p.cy();
     const d  = Math.hypot(ox, oy);
     const minD = p.w / 2 + b.r + 4;
@@ -634,8 +618,7 @@ function _sportsProjectileHits(b) {
     if (Math.hypot(pr.x - b.x, pr.y - b.y) > b.r + 10) continue;
     b.heldBy = null;
     pr.active = false;
-    // Over a net or up at a hoop a raw shove is useless, so a shot that hits
-    // the ball plays it like a swing would (bump over / jump shot).
+    // A shove over a net or up at a hoop is useless, so a shot plays it like a swing.
     if ((sportsType === 'volleyball' || sportsType === 'basketball') && (b.hitCd.get(pr.owner) || 0) <= 0) {
       _sportsStrike(b, pr.owner);
       b.hitCd.set(pr.owner, 14);
@@ -657,7 +640,6 @@ function _sportsSoccerGoals(b) {
   }
 }
 
-// ── Scoring ──────────────────────────────────────────────────
 function _sportsPoint(team, label, pts, noReset) {
   if (sportsWinnerIdx >= 0) return;
   sportsScore[team] += (pts || 1);
@@ -676,7 +658,7 @@ function _sportsPoint(team, label, pts, noReset) {
     sportsWinnerIdx = scorer ? players.indexOf(scorer) : team;
     sportsBanner = { text: who + ' WINS!', sub: sportsScore[0] + ' – ' + sportsScore[1], color, t: 240 };
     sportsPause = 9999;
-    // Public Server: the lobby server ends the round for everyone — no endGame().
+    // Public Server: the lobby ends the round for everyone, so no endGame().
     if (typeof PubHub !== 'undefined' && PubHub.active) {
       setTimeout(() => { if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.sportsWon(team); }, 2000);
       return;
@@ -691,10 +673,8 @@ function _sportsPoint(team, label, pts, noReset) {
   }
 }
 
-// ── Bots ─────────────────────────────────────────────────────
-// Driven every frame from updateSports (the stock brain only ticks every 15
-// frames, far too slow to play a moving ball). updateAI() stands down while
-// `_sportsBot` is set.
+// Bot ball logic, driven every frame from updateSports. The stock brain ticks every 15 frames,
+// too slow for a moving ball.
 function _sportsBotStep(p) {
   if (p.health <= 0 || p.stunTimer > 0 || p.ragdollTimer > 0) return;
   if (typeof isCinematic !== 'undefined' && isCinematic) return;
@@ -705,7 +685,6 @@ function _sportsBotStep(p) {
   const reach = Math.max(60, Math.min(110, (p.weapon && p.weapon.range) || 70));
   let wantX, jump = false, swing = false, useAb = false, useSup = false, guard = false;
 
-  // Ball to play: dodgeball prefers a threat, then a free ball on our side
   let b = null;
   if (sportsType === 'dodgeball') {
     const threat = sportsBalls.find(x => x.live && x.liveTeam !== team &&
@@ -718,6 +697,8 @@ function _sportsBotStep(p) {
       b = threat;
     }
     if (!threat) {
+      // The hold counted down only in the threat branch, so a catch that outlived the throw left the bot shielding forever.
+      if (p._spGuardHold > 0) p._spGuardHold--;
       const mine = sportsBalls.filter(x => !x.live && (team === 0 ? x.x < SPORTS_MID_X : x.x > SPORTS_MID_X));
       b = mine.sort((a, c) => Math.abs(a.x - p.cx()) - Math.abs(c.x - p.cx()))[0] || null;
     }
@@ -744,6 +725,13 @@ function _sportsBotStep(p) {
       if (d < reach) swing = true;
       if (d < 150 && Math.random() < 0.05 * skill) useAb = true;
     }
+  } else if (sportsType === 'dodgeball') {
+    // Dodgeball throws aim at the opponent from any side, so the bot walks to the ball, faces it and swings.
+    wantX = b.x;
+    if (b.y < p.y - 20 && Math.abs(b.x - p.cx()) < 60) jump = true;
+    if (d < reach + 10) { swing = true; p.facing = b.x >= p.cx() ? 1 : -1; }
+    const opp = _sportsOpponent(p);
+    if (opp && d < 150 && Math.random() < 0.06 * skill) useAb = true;
   } else {
     const T = _sportsAimPoint(team, p);
     const behind = (b.x - p.cx()) * gdir < -8; // ball is between us and our own goal
@@ -762,11 +750,6 @@ function _sportsBotStep(p) {
     if (d < 220 && p.superReady && Math.random() < 0.03 * skill) useSup = true;
     // Defend: sprint back when a shot is heading at our end
     if ((b.vx * gdir) < -6 && behind) wantX = b.x - gdir * 30;
-    if (sportsType === 'dodgeball') {
-      const opp = _sportsOpponent(p);
-      if (opp && d < reach + 10) { swing = true; p.facing = opp.cx() > p.cx() ? 1 : -1; }
-      if (opp && d < 150 && Math.random() < 0.06 * skill) useAb = true;
-    }
   }
 
   // Keep to our half where the divider exists
@@ -794,7 +777,6 @@ function _sportsBotStep(p) {
   else if (swing && p.cooldown <= 0 && Math.random() < 0.25 + 0.5 * skill && tgt) p.attack(tgt);
 }
 
-// ── Per-frame update ─────────────────────────────────────────
 function updateSports() {
   if (!isSportsMode() || !gameRunning) return;
   // Public Server: only the authority simulates the ball; everyone else mirrors it.
@@ -858,7 +840,6 @@ function updateSports() {
   }
 }
 
-// ── Drawing (world space, above platforms) ───────────────────
 function drawSports() {
   if (!isSportsMode()) return;
   ctx.save();
@@ -906,16 +887,13 @@ function drawSports() {
     for (const h of SPORTS_HOOPS) {
       const side = h.boardX < SPORTS_MID_X ? -1 : 1;
       const tint = players.find(p => p && p._sportsTeam !== h.team);
-      // Pole + arm
       ctx.fillStyle = '#3b3f4a';
       ctx.fillRect(h.boardX + side * 18 - 4, h.rimY - 60, 8, fy - h.rimY + 60);
       ctx.fillRect(Math.min(h.boardX, h.boardX + side * 18), h.rimY - 40, 18, 6);
-      // Backboard
       ctx.fillStyle = 'rgba(230,240,255,0.85)';
       ctx.fillRect(h.boardX - 3, h.rimY - 100, 6, 110);
       ctx.strokeStyle = tint ? tint.color : '#ff4444'; ctx.lineWidth = 2;
       ctx.strokeRect(h.boardX - 3, h.rimY - 100, 6, 110);
-      // Net
       ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1;
       const x0 = Math.min(h.rimFront, h.rimBack), x1 = Math.max(h.rimFront, h.rimBack);
       for (let i = 0; i <= 4; i++) {
@@ -923,7 +901,6 @@ function drawSports() {
         ctx.beginPath(); ctx.moveTo(xa, h.rimY); ctx.lineTo(xb, h.rimY + 34); ctx.stroke();
       }
       ctx.beginPath(); ctx.moveTo(x0 + 5, h.rimY + 17); ctx.lineTo(x1 - 5, h.rimY + 17); ctx.stroke();
-      // Rim
       ctx.strokeStyle = '#ff6a1a'; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(h.rimFront, h.rimY); ctx.lineTo(h.rimBack, h.rimY); ctx.stroke();
     }
@@ -943,7 +920,6 @@ function drawSports() {
 
   for (const b of sportsBalls) if (!b.hidden) _sportsDrawBall(b);
 
-  // Banner (GOAL! / BUCKET! / etc.)
   if (sportsBanner) {
     const a = Math.min(1, sportsBanner.t / 20);
     ctx.globalAlpha = a;
@@ -973,7 +949,6 @@ function _sportsDrawBall(b) {
     });
     ctx.globalAlpha = 1;
   }
-  // Ground shadow
   const h = Math.max(0, SPORTS_FLOOR_Y - b.y);
   ctx.fillStyle = `rgba(0,0,0,${Math.max(0.08, 0.35 - h / 900)})`;
   ctx.beginPath(); ctx.ellipse(b.x, SPORTS_FLOOR_Y + 2, r * Math.max(0.4, 1 - h / 500), 4, 0, 0, Math.PI * 2); ctx.fill();

@@ -1,11 +1,10 @@
-// Draw scale for Axiom's body art. See the comment in TrueForm.draw().
+// TrueForm body art scale. Applied around the core in draw().
 const TF_BODY_SCALE = 1.16;
 
 class TrueForm extends Fighter {
   constructor() {
     const noCtrl = { left: null, right: null, jump: null, attack: null, ability: null, super: null };
     super(450, 350, '#000000', 'gauntlet', noCtrl, true, 'hard');
-    // Override weapon to use a fist-style profile
     this.weapon = Object.assign({}, WEAPONS.gauntlet, {
       name: 'Fists', damage: 20, range: 48, cooldown: 16, kb: 7,
       contactDmgMult: 0,
@@ -14,150 +13,122 @@ class TrueForm extends Fighter {
     this.name          = 'COSMIC AXIOM';
     this.health        = 10000;
     this.maxHealth     = 10000;
-    // Same body as every Fighter (34x84). This used to be 18x50, a holdover
-    // that left Axiom a head shorter and half as wide as the player he hunts.
-    // draw() scales the art by TF_BODY_SCALE to fill it.
+    // Same body as every Fighter (34x84). draw() scales the art by TF_BODY_SCALE to fill it.
     this.w             = 34;
     this.h             = 84;
     this.isBoss        = true;
     this.isTrueForm    = true;
-    // Damage trim. Applied centrally in dealDamage (attacker.dmgMult) rather than
-    // by editing 26 separate call sites, so every attack scales together and no
-    // single move silently keeps its old value. Measured over
-    // smb_replay_void_2026-09-07: 95 hits on the player for 1481 total, mean 15.6
-    // and a 36 peak, against a 140-170 hp bar — a fight the player only survived
-    // by out-healing it. Trim the input, then fix the healing that hid it.
+    // Damage trim, applied centrally in dealDamage (attacker.dmgMult) so every attack scales together.
+    // Playtest had the player out-healing the damage, so trim the input and fix the healing.
     this.dmgMult       = 0.85;
     this.lives         = 1;
     this.spawnX        = 450;
     this.spawnY        = 350;
     this.playerNum     = 2;
     this.color         = '#000000';
-    this.kbResist      = 0.90;  // nearly no knockback — lowest in game
+    this.kbResist      = 0.90;  // nearly no knockback: lowest in game
     this.kbBonus       = 0.55;  // deals low KB for tight combos
-    this.attackCooldownMult = 0.65; // was 0.45 — increased to reduce M1 spam frequency
+    this.attackCooldownMult = 0.65; // cuts M1 spam
     this.superChargeRate    = 0; // no super meter
     this._tfSpeed      = 4.2;   // 1.3× normal fighter speed
     this._attackMode   = 'punch'; // alternates punch/kick
-    // Anti-idle failsafe state — must exist from frame 1. Initializing it only in
-    // _startAntiRangedPhase left _noActionTicks undefined (NaN on ++), silently
-    // disabling the "force action after 8 idle ticks" recovery guarantee.
+    // Anti-idle failsafe: must exist from frame 1, or _noActionTicks is NaN and idle recovery never fires.
     this._noActionTicks         = 0;
     this._multiversalGroupCd    = 0;
     this._consecutiveMeleeCount = 0;
     this._hitReactPending       = false;
     this._prevHealthForReact    = this.health;
-    // Combo tracking (max 4 hits, max 85% maxHP damage per combo)
     this._comboCount   = 0;
     this._comboDamage  = 0;
     this._comboTimer   = 0;
-    // Special move cooldowns (in AI TICKS — updateAI runs every 15 frames)
+    // Special move cooldowns (in AI TICKS: updateAI runs every 15 frames)
     // TrueForm has shorter cooldowns than Creator to maintain overwhelming pressure
-    this._gravityCd    =  8;  // ~2s   (was 14)
-    this._warpCd       = 17;  // ~4.25s (was 28)
-    this._holeCd       = 10;  // ~2.5s  (was 16)
-    this._floorCd      = 26;  // ~6.5s  (was 44)
-    this._invertCd     = 11;  // ~2.75s (was 18)
-    this._sizeCd       = 11;  // ~2.75s (was 18)
-    this._portalCd     =  7;  // ~1.75s (was 12)
-    // New attack cooldowns (AI ticks — 1 tick = 15 frames)
-    this._graspCd      = 17;  // Void Grasp    — ~4.25s (was 28)
-    this._slashCd      =  5;  // Reality Slash — ~1.25s (was 9)
-    this._wellCd       = 13;  // Gravity Well  — ~3.25s (was 22)
-    this._meteorCd     = 22;  // Meteor Crash  — ~5.5s  (was 36)
-    this._cloneCd      = 20;  // Shadow Clones — 5s     (was 34)
-    this._chainCd      = 14;  // Chain Slam    — ~3.5s  (was 24)
+    this._gravityCd    =  8;  // ~2s
+    this._warpCd       = 17;  // ~4.25s
+    this._holeCd       = 10;  // ~2.5s
+    this._floorCd      = 26;  // ~6.5s
+    this._invertCd     = 11;  // ~2.75s
+    this._sizeCd       = 11;  // ~2.75s
+    this._portalCd     =  7;  // ~1.75s
+    // New attack cooldowns (AI ticks: 1 tick = 15 frames)
+    this._graspCd      = 17;  // Void Grasp   : ~4.25s
+    this._slashCd      =  5;  // Reality Slash: ~1.25s
+    this._wellCd       = 13;  // Gravity Well : ~3.25s
+    this._meteorCd     = 22;  // Meteor Crash : ~5.5s
+    this._cloneCd      = 20;  // Shadow Clones: 5s
+    this._chainCd      = 14;  // Chain Slam   : ~3.5s
     this.postSpecialPause = 0;
-    // Cosmic visual state
     this._floatT    = Math.random() * Math.PI * 2; // random phase so float doesn't start at apex
-    this._trailPts  = []; // [{x, y, a}] — fading ghost silhouette trail
+    this._trailPts  = []; // [{x, y, a}]: fading ghost silhouette trail
     this._lastPhase    = 1;
     this._maxLives     = 1;
-    // Dodge mechanic
     this._justDodged   = false;
     this._dodgeTimer   = 0;
-    // Anti-repeat and player intelligence
     this._lastSpecial     = null;
     this._lastLastSpecial = null;
     this._stillTimer      = 0;
     this._lastTargetX     = -999;
-    // Aggression timer (forces a special after idle)
     this._idleTicks       = 0;
-    // Running-away detection
     this._runAwayTicks    = 0;
-    // Shockwave cooldown
     this._shockwaveCd     = 0;
-    this._teleportComboCd = 0;  // Teleport Combo — 12s
-    this._gravityCrushCd  = 0;  // Gravity Crush  — 15s
-    // Pending (deferred) attacks — telegraph first, then execute
+    this._teleportComboCd = 0;  // Teleport Combo: 12s
+    this._gravityCrushCd  = 0;  // Gravity Crush : 15s
     this._pendingSlash        = null; // { timer, targetX, targetY, target }
-    this._pendingShockwave    = null; // { timer } — ground variant only
+    this._pendingShockwave    = null; // { timer }: ground variant only
     this._pendingTeleportCombo = null; // { hits, target }
     this._pendingGravityCrush = null;  // { timer }
     this._prevHealth       = 5000; // for stagger accumulation tracking
     this._cinematicFired   = new Set(); // HP-threshold mid-fight cinematics already triggered
-    // Dimensional attack cooldowns (AI ticks)
-    this._phaseShiftCd  = 18;  // Phase Shift     — ~4.5s (was 30)
-    this._realityTearCd = 26;  // Reality Tear    — ~6.5s (was 44)
-    this._calcStrikeCd  = 13;  // Calculated Strike — ~3.25s (was 22)
-    // Chaining + pressure system
-    this._pendingChainMove    = null; // { move, delay } — queued follow-up attack
+    this._phaseShiftCd  = 18;  // Phase Shift    : ~4.5s
+    this._realityTearCd = 26;  // Reality Tear   : ~6.5s
+    this._calcStrikeCd  = 13;  // Calculated Strike: ~3.25s
+    this._pendingChainMove    = null; // { move, delay }: queued follow-up attack
     this._prevTargetVxArr     = [];   // rolling history of target vx for unpredictability detection
     this._aggressionBurstTimer = 0;  // AI ticks remaining in hyper-aggressive burst
     this._comboFinisherCd     = 0;   // cooldown preventing back-to-back mini finishers
-    // Desperation + new high-impact moves
     this._desperationMode     = false; // activates at <20% HP
-    this._realityOverrideCd   = 0;    // Reality Override — boss rewrites game state
-    this._collapseStrikeCd    = 0;    // Collapse Strike  — slowmo + devastating hit
-    this._grabCinCd           = 36;   // Grab Cinematic   — short scripted grab+throw (was 60)
-    this._dimensionCd         = 0;   // Dimension Shift  — toggle 2D/3D perspective
+    this._realityOverrideCd   = 0;    // Reality Override: boss rewrites game state
+    this._collapseStrikeCd    = 0;    // Collapse Strike : slowmo + devastating hit
+    this._grabCinCd           = 36;   // Grab Cinematic  : short scripted grab+throw
+    this._dimensionCd         = 0;   // Dimension Shift : toggle 2D/3D perspective
     this._pendingCollapseStrike = null; // { timer, target }
-    // ── Cosmic attack cooldowns (AI ticks) ────────────────────
-    this._gammaBeamCd    = 12;  // Gamma Ray Beam    — 3s    (was 20)
-    this._neutronStarCd  = 17;  // Neutron Star      — ~4.25s (was 28)
-    this._galaxySweepCd  = 14;  // Galaxy Sweep      — ~3.5s  (was 24)
-    this._multiverseCd   = 19;  // Multiverse Fracture — ~4.75s (was 32)
-    this._supernovaCd    = 999; // Supernova — triggers once at low HP only
-    // ── Depth Phase Z-axis attack cooldowns (AI ticks) ───────────────────────
-    this._depthPhaseShiftCd = 12; // Phase Shift Strike — ~3s  (shift Z then attack)
-    this._depthLayerFakeCd  = 18; // Multi-Layer Fake   — ~4.5s (afterimages at diff Z)
-    this._depthPunishCd     = 16; // Depth Punish       — ~4s  (attack if player idle in Z)
+    this._gammaBeamCd    = 12;  // Gamma Ray Beam   : 3s
+    this._neutronStarCd  = 17;  // Neutron Star     : ~4.25s
+    this._galaxySweepCd  = 14;  // Galaxy Sweep     : ~3.5s
+    this._multiverseCd   = 19;  // Multiverse Fracture: ~4.75s
+    this._supernovaCd    = 999; // Supernova: triggers once at low HP only
+    this._depthPhaseShiftCd = 12; // Phase Shift Strike: ~3s  (shift Z then attack)
+    this._depthLayerFakeCd  = 18; // Multi-Layer Fake  : ~4.5s (afterimages at diff Z)
+    this._depthPunishCd     = 16; // Depth Punish      : ~4s  (attack if player idle in Z)
 
-    // ── Adaptive AI: real-time player pattern recognition ──────────────────
     this.adaptationLevel  = 0;      // 0–100: depth of player understanding
     this._adaptProfileTick = 0;     // AI-tick counter for profile updates (every 8 ticks = 2s)
     this._adaptBehaviorCd  = 12;    // AI-tick countdown to next behavior recalculation
 
-    // Raw per-cycle event counters
     this._rawAtks    = 0;
     this._rawJumps   = 0;
     this._rawDodges  = 0;
     this._rawBlocks  = 0;
     this._distSamples = [];
 
-    // Smoothed player profile (updated every 2s, range 0–1 unless noted)
     this._profile = {
       attackFrequency:    0,     // attacks per 2s window
       jumpFrequency:      0,
       dodgeFrequency:     0,
       blockFrequency:     0,
-      distancePreference: 200,   // px — preferred engagement gap
+      distancePreference: 200,   // px: preferred engagement gap
       repetitionScore:    0,     // 0=unpredictable, 1=very predictable
     };
 
-    // Previous target state for delta detection
     this._prevTState = { attacking: false, onGround: true, shielding: false, vx: 0 };
 
-    // Adaptive behavior multipliers (recalculated every _adaptBehaviorCd ticks)
     this._adaptDodge   = 0.32;  // dodge chance
     this._adaptAtkFreq = 0.16;  // melee attack frequency
     this._adaptSpacing = 55;    // preferred combat distance (px)
     this._adaptReact   = 3;     // reaction delay (AI ticks)
 
-    // Adaptation milestone dialogue tracking
     this._adaptDialogueFired = new Set();
 
-    // Visual evolution state (driven by adaptationLevel)
     this._adaptOrbitMult = 1.0;  // orbit speed multiplier; increases with adaptation
     this._adaptGlowBoost = 0;    // extra nebula brightness (0–1)
     this._adaptFlicker   = 0;    // high-adaptation instability (0–1)
@@ -189,7 +160,7 @@ class TrueForm extends Fighter {
 
   _finishAttackState(name = null) {
     if (name && this._tfAttackState.name && this._tfAttackState.name !== name) return;
-    // Recovery windows per attack — gives players a punish opportunity after heavy moves.
+    // Recovery windows per attack: gives players a punish opportunity after heavy moves.
     // Light specials: 15–25f. Heavy/multiversal: 35–60f. Omit = no forced recovery.
     const TF_RECOVERY_FRAMES = {
       slash:           25,
@@ -226,7 +197,6 @@ class TrueForm extends Fighter {
     this._antiRangedDashCd = 68;
     this._antiRangedPulse = 80;
     this._antiRangedFieldR = 220 + Math.min(45, this.adaptationLevel * 0.2);
-    // Failsafe anti-idle system
     this._noActionTicks      = 0;   // consecutive AI ticks without attacking or using a special
     this._multiversalGroupCd    = 0; // AI ticks before multiversal moves re-allowed (cooldown grouping)
     this._consecutiveMeleeCount = 0; // melee-class specials used in a row (drives combo chain gate)
@@ -269,11 +239,8 @@ class TrueForm extends Fighter {
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (this.postSpecialPause > 0) return;
     if (this._tfAttackState?.phase === 'recovery') return;
-    // Combo cap: max 4 hits per combo burst
     if (this._comboCount >= 4) return;
-    // Damage cap: combo cannot deal more than 85% of target's maxHP
     if (target && this._comboDamage >= target.maxHealth * 0.85) return;
-    // Alternate punch / kick
     this._attackMode = this._attackMode === 'punch' ? 'kick' : 'punch';
     this.weaponHit   = false;
     this.swingHitTargets.clear();
@@ -285,12 +252,11 @@ class TrueForm extends Fighter {
 
   updateAI() {
     if (activeCinematic || gameFrozen) return; // freeze during cinematics / freeze frames
-    if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive) return; // scripted opening — TF does not act
+    if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive) return; // scripted opening: TF does not act
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
-    if (bossStaggerTimer > 0) return; // stunned — vulnerability window
+    if (bossStaggerTimer > 0) return; // stunned: vulnerability window
 
-    // ── Hit-reaction detection ─────────────────────────────────────────
     // If boss took damage this tick, flag an immediate reaction (overrides postSpecialPause)
     const _dmgThisTick = this._prevHealthForReact - this.health;
     this._prevHealthForReact = this.health;
@@ -300,7 +266,6 @@ class TrueForm extends Fighter {
       this.postSpecialPause = Math.min(this.postSpecialPause, 1); // cut pause short on hit
     }
 
-    // ── No-action failsafe ─────────────────────────────────────────────
     // If 8+ consecutive AI ticks with no attack or special (= ~120 frames), force action now
     this._noActionTicks++;
     if (this._noActionTicks >= 8) {
@@ -309,7 +274,6 @@ class TrueForm extends Fighter {
       this.postSpecialPause = 0;
     }
 
-    // ── postSpecialPause: allow movement and hit-reactions; block specials only ──
     if (this.postSpecialPause > 0) {
       this.postSpecialPause--;
       const _pt = this.target;
@@ -317,13 +281,10 @@ class TrueForm extends Fighter {
         const _pdx = _pt.cx() - this.cx();
         const _pd  = Math.abs(_pdx);
         const _pdir = _pdx > 0 ? 1 : -1;
-        // Always chase during pause so boss never stands frozen
         if (_pd > 55) this.vx = _pdir * this._tfSpeed;
-        // React to hits: skip remaining pause and fall through to full AI
         if (this._hitReactPending) {
           this.postSpecialPause = 0;
           this._hitReactPending = false;
-          // fall through
         } else {
           return;
         }
@@ -341,7 +302,6 @@ class TrueForm extends Fighter {
       triggerPhaseTransition(this, phase);
     }
 
-    // ── Mid-fight HP cinematics ───────────────────────────────
     if (!this._cinematicFired.has('entry')) {
       // Free-fight phase: player can move/attack freely for ~6 seconds before Paradox joins.
       if (!this._freePhaseTimer) this._freePhaseTimer = 0;
@@ -363,7 +323,6 @@ class TrueForm extends Fighter {
       return;
     }
     const _tfHpPct = this.health / this.maxHealth;
-    // QTE triggers at 75 / 50 / 25 / 10 % HP
     if (!this._cinematicFired.has('qte75') && _tfHpPct <= 0.75) {
       this._cinematicFired.add('qte75');
       if (typeof triggerQTEPhase === 'function') triggerQTEPhase(1);
@@ -383,7 +342,7 @@ class TrueForm extends Fighter {
       startCinematic(_cin50);
       return;
     }
-    // 1000 HP: Paradox returns — joint fight, TF kills Paradox, absorption, dimension punch
+    // 1000 HP: Paradox returns: joint fight, TF kills Paradox, absorption, dimension punch
     if (!this._cinematicFired.has('paradox1000') && this.health <= 1000 &&
         typeof startTFParadoxReturn1000 === 'function') {
       this._cinematicFired.add('paradox1000');
@@ -398,7 +357,7 @@ class TrueForm extends Fighter {
     if (!this._cinematicFired.has('15') && _tfHpPct <= 0.15) {
       this._cinematicFired.add('15');
       this.postSpecialPause = Math.max(this.postSpecialPause, 16);
-      // Defer QTE to cinematic end — same overlap hazard as the 50% threshold.
+      // Defer QTE to cinematic end: same overlap hazard as the 50% threshold.
       const _cin15 = _makeTFDesp15Cinematic(this);
       const _onEnd15 = _cin15.onEnd;
       _cin15.onEnd = function () {
@@ -409,17 +368,14 @@ class TrueForm extends Fighter {
       return;
     }
 
-    // False Victory is now triggered from _tfeResumeAfterIntro (after Code Realm),
-    // not from an HP threshold — so no HP check here.
+    // False Victory is triggered from _tfeResumeAfterIntro, not an HP threshold.
 
-    // Combo reset: if no new attack for 90 frames, reset combo window
     this._comboTimer++;
     if (this._comboTimer > 90) {
       this._comboCount  = 0;
       this._comboDamage = 0;
     }
 
-    // ── Desperation mode activates at <20% HP ────────────────
     if (!this._desperationMode && this.health / this.maxHealth < 0.20) {
       this._desperationMode = true;
       showBossDialogue(randChoice(['You wanted this.', 'Last warning. You passed it.', 'There is no ceiling above me.', 'Fine. All of it.']), 260);
@@ -434,7 +390,6 @@ class TrueForm extends Fighter {
       this._tfSpeed = Math.min(this._tfSpeed * 1.2, 7.0); // +20% speed
     }
 
-    // Tick all special cooldowns
     if (this._gravityCd > 0) this._gravityCd--;
     if (this._warpCd    > 0) this._warpCd--;
     if (this._holeCd    > 0) this._holeCd--;
@@ -467,7 +422,6 @@ class TrueForm extends Fighter {
     if (this._depthPhaseShiftCd > 0) this._depthPhaseShiftCd--;
     if (this._depthLayerFakeCd  > 0) this._depthLayerFakeCd--;
     if (this._depthPunishCd     > 0) this._depthPunishCd--;
-    // ── Recovery phase tick-down ──────────────────────────────────
     // When _tfAttackState.phase === 'recovery', TF cannot start new specials (enforced in _doSpecial).
     // Tick down the timer here so it clears automatically.
     if (this._tfAttackState.phase === 'recovery' && this._tfAttackState.timer > 0) {
@@ -475,16 +429,14 @@ class TrueForm extends Fighter {
       if (this._tfAttackState.timer <= 0) {
         this._tfAttackState = { name: null, phase: 'idle', timer: 0, locked: false };
       }
-      // Dampen movement during recovery — gives players a real punish window
+      // Dampen movement during recovery: gives players a real punish window
       this.vx *= 0.4;
       this.vy *= 0.4;
     }
-    // ── Desperation: triple burn on all offensive cooldowns ──────
     if (this._desperationMode) {
       const burnKeys = ['_slashCd','_graspCd','_chainCd','_phaseShiftCd','_gammaBeamCd','_shockwaveCd','_calcStrikeCd','_portalCd'];
       for (const k of burnKeys) { if (this[k] > 0) this[k] -= 2; }
     }
-    // ── Pressure system: idle player → faster cooldowns ──────────
     if (this._stillTimer > 8) {
       if (this._slashCd      > 0) this._slashCd--;
       if (this._calcStrikeCd > 0) this._calcStrikeCd--;
@@ -492,11 +444,8 @@ class TrueForm extends Fighter {
       if (this._shockwaveCd  > 0) this._shockwaveCd--;
       if (this._gammaBeamCd  > 0) this._gammaBeamCd--;
     }
-    // ── Aggression burst tick ─────────────────────────────────
     if (this._aggressionBurstTimer > 0) this._aggressionBurstTimer--;
-    // ── Combo finisher cooldown ───────────────────────────────
     if (this._comboFinisherCd > 0) this._comboFinisherCd--;
-    // ── Execute pending chain move ────────────────────────────
     if (this._pendingChainMove) {
       this._pendingChainMove.delay--;
       if (this._pendingChainMove.delay <= 0) {
@@ -512,14 +461,11 @@ class TrueForm extends Fighter {
       }
     }
 
-    // Floor-removal countdown — handled per-frame in smb-loop.js (updateTFFloorTimer)
 
     const t = this.target;
     if (!t || t.health <= 0) return;
 
-    // ── Adaptive AI: track player profile every tick ──────────────────────
     this._trackPlayerProfile(t);
-    // Recalculate behavior parameters every _adaptBehaviorCd ticks
     if (this._adaptBehaviorCd > 0) { this._adaptBehaviorCd--; }
     else { this._adaptBehaviorCd = 12; this._adaptBehavior(); }
 
@@ -531,11 +477,9 @@ class TrueForm extends Fighter {
 
     this.facing = dir;
 
-    // --- Player intelligence: detect still-standing / edge / airborne / fleeing ---
     const playerMoved = Math.abs(t.cx() - this._lastTargetX) > 8;
     this._stillTimer  = playerMoved ? 0 : this._stillTimer + 1;
     this._lastTargetX = t.cx();
-    // Rolling vx history for calcStrike accuracy tier
     this._prevTargetVxArr.push(t.vx);
     if (this._prevTargetVxArr.length > 10) this._prevTargetVxArr.shift();
 
@@ -545,7 +489,7 @@ class TrueForm extends Fighter {
     this._runAwayTicks = (playerFleeing && playerFar) ? this._runAwayTicks + 1
                                                        : Math.max(0, this._runAwayTicks - 2);
 
-    // ── TrueForm is MORE aggressive than Creator: shorter specials window ─
+    // TrueForm is MORE aggressive than Creator: shorter specials window
     // Force special every 7/5/4 idle ticks vs Creator's longer interval
     this._idleTicks++;
     const burstActive  = this._aggressionBurstTimer > 0;
@@ -563,7 +507,7 @@ class TrueForm extends Fighter {
         this._idleTicks     = 0;
         this._noActionTicks = 0;
         this._doSpecial(move, t);
-        // ── Attack chaining: queue a follow-up melee 0.4s later ──────────
+        // Attack chaining: queue a follow-up melee 0.4s later
         const chainChance = phase === 3 ? 0.65 : phase === 2 ? 0.40 : 0.20;
         if (!this._pendingChainMove && Math.random() < chainChance) {
           const followMoves = ['slash', 'grasp', 'calcStrike'];
@@ -589,12 +533,10 @@ class TrueForm extends Fighter {
       }
     }
 
-    // --- Movement: chase at elevated pressure ---
     if (tfFloorRemoved && !this.onGround) {
       if (this.y + this.h > 430 && this.vy > 0) this.vy = -14;
     }
 
-    // Phase 3: shorter minimum engagement distance (gets in your face)
     const _vsRanged = !!(t.weapon && t.weapon.type === 'ranged');
     const _kiteRun  = _vsRanged && Math.sign(t.vx || 0) === Math.sign(t.cx() - this.cx()) && Math.abs(t.vx || 0) > 1.6;
     const antiRangeActive = this._antiRangedTimer > 0;
@@ -628,18 +570,15 @@ class TrueForm extends Fighter {
       this.vx = -dir * spd * 0.45;
     }
 
-    // Jump to chase if target is above — more aggressive vertical pursuit
     if (t.y < this.y - 40 && this.onGround) this.vy = phase === 3 ? -18 : -16;
     if (!this.onGround && this.canDoubleJump && t.y < this.y - 20 && this.vy > -2 && Math.random() < 0.55) {
       this.vy = -16; this.canDoubleJump = false;
     }
-    // Edge avoidance
     const nearLeft  = this.x < 90;
     const nearRight = this.x + this.w > GAME_W - 90;
     if (nearLeft && dir < 0) this.vx = spd * 0.6;
     if (nearRight && dir > 0) this.vx = -spd * 0.6;
 
-    // --- Dodge incoming attacks (never 2 in a row) ---
     if (this._justDodged) {
       this._dodgeTimer++;
       if (this._dodgeTimer > 55) { this._justDodged = false; this._dodgeTimer = 0; }
@@ -664,28 +603,23 @@ class TrueForm extends Fighter {
       }
     }
 
-    // --- Attack: frequency driven by adaptive behavior multiplier ────────
     const atkFreq = Math.min(antiRangeActive ? 0.45 : 0.28, this._adaptAtkFreq * (antiRangeActive ? 2.2 : (phase === 3 ? 1.8 : phase === 2 ? 1.2 : 0.8)));
     if (d < this._adaptSpacing + 20 && Math.random() < atkFreq && this.cooldown <= 0) {
       this.attack(t); this._noActionTicks = 0;
     }
-    // Second hit of a combo when very close (area control)
     const atkFreq2 = Math.min(antiRangeActive ? 0.26 : 0.18, (this._adaptAtkFreq * 0.6) * (antiRangeActive ? 1.8 : (phase === 3 ? 1.6 : phase === 2 ? 1.1 : 0.7)));
     if (d < 48 && Math.random() < atkFreq2 && this.cooldown <= 0) {
       this.attack(t); this._noActionTicks = 0;
     }
-    // High adaptation bonus: pressure hit at medium range
     if (this.adaptationLevel >= 50 && d < (antiRangeActive ? 125 : 95) && Math.random() < (antiRangeActive ? 0.22 : 0.08) + (this.adaptationLevel / 100) * 0.08 && this.cooldown <= 0) {
       this.attack(t);
     }
 
-    // ── Proximity-melee guarantee ─────────────────────────────────────────
-    // If player is within reach and boss hasn't attacked, always strike — no passive standing
+    // If player is within reach and boss hasn't attacked, always strike: no passive standing
     if (d < 70 && this.cooldown <= 0 && !this._tfAttackState.locked) {
       this.attack(t);
       this._noActionTicks = 0;
     }
-    // Approach guarantee: boss always moves toward player when no special was just used
     if (d > 80 && Math.abs(this.vx) < 0.5) {
       this.vx = dir * this._tfSpeed * 0.8;
     }
@@ -702,41 +636,34 @@ class TrueForm extends Fighter {
 
     const al = this.adaptationLevel;
 
-    // ── TIER 0 — Always available ─────────────────────────────────────────
     if (this._slashCd  <= 0) w.slash  = 0.20;
     if (this._meteorCd <= 0) w.meteor = 0.16;
     if (this._portalCd <= 0) w.portal = 0.12;
     if (this._holeCd   <= 0) w.holes  = 0.09;
     if (this._warpCd   <= 0) w.warp   = 0.04;
 
-    // ── TIER 1 — Unlocks at AL 25 ────────────────────────────────────────
     if (al >= 25) {
       if (this._shockwaveCd <= 0) w.shockwave = 0.14;
       if (this._sizeCd      <= 0) w.size      = 0.07;
       if (this._invertCd    <= 0) w.invert    = 0.10;   // gravity inversion early access
       if (this._phaseShiftCd <= 0 && !tfPhaseShift) w.phaseShift = 0.11;
-      // Early calcStrike access (lower weight until tier 2)
       if (this._calcStrikeCd <= 0 && !tfCalcStrike) w.calcStrike = 0.08;
-      // Early gravity inversion field
       if (this._gravityCd <= 0) w.gravity = 0.07;
     }
 
-    // ── TIER 2 — Unlocks at AL 40 (or HP phase 2 as fallback) ────────────
     const _tier2 = al >= 40 || phase >= 2;
     if (_tier2) {
       if (this._wellCd        <= 0)               w.well        = al >= 40 ? 0.16 : 0.10;
       if (this._calcStrikeCd  <= 0 && !tfCalcStrike)  w.calcStrike  = al >= 40 ? 0.18 : 0.10;  // boosted
       if (this._realityTearCd <= 0 && !tfRealityTear) w.realityTear = al >= 40 ? 0.10 : 0.05;
-      if (this._floorCd       <= 0 && !tfFloorRemoved) w.floor      = al >= 40 ? 0.14 : 0.08;  // boosted — lava/void hazard
+      if (this._floorCd       <= 0 && !tfFloorRemoved) w.floor      = al >= 40 ? 0.14 : 0.08;  // boosted: lava/void hazard
       if (this._gravityCd     <= 0) w.gravity = al >= 40 ? 0.13 : 0.08;  // gravity inversion accessible here
     }
     if (al >= 40 && this._gammaBeamCd <= 0 && !tfGammaBeam) w.gammaBeam = 0.14;  // boosted
 
-    // ── TIER 3 — Unlocks at AL 60 (or HP phase 2/3 as fallback) ─────────
     const _tier3early = al >= 60;
     if (_tier3early || phase >= 2) {
       if (this._cloneCd   <= 0) w.clones  = _tier3early ? 0.14 : 0.07;
-      // teleportCombo and multiverseFracture accessible from phase 2 (not locked to tier 4)
       if (this._teleportComboCd <= 0) w.teleportCombo    = _tier3early ? 0.18 : 0.09;  // early access
       if (this._multiverseCd    <= 0 && !tfMultiverse) w.multiverseFracture = _tier3early ? 0.12 : 0.06;  // early access
     }
@@ -746,7 +673,6 @@ class TrueForm extends Fighter {
       if (this._neutronStarCd <= 0 && !tfNeutronStar) w.neutronStar = _tier3early ? 0.10 : 0.05;
     }
 
-    // ── TIER 4 — Unlocks at AL 75 (or HP phase 3 as fallback) ────────────
     const _tier4 = al >= 75;
     if (_tier4 || phase >= 3) {
       if (this._teleportComboCd <= 0) w.teleportCombo      = _tier4 ? 0.24 : 0.14;  // boosted
@@ -762,31 +688,24 @@ class TrueForm extends Fighter {
       if (phase >= 2 && this._dimensionCd <= 0) w.dimension = 0.09;
     }
 
-    // ── TIER 5 — Unlocks at AL 90 ────────────────────────────────────────
     if (al >= 90 && this._supernovaCd <= 0 && !tfSupernova && this.health / this.maxHealth < 0.25) {
       w.supernova = 0.28;
     } else if (al < 90 && this._supernovaCd <= 0 && !tfSupernova && this.health / this.maxHealth < 0.18) {
       w.supernova = 0.12; // fallback at very low HP even without full adaptation
     }
 
-    // ── DEPTH PHASE — Z-axis attacks (only when depth phase is active) ───────
     if (typeof tfDepthPhaseActive !== 'undefined' && tfDepthPhaseActive &&
         typeof tfDepthEnabled !== 'undefined' && tfDepthEnabled) {
-      // Phase Shift Strike: TF shifts Z layer before attacking
       if (this._depthPhaseShiftCd <= 0) w.depthPhaseShift = 0.30;
-      // Multi-Layer Fake: spawn afterimages at different Z values
       if (this._depthLayerFakeCd  <= 0) w.depthLayerFake  = 0.22;
-      // Depth Punish: punish player who stays in same Z > 120 frames
       const _pi = players.findIndex(p => !p.isBoss && p.health > 0 && !p.godmode);
       const _pz = typeof tfDepthPlayerStillZ !== 'undefined' && tfDepthPlayerStillZ[_pi];
       if (this._depthPunishCd <= 0 && _pz && _pz.frames >= 120) w.depthPunish = 0.40;
-      // Suppress regular non-Z specials during depth phase to emphasise the system
       for (const k of Object.keys(w)) {
         if (!k.startsWith('depth')) w[k] *= 0.35;
       }
     }
 
-    // ── Distance zone modifiers ───────────────────────────────
     const closeDist = d < 100;
     const medDist   = d >= 100 && d < 260;
     const farDist   = d >= 260;
@@ -807,14 +726,11 @@ class TrueForm extends Fighter {
       if (w.warp)      w.warp      = (w.warp      || 0) * 2.0;
     }
 
-    // ── Situational boosts ────────────────────────────────────
-    // Player standing still → teleport behind them
     if (this._stillTimer > 8) {
       if (w.slash)  w.slash  = (w.slash  || 0) * 2.2;
       if (w.portal) w.portal = (w.portal || 0) * 2.2;
       if (w.grasp)  w.grasp  = (w.grasp  || 0) * 1.6;
     }
-    // Player running away → intercept with meteor or slash
     if (this._runAwayTicks > 5) {
       if (w.meteor) w.meteor = (w.meteor || 0) * 3.0;
       if (w.slash)  w.slash  = (w.slash  || 0) * 2.5;
@@ -843,39 +759,31 @@ class TrueForm extends Fighter {
       delete w.teleportCombo;
       delete w.warp;
     }
-    // Player near arena edge → pull with gravity well / crush
     if (playerEdge) {
       if (w.well)          w.well          = (w.well          || 0) * 2.2;
       if (w.grasp)         w.grasp         = (w.grasp         || 0) * 1.6;
       if (w.shockwave)     w.shockwave     = (w.shockwave     || 0) * 1.4;
       if (w.gravityCrush)  w.gravityCrush  = (w.gravityCrush  || 0) * 2.2;
     }
-    // Player standing still → teleport combo
     if (this._stillTimer > 6 && w.teleportCombo) {
       w.teleportCombo = (w.teleportCombo || 0) * 2.8;
     }
-    // Player airborne → slam them down
     if (playerAir) {
       if (w.meteor)    w.meteor    = (w.meteor    || 0) * 1.8;
       if (w.well)      w.well      = (w.well      || 0) * 1.5;
       if (w.shockwave) w.shockwave = (w.shockwave || 0) * 1.3;
     }
-    // Player nearly dead → finishing moves
     if (hpPct < 0.25) {
       if (w.grasp) w.grasp = (w.grasp || 0) * 1.8;
       if (w.chain) w.chain = (w.chain || 0) * 1.8;
     }
-    // Dimensional attack situational boosts
     if (this._stillTimer > 6 && w.calcStrike)  w.calcStrike  *= 2.4; // standing still = easy to predict
     if (farDist  && w.realityTear) w.realityTear *= 2.0; // far away = tear pulls them in
     if (closeDist && w.phaseShift) w.phaseShift  *= 1.8; // close = phase shift to reposition
-    // (Phase 3 / desperation / cosmic attacks are now gated via tier system above)
-    // Situational boosts for cosmic attacks
     if (farDist  && w.gammaBeam)   w.gammaBeam    *= 2.2; // beam crosses full map
     if (playerAir && w.neutronStar) w.neutronStar  *= 1.8; // gravity hurts airborne players more
     if (medDist  && w.galaxySweep) w.galaxySweep  *= 1.6;
     if (this._stillTimer > 6 && w.multiverseFracture) w.multiverseFracture *= 2.0;
-    // Desperation: boost all finishing moves
     if (this._desperationMode) {
       if (w.grasp)           w.grasp           *= 1.5;
       if (w.chain)           w.chain           *= 1.6;
@@ -885,46 +793,35 @@ class TrueForm extends Fighter {
       if (w.supernova)       w.supernova       *= 1.5;
     }
 
-    // ── Adaptive profile-driven boosts ───────────────────────
-    // Jump-heavy player → anti-air priority
     if (this._profile.jumpFrequency > 0.8) {
       if (w.meteor)  w.meteor  = (w.meteor  || 0) * (1 + this._profile.jumpFrequency * 0.8);
       if (w.well)    w.well    = (w.well    || 0) * (1 + this._profile.jumpFrequency * 0.6);
     }
-    // Aggressive player → prioritize evasion + counter
     if (this._profile.attackFrequency > 1.2) {
       if (w.phaseShift) w.phaseShift = (w.phaseShift || 0) * 1.8;
       if (w.portal)     w.portal     = (w.portal     || 0) * 1.5;
     }
-    // Defensive/block-heavy player → break through
     if (this._profile.blockFrequency > 0.6) {
       if (w.grasp)  w.grasp  = (w.grasp  || 0) * 1.8;
       if (w.meteor) w.meteor = (w.meteor || 0) * 1.4;
     }
-    // Predictable player → prediction-based attacks
     if (this._profile.repetitionScore > 0.5 && al >= 40) {
       if (w.calcStrike) w.calcStrike = (w.calcStrike || 0) * (1 + this._profile.repetitionScore * 2.0);
       if (w.slash)      w.slash      = (w.slash      || 0) * (1 + this._profile.repetitionScore * 1.2);
     }
 
-    // ── Melee vs multiversal balance (60/40 split) ────────────
-    // Melee-class specials: direct physical contact or close-range attacks
     const MELEE_CLASS = new Set(['slash','grasp','chain','calcStrike','shockwave','collapseStrike','phaseShift']);
-    // Multiversal cooldown: when active, suppress all non-melee specials
     if (this._multiversalGroupCd > 0) {
       for (const key of Object.keys(w)) {
         if (!MELEE_CLASS.has(key)) delete w[key];
       }
     }
-    // Close range: force melee-class (boost 4×, suppress multiversal 0.2×)
     if (d < 120) {
       for (const key of Object.keys(w)) {
         if (MELEE_CLASS.has(key)) w[key] *= 4.0;
         else w[key] *= 0.2;
       }
     }
-    // Combo chain enforcement: melee→melee→special pattern
-    // After fewer than 2 consecutive melee-class specials, strongly prefer melee
     if (this._consecutiveMeleeCount < 2) {
       for (const key of Object.keys(w)) {
         if (MELEE_CLASS.has(key)) w[key] *= 2.5; // 60% bias toward melee
@@ -932,7 +829,6 @@ class TrueForm extends Fighter {
       }
     }
 
-    // ── Anti-repeat ───────────────────────────────────────────
     delete w[this._lastSpecial];
     delete w[this._lastLastSpecial];
 
@@ -945,29 +841,22 @@ class TrueForm extends Fighter {
   }
 
 
-  // ── Player pattern tracking — called every AI tick ────────────────────────
   _trackPlayerProfile(t) {
     this._adaptProfileTick++;
     const prev = this._prevTState;
 
-    // Detect new attack (rising edge)
     if (t.attackTimer > 0 && !prev.attacking) this._rawAtks++;
-    // Detect jump (rising edge off ground)
     if (!t.onGround && prev.onGround) this._rawJumps++;
-    // Detect shield activation
     if (t.shielding && !prev.shielding) this._rawBlocks++;
-    // Detect dodge (rapid direction change while moving)
     if (Math.abs(t.vx) > 3 && Math.sign(t.vx) !== Math.sign(prev.vx || 0)) this._rawDodges++;
 
-    // Rolling distance sample
     const d = Math.hypot(t.cx() - this.cx(), t.cy() - this.cy());
     this._distSamples.push(d);
     if (this._distSamples.length > 30) this._distSamples.shift();
 
-    // Save state for next tick
     this._prevTState = { attacking: t.attackTimer > 0, onGround: t.onGround, shielding: t.shielding, vx: t.vx };
 
-    // Every 8 AI ticks (~2 seconds) — commit profile snapshot and grow adaptationLevel
+    // Every 8 AI ticks (~2 seconds): commit profile snapshot and grow adaptationLevel
     if (this._adaptProfileTick >= 8) {
       this._adaptProfileTick = 0;
       const R = 0.3; // smoothing factor
@@ -982,19 +871,15 @@ class TrueForm extends Fighter {
         this._profile.distancePreference = lerp(this._profile.distancePreference, avgDist, 0.25);
       }
 
-      // Repetition score: low vx variance = predictable player
       if (this._prevTargetVxArr.length >= 6) {
         const avg = this._prevTargetVxArr.reduce((a, b) => a + b, 0) / this._prevTargetVxArr.length;
         const variance = this._prevTargetVxArr.reduce((s, v) => s + (v - avg) ** 2, 0) / this._prevTargetVxArr.length;
         this._profile.repetitionScore = lerp(this._profile.repetitionScore, Math.max(0, 1 - variance / 30), 0.2);
       }
 
-      // Base adaptation growth: 1.5 per cycle = ~67 cycles (~134s) to reach 100
       this.adaptationLevel = Math.min(100, this.adaptationLevel + 1.5);
-      // Bonus growth when player is highly predictable
       if (this._profile.repetitionScore > 0.6) this.adaptationLevel = Math.min(100, this.adaptationLevel + 0.8);
 
-      // Update visual evolution state
       const al = this.adaptationLevel;
       this._adaptOrbitMult = 1.0 + (al / 100) * 1.4;
       this._adaptGlowBoost = al / 100;
@@ -1004,7 +889,6 @@ class TrueForm extends Fighter {
     }
   }
 
-  // ── Behavior recalculation — called every _adaptBehaviorCd AI ticks ───────
   _adaptBehavior() {
     const p  = this._profile;
     const al = this.adaptationLevel;
@@ -1039,7 +923,7 @@ class TrueForm extends Fighter {
     this._adaptDodge   = Math.min(0.75, this._adaptDodge   + alT * 0.0018);
   }
 
-  // ── Adaptation milestone dialogue ─────────────────────────────────────────
+  // Adaptation milestone dialogue
   _checkAdaptDialogue() {
     const al = this.adaptationLevel;
     const milestones = [
@@ -1064,20 +948,9 @@ class TrueForm extends Fighter {
     if (this.backstageHiding) return;
     if (this.health <= 0 && this.ragdollTimer <= 0) return;
 
-    // ════════════════════════════════════════════════════════════════════════
-    // TRUE FORM — FRAGMENTED COSMIC ENTITY RENDERER
-    // ════════════════════════════════════════════════════════════════════════
-    // Architecture: 7 draw layers, each independent:
-    //   L0  Outer void nebula (far background glow)
-    //   L1  Reality-tear trails (motion distortion)
-    //   L2  Orbiting fragment ring  (3 rings, counter-rotating)
-    //   L3  Body segments — DETACHED: legs, torso, arms, head (all floating)
-    //   L4  Core singularity (bright anchor point)
-    //   L5  Inner eye + void pupils
-    //   L6  HP bar
-    //
-    // To tweak intensity: adjust _TF_AURA_SCALE, _TF_ORBIT_SCALE, _TF_DRIFT
-    // ════════════════════════════════════════════════════════════════════════
+    // TrueForm renderer. Layers, back to front: L0 nebula, L1 reality-tear trails, L2 orbiting
+    // fragment rings, L3 detached body segments, L4 core, L5 eye, L6 HP bar.
+    // Intensity knobs: _TF_AURA_SCALE, _TF_ORBIT_SCALE, _TF_DRIFT.
 
     // Adaptation-driven visual evolution
     const _alT = (this.adaptationLevel || 0) / 100;
@@ -1085,7 +958,7 @@ class TrueForm extends Fighter {
     const _TF_ORBIT_SCALE = this._adaptOrbitMult || 1.0; // orbit speeds up
     const _TF_DRIFT       = 1.0 + _alT * 0.6;    // segment drift increases
 
-    // ── Global time & phase ─────────────────────────────────────────────────
+    // Global time & phase
     this._floatT += 0.042;
     const T  = this._floatT;
     const hpPct  = this.health / this.maxHealth;
@@ -1093,11 +966,11 @@ class TrueForm extends Fighter {
     // Rage factor 0→1: increases with phase, maxes at phase 3
     const rage   = Math.min(1, (3 - hpPct * 3) / 2);  // 0 at full HP, 1 at 33% HP
 
-    // Core anchor — hitbox center, floats vertically
+    // Core anchor: hitbox center, floats vertically
     const cx   = this.cx();
     const coreY = this.y + this.h * 0.5 + Math.sin(T * 0.9) * (4 + rage * 6);
 
-    // ── Color palette ────────────────────────────────────────────────────────
+    // Color palette
     // Low rage + low AL: deep void purple.  High rage: blinding white-blue.
     // High adaptation adds an orange-red accent (heated, dangerous).
     const _adaptHeat = (this._adaptGlowBoost || 0);
@@ -1109,19 +982,19 @@ class TrueForm extends Fighter {
     const glowColor2 = `rgb(${Math.round(cRc*0.5)},0,${Math.max(0, cB)})`; // darker variant for trails
     const WHITE = '#ffffff';
 
-    // Invincibility blink — whole entity flickers
+    // Invincibility blink: whole entity flickers
     const blinkAlpha = (this.invincible > 0 && Math.floor(this.invincible / 4) % 2 === 1) ? 0.25 : 1.0;
 
     // Scale pivot (tfDrawScale from size-manipulation special)
     const tfs = (this.tfDrawScale && this.tfDrawScale !== 1) ? this.tfDrawScale : 1;
 
-    // Attack progress 0→1 (used to stretch limbs during attacks)
+    // Attack progress 0→1, stretches limbs during attacks
     const atkP = (this.attackDuration > 0 && this.state === 'attacking')
       ? 1 - this.attackTimer / this.attackDuration : 0;
     const isAttacking = this.state === 'attacking';
     const f = this.facing;
 
-    // ── Per-segment drift offsets (each body part floats independently) ─────
+    // Per-segment drift offsets (each body part floats independently)
     // These give the detached-fragment feel without extra state.
     // Formula: sin(T * speed + phase_offset) * amplitude
     const dHead  = { x: Math.sin(T * 1.1 + 0.3) * 2.5 * _TF_DRIFT,  y: Math.sin(T * 0.7 + 1.0) * 3.5 * _TF_DRIFT };
@@ -1130,43 +1003,31 @@ class TrueForm extends Fighter {
     const dArmL  = { x: Math.sin(T * 1.2 + 1.6) * 3.0 * _TF_DRIFT,  y: Math.sin(T * 0.9 + 0.1) * 3.5 * _TF_DRIFT };
     const dLegR  = { x: Math.sin(T * 0.8 + 3.1) * 2.5 * _TF_DRIFT,  y: Math.sin(T * 1.1 + 1.4) * 2.5 * _TF_DRIFT };
     const dLegL  = { x: Math.sin(T * 0.9 + 0.4) * 2.5 * _TF_DRIFT,  y: Math.sin(T * 0.8 + 2.7) * 2.5 * _TF_DRIFT };
-    // During attacks: arms snap violently toward attack direction
     const atkStretch = isAttacking ? (1 + atkP * 1.6) : 1;
 
-    // Segment position anchors (in game coords, relative to core)
-    // DETACHED: there are gaps between each part — they never connect.
+    // DETACHED: there are gaps between each part: they never connect.
     const seg = {
-      // Head floats 28px above core, gap of ~6px from torso top
       headX:    cx    + dHead.x  * tfs,
       headY:    coreY - 28 * tfs + dHead.y  * tfs,
       headR:    10    * tfs + Math.sin(T * 2.1) * 1.2,
 
-      // Torso: small rectangular mass centered on core, ±4px gap from head/hip
       torsoX:   cx    + dTorso.x * tfs,
       torsoTop: coreY - 14 * tfs + dTorso.y * tfs,
       torsoBot: coreY +  8 * tfs + dTorso.y * tfs,
 
-      // Arms: attached to torso shoulder level but FLOATING away from it
       // (gap between arm root and torso edge)
       armRootY: coreY - 8 * tfs,
 
-      // Legs: float below hip with 4px gap
       hipY:     coreY + 12 * tfs,
     };
 
-    // ── Ragdoll override: spin all segments together ─────────────────────────
     let ragRot = 0;
     if (this.ragdollTimer > 0) {
       ragRot = this.ragdollAngle * (this.ragdollTimer / 45);
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L0 — OUTER VOID NEBULA
-    // ════════════════════════════════════════════════════════════════════════
-    // Body scale: the segment art below was laid out for the old 18x50 body
-    // (head top at core-38, feet near core+36). Scaling it once around the core
-    // makes it span the 84px hitbox, feet on the floor, at player height.
-    // Restored right after L5, so the HP bar and labels keep their size.
+    // L0: outer void nebula. The segment art was laid out for the old 18x50 body, so scale it
+    // around the core to span the 84px hitbox. Restored after L5 so the HP bar keeps its size.
     ctx.save();
     ctx.translate(cx, coreY); ctx.scale(TF_BODY_SCALE, TF_BODY_SCALE); ctx.translate(-cx, -coreY);
 
@@ -1174,7 +1035,6 @@ class TrueForm extends Fighter {
     ctx.globalAlpha = blinkAlpha * (0.22 + rage * 0.25);
     if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
 
-    // Three overlapping radial gradients for depth — each a different size/speed
     const _nebula = (ox, oy, r, alpha, T_mul) => {
       const pulse = 1 + Math.sin(T * T_mul) * 0.12;
       const g = ctx.createRadialGradient(cx + ox, coreY + oy, r * 0.1, cx + ox, coreY + oy, r * pulse * _TF_AURA_SCALE);
@@ -1187,17 +1047,13 @@ class TrueForm extends Fighter {
     _nebula(0,  0,  90, 0.9, 0.8);   // main outer nebula
     _nebula(-8, -5, 60, 0.7, 1.1);   // offset inner bloom
     _nebula(6,  4,  45, 0.6, 1.4);   // tight inner core glow
-    // Extra void ring at rage≥0.5 — white-hot inner burn
     if (rage > 0.5) {
       const r2 = (rage - 0.5) * 2;
       _nebula(0, 0, 30, r2 * 0.8, 2.1);
     }
     ctx.restore();
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L1 — REALITY TEAR TRAILS
-    // ════════════════════════════════════════════════════════════════════════
-    // Push trail when moving; draw as jagged void-tears not smooth ghosts
+    // L1: REALITY TEAR TRAILS
     if (this.state === 'walking' || this.state === 'jumping' || this.state === 'falling') {
       this._trailPts.push({ x: cx, y: coreY, a: 0.55 + rage * 0.2 });
       if (this._trailPts.length > 14) this._trailPts.shift();
@@ -1214,7 +1070,6 @@ class TrueForm extends Fighter {
       ctx.strokeStyle = glowColor2;
       ctx.lineWidth   = 1.2 + (1 - age) * 1.5;
       ctx.lineCap     = 'round';
-      // Jagged void-tear shape (4-point zigzag)
       const jitter = (1 - age) * 5;
       ctx.beginPath();
       ctx.moveTo(tp.x - 4 + Math.sin(tp.a * 17) * jitter, tp.y - 22 * tfs);
@@ -1225,9 +1080,7 @@ class TrueForm extends Fighter {
     }
     ctx.restore();
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L2 — ORBITING FRAGMENT RINGS
-    // ════════════════════════════════════════════════════════════════════════
+    // L2: ORBITING FRAGMENT RINGS
     // Ring A: 8 small shards, close orbit, co-rotating
     // Ring B: 5 larger crystal fragments, mid orbit, counter-rotating
     // Ring C: 3 massive chunks, wide orbit, very slow (only at rage > 0.4)
@@ -1241,7 +1094,6 @@ class TrueForm extends Fighter {
       ctx.rotate(angle);
       ctx.shadowColor = col;
       ctx.shadowBlur  = blur;
-      // Diamond shard shape
       ctx.fillStyle = col;
       ctx.beginPath();
       ctx.moveTo(0, -size);
@@ -1253,8 +1105,7 @@ class TrueForm extends Fighter {
       ctx.restore();
     };
 
-    // Cosmic Axiom: Ring A is stars he carries, Ring C is planets — the
-    // First Laws are a cosmos, so the debris around him is celestial.
+    // Ring A is stars, Ring C is planets: the First Laws are a cosmos.
     const _drawStarMote = (px, py, size, col) => {
       ctx.save();
       ctx.translate(px, py);
@@ -1274,7 +1125,6 @@ class TrueForm extends Fighter {
     const _drawPlanet = (px, py, r, tone, ringed) => {
       ctx.save();
       ctx.translate(px, py);
-      // Lit from the upper left, terminator falls lower right
       const pg = ctx.createRadialGradient(-r * 0.4, -r * 0.4, r * 0.1, 0, 0, r);
       pg.addColorStop(0,   tone);
       pg.addColorStop(0.7, 'rgba(20,16,30,1)');
@@ -1293,7 +1143,7 @@ class TrueForm extends Fighter {
       ctx.restore();
     };
 
-    // Ring A — tight fast orbit (radius 26)
+    // Ring A: tight fast orbit (radius 26)
     const rA = (26 + Math.sin(T * 0.7) * 4) * _TF_ORBIT_SCALE;
     for (let i = 0; i < 8; i++) {
       const ang  = T * 1.4 + (i / 8) * Math.PI * 2;
@@ -1305,7 +1155,7 @@ class TrueForm extends Fighter {
       _drawStarMote(px, py, sz, i % 3 === 0 ? '#ffe7c2' : WHITE);
     }
 
-    // Ring B — counter-rotating (radius 44)
+    // Ring B: counter-rotating (radius 44)
     const rB = (44 + Math.sin(T * 0.5) * 6) * _TF_ORBIT_SCALE;
     for (let i = 0; i < 5; i++) {
       const ang  = -T * 0.85 + (i / 5) * Math.PI * 2;
@@ -1317,7 +1167,7 @@ class TrueForm extends Fighter {
       _drawShard(px, py, sz, ang * 1.5, glowColor, 10);
     }
 
-    // Ring C — slow massive chunks at high rage (radius 64)
+    // Ring C: slow massive chunks at high rage (radius 64)
     if (rage > 0.35) {
       const rC  = (64 + Math.sin(T * 0.3) * 8) * _TF_ORBIT_SCALE;
       const cnt = 3 + Math.floor(rage * 2); // 3→5 chunks
@@ -1333,9 +1183,7 @@ class TrueForm extends Fighter {
     }
     ctx.restore();
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L3 — DETACHED BODY SEGMENTS
-    // ════════════════════════════════════════════════════════════════════════
+    // L3: DETACHED BODY SEGMENTS
     ctx.save();
     ctx.globalAlpha = blinkAlpha;
     if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
@@ -1350,8 +1198,6 @@ class TrueForm extends Fighter {
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
-    // ── ARM geometry ─────────────────────────────────────────────────────────
-    // Base angles from state, then stretched/distorted during attacks
     let rAng, lAng;
     if (this.state === 'ragdoll') {
       const fl = Math.sin(this.animTimer * 0.38) * 1.4;
@@ -1363,7 +1209,7 @@ class TrueForm extends Fighter {
       if (this._attackMode === 'punch') {
         if (f > 0) { rAng = lerp(-0.2, 0.1, atkP);  lAng = lerp(Math.PI * 0.75, Math.PI * 0.6, atkP); }
         else       { rAng = lerp(Math.PI + 0.2, Math.PI - 0.1, atkP); lAng = lerp(Math.PI * 0.25, Math.PI * 0.4, atkP); }
-      } else { // kick — arms thrown wide
+      } else { // kick: arms thrown wide
         rAng = f > 0 ? -0.65 : Math.PI + 0.65;
         lAng = f > 0 ?  Math.PI * 0.7  : Math.PI * 0.3;
       }
@@ -1375,11 +1221,9 @@ class TrueForm extends Fighter {
     } else {
       rAng = Math.PI * 0.6; lAng = Math.PI * 0.4;
     }
-    // Arm length stretches during attacks (cosmic elastic effect)
     const armBase = 22;
     const armLen  = isAttacking ? armBase * (1 + atkP * 0.85) : armBase;
 
-    // Arms DETACHED: origin is floating arm-root (not directly connected to torso)
     const armRX = cx    + dArmR.x;
     const armRY = seg.armRootY + dArmR.y + (isAttacking && f > 0 ? atkP * -4 : 0);
     const armLX = cx    + dArmL.x;
@@ -1390,9 +1234,7 @@ class TrueForm extends Fighter {
     const lEx = armLX + Math.cos(lAng) * armLen * atkStretch;
     const lEy = armLY + Math.sin(lAng) * armLen;
 
-    // Draw arm segments as disconnected jagged lines (not straight strokes)
     const _drawDetachedLimb = (x1, y1, x2, y2, stretch) => {
-      // Mid-point drift for organic feel
       const mx  = (x1 + x2) * 0.5 + Math.sin(T * 1.7 + x1 * 0.01) * 3 * stretch;
       const my  = (y1 + y2) * 0.5 + Math.cos(T * 1.3 + y1 * 0.01) * 2 * stretch;
       ctx.beginPath();
@@ -1411,7 +1253,6 @@ class TrueForm extends Fighter {
     _drawDetachedLimb(armRX, armRY, rEx, rEy, isAttacking ? 1.8 : 1);
     _drawDetachedLimb(armLX, armLY, lEx, lEy, isAttacking ? 1.8 : 1);
 
-    // Fist/energy burst at punch impact
     if (isAttacking && this._attackMode === 'punch' && atkP > 0.45) {
       const impactX = f > 0 ? rEx : lEx;
       const impactY = f > 0 ? rEy : lEy;
@@ -1419,7 +1260,6 @@ class TrueForm extends Fighter {
       ctx.globalAlpha = atkP * blinkAlpha;
       ctx.shadowColor = WHITE;
       ctx.shadowBlur  = 18 + atkP * 20;
-      // Expanding impact ring
       ctx.strokeStyle = glowColor;
       ctx.lineWidth   = 2;
       ctx.beginPath(); ctx.arc(impactX, impactY, 6 + atkP * 10, 0, Math.PI * 2); ctx.stroke();
@@ -1428,7 +1268,6 @@ class TrueForm extends Fighter {
       ctx.restore();
     }
 
-    // ── LEG geometry ─────────────────────────────────────────────────────────
     let rLeg, lLeg;
     if (this.state === 'ragdoll') {
       const lf = Math.sin(this.animTimer * 0.35) * 1.1 + ragRot * 0.8;
@@ -1460,7 +1299,6 @@ class TrueForm extends Fighter {
     _drawDetachedLimb(legRX, legRY, rLx, rLy, 1);
     _drawDetachedLimb(legLX, legLY, lLx, lLy, 1);
 
-    // Kick foot energy burst
     if (isAttacking && this._attackMode === 'kick' && atkP > 0.45) {
       const kx = f > 0 ? rLx : lLx;
       const ky = f > 0 ? rLy : lLy;
@@ -1474,9 +1312,7 @@ class TrueForm extends Fighter {
       ctx.restore();
     }
 
-    // ── COSMOS FILL — head and torso are windows onto the First Laws ────────
-    // A drifting starfield instead of flat black. Star layout is generated
-    // once per instance; only the drift and twinkle are animated.
+    // Head and torso are windows onto the First Laws: a drifting starfield, generated once per instance.
     if (!this._cosmicStars) {
       this._cosmicStars = [];
       for (let i = 0; i < 26; i++) {
@@ -1489,7 +1325,6 @@ class TrueForm extends Fighter {
         });
       }
     }
-    // Caller has already translated to the part's centre and clipped to it
     const _paintCosmos = (hw, hh, seed) => {
       ctx.save();
       ctx.shadowBlur = 0;
@@ -1502,7 +1337,6 @@ class TrueForm extends Fighter {
       ctx.fillRect(-hw - 2, -hh - 2, hw * 2 + 4, hh * 2 + 4);
       const baseA = ctx.globalAlpha;
       for (const s of this._cosmicStars) {
-        // Slow sideways drift, wrapped inside the part's box
         let sx = s.x * hw + T * s.v * 4 + seed * 7;
         sx = ((sx + hw) % (hw * 2) + hw * 2) % (hw * 2) - hw;
         const sy = s.y * hh;
@@ -1513,7 +1347,6 @@ class TrueForm extends Fighter {
       ctx.restore();
     };
 
-    // ── TORSO — elongated parallelogram, slightly rotated ───────────────────
     const torsoW = 8 + Math.sin(T * 1.8) * 1.5;
     const torsoH = seg.torsoBot - seg.torsoTop;
     const torsoTilt = Math.sin(T * 0.6) * 0.08 * (isAttacking ? 2 : 1);
@@ -1532,11 +1365,9 @@ class TrueForm extends Fighter {
     ctx.stroke();
     ctx.restore();
 
-    // ── HEAD — floating above, slightly larger, with void-crack eye sockets ─
     const headX = seg.headX;
     const headY = seg.headY;
     const headR = seg.headR;
-    // Head rotates slightly, adds inhuman feel
     const headTilt = Math.sin(T * 0.9 + 1.2) * 0.12;
     ctx.save();
     ctx.translate(headX, headY);
@@ -1551,7 +1382,6 @@ class TrueForm extends Fighter {
     ctx.shadowColor = glowColor;
     ctx.shadowBlur  = segGlow * 1.2;
     ctx.stroke();
-    // Void crack — thin diagonal slash through head
     ctx.globalAlpha = 0.35 + rage * 0.4;
     ctx.strokeStyle = glowColor;
     ctx.lineWidth   = 0.8;
@@ -1561,7 +1391,6 @@ class TrueForm extends Fighter {
     ctx.lineTo( headR * 0.4,  headR * 0.6);
     ctx.stroke();
     ctx.restore();
-    // GAP marker below head (void space between head and torso)
     ctx.save();
     ctx.globalAlpha = 0.5;
     ctx.shadowBlur = 0;
@@ -1571,17 +1400,13 @@ class TrueForm extends Fighter {
 
     ctx.restore(); // end L3
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L4 — CORE SINGULARITY (the actual anchor of the entity)
-    // ════════════════════════════════════════════════════════════════════════
+    // L4: CORE SINGULARITY (the actual anchor of the entity)
     ctx.save();
     ctx.globalAlpha = blinkAlpha;
     if (tfs !== 1) { ctx.translate(cx, coreY); ctx.scale(tfs, tfs); ctx.translate(-cx, -coreY); }
 
-    // A black hole at the chest — the "soul" of Cosmic Axiom. The First Laws
-    // collapse things; his heart is the collapse. Accretion disk back half is
-    // drawn before the event horizon, front half after, so the hole sits
-    // inside the disk instead of on top of it.
+    // Black hole at the chest, the soul of Cosmic Axiom. The disk's back half draws before the
+    // horizon and the front half after, so the hole sits inside the disk.
     const coreR = Math.max(0.01, (4.5 + Math.sin(T * 3.1) * 0.8 + rage * 1.8) * tfs);
     const coreGrad = ctx.createRadialGradient(cx, coreY, coreR * 0.8, cx, coreY, coreR * 3.5);
     coreGrad.addColorStop(0,   `rgba(${cRc},${cG},${Math.max(0,cB)},0.55)`);
@@ -1593,7 +1418,6 @@ class TrueForm extends Fighter {
     const diskA    = coreR * (2.7 + rage * 0.6);
     const diskB    = coreR * 0.75;
     const diskTilt = -0.18 + Math.sin(T * 0.4) * 0.05;
-    // Disk heats from amber toward white as rage climbs
     const diskHot  = `rgb(255,${Math.round(200 + rage * 55)},${Math.round(150 + rage * 105)})`;
     const _diskHalf = (a0, a1, alphaMul) => {
       ctx.save();
@@ -1607,7 +1431,6 @@ class TrueForm extends Fighter {
       ctx.strokeStyle = diskHot;
       ctx.lineWidth   = Math.max(0.6, coreR * 0.22);
       ctx.beginPath(); ctx.ellipse(cx, coreY, diskA * 0.92, diskB * 0.92, diskTilt, a0, a1); ctx.stroke();
-      // Infalling streaks riding the disk
       ctx.shadowBlur = 0;
       ctx.lineWidth  = 0.8;
       for (let k = 0; k < 5; k++) {
@@ -1618,7 +1441,7 @@ class TrueForm extends Fighter {
       }
       ctx.restore();
     };
-    _diskHalf(Math.PI, Math.PI * 2, 0.55);   // far side (upper) — dimmer
+    _diskHalf(Math.PI, Math.PI * 2, 0.55);   // far side (upper): dimmer
 
     // Event horizon + photon ring
     ctx.shadowColor = WHITE;
@@ -1629,9 +1452,8 @@ class TrueForm extends Fighter {
     ctx.lineWidth   = 1.1;
     ctx.beginPath(); ctx.arc(cx, coreY, coreR * 1.08, 0, Math.PI * 2); ctx.stroke();
 
-    _diskHalf(0, Math.PI, 1.0);              // near side (lower) — in front
+    _diskHalf(0, Math.PI, 1.0);              // near side (lower): in front
 
-    // Supernova build-up: the cross-flare only appears as he nears desperation
     if (rage > 0.5) {
       const nova = (rage - 0.5) * 2;
       ctx.globalAlpha = blinkAlpha * nova * (0.6 + Math.sin(T * 5) * 0.25);
@@ -1651,23 +1473,19 @@ class TrueForm extends Fighter {
     }
     ctx.restore();
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L5 — VOID EYES (drawn on head in screen-relative space)
-    // ════════════════════════════════════════════════════════════════════════
+    // L5: VOID EYES (drawn on head in screen-relative space)
     ctx.save();
     ctx.globalAlpha = blinkAlpha;
 
     const eyeX   = seg.headX + (this.facing > 0 ? 4 : -4) * tfs;
     const eyeBaseY = seg.headY - 1.5 * tfs;
 
-    // Outer eye glow ring
     ctx.shadowColor = glowColor;
     ctx.shadowBlur  = 10 + rage * 12;
     ctx.strokeStyle = glowColor;
     ctx.lineWidth   = 0.9;
     ctx.beginPath(); ctx.arc(eyeX, eyeBaseY, 3.5 * tfs, 0, Math.PI * 2); ctx.stroke();
 
-    // Inner void pupil — blinking effect: occasionally goes fully black
     const blinkCycle = Math.sin(T * 0.35); // slow blink
     const pupilAlpha = blinkCycle > 0.85 ? Math.max(0, 1 - (blinkCycle - 0.85) * 20) : 1; // fast blink
     ctx.globalAlpha = blinkAlpha * pupilAlpha;
@@ -1676,7 +1494,6 @@ class TrueForm extends Fighter {
     ctx.fillStyle   = WHITE;
     ctx.beginPath(); ctx.arc(eyeX, eyeBaseY, 2.2 * tfs, 0, Math.PI * 2); ctx.fill();
 
-    // Second ghost eye (unsettling — offset slightly behind)
     ctx.globalAlpha = blinkAlpha * 0.25 * (1 - pupilAlpha + 0.3);
     ctx.fillStyle   = glowColor;
     ctx.beginPath(); ctx.arc(eyeX - this.facing * 2 * tfs, eyeBaseY + 1 * tfs, 1.8 * tfs, 0, Math.PI * 2); ctx.fill();
@@ -1684,16 +1501,13 @@ class TrueForm extends Fighter {
     ctx.restore();
     ctx.restore(); // TF_BODY_SCALE
 
-    // ════════════════════════════════════════════════════════════════════════
-    // L6 — HP BAR (floating above head)
-    // ════════════════════════════════════════════════════════════════════════
+    // L6: HP BAR (floating above head)
     ctx.save();
     const barW  = 70, barH = 5;
     const barX  = cx - barW / 2;
     const barY  = this.y - 22 + Math.sin(T * 0.9) * 3; // floats with boss
     ctx.fillStyle = 'rgba(0,0,0,0.85)';
     ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
-    // HP color: white → purple → near-dead flicker
     const hpCol = hpPct > 0.6 ? '#ffffff'
                 : hpPct > 0.3 ? glowColor
                 : `rgba(${cRc},${cG},${Math.max(0,cB)},${0.6 + Math.sin(T * 8) * 0.4})`;
@@ -1702,7 +1516,7 @@ class TrueForm extends Fighter {
     ctx.shadowBlur  = 6;
     ctx.fillRect(barX, barY, barW * hpPct, barH);
 
-    // ── ADAPTATION METER (below HP bar) ──────────────────────────────────
+    // ADAPTATION METER (below HP bar)
     const al = this.adaptationLevel || 0;
     if (al > 0) {
       const aBarY = barY + barH + 3;
@@ -1717,7 +1531,6 @@ class TrueForm extends Fighter {
       ctx.shadowBlur  = 5 + al * 0.05;
       ctx.fillRect(barX, aBarY, barW * (al / 100), 3);
 
-      // Tier label above HP bar
       const tierLabel = al >= 90 ? '◈ PERFECTED'
                       : al >= 75 ? '◈ MASTERED'
                       : al >= 60 ? '◈ EVOLVED'
@@ -1736,7 +1549,7 @@ class TrueForm extends Fighter {
     }
     ctx.restore();
 
-    // ── RECOVERY INDICATOR — teaches players when to punish ──────────────
+    // RECOVERY INDICATOR: teaches players when to punish
     if (this._tfAttackState?.phase === 'recovery') {
       ctx.save();
       ctx.globalAlpha = 0.25;
@@ -1751,7 +1564,7 @@ class TrueForm extends Fighter {
       ctx.restore();
     }
 
-    // ── HIGH-ADAPTATION INSTABILITY OVERLAY ──────────────────────────────
+    // HIGH-ADAPTATION INSTABILITY OVERLAY
     // At AL >= 70: subtle reality-crack scan-lines flicker over the entity
     if (_alT >= 0.70) {
       const flickerIntensity = ((_alT - 0.70) / 0.30) * (0.18 + Math.sin(T * 14) * 0.10);
@@ -1762,7 +1575,6 @@ class TrueForm extends Fighter {
         ctx.lineWidth   = 0.8;
         ctx.shadowColor = glowColor;
         ctx.shadowBlur  = 4;
-        // Horizontal scan-line cracks across the entity bounding box
         const bx = cx - 20 * tfs, bw = 40 * tfs;
         const by = coreY - 34 * tfs, bh = 68 * tfs;
         const lineCount = Math.floor(3 + _alT * 4);
@@ -1779,7 +1591,6 @@ class TrueForm extends Fighter {
       }
     }
 
-    // ── Echo red tint — post-render overlay (Damnation arc) ──────────
     if (this.isEcho && typeof damnationActive !== 'undefined' && damnationActive) {
       ctx.save();
       ctx.globalCompositeOperation = 'multiply';

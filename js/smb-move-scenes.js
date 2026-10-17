@@ -1,34 +1,18 @@
 'use strict';
-// smb-move-scenes.js — every ability (Q) and super (E) runs as a short scripted
-// scene: the performer's body, weapon and anything it grabs are posed and moved
-// by the scene, frame by frame, instead of by physics.
+// Ability (Q) and super (E) moves run as scripted scenes: the performer, weapon
+// and grabbed victims are posed frame by frame, not by physics.
 //
-// THE CONTRACT
-//  - Nobody outside the scene can interrupt it. The performer has armor every
-//    frame (damage lands, nothing moves or stuns them), cannot be grabbed by
-//    another scene, and their input and AI are locked out. A grabbed victim is
-//    held by the scene; outside hits still damage them but cannot move them.
-//  - The way out is from the inside: a held victim with a full super meter
-//    presses super and breaks the hold (MoveScene.breakOut). The performer is
-//    thrown back and staggered, and the break has its own look so both players
-//    can tell what happened.
-//  - A shield raised before the opener connects stops a grab move, and a parry
-//    stops it cold. Locks only start on a clean hit.
+// Nothing outside the scene interrupts it. The performer is armored (damage lands,
+// no stun or grab) and its input and AI are locked. A held victim breaks out by
+// pressing super with a full meter (MoveScene.breakOut). A shield raised before the
+// opener connects stops a grab. A parry stops it cold.
 //
-// RING-OUTS
-// A scene only ever moves bodies across ground. The stage span under the
-// performer is measured when the scene starts and every scripted position is
-// kept inside it, so a dash, a carry or a juggle can never walk anyone off a
-// ledge. Only the final launch leaves the scene's hands: an ability's (Q)
-// launch is softened when the victim is close to the ledge it points at, a
-// super's (E) is not — a super is a kill move. Everyone the scene let go of in
-// the air gets their air jump back.
+// Ring-outs: bodies only move inside the stage span measured at scene start.
+// Only the final launch leaves the scene's hands. Q launches soften near a ledge,
+// E (super) launches never do.
 //
-// Depends on: smb-combat.js (dealDamage, isHostileTarget, worldLeftBound),
-//   smb-particles-core.js (spawnParticles, spawnRing), smb-fighter.js (Fighter,
-//   CLASH_TIER_*). Choreography lives in smb-move-scenes-defs.js.
-// Ticked from smb-loop-core.js after fighter physics; drawn after the fighters.
-// ============================================================
+// Depends on: smb-combat.js, smb-particles-core.js, smb-fighter.js.
+// Choreography: smb-move-scenes-defs.js. Ticked from smb-loop-core.js after physics.
 
 const MS_DEFS = {};                 // 'axe:q' -> scene definition
 const MS_BREAK_IFRAMES  = 40;       // victim's invulnerability after a break
@@ -69,7 +53,7 @@ function msEase(e, u) {
 }
 
 // A track is [{ t, e, ...pose }]. The ease on a key shapes the segment that
-// ARRIVES at it; flags (trail, air, hide) are read from the key a segment leaves.
+// arrives at it; flags (trail, air, hide) are read from the key a segment leaves.
 function msSample(track, t) {
   if (!track || !track.length) return null;
   let i = 0;
@@ -118,7 +102,6 @@ function msLerpAngle(a, b, k) {
   return a + d * k;
 }
 
-// ── Ground ──────────────────────────────────────────────────────────────────
 function _msPlatforms() {
   return (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) || [];
 }
@@ -167,7 +150,6 @@ function _msAllFighters() {
   return out;
 }
 
-// ── Victim poses (relative to the victim's own facing, which points at the performer)
 const MS_VPOSE = {
   reel:    { r: -2.45, l: -2.05, lean: -7, drop: 2, fr: 5, fl: -13 },
   fold:    { r: 1.05, l: 0.75, rl: 0.8, ll: 0.8, lean: 9, drop: 7, fr: 6, fl: -9 },
@@ -178,7 +160,6 @@ const MS_VPOSE = {
   crumple: { r: 1.6, l: 1.3, rl: 0.7, ll: 0.7, lean: 12, drop: 16, fr: 11, fl: -4 },
 };
 
-// ── Scene object ────────────────────────────────────────────────────────────
 const MS_PROTO = {
   // Branch-local time: play() restarts it, every event check reads it.
   at(n)       { return this.lprev < n && this.lt >= n; },
@@ -283,7 +264,7 @@ const MS_PROTO = {
   },
   _targetable(t) {
     if (!t || t === this.user || t.health <= 0 || t.backstageHiding) return false;
-    if (t._msScene && t._msScene !== this) return false;
+    if (t._msScene && t._msScene !== this && t._msScene.landed) return false;
     if (t._msLock && t._msLock !== this) return false;
     if (typeof isHostileTarget === 'function' && !isHostileTarget(this.user, t)) return false;
     return true;
@@ -296,7 +277,10 @@ const MS_PROTO = {
   lock(t) {
     if (!this.canLock(t) || t.health <= 0) return false;
     if ((typeof frameCount !== 'undefined' ? frameCount : 0) < (t._msRegrabAt || 0)) return false;
+    // Caught mid wind-up: their own move had not connected, so it is over.
+    if (t._msScene && t._msScene !== this) MoveScene.abort(t._msScene);
     t._msLock = this;
+    this.landed = true;
     if (!this.victims.includes(t)) this.victims.push(t);
     const b = this.body(t);
     b.x = t.x; b.y = t.y; b.kin = false; b.vx = 0; b.vy = 0;
@@ -305,8 +289,8 @@ const MS_PROTO = {
     return true;
   },
 
-  // The opener reaching a victim. A raised guard takes it as a hit (chip, and a
-  // fresh guard may parry); otherwise it is a clean catch that deals nothing yet.
+// The opener reaching a victim. A raised guard takes it as a hit (a fresh guard can
+  // parry). Otherwise it is a clean catch that deals nothing yet.
   contact(t, chip) {
     if (!t || t.health <= 0 || t.godmode) return 'miss';
     const u = this.user;
@@ -344,8 +328,8 @@ const MS_PROTO = {
     return 'miss';
   },
 
-  // An ability's knockback toward a nearby ledge is cut back so the ability
-  // alone never rings anyone out; supers keep their full launch.
+  // An ability's knockback toward a nearby ledge is cut back so it never rings anyone out.
+  // Supers keep their full launch.
   _softenNearLedge(t) {
     if (this.kind !== 'q' || this.span.open || !t.vx) return;
     const edge = t.vx > 0 ? this.span.R - t.cx() : t.cx() - this.span.L;
@@ -392,7 +376,6 @@ const MS_PROTO = {
     t.onGround = false;
   },
 
-  // ── Presentation ──────────────────────────────────────────────────────────
   impact(t, color, big) {
     const c = color || this.color;
     spawnParticles(t.cx(), t.cy(), c, big ? 18 : 10);
@@ -414,8 +397,7 @@ const MS_PROTO = {
   streak(x0, y0, x1, y1, color, life, w) {
     MoveScene.fx.push({ kind: 'line', x0, y0, x1, y1, color: color || this.color, life: life || 12, max: life || 12, w: w || 6 });
   },
-  // Faint on purpose: a hit-stop freezes the frame the flash was drawn on, so
-  // it sits on screen for the whole freeze.
+  // Faint on purpose: the flash stays on screen through the whole hit-stop freeze.
   flash(color, alpha, life) {
     MoveScene.screen.push({ kind: 'flash', color: color || '#ffffff', a: Math.min(0.14, alpha || 0.1), life: life || 6, max: life || 6 });
   },
@@ -429,8 +411,7 @@ const MS_PROTO = {
     if (this.fired || typeof this.legacy !== 'function') return;
     this.fired = true;
     try { this.legacy(); } catch (e) { console.warn('[MoveScene] legacy fire failed', e); }
-    // Fighter.ability() applied its cooldown before this deferred fire, so an
-    // override set here (Drop Anchor's quick re-press) would otherwise be lost.
+    // Set after Fighter.ability() applied the cooldown, or the override is lost.
     const u = this.user;
     if (this.kind === 'q' && u && u._abilityCdOverride != null) {
       u.abilityCooldown = u._abilityCdOverride;
@@ -449,8 +430,8 @@ const MoveScene = {
   screen: [],
   outs: [],
 
-  // Called from Fighter.ability()/activateSuper(). `legacy` fires the move's
-  // original effect (projectiles, AoE) at the scene's release frame.
+  // Called from Fighter.ability()/activateSuper(). `legacy` fires the move's original
+  // effect (projectiles, AoE) at the release frame.
   begin(user, kind, target, legacy) {
     if (!user || user.isBoss || user.isTrueForm || user.isRemote) return false;
     if (typeof onlineMode !== 'undefined' && onlineMode) return false;
@@ -475,12 +456,12 @@ const MoveScene = {
       color: def.color || (user.weapon && user.weapon.color) || user.color || '#ffffff',
       comboBase: (fc - (user._comboLastFrame || 0) > 45) ? 0 : (user._comboHitCount || 0),
       start: fc, fresh: true,
+      landed: false, dmg0: user.totalDamageDealt || 0,
     });
     sc.span = _msSpan(user.cx(), user.y + user.h);
     sc.body(user);
     sc.play('main');
     user._msScene = sc;
-    user.invincible = Math.max(user.invincible || 0, 2);
     // Which move a kill belongs to, for its finisher (smb-finisher-moves.js).
     user._msKill = { key, end: 0 };
     user.attackTimer = 0;
@@ -521,8 +502,8 @@ const MoveScene = {
       if (halt || !u || u.health <= 0 || u._msScene !== sc || !live.includes(u)) { this.abort(sc); continue; }
       const dt = (typeof slowMotion === 'number' && slowMotion > 0) ? Math.min(1, slowMotion) : 1;
       sc.dt = dt;
-      // Undo whatever physics did to the bodies the scene owns. A `free` scene
-      // leaves the performer to its weapon's own movement code (still tethered).
+      // Undo physics on the bodies the scene owns. A `free` scene leaves the performer
+      // to its weapon's own movement code.
       for (const b of sc.bodies.values()) {
         if (sc.def.free && b.f === u) { b.x = u.x; b.y = u.y; continue; }
         b.f.x = b.x; b.f.y = b.y;
@@ -546,9 +527,10 @@ const MoveScene = {
         sc._clampBody(b);
         b.f.x = b.x; b.f.y = b.y;
       }
-      // Performer: invulnerable for the scene only, facing locked, no guard, no stray swing.
+      // Performer: armored throughout, invulnerable only once the move connects.
+      if (!sc.landed && (u.totalDamageDealt || 0) > sc.dmg0) sc.landed = true;
       u._superArmorUntil = Math.max(u._superArmorUntil || 0, fc + 2);
-      u.invincible = Math.max(u.invincible || 0, 2);
+      if (sc.landed) u.invincible = Math.max(u.invincible || 0, 2);
       u.facing = sc.f;
       u.shielding = false;
       u.attackTimer = 0;
@@ -620,9 +602,8 @@ const MoveScene = {
     this._clear(sc);
   },
 
-  // A move whose effect outlives its scene (a fused bomb, a standing mirror, a
-  // timed buff) declares killWhile(u); while it holds, the kill claim's tail is
-  // re-stamped every frame so a kill it lands late is still the move's.
+  // A move whose effect outlives its scene (fused bomb, mirror, timed buff) declares
+  // killWhile(u). While it holds, the kill tail is re-stamped each frame.
   _holdKillClaims() {
     const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
     for (const f of (typeof players !== 'undefined' ? players : [])) {
@@ -643,7 +624,7 @@ const MoveScene = {
     if (u && u._msScene === sc) {
       u._msScene = null;
       // The scene's own i-frames end with it; longer ones came from elsewhere.
-      if (u.invincible <= 2) u.invincible = 0;
+      if (sc.landed && u.invincible <= 2) u.invincible = 0;
       if (u._msKill && u._msKill.key === sc.key) u._msKill.end = typeof frameCount !== 'undefined' ? frameCount : 1;
       // Ease from the scene's last pose back into the weapon's own carry.
       if (u._movePose) { u._msOut = { p: u._movePose, t: MS_BLEND_OUT }; if (!this.outs.includes(u)) this.outs.push(u); }
@@ -660,8 +641,7 @@ const MoveScene = {
     sc.done = true;
   },
 
-  // Bots spend a full meter to break out the way a human would: once per hold,
-  // after a reaction delay, more often the harder they are.
+  // Bots spend a full meter to break out like a human would, once per hold, after a delay.
   _aiBreakRoll(sc, v) {
     if (!v.isAI || !v.superReady || v._storyNoSuper || v.isBoss) return;
     const key = '_br' + sc.start;
@@ -682,8 +662,8 @@ const MoveScene = {
     const dir = u.cx() >= v.cx() ? 1 : -1;
     const vx = v.cx(), vy = v.cy();
     this.abort(sc);
-    // The performer is thrown off and left open; the push is shortened near a
-    // ledge so a break can never itself be a ring-out.
+    // The performer is thrown off and left open. The push is shortened near a ledge
+    // so a break can't ring-out.
     let push = 11;
     if (!sc.span.open) {
       const edge = dir > 0 ? sc.span.R - u.cx() : u.cx() - sc.span.L;
@@ -709,7 +689,7 @@ const MoveScene = {
       shards.push({ x: vx, y: vy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1.5, rot: a, vr: (Math.random() - 0.5) * 0.5, sz: 5 + Math.random() * 7 });
     }
     this.fx.push({ kind: 'break', x: vx, y: vy, color: v.color || '#ffffff', life: 34, max: 34, shards, dir });
-    this.screen.push({ kind: 'flash', color: '#ffffff', a: 0.55, life: 10, max: 10 });
+    this.screen.push({ kind: 'flash', color: v.color || '#ffffff', a: 0.3, life: 10, max: 10 });
     this.screen.push({ kind: 'invert', life: 5, max: 5 });
     // Frozen from the next update, so the frame that shows the break is the one held.
     this._freezeNext = 8;
@@ -727,7 +707,6 @@ const MoveScene = {
     return true;
   },
 
-  // ── FX ────────────────────────────────────────────────────────────────────
   _tickFx() {
     for (let i = this.fx.length - 1; i >= 0; i--) {
       const fx = this.fx[i];
@@ -868,7 +847,9 @@ const MoveScene = {
     for (let i = this.screen.length - 1; i >= 0; i--) {
       const s = this.screen[i];
       const k = s.life / s.max;
-      if (s.kind === 'flash') {
+      if (typeof settings !== 'undefined' && settings && settings.phaseFlash === false) {
+        // Screen flashes are switched off in Settings.
+      } else if (s.kind === 'flash') {
         ctx.globalAlpha = s.a * k;
         ctx.fillStyle = s.color;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -895,9 +876,8 @@ const MoveScene = {
   },
 };
 
-// ── Fighter hooks ───────────────────────────────────────────────────────────
-// Inside a scene the performer acts only through the scene, and a held victim's
-// only action is the super press that breaks the hold.
+// Inside a scene the performer acts only through the scene. A held victim's only
+// action is the super press.
 (function _msInstallFighterHooks() {
   if (typeof Fighter === 'undefined' || Fighter.prototype._msHooked) return;
   const P = Fighter.prototype;
@@ -906,15 +886,13 @@ const MoveScene = {
     if (this._msScene || this._msLock) return;
     const cd0 = this.cooldown || 0, at0 = this.attackTimer || 0;
     const r = _attack.call(this, t);
-    // A normal swing after the move: kills from here on are not the move's —
-    // unless the move is a buff whose kills ARE its swings (keepOnSwing).
+    // A normal swing ends the move's kill claim, unless it is a keepOnSwing buff.
     const kd = this._msKill && MS_DEFS[this._msKill.key];
     const keep = kd && kd.keepOnSwing && kd.killWhile && kd.killWhile(this);
     if (this._msKill && !keep && ((this.cooldown || 0) > cd0 || (this.attackTimer || 0) > at0)) this._msKill = null;
     return r;
   };
-  // An ability or super that ran without a scene (Bomb Q, Knight) ends the
-  // previous move's claim on kills, the same as a swing.
+  // An ability or super that ran without a scene ends the previous move's kill claim.
   P.ability = function (t) {
     if (this._msScene || this._msLock) return;
     const k0 = this._msKill, cd0 = this.abilityCooldown || 0;

@@ -1,16 +1,7 @@
 'use strict';
-// js/story/levels/ch117.js — Chapter 117 map (story ARENA). See smb-story-levels.js.
+// js/story/levels/ch117.js. Chapter 117 map (story ARENA). See smb-story-levels.js.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 117 — Thirty-Four Frames (Trial of Self-Knowledge, one screen)
-// The Standing Tide: a tidal flat where "the water in front of you stood up
-// and took your shape". The sea here doesn't move the way water should. Its
-// surface hangs in still sheets; around the edges of the flat the water
-// stands in walls, each one holding a faint reflection that lags behind
-// everything in the arena by a beat. The rocks are the coast arena's own
-// layout (the mirror's pathing is tuned on it). The flat is mirror-wet:
-// everything above it is reflected below the floor line, a fraction late.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 117, mirror trial on one screen. The floor is mirror-wet, reflecting fighters a beat late.
 (function () {
   const G = 460;
   const LAG = new WeakMap();                       // fighter → recent feet positions

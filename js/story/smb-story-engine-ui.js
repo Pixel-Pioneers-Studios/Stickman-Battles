@@ -1,13 +1,12 @@
 'use strict';
-// smb-story-engine-ui.js — Story menu tab switching, journey/store/skill-tree rendering, prologue overlay
+// smb-story-engine-ui.js: story menu tabs, journey/store/skill-tree rendering, prologue overlay.
 // Depends on: smb-globals.js, smb-story-registry.js (and preceding story-engine splits)
 
 let _skillTreeAnimId = null;
 let _masterySelectedWeapon = 'sword';
 
-// ── UI helpers ────────────────────────────────────────────────────────────────
 function _worldIcon(w) {
-  // World strings already include their emoji, just return as-is
+  // World names already include their emoji
   return w || '🌐';
 }
 
@@ -16,9 +15,8 @@ function _story2TokenDisplay() {
   if (el) el.textContent = _story2.tokens;
 }
 
-// ── Tab switching ─────────────────────────────────────────────────────────────
 function switchStoryTab(tab) {
-  // 'multiverse' panel is kept but has no tab button — only accessible via story progression
+  // 'multiverse' panel is kept but has no tab button: only accessible via story progression
   ['chapters','multiverse'].forEach(t => {
     const btn   = document.getElementById('storyTab' + t.charAt(0).toUpperCase() + t.slice(1));
     const panel = document.getElementById('storyTabPanel' + t.charAt(0).toUpperCase() + t.slice(1));
@@ -33,7 +31,6 @@ function switchStoryTab(tab) {
   _story2TokenDisplay();
 }
 
-// ── Journey tab ───────────────────────────────────────────────────────────────
 function _renderStoryJourney() {
   const list = document.getElementById('storyJourneyList');
   if (!list) return;
@@ -41,7 +38,7 @@ function _renderStoryJourney() {
   const cur = _story2.chapter;
 
   STORY_CHAPTERS2.forEach((ch, i) => {
-    if (ch._menuHidden) return; // narrative plays automatically as a transition; not a separate step
+    if (ch._menuHidden) return; // narrative plays as a transition, not a step
 
     const done    = _story2.defeated.includes(ch.id); // keyed by ch.id
     const current = i === cur;
@@ -71,7 +68,6 @@ function _renderStoryJourney() {
   });
 }
 
-// ── Ability Shop (standalone modal) ──────────────────────────────────────────
 function _renderStoryStore2() {
   const grid = document.getElementById('storyAbilityGrid2');
   if (!grid) return;
@@ -115,7 +111,6 @@ function _renderShopSection(grid) {
   }
 }
 
-// Helper: check if a skill node's requirements are met
 function _skillNodeReqMet(node, sk) {
   if (!node.requires && !node.requiresAny) return true;
   if (node.requiresAny && node.requiresAny.some(r => !!sk[r])) return true;
@@ -127,24 +122,20 @@ function _renderSkillTreeSection(grid) {
   const sk  = _story2.skillTree || {};
   const exp = _story2.exp || 0;
 
-  // EXP banner
   const expBanner = document.createElement('div');
   expBanner.style.cssText = 'padding:8px 12px;background:rgba(100,220,100,0.08);border:1px solid rgba(100,220,100,0.25);border-radius:7px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;';
   expBanner.innerHTML = `<span style="color:#88cc88;font-size:0.72rem;letter-spacing:1px;">🌟 SKILL POINTS (EXP)</span><span id="storyExpDisplay" style="color:#aaff88;font-size:1.05rem;font-weight:700;">${exp} EXP</span>`;
   grid.appendChild(expBanner);
 
   for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
-    // Branch wrapper
     const branchWrap = document.createElement('div');
     branchWrap.style.cssText = 'margin-bottom:18px;';
 
-    // Branch header bar
     const header = document.createElement('div');
     header.style.cssText = `display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:5px 10px;background:rgba(0,0,0,0.22);border-left:3px solid ${branch.color};border-radius:0 6px 6px 0;`;
     header.innerHTML = `<span style="font-size:1rem;">${branch.icon || ''}</span><span style="font-size:0.70rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;">${branch.label}</span>`;
     branchWrap.appendChild(header);
 
-    // Build a depth map: nodeId → depth (0 = root)
     const nodeMap = {};
     for (const n of branch.nodes) nodeMap[n.id] = n;
     const depthOf = {};
@@ -157,13 +148,11 @@ function _renderSkillTreeSection(grid) {
     for (const n of branch.nodes) getDepth(n);
     const maxDepth = Math.max(...branch.nodes.map(n => depthOf[n.id]));
 
-    // Group nodes by depth
     const layers = [];
     for (let d = 0; d <= maxDepth; d++) {
       layers.push(branch.nodes.filter(n => depthOf[n.id] === d));
     }
 
-    // Render layers top-to-bottom with connector lines between parent-child
     const treeWrap = document.createElement('div');
     treeWrap.style.cssText = 'position:relative;padding:0 4px;';
 
@@ -178,7 +167,6 @@ function _renderSkillTreeSection(grid) {
         const canBuy  = !owned && reqMet && exp >= node.expCost;
         const isLocked = !owned && !reqMet;
 
-        // Connector line above non-root nodes
         const colWrap = document.createElement('div');
         colWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;flex:1;min-width:110px;';
 
@@ -219,7 +207,6 @@ function _renderSkillTreeSection(grid) {
 
         colWrap.appendChild(card);
 
-        // Connector line below if this node has children
         const hasChild = branch.nodes.some(c => c.requires === node.id);
         if (hasChild) {
           const connDown = document.createElement('div');
@@ -271,7 +258,6 @@ function _buyAbility2(key, ab) {
   if (typeof showToast === 'function') showToast('✅ Unlocked: ' + ab.name + '!');
 }
 
-// ── Continue Story button ─────────────────────────────────────────────────────
 function continueStory() {
   if (!_story2 || typeof STORY_CHAPTERS2 === 'undefined') return;
   const nextIdx = _story2.chapter || 0;
@@ -304,7 +290,6 @@ function _updateContinueStoryBtn() {
   }
 }
 
-// ── Story path submenu entry points ──────────────────────────────────────────
 function openStoryMenuChapters() {
   if (typeof closeStoryPath === 'function') closeStoryPath();
   if (typeof openStoryMenu === 'function') openStoryMenu();
@@ -324,10 +309,8 @@ function closeShopModal() {
   if (modal) modal.style.display = 'none';
 }
 
-// ── Story loadout ────────────────────────────────────────────────────────────
-// Story keeps its own weapon/class pick in _story2.loadout. The picker borrows
-// the Versus Player 1 card (cosmetics included, which stay shared) and swaps the
-// Versus weapon/class values out while it is open, then puts them back.
+// Story keeps its own weapon/class in _story2.loadout. The picker reuses the Versus P1 card and
+// swaps the Versus weapon/class out while open, then restores them.
 let _storyLoadoutStash = null; // { parent, next, weapon, cls, reopenStory }
 
 // Story is melee-only and skips the goofy-tone weapons; 'random' always passes.
@@ -423,39 +406,32 @@ function closeStoryLoadout() {
   }
 }
 
-// ── Standalone Skill Tree modal ───────────────────────────────────────────────
-// ── Canvas skill-tree layout ──────────────────────────────────────────────────
 // Pixel positions (canvas 780 × 565) for every purchasable node.
 const _ST_POS = {
   __root:           { x: 390, y: 28  },
-  // MOBILITY
   highJump1:        { x: 82,  y: 105 },
   highJump2:        { x: 82,  y: 185 },
   doubleJump:       { x: 52,  y: 265 },
   fastFall:         { x: 122, y: 265 },
-  // RESILIENCE
   tankier1:         { x: 210, y: 105 },
   tankier2:         { x: 193, y: 185 },
   superMeter:       { x: 158, y: 265 },
   tankier3:         { x: 208, y: 265 },
   dimensionalPatch: { x: 252, y: 185 },
   voidStep:         { x: 260, y: 265 },
-  // SURVIVAL
   lastStrike:       { x: 330, y: 130 },
   echoRage:         { x: 305, y: 210 },
   mirrorFracture:   { x: 358, y: 210 },
   temporalBreak:    { x: 292, y: 290 },
-  // MASTERY (bottom centre — gated behind other branches)
+  // Mastery sits at the bottom and is gated behind the other branches.
   masterRoot:       { x: 390, y: 400 },
   fragmentHunger:   { x: 348, y: 475 },
   architects:       { x: 432, y: 475 },
   coreCollapse:     { x: 440, y: 530 },
-  // SPEED
   fastMove1:        { x: 458, y: 130 },
   fastMove2:        { x: 478, y: 210 },
   fastMove3:        { x: 488, y: 290 },
   fractureSurge:    { x: 420, y: 210 },
-  // COMBAT
   heavyHit1:        { x: 660, y: 105 },
   heavyHit2:        { x: 643, y: 185 },
   weaponAbility:    { x: 643, y: 265 },
@@ -490,6 +466,13 @@ function closeSkillTreeModal() {
   if (modal) modal.style.display = 'none';
 }
 
+// Skill node shape: a diamond, same family as the map's boss stops.
+function _stDiamond(ctx, x, y, r) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y);
+  ctx.closePath();
+}
+
 function _renderSkillTreeModal() {
   if (_skillTreeAnimId) { cancelAnimationFrame(_skillTreeAnimId); _skillTreeAnimId = null; }
 
@@ -507,12 +490,13 @@ function _renderSkillTreeModal() {
     return;
   }
 
-  // Jump link — the mastery panel lives below the tall canvas and was invisible without scrolling
+  // Jump link: the mastery panel is below the tall canvas, so it needs a visible link.
   const jumpRow = document.createElement('div');
   jumpRow.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px;';
   const jumpBtn = document.createElement('button');
   jumpBtn.textContent = '⚔️ Weapon Mastery ↓';
-  jumpBtn.style.cssText = 'background:rgba(60,48,20,0.5);color:#ffcc66;border:1px solid #ffcc6655;border-radius:6px;padding:4px 10px;font-size:0.68rem;font-family:inherit;cursor:pointer;letter-spacing:1px;';
+  jumpBtn.className = 'st-jump';
+  jumpBtn.style.cssText = 'padding:4px 10px;font-size:0.68rem;cursor:pointer;letter-spacing:1px;';
   jumpBtn.addEventListener('click', () => {
     const s = container.querySelector('#weaponMasterySection');
     if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -528,14 +512,13 @@ function _renderSkillTreeModal() {
   container.style.position = 'relative';
   container.appendChild(canvas);
 
-  // Floating tooltip element
   const ttip = document.createElement('div');
   ttip.style.cssText = [
     'position:absolute','pointer-events:none','display:none',
-    'background:rgba(4,4,18,0.97)','border:1px solid rgba(120,120,200,0.28)',
-    'border-radius:8px','padding:10px 14px','font-size:0.72rem','color:#dde4ff',
+    'background:rgba(12,9,18,0.98)','border:1px solid #8C5E1F',
+    'border-radius:2px','padding:10px 14px','font-size:0.72rem','color:#F3E8D2',
     'max-width:215px','z-index:20','font-family:inherit','line-height:1.45',
-    'box-shadow:0 4px 22px rgba(0,0,0,0.75)',
+    'box-shadow:0 0 0 2px #07060C, 0 4px 22px rgba(0,0,0,0.75)',
   ].join(';');
   container.appendChild(ttip);
 
@@ -544,7 +527,6 @@ function _renderSkillTreeModal() {
   const nodeMap = {};
   for (const n of nodes) nodeMap[n.id] = n;
 
-  // Precompute requiresAny edges (for mastery root)
   const reqAnyEdges = [];
   for (const n of nodes) {
     if (n.requiresAny) {
@@ -554,7 +536,6 @@ function _renderSkillTreeModal() {
     }
   }
 
-  // Root connector branch nodes (no requires, no requiresAny)
   const branchRoots = nodes.filter(n => !n.requires && !n.requiresAny);
 
   let frame = 0;
@@ -565,31 +546,27 @@ function _renderSkillTreeModal() {
 
     ctx.clearRect(0, 0, CW, CH);
 
-    // ── Background ──────────────────────────────────────────────────────────
-    ctx.fillStyle = '#05050e';
+    ctx.fillStyle = '#0B0812';
     ctx.fillRect(0, 0, CW, CH);
 
-    // Root radial glow
     let g = ctx.createRadialGradient(390, 28, 0, 390, 28, 340);
-    g.addColorStop(0, 'rgba(90,50,150,0.18)');
+    g.addColorStop(0, 'rgba(226,150,70,0.16)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, CW, CH);
 
-    // Mastery pool glow
     g = ctx.createRadialGradient(390, 400, 0, 390, 400, 200);
     g.addColorStop(0, 'rgba(140,50,210,0.13)');
     g.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, CW, CH);
 
-    // ── Root → branch-root bezier lines ─────────────────────────────────────
     const rp = _ST_POS.__root;
     for (const n of branchRoots) {
       const owned = !!csk[n.id];
       ctx.save();
       ctx.lineWidth   = owned ? 2 : 1.5;
-      ctx.strokeStyle = owned ? n.branchColor + 'bb' : n.branchColor + '2a';
+      ctx.strokeStyle = owned ? n.branchColor + 'bb' : n.branchColor + '3c';
       ctx.beginPath();
       ctx.moveTo(rp.x, rp.y);
       const cpx1 = rp.x + (n.x - rp.x) * 0.35;
@@ -601,7 +578,6 @@ function _renderSkillTreeModal() {
       ctx.restore();
     }
 
-    // ── Parent → child edges ─────────────────────────────────────────────────
     for (const n of nodes) {
       if (!n.requires) continue;
       const parent = nodeMap[n.requires];
@@ -627,7 +603,6 @@ function _renderSkillTreeModal() {
       ctx.restore();
     }
 
-    // ── RequiresAny dashed lines (mastery) ──────────────────────────────────
     for (const e of reqAnyEdges) {
       const srcOwned  = !!csk[e.from.id];
       const destOwned = !!csk[e.to.id];
@@ -647,7 +622,6 @@ function _renderSkillTreeModal() {
       ctx.restore();
     }
 
-    // ── Nodes ────────────────────────────────────────────────────────────────
     for (const n of nodes) {
       const owned   = !!csk[n.id];
       const reqMet  = _skillNodeReqMet(n, csk);
@@ -656,99 +630,113 @@ function _renderSkillTreeModal() {
 
       ctx.save();
 
-      // Outer glow
+      ctx.fillStyle = '#07060C';
+      _stDiamond(ctx, n.x, n.y + 3, R + 3); ctx.fill();
+      _stDiamond(ctx, n.x, n.y, R + 3); ctx.fill();
+
       if (owned) {
         ctx.shadowColor = n.branchColor;
         ctx.shadowBlur  = 12 + Math.sin(frame * 0.035) * 4;
       } else if (canBuy) {
         ctx.shadowColor = n.branchColor;
-        ctx.shadowBlur  = 5 + Math.sin(frame * 0.075 + n.x * 0.02) * 5;
+        ctx.shadowBlur  = 6 + Math.sin(frame * 0.075 + n.x * 0.02) * 6;
       }
 
-      // Circle fill
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, R, 0, Math.PI * 2);
+      _stDiamond(ctx, n.x, n.y, R);
+      const grd = ctx.createLinearGradient(n.x - R, n.y - R, n.x + R, n.y + R);
       if (owned) {
-        const grd = ctx.createRadialGradient(n.x - 5, n.y - 6, 0, n.x, n.y, R);
-        grd.addColorStop(0, n.branchColor + 'ff');
-        grd.addColorStop(1, n.branchColor + '66');
-        ctx.fillStyle = grd;
+        grd.addColorStop(0, '#FFF6E0');
+        grd.addColorStop(0.35, n.branchColor);
+        grd.addColorStop(1, n.branchColor + '99');
       } else if (canBuy) {
-        ctx.fillStyle = 'rgba(18,25,55,0.88)';
+        grd.addColorStop(0, '#3A2A38'); grd.addColorStop(1, '#1B1522');
       } else {
-        ctx.fillStyle = 'rgba(8,8,20,0.72)';
+        grd.addColorStop(0, '#241D2E'); grd.addColorStop(1, '#110D18');
       }
+      ctx.fillStyle = grd;
       ctx.fill();
 
-      // Border ring
-      ctx.lineWidth   = owned ? 2.5 : canBuy ? 2 : 1;
-      ctx.strokeStyle = owned ? n.branchColor
-                       : canBuy ? n.branchColor + 'aa'
-                       : 'rgba(255,255,255,0.10)';
+      // Rim: gold once owned, the branch colour while it can be bought.
+      ctx.lineWidth   = owned ? 2 : canBuy ? 2 : 1.2;
+      ctx.strokeStyle = owned ? '#FFE7A6'
+                       : canBuy ? n.branchColor
+                       : '#3A3046';
       ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Inner mark
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
       if (owned) {
-        ctx.fillStyle = 'rgba(0,0,0,0.65)';
-        ctx.font      = 'bold 13px "Segoe UI", Arial, sans-serif';
-        ctx.fillText('✓', n.x, n.y);
+        ctx.fillStyle = 'rgba(7,6,12,0.8)';
+        ctx.font      = 'bold 14px "Segoe UI", Arial, sans-serif';
+        ctx.fillText('✓', n.x, n.y + 1);
       } else if (locked) {
-        ctx.fillStyle = 'rgba(255,255,255,0.13)';
-        ctx.font      = '12px "Segoe UI", Arial, sans-serif';
-        ctx.fillText('×', n.x, n.y);
+        ctx.save();
+        _stDiamond(ctx, n.x, n.y, R - 1); ctx.clip();
+        for (const sgn of [1, -1]) {
+          ctx.strokeStyle = '#07060C'; ctx.lineWidth = 6; ctx.setLineDash([]);
+          ctx.beginPath(); ctx.moveTo(n.x - R, n.y - R * 0.55 * sgn); ctx.lineTo(n.x + R, n.y + R * 0.55 * sgn); ctx.stroke();
+          ctx.strokeStyle = '#8B8496'; ctx.lineWidth = 4; ctx.setLineDash([5, 2]);
+          ctx.beginPath(); ctx.moveTo(n.x - R, n.y - R * 0.55 * sgn); ctx.lineTo(n.x + R, n.y + R * 0.55 * sgn); ctx.stroke();
+        }
+        ctx.setLineDash([]);
+        ctx.restore();
+      } else if (canBuy) {
+        ctx.fillStyle = n.branchColor;
+        ctx.font      = "11px 'Russo One', 'Segoe UI', sans-serif";
+        ctx.fillText(String(n.expCost), n.x, n.y + 1);
       }
 
-      // Name label below circle
       ctx.shadowColor  = '#000';
       ctx.shadowBlur   = 5;
-      ctx.fillStyle    = owned ? n.branchColor : canBuy ? '#ccd5ff' : '#334455';
-      ctx.font         = 'bold 8.5px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle    = owned ? n.branchColor : canBuy ? '#F3E8D2' : '#6E6558';
+      ctx.font         = "700 9.5px 'Rajdhani', 'Segoe UI', Arial, sans-serif";
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(n.name, n.x, n.y + R + 3);
+      ctx.fillText(n.name, n.x, n.y + R + 6);
       ctx.shadowBlur = 0;
 
       ctx.restore();
     }
 
-    // ── Root node ────────────────────────────────────────────────────────────
     ctx.save();
-    ctx.shadowColor = '#aaccff';
+    ctx.fillStyle = '#07060C';
+    _stDiamond(ctx, rp.x, rp.y + 3, 27); ctx.fill();
+    _stDiamond(ctx, rp.x, rp.y, 27); ctx.fill();
+    ctx.shadowColor = '#F2A03C';
     ctx.shadowBlur  = 10 + Math.sin(frame * 0.04) * 6;
-    ctx.beginPath();
-    ctx.arc(rp.x, rp.y, 24, 0, Math.PI * 2);
-    const rg2 = ctx.createRadialGradient(rp.x - 7, rp.y - 8, 0, rp.x, rp.y, 24);
-    rg2.addColorStop(0, 'rgba(200,220,255,0.9)');
-    rg2.addColorStop(1, 'rgba(80,110,200,0.55)');
+    _stDiamond(ctx, rp.x, rp.y, 24);
+    const rg2 = ctx.createLinearGradient(rp.x - 24, rp.y - 24, rp.x + 24, rp.y + 24);
+    rg2.addColorStop(0, '#FFE7A6');
+    rg2.addColorStop(0.45, '#E2B255');
+    rg2.addColorStop(1, '#A8731F');
     ctx.fillStyle = rg2;
     ctx.fill();
-    ctx.strokeStyle = '#aaccff';
+    ctx.strokeStyle = '#FFF0C2';
     ctx.lineWidth   = 2;
     ctx.stroke();
     ctx.shadowBlur  = 0;
-    ctx.fillStyle   = 'rgba(0,0,20,0.65)';
-    ctx.font        = 'bold 7px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#07060C';
+    _stDiamond(ctx, rp.x, rp.y, 7); ctx.fill();
+    ctx.fillStyle   = '#E2B255';
+    ctx.font        = "italic 9px 'Potta One', 'Russo One', sans-serif";
     ctx.textAlign   = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText('FRAGMENT', rp.x, rp.y + 26);
-    ctx.fillText('CORE',     rp.x, rp.y + 35);
+    ctx.fillText('FRAGMENT CORE', rp.x + 78, rp.y - 5);
     ctx.restore();
 
-    // ── Branch labels (top row) ──────────────────────────────────────────────
     if (typeof STORY_SKILL_TREE !== 'undefined') {
       for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
         const firstNode = branch.nodes[0];
         const fp = firstNode && _ST_POS[firstNode.id];
         if (!fp) continue;
         ctx.save();
-        ctx.fillStyle = branch.color + '88';
-        ctx.font      = 'bold 7.5px "Segoe UI", Arial, sans-serif';
+        ctx.fillStyle = branch.color;
+        ctx.font      = "italic 10px 'Potta One', 'Russo One', sans-serif";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.fillText(branch.label.toUpperCase(), fp.x, fp.y - R - 5);
+        ctx.shadowColor = '#07060C'; ctx.shadowBlur = 4;
+        ctx.fillText(branch.label.toUpperCase(), fp.x, fp.y - R - 9);
         ctx.restore();
       }
     }
@@ -760,7 +748,6 @@ function _renderSkillTreeModal() {
 
   _renderWeaponMasterySection(container);
 
-  // ── Mouse interaction ────────────────────────────────────────────────────
   function hitNode(e) {
     const rect = canvas.getBoundingClientRect();
     const sx = CW / rect.width, sy = CH / rect.height;
@@ -794,14 +781,14 @@ function _renderSkillTreeModal() {
       const need = n.requiresAny
         ? 'Need any: ' + n.requiresAny.map(r => (nodeMap[r] || {}).name || r).join(', ')
         : 'Requires: ' + ((nodeMap[n.requires] || {}).name || n.requires || '');
-      st = `<span style="color:#445">🔒 ${need}</span>`;
+      st = `<span style="color:#8E8371">🔒 ${need}</span>`;
     } else {
-      st = `<span style="color:#556">${n.expCost} EXP (have ${cexp})</span>`;
+      st = `<span style="color:#8E8371">${n.expCost} EXP (have ${cexp})</span>`;
     }
 
     ttip.innerHTML = `
-      <div style="font-weight:700;color:${n.branchColor};margin-bottom:5px;font-size:0.75rem;">${n.name}</div>
-      <div style="color:#8899bb;margin-bottom:7px;font-size:0.70rem;line-height:1.4;">${n.desc}</div>
+      <div style="font-family:'Potta One','Russo One',sans-serif;font-style:italic;text-transform:uppercase;letter-spacing:0.8px;color:${n.branchColor};margin-bottom:5px;font-size:0.8rem;">${n.name}</div>
+      <div style="color:#B9AC93;margin-bottom:7px;font-size:0.72rem;line-height:1.4;">${n.desc}</div>
       <div style="font-size:0.67rem;">${st}</div>`;
     ttip.style.display = 'block';
 
@@ -831,13 +818,11 @@ function _renderSkillTreeModal() {
     if (expEl) expEl.textContent = _story2.exp;
     if (typeof _saveStory2 === 'function') _saveStory2();
     if (typeof showToast   === 'function') showToast('✓ ' + n.name + ' unlocked!');
-    // Canvas draws live from _story2 state, but the mastery panel is static DOM —
-    // rebuild it so its EXP total and affordable cards reflect the spend
+    // The canvas redraws from _story2, but the mastery panel is static DOM, so rebuild it.
     _renderWeaponMasterySection(container);
   });
 }
 
-// ── Per-weapon mastery panel (appended below the skill-tree canvas) ──────────────
 function _meleeWeaponKeys() {
   if (typeof WEAPON_KEYS === 'undefined' || typeof WEAPONS === 'undefined') return ['sword'];
   const _toneOK = k => typeof STORY_TONE_EXCLUDED_WEAPONS === 'undefined' || !STORY_TONE_EXCLUDED_WEAPONS.includes(k);
@@ -859,7 +844,6 @@ function _renderWeaponMasterySection(container) {
   wrap.id = 'weaponMasterySection';
   wrap.style.cssText = 'margin-top:18px;padding-top:14px;border-top:1px solid rgba(120,120,200,0.18);';
 
-  // Header + weapon selector
   const head = document.createElement('div');
   head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;';
   head.innerHTML = `<span style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:#ffcc66;font-weight:700;">⚔️ Weapon Mastery</span>
@@ -877,7 +861,6 @@ function _renderWeaponMasterySection(container) {
   head.appendChild(sel);
   wrap.appendChild(head);
 
-  // Node cards
   const grid = document.createElement('div');
   grid.style.cssText = 'display:flex;gap:9px;flex-wrap:wrap;';
   for (const node of STORY_WEAPON_MASTERY) {
@@ -927,7 +910,6 @@ function _buyWeaponMasteryNode(weaponKey, node, container) {
   if (typeof showToast === 'function') showToast(`✓ ${node.name} — ${(WEAPONS[weaponKey] && WEAPONS[weaponKey].name) || weaponKey}`);
 }
 
-// ── Opening prologue — shown on first play or after save wipe ─────────────────
 const _PROLOGUE_LINES = [
   { text: 'Every universe has a seam.',                        delay: 0    },
   { text: 'A place where the fabric pulls thin.',             delay: 1000 },
@@ -943,13 +925,12 @@ const _PROLOGUE_LINES = [
 ];
 
 function _showPrologue(onDone) {
-  // Build or retrieve overlay
   let ov = document.getElementById('prologueOverlay');
   if (!ov) {
     ov = document.createElement('div');
     ov.id = 'prologueOverlay';
     ov.style.cssText = [
-      // Above storyModal (9000) — the cold open opens over the chapter list
+      // Above storyModal (9000): the cold open opens over the chapter list
       'position:fixed', 'inset:0', 'z-index:9500',
       'background:#000', 'display:flex', 'flex-direction:column',
       'align-items:center', 'justify-content:center',
@@ -959,13 +940,11 @@ function _showPrologue(onDone) {
     document.body.appendChild(ov);
   }
 
-  // Lines container
   const linesEl = document.createElement('div');
   linesEl.style.cssText = 'text-align:center; max-width:520px; padding:0 24px;';
   ov.innerHTML = '';
   ov.appendChild(linesEl);
 
-  // Begin button (hidden until all lines shown)
   const btn = document.createElement('button');
   btn.textContent = '▶  Begin Your Story';
   btn.style.cssText = [
@@ -1002,7 +981,6 @@ function _showPrologue(onDone) {
   ov.style.display = 'flex';
   requestAnimationFrame(() => { ov.style.opacity = '1'; });
 
-  // Reveal lines one by one on a schedule
   _PROLOGUE_LINES.forEach((line, i) => {
     setTimeout(() => {
       if (line.text === '') return; // blank = spacer already handled by margin
@@ -1018,7 +996,6 @@ function _showPrologue(onDone) {
     }, line.delay);
   });
 
-  // Show button after last line
   const lastDelay = _PROLOGUE_LINES[_PROLOGUE_LINES.length - 1].delay + 1400;
   setTimeout(() => { btn.style.opacity = '1'; }, lastDelay);
 
@@ -1036,8 +1013,7 @@ function _showPrologue(onDone) {
       (after || onDone)();
     }, 820);
   }
-  // Skippable from the first frame — the Begin button does not appear for ~8.6s,
-  // and a new player must never be trapped watching text they cannot escape.
+  // Skippable from the first frame. The Begin button only appears after ~8.6s.
   function onKey(e) {
     if (e.key === 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
     dismiss(e);
@@ -1047,7 +1023,6 @@ function _showPrologue(onDone) {
   bail.onclick = (e) => dismiss(e, () => {
     if (typeof quickFight === 'function') quickFight();
   });
-  // Also allow click anywhere on overlay after button appears
   setTimeout(() => { ov.onclick = dismiss; }, lastDelay);
 }
 

@@ -1,8 +1,6 @@
 'use strict';
-// smb-qte-draw.js — QTE draw functions: background, warp grid, clones, ripples, particles, prompts, HUD, combo text
-// Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js
-
-// ── DRAW functions ────────────────────────────────────────────────────────────
+// QTE draw functions: background, warp grid, clones, prompts, HUD, combo text.
+// Depends on smb-globals.js, smb-particles-core.js, smb-combat.js.
 
 function _drawQTEBackground(ctx, cw, ch) {
   const s = QTE_STATE;
@@ -10,7 +8,7 @@ function _drawQTEBackground(ctx, cw, ch) {
 
   const t = _qteTimeline;
 
-  // Dark vignette
+  // Vignette.
   if (_qteVoidAlpha > 0.01) {
     const vg = ctx.createRadialGradient(cw / 2, ch / 2, ch * 0.15, cw / 2, ch / 2, cw * 0.75);
     vg.addColorStop(0, `rgba(0,0,0,0)`);
@@ -19,13 +17,13 @@ function _drawQTEBackground(ctx, cw, ch) {
     ctx.fillRect(0, 0, cw, ch);
   }
 
-  // Fractal star field (phase 3+)
+  // Fractal star field (phase 3 and up).
   if (s.phase >= 3) {
     ctx.save();
     ctx.globalAlpha = 0.35 + s.chaosLevel * 0.25;
     const starCount = 60;
     for (let i = 0; i < starCount; i++) {
-      // Deterministic pseudo-random using seed
+      // Seeded, so the stars stay put frame to frame.
       const sx = (Math.sin(i * 127.1 + _qteFractalSeed) * 0.5 + 0.5) * cw;
       const sy = (Math.sin(i * 311.7 + _qteFractalSeed) * 0.5 + 0.5) * ch;
       const sr = 0.8 + (Math.sin(i * 43.9 + t * 0.05) * 0.5 + 0.5) * 2.2;
@@ -39,7 +37,7 @@ function _drawQTEBackground(ctx, cw, ch) {
     ctx.restore();
   }
 
-  // Scanline overlay
+  // Scanlines.
   if (_qteScanAlpha > 0.01) {
     ctx.save();
     const scanStep = 4;
@@ -51,7 +49,7 @@ function _drawQTEBackground(ctx, cw, ch) {
     ctx.restore();
   }
 
-  // Collapsing timeline arcs (phase 2+)
+  // Collapsing timeline arcs (phase 2 and up).
   if (s.phase >= 2) {
     ctx.save();
     ctx.globalAlpha = 0.18 + s.chaosLevel * 0.18;
@@ -80,7 +78,7 @@ function _drawQTEWarpGrid(ctx, cw, ch) {
   ctx.strokeStyle = _phaseColor(s.phase);
   ctx.lineWidth   = 0.7;
 
-  // Draw grid lines between adjacent nodes
+  // Grid lines between adjacent nodes.
   for (let row = 0; row <= rows; row++) {
     ctx.beginPath();
     for (let col = 0; col <= cols; col++) {
@@ -113,14 +111,14 @@ function _drawQTEClones(ctx, cw, ch) {
   const p = s.playerRef;
   ctx.save();
 
-  // Draw 3 mirrored silhouettes at offset positions
+  // Three mirrored silhouettes at offset positions.
   const offsets = [[-180, -20, -1], [180, 20, 1], [0, -60, 1]];
   offsets.forEach(([ox, oy, scaleX]) => {
     ctx.save();
     ctx.globalAlpha = _qteCloneAlpha * 0.45;
     ctx.fillStyle   = _phaseColor(s.phase);
 
-    // Convert game coords to screen
+    // Game coords to screen.
     const gScX = canvas.width  / GAME_W;
     const gScY = canvas.height / GAME_H;
     const sx   = (p.x + p.w / 2) * gScX + ox;
@@ -133,7 +131,7 @@ function _drawQTEClones(ctx, cw, ch) {
     ctx.shadowColor = _phaseColor(s.phase);
     ctx.shadowBlur  = 12;
 
-    // Simple stickman silhouette
+    // Stickman silhouette.
     ctx.fillRect(-sw / 2, 0, sw, sh);
     ctx.restore();
   });
@@ -188,7 +186,7 @@ function _drawQTEPrompts(ctx, cw, ch) {
   }
 }
 
-// Input-device-aware prompt icon (canvas primitives). Returns false if the key has no glyph.
+// Prompt icon for the current input device. Returns false if the key has no glyph.
 function _drawQTEGlyph(ctx, key, x, y, device, color) {
   const dirs = { a: [-1, 0], d: [1, 0], w: [0, -1], s: [0, 1] };
   const caps = { a: 'A', d: 'D', w: 'W', s: 'S', ' ': 'SPC', q: 'Q', e: 'E' };
@@ -209,11 +207,11 @@ function _drawQTEGlyph(ctx, key, x, y, device, color) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const dir = dirs[key];
   if (device === 'gamepad') {
-    if (dir) {   // D-pad cross, pressed arm lit
+    if (dir) {   // D-pad cross, with the pressed arm lit
       const arm = (dx, dy) => { pill(x + dx * 11, y + dy * 11, dx ? 14 : 12, dy ? 14 : 12, 3); ctx.fill(); };
       ctx.fillStyle = 'rgba(255,255,255,0.28)'; arm(1, 0); arm(-1, 0); arm(0, 1); arm(0, -1); arm(0, 0);
       ctx.fillStyle = color; arm(dir[0], dir[1]);
-    } else {     // face button: X / Y / B
+    } else {     // face button: X, Y or B
       const f = { ' ': ['X', '#4aa8ff'], q: ['Y', '#ffd23a'], e: ['B', '#ff5a5a'] }[key];
       ctx.fillStyle = f[1]; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#0a0a14'; ctx.font = 'bold 18px Arial'; ctx.fillText(f[0], x, y + 1);
@@ -246,9 +244,9 @@ function _drawPromptBubble(ctx, prompt, state, now) {
   const pct      = timer / maxTimer;        // 0 = just appeared, 1 = about to expire
   const pulse    = 0.88 + Math.sin((prompt.pulseT || 0) * 2.8) * 0.12;
   const baseR    = 38 * pulse;
-  const urgency  = pct > 0.65 ? (pct - 0.65) / 0.35 : 0; // 0-1, ramps in last 35%
+  const urgency  = pct > 0.65 ? (pct - 0.65) / 0.35 : 0; // 0-1, ramps over the last 35%
 
-  // Colour based on state
+  // Colour by state.
   let fillColor, strokeColor, textColor;
   if (state === 'hit') {
     fillColor   = 'rgba(80,255,140,0.25)';
@@ -259,7 +257,7 @@ function _drawPromptBubble(ctx, prompt, state, now) {
     strokeColor = '#ff2244';
     textColor   = '#ff6677';
   } else {
-    // Urgency tint: white → yellow → red
+    // Urgency tint: white, yellow, then red.
     const ur = Math.round(200 + urgency * 55);
     const ug = Math.round(220 - urgency * 150);
     const ub = Math.round(255 - urgency * 255);
@@ -270,25 +268,25 @@ function _drawPromptBubble(ctx, prompt, state, now) {
     textColor   = '#ffffff';
   }
 
-  // Drop shadow glow
+  // Glow.
   ctx.shadowColor = strokeColor;
   ctx.shadowBlur  = 14 + urgency * 12;
 
-  // Circle background
+  // Circle background.
   ctx.globalAlpha = state === 'missed' ? 0.4 : (state === 'hit' ? 0.6 : 1.0);
   ctx.fillStyle   = fillColor;
   ctx.beginPath();
   ctx.arc(x, y, baseR, 0, Math.PI * 2);
   ctx.fill();
 
-  // Stroke ring
+  // Ring stroke.
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth   = 2.5 + urgency * 2;
   ctx.beginPath();
   ctx.arc(x, y, baseR, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Countdown ring (shrinking arc)
+  // Countdown arc, shrinking.
   if (state === 'active') {
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth   = 4;
@@ -298,7 +296,7 @@ function _drawPromptBubble(ctx, prompt, state, now) {
     ctx.stroke();
   }
 
-  // Key label
+  // Key label.
   ctx.globalAlpha = state === 'missed' ? 0.4 : 1.0;
   ctx.fillStyle   = textColor;
   ctx.shadowBlur  = 8;
@@ -307,7 +305,7 @@ function _drawPromptBubble(ctx, prompt, state, now) {
   ctx.textBaseline= 'middle';
   if (!_drawQTEGlyph(ctx, prompt.displayKey, x, y, pollInputDevice(), textColor)) ctx.fillText(displayLabel, x, y);
 
-  // "MIRRORED" badge for phase 2+ mirrored prompts
+  // MIRRORED badge on phase 2+ prompts.
   if (isMirrored && state === 'active') {
     ctx.font        = '8px Arial';
     ctx.fillStyle   = '#cc88ff';
@@ -315,7 +313,7 @@ function _drawPromptBubble(ctx, prompt, state, now) {
     ctx.fillText('MIRRORED', x, y + baseR + 10);
   }
 
-  // Hit checkmark
+  // Hit checkmark.
   if (state === 'hit') {
     ctx.font      = 'bold 22px Arial';
     ctx.fillStyle = '#44ff88';
@@ -332,7 +330,7 @@ function _drawQTEHUD(ctx, cw, ch) {
 
   ctx.save();
 
-  // Phase name (top center)
+  // Phase name, top centre.
   const phaseAlpha = s.stage === 'intro'
     ? Math.min(1, s.introTimer / 40)
     : (s.stage === 'outro_success' ? Math.max(0, 1 - s.outroTimer / 40) : 1.0);
@@ -344,13 +342,13 @@ function _drawQTEHUD(ctx, cw, ch) {
   ctx.shadowColor = _phaseColor(s.phase);
   ctx.shadowBlur  = 20;
 
-  // Glitch offset on phase 3/4
+  // Glitch offset, phases 3 and 4.
   const glitchX = s.phase >= 3 ? (Math.random() - 0.5) * 3 * s.chaosLevel : 0;
   const glitchY = s.phase >= 3 ? (Math.random() - 0.5) * 2 * s.chaosLevel : 0;
 
   ctx.fillText(s.def.name, cw / 2 + glitchX, 46 + glitchY);
 
-  // Subtitle
+  // Subtitle.
   if (s.stage === 'intro' || s.stage === 'prompts') {
     ctx.font        = '14px "Segoe UI", Arial, sans-serif';
     ctx.fillStyle   = 'rgba(200,200,255,0.75)';
@@ -359,7 +357,7 @@ function _drawQTEHUD(ctx, cw, ch) {
     ctx.fillText(s.def.subtitle, cw / 2, 68);
   }
 
-  // Progress dots (sequential mode)
+  // Progress dots (sequential mode).
   if (!s.def.simultaneous && s.promptQueue.length > 0) {
     const total     = s.promptQueue.length;
     const dotR      = 5;
@@ -397,7 +395,7 @@ function _drawQTEHUD(ctx, cw, ch) {
     }
   }
 
-  // Chaos level warning (phase 3/4)
+  // Chaos warning, phases 3 and 4.
   if (s.chaosLevel > 0.1 && (s.phase >= 3)) {
     ctx.globalAlpha = phaseAlpha * s.chaosLevel;
     ctx.font        = '11px "Segoe UI", Arial, sans-serif';
@@ -425,30 +423,9 @@ function _drawQTEComboText(ctx, cw, ch) {
   ctx.shadowColor  = ct.color;
   ctx.shadowBlur   = 16;
 
-  // Rise upward as timer decreases
+  // Rise upward as the timer drops.
   const rise = (1 - ct.timer / 60) * 18;
   ctx.fillText(ct.text, ct.x, ct.y - rise);
   ctx.restore();
 }
 
-// ── HTML load: add QTE script tag to index.html integration point ─────────────
-// In index.html, add before smc-loop.js:
-//   <script src="js/smc-qte.js"></script>
-//
-// In smc-loop.js gameLoop(), add after storyCheckEvents line:
-//   if (gameMode === 'trueform') updateQTE();
-//
-// In smc-loop.js screen-space draw section (after drawStoryWorldDistortion):
-//   if (gameMode === 'trueform' && typeof drawQTE === 'function')
-//     drawQTE(ctx, canvas.width, canvas.height);
-//
-// In smc-boss.js resetTFState():
-//   if (typeof resetQTEState === 'function') resetQTEState();
-//
-// Cheat code (add to smc-loop.js cheat handler):
-//   } else if (code.startsWith('QTE')) {
-//     const ph = parseInt(code.slice(3));
-//     if (ph >= 1 && ph <= 4 && typeof triggerQTEPhase === 'function') {
-//       triggerQTEPhase(ph); ok('QTE Phase ' + ph);
-//     }
-//   }

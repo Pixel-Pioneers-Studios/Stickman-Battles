@@ -10,7 +10,9 @@
     "audit": "node tools/audit/check.js",
     "whatsnew": "node tools/whatsnew/gen.js",
     "split": "node tools/split-saga.js",
-    "check": "npm run build && npm run audit && npm run lint"
+    "check": "npm run build && npm run audit && npm run lint",
+    "smb": "node tools/smb.js",
+    "preflight": "bash tools/dev/preflight.sh"
   },
   "engines": {
     "node": "22.x"
@@ -22,6 +24,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "eslint": "^10.9.0",
-    "globals": "^17.11.0"
+    "globals": "^17.11.0",
+    "terser": "5.36.0"
   }
 }

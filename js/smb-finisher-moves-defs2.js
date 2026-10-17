@@ -1,13 +1,9 @@
 'use strict';
-// smb-finisher-moves-defs2.js — one finisher per ranged and weapons-ext move
-// scene (gun through crossbow). Melee moves: smb-finisher-moves-defs.js.
-// Ranged finishers leave the victim where the shot found them and cut the
-// camera between the shooter and the target instead of closing the gap.
-//
-// Depends on: smb-finisher-moves.js (mfDefine), smb-finisher-moves-defs.js
-//   (mfClose, mfCracks, MF_RAISED, MF_CROUCH, MF_AIRUP), smb-move-scenes-defs.js
-//   (MS_STAND, MS_AIM, MS_KNEEL, MS_IAI_HOLD, MS_IAI_CUT, MS_PI, MS_TAU).
-// ============================================================
+// smb-finisher-moves-defs2.js: finishers for ranged and weapons-ext moves (gun through crossbow).
+// Melee moves are in smb-finisher-moves-defs.js. Ranged finishers leave the victim where the
+// shot found them and cut between shooter and target instead of closing the gap.
+// Depends on smb-finisher-moves.js (mfDefine), smb-finisher-moves-defs.js (mfClose, mfCracks,
+// MF_RAISED, MF_CROUCH, MF_AIRUP), smb-move-scenes-defs.js (MS_*).
 
 // Where the shooter's muzzle / string hand is, in world space.
 function mfMuzzle(s, reach, dy) { return { x: s.ax() + s.f * (reach || 30), y: s.ay() + (dy === undefined ? -14 : dy) }; }
@@ -31,9 +27,6 @@ function mfShotCam(s, cutAt, z) {
   else s.camV(z || 1.55);
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GUN
-// ═════════════════════════════════════════════════════════════════════════════
 // Burst Shot as an execution: the long aim, the click, three rounds.
 mfDefine('gun:q', {
   name: 'HEADSHOT', color: '#ffdd00', len: 100,
@@ -109,9 +102,6 @@ mfDefine('gun:e', {
   exit: [4, -1],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// PEA SHOOTER
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('peashooter:q', {
   name: 'PEA PELTER', color: '#44cc44', len: 100,
   me: [
@@ -202,9 +192,6 @@ mfDefine('peashooter:e', {
   exit: [5, -3],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// FLAMETHROWER
-// ═════════════════════════════════════════════════════════════════════════════
 function mfFlames(ctx, s, x, y, h, w, k, n) {
   if (k <= 0) return;
   ctx.save();
@@ -308,9 +295,6 @@ mfDefine('flamethrower:e', {
   exit: [6, -3],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// BOW
-// ═════════════════════════════════════════════════════════════════════════════
 const MF_BOW_DRAW = { r: -0.04, rl: 1.12, w: -0.04, l: 3.2, ll: 0.55, lean: -2, drop: 5, fr: 10, fl: -11 };
 const MF_BOW_LOOSE = { r: -0.06, rl: 1.12, w: -0.06, l: 2.55, ll: 0.95, lean: -3, drop: 5, fr: 10, fl: -11 };
 
@@ -392,9 +376,6 @@ mfDefine('bow:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// SLINGSHOT
-// ═════════════════════════════════════════════════════════════════════════════
 // Mortar Stone, the long way round: up out of the shot, and down on their head.
 mfDefine('slingshot:q', {
   name: 'MORTAR DROP', color: '#ff9933', len: 104,
@@ -486,9 +467,6 @@ mfDefine('slingshot:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// PAPER AIRPLANE
-// ═════════════════════════════════════════════════════════════════════════════
 function mfPlane(ctx, x, y, a, sz, color) {
   ctx.save();
   ctx.translate(x, y); ctx.rotate(a);
@@ -575,9 +553,6 @@ mfDefine('paperairplane:e', {
   exit: [6, -10],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// BOOMERANG
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('boomerang:q', {
   name: 'TIGHT ORBIT', color: '#cc9944', len: 100,
   me: [
@@ -646,9 +621,6 @@ mfDefine('boomerang:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ELECTRIC STAFF
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('electricstaff:q', {
   name: 'OVERLOAD', color: '#00eeff', len: 104,
   me: [
@@ -729,9 +701,6 @@ mfDefine('electricstaff:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// BOMB
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('bomb:e', {
   name: 'BIG BADDA BOOM', color: '#ff8a3d', len: 108, noFloor: true,
   me: [
@@ -782,9 +751,6 @@ mfDefine('bomb:e', {
   exit: [3, -6],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// FRAGMENT
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('fragment:q', {
   name: 'SHATTER BARRAGE', color: '#8fd8ff', len: 100,
   me: [
@@ -896,9 +862,6 @@ mfDefine('fragment:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// THROWING KNIVES
-// ═════════════════════════════════════════════════════════════════════════════
 function mfKnife(ctx, x, y, a) {
   ctx.save();
   ctx.translate(x, y); ctx.rotate(a);
@@ -991,9 +954,6 @@ mfDefine('knives:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GLASS BLADE
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('glassblade:q', {
   name: 'MIRROR STEP', color: '#d8f6ff', len: 104,
   me: [
@@ -1110,9 +1070,6 @@ mfDefine('glassblade:e', {
   exit: [1, -5],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ANCHOR
-// ═════════════════════════════════════════════════════════════════════════════
 function mfChain(ctx, x0, y0, x1, y1, sag) {
   ctx.save();
   ctx.strokeStyle = '#b8c0c8'; ctx.lineWidth = 2.5; ctx.setLineDash([5, 3]);
@@ -1215,9 +1172,6 @@ mfDefine('anchor:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// CROSSBOW
-// ═════════════════════════════════════════════════════════════════════════════
 mfDefine('crossbow:q', {
   name: 'SNARE', color: '#c89a5a', len: 104,
   me: [
@@ -1291,9 +1245,6 @@ mfDefine('crossbow:e', {
   exit: [1, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// NULL BLADE
-// ═════════════════════════════════════════════════════════════════════════════
 // Counter Step carried through: one step past them, and the cut arrives late.
 mfDefine('nullblade:q', {
   name: 'NULL STEP', color: '#ff4422', len: 92,
@@ -1375,9 +1326,6 @@ mfDefine('nullblade:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// VOID BLADE
-// ═════════════════════════════════════════════════════════════════════════════
 // Void Slash, both cuts landing at once: an X that stays in the air after them.
 mfDefine('voidblade:q', {
   name: 'VOID CROSS', color: '#b060ff', len: 90,
@@ -1446,9 +1394,6 @@ mfDefine('voidblade:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// SHOCK RIFLE
-// ═════════════════════════════════════════════════════════════════════════════
 // Three rounds lock them rigid, and the charge they are carrying goes to ground.
 mfDefine('shockrifle:q', {
   name: 'CHAIN LIGHTNING', color: '#00ddff', len: 94,
@@ -1522,9 +1467,6 @@ mfDefine('shockrifle:e', {
   exit: [9, -3],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// LANTERN
-// ═════════════════════════════════════════════════════════════════════════════
 // Reveal Sweep deals no damage, so only the super can end a fight: the shutter
 // comes all the way open.
 mfDefine('lantern:e', {
@@ -1562,9 +1504,6 @@ mfDefine('lantern:e', {
   exit: [0, 0],
 });
 
-// ═════════════════════════════════════════════════════════════════════════════
-// GAUNTLET
-// ═════════════════════════════════════════════════════════════════════════════
 // Void Slam with someone under it: up off the floor, then through it.
 mfDefine('gauntlet:q', {
   name: 'VOID SLAM', color: '#b060ff', len: 98,

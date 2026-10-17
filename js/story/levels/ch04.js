@@ -1,16 +1,7 @@
 'use strict';
-// js/story/levels/ch04.js — Chapter 4 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch04.js: Chapter 4 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 4 — Bleeding Sky (walk → duel)
-// "You climbed. The rooftops gave you altitude, perspective — and more targets.
-// From up here you could see the fracture lines in the sky." The floor is the
-// roof deck of a run of buildings; plank bridges span the gaps between them,
-// and the roof hatches drop into the stairwells (the underground caches).
-// Taller buildings, a water tower, an antenna mast, a billboard catwalk and a
-// glass tower with a window-washer rig make the run climb and fall. The Watcher
-// waits on the helipad roof at the midpoint.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 4: Bleeding Sky (walk, then duel). Roof run with plank bridges; hatches drop to the caches.
 (function () {
   const G = 440;
   const GAPS     = [[1400, 1470], [3420, 3490], [5240, 5310]];   // planked alleys between roofs
@@ -48,7 +39,7 @@
     return P;
   }
 
-  // Fixed crack geometry across the sky (world-space parallax 0.04)
+  // World-space parallax 0.04
   const CRACKS = [];
   for (let i = 0; i < 26; i++) {
     const x = i * 260 + _slHash(i + 1) * 120;
@@ -58,7 +49,6 @@
   function backdrop(v) {
     _slSkyAbove(v, '#1e2240');
     _slParallax(v, 0.04, (l, r) => {
-      // Dusk: a band of light low on the horizon under the purple
       const hz = ctx.createLinearGradient(0, G - 260, 0, G - 40);
       hz.addColorStop(0, 'rgba(240,150,120,0)'); hz.addColorStop(1, 'rgba(240,150,120,0.35)');
       ctx.fillStyle = hz; ctx.fillRect(l - 20, G - 260, r - l + 40, 220);
@@ -66,7 +56,6 @@
         const c = CRACKS[i];
         if (c[0][0] > r + 200 || c[0][0] < l - 400) continue;
         _slSkyCrack(c, 0.55 + 0.25 * Math.sin(frameCount * 0.02 + i));
-        // Branches
         for (let b = 2; b < c.length - 2; b += 3) {
           const [bx, by] = c[b];
           _slSkyCrack(_slJag(bx, by, bx + (b % 2 ? 60 : -60), by + 30, 4, 8, i * 31 + b), 0.35);
@@ -74,7 +63,6 @@
       }
     });
     _slParallax(v, 0.16, (l, r) => {
-      // Downtown in the distance — one tower sheared forty feet to the left
       for (let i = Math.floor(l / 64) - 1; i * 64 < r + 64; i++) {
         const h = 120 + _slHash(i) * 220, w = 40 + _slHash(i + 40) * 26, x = i * 64;
         ctx.fillStyle = '#2a2a44'; ctx.fillRect(x, G + 40 - h, w, h);
@@ -88,7 +76,6 @@
       }
     });
     _slParallax(v, 0.4, (l, r) => {
-      // Nearer rooftops, roughly level with ours
       for (let i = Math.floor(l / 150) - 1; i * 150 < r + 150; i++) {
         const x = i * 150 + _slHash(i * 3) * 30, w = 120 + _slHash(i * 5) * 30, h = _slHash(i * 7) * 60;
         ctx.fillStyle = '#3c3a4c'; ctx.fillRect(x, G - 20 - h, w, 200);
@@ -117,7 +104,6 @@
       _slWaterTower(TOWER.x, TOWER.legTop, TOWER.w, TOWER.tankH);
       _slAcUnit(AC_B.x, G - AC_B.h, AC_B.w, AC_B.h);
       _roofBlock({ x: TALL.x, w: TALL.w, h: TALL.h }, '#5a4038');
-      // Radio mast with two service platforms
       ctx.strokeStyle = '#4a4f55'; ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(MAST.x + 20, G - TALL.h); ctx.lineTo(MAST.x + 30, G - 420); ctx.moveTo(MAST.x + 50, G - TALL.h); ctx.lineTo(MAST.x + 40, G - 420); ctx.stroke();
       ctx.lineWidth = 1;
@@ -127,7 +113,6 @@
       _slDish(MAST.x + 60, MAST.ys[0] - 40, 18, 1);
     }
     if (_slVisible(v, 1480, 1800)) {
-      // Rooftop garden beds and a greenhouse
       for (let bx = 1490; bx < 1610; bx += 64) {
         ctx.fillStyle = '#6a4e34'; ctx.fillRect(bx, G - 26, 54, 26);
         ctx.fillStyle = '#4e7a3e'; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(bx + 6 + k * 11, G - 28, 7, 0, Math.PI * 2); ctx.fill(); }
@@ -138,7 +123,6 @@
     }
     if (_slVisible(v, 1940, 2420)) {
       _slAcUnit(AC_C.x, G - AC_C.h, AC_C.w, AC_C.h);
-      // Billboard: catwalk is the ledge; the board above glitches with the sky
       const B = BOARD;
       ctx.fillStyle = '#2c3034';
       for (const px of [B.x + 30, B.x + B.w - 36]) ctx.fillRect(px, B.y, 6, G - B.y);
@@ -157,7 +141,6 @@
       for (let k = 0; k < 4; k++) { ctx.fillStyle = 'rgba(255,240,200,0.6)'; ctx.fillRect(B.x + 30 + k * 86, B.y - 4, 10, 4); }
     }
     if (_slVisible(v, 2600, 3400)) {
-      // Helipad roof: windsock, light posts. The Watcher's ground.
       for (const lx of [2700, 3300]) {
         ctx.fillStyle = '#3a3e42'; ctx.fillRect(lx - 2, G - 30, 4, 30);
         ctx.fillStyle = (frameCount % 60) < 30 ? '#ff5a3a' : '#5a2a1a'; ctx.beginPath(); ctx.arc(lx, G - 32, 4, 0, Math.PI * 2); ctx.fill();
@@ -169,7 +152,6 @@
     }
     if (_slVisible(v, 3560, 4300)) {
       _roofBlock({ x: STEP.x, w: STEP.w, h: STEP.h }, '#4e4a48');
-      // Glass office tower edge: curtain wall, mullions, reflections of the sky
       const B = GLASS;
       const cg = ctx.createLinearGradient(B.x, G - B.h - 200, B.x + B.w, G);
       cg.addColorStop(0, '#5a6a8a'); cg.addColorStop(0.5, '#3a4a6a'); cg.addColorStop(1, '#2a3450');
@@ -179,11 +161,9 @@
       ctx.strokeStyle = 'rgba(20,24,34,0.8)'; ctx.lineWidth = 2;
       for (let mx = B.x; mx <= B.x + B.w; mx += 40) { ctx.beginPath(); ctx.moveTo(mx, G - B.h - 260); ctx.lineTo(mx, G); ctx.stroke(); }
       for (let my = G - B.h - 260; my < G; my += 36) { ctx.beginPath(); ctx.moveTo(B.x, my); ctx.lineTo(B.x + B.w, my); ctx.stroke(); }
-      // Setback terrace (the block top you climb onto)
       ctx.fillStyle = '#8a8478'; ctx.fillRect(B.x - 4, G - B.h, B.w + 8, 10);
       ctx.fillStyle = '#c8c8cc'; ctx.fillRect(B.x - 4, G - B.h - 30, B.w + 8, 3);
       for (let px = B.x; px <= B.x + B.w; px += 25) ctx.fillRect(px, G - B.h - 30, 2, 30);
-      // Window-washer gondola on its cables, hanging past the terrace
       const G2 = GONDOLA;
       ctx.strokeStyle = '#1a1c20'; ctx.lineWidth = 1.2;
       ctx.beginPath(); ctx.moveTo(G2.x + 10, G2.y); ctx.lineTo(G2.x + 10, G - B.h - 260); ctx.moveTo(G2.x + G2.w - 10, G2.y); ctx.lineTo(G2.x + G2.w - 10, G - B.h - 260); ctx.stroke();
@@ -193,7 +173,6 @@
     }
     if (_slVisible(v, 4600, 5240)) {
       _slWaterTower(TANK2.x, TANK2.legTop, TANK2.w, TANK2.tankH);
-      // Pigeon coop on legs (top is standable)
       const C = COOP;
       ctx.fillStyle = '#8a7a5a'; ctx.fillRect(C.x, G - C.h, C.w, C.h - 20);
       ctx.fillStyle = '#5a4a36'; ctx.fillRect(C.x - 4, G - C.h, C.w + 8, 6);
@@ -209,7 +188,6 @@
       _slDish(4780, G - 30, 16, -1);
     }
     if (_slVisible(v, 5300, 5800)) {
-      // Next building over is taller; its fire-escape ladder is the way on
       _slBrick(EXIT + 40, G - 420, 400, 420, '#4e3a32');
       _slWindowGrid(EXIT + 60, G - 400, 360, 330, 4, 4, { lit: 0.35, seed: 44, glow: true });
       _slFireEscape(EXIT + 70, 120, [G - 140, G - 240, G - 340]);
@@ -223,7 +201,6 @@
   function surface(v, a, ph) {
     _slSurfaces(v, a, ph, ZONES);
     const front = ph === 'front';
-    // Alleys between buildings, planked over
     for (const [x0, x1] of GAPS) {
       if (!_slVisible(v, x0 - 20, x1 + 20)) continue;
       ctx.fillStyle = '#08080c';
@@ -234,7 +211,6 @@
       else for (let k = 0; k < 3; k++) ctx.fillRect(x0 - 10, G - 16 + k * 5, x1 - x0 + 20, 4);
     }
     if (front) return;
-    // Helipad markings
     if (_slVisible(v, HELI - 120, HELI + 120)) {
       ctx.save(); ctx.translate(HELI, G - 8); ctx.scale(1, 0.12);
       ctx.strokeStyle = 'rgba(240,220,90,0.8)'; ctx.lineWidth = 10;
@@ -243,7 +219,6 @@
       ctx.fillStyle = 'rgba(240,240,230,0.85)';
       ctx.fillRect(HELI - 30, G - 13, 8, 10); ctx.fillRect(HELI + 22, G - 13, 8, 10); ctx.fillRect(HELI - 30, G - 9, 60, 3);
     }
-    // Roof hatches over the stairwell shafts
     for (const r of (a.undergroundRects || []).filter(q => q.kind === 'shaft')) {
       if (!_slVisible(v, r.x - 40, r.x + r.w + 40)) continue;
       ctx.fillStyle = '#3a3e42'; ctx.fillRect(r.x - 8, G - 20, 8, 20); ctx.fillRect(r.x + r.w, G - 20, 8, 20);

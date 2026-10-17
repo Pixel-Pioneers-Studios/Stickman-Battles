@@ -1,19 +1,17 @@
-// ============================================================
-// ADAPTIVE AI  —  Garou-Style Counter-Striker
-// Reads player patterns in real-time and punishes every mistake.
-// Used exclusively in the 'adaptive' game mode.
-// ============================================================
+// Adaptive AI: Garou-style counter-striker.
+// Reads player patterns in real time and punishes mistakes.
+// Only used in the 'adaptive' game mode.
 
-// ── Starting memory — calibrated to hard-bot behaviour ───────
+// Starting memory, calibrated to hard-bot behaviour.
 // aggression/reactionSpeed high from the start; spacing low (fights close)
 const ADAPTIVE_DEFAULTS = {
   aggression:    0.78,   // attacks relentlessly
   defense:       0.70,   // reads and reacts well
-  spacing:       0.18,   // fights very close — Garou is always in your face
+  spacing:       0.18,   // fights very close, Garou is always in your face
   reactionSpeed: 0.90,   // near-instant reaction
 };
 
-// ── Debug / console API ──────────────────────────────────────
+// Debug and console API
 let adaptiveAIDebug = false;
 
 function showAIStats(on) {
@@ -48,7 +46,7 @@ function logAIChanges() {
   );
 }
 
-// ── AdaptiveAI Class ─────────────────────────────────────────
+// AdaptiveAI class
 class AdaptiveAI extends Fighter {
   constructor(x, y, color, weaponKey) {
     super(x, y, color, weaponKey, null, true, 'hard');
@@ -57,41 +55,38 @@ class AdaptiveAI extends Fighter {
     this.isBoss     = false;
     this.name       = 'SOVEREIGN';
 
-    // Learning memory
     this.aiMemory = { ...ADAPTIVE_DEFAULTS };
 
     // Rolling event buffer (last ~20s of combat events)
     this._eventBuffer = [];
 
-    // Adaptation timer — fast adaptation
     this._adaptTick     = 0;
-    this._adaptInterval = 8; // batch ~7.5x/sec — above human adaptation rate
+    this._adaptInterval = 8; // batch ~7.5x/sec, above human adaptation rate
     this._adaptCycles   = 0;
 
     // Health snapshots for delta detection
     this._prevHealth       = this.health;
     this._prevTargetHealth = Infinity;
 
-    // Combo tracking
     this._comboCount = 0;
     this._comboTimer = 0;
 
-    // ── Garou-style combat state ──────────────────────────
+    // Garou-style combat state
     this._punishTimer        = 0;  // frames until counter-attack fires after a dodge
     this._prevPlayerAttacking = false;
     this._prevPlayerAirborne  = false;
     this._prevPlayerAtk       = 0;
     this._counterWindowOpen   = false;
-    // ── Bait state ────────────────────────────────────────
+    // Bait state
     this._baitTimer    = 0;  // frames remaining in bait stance (stand still to invite attack)
     this._baitCooldown = 0;  // frames until bait is available again
     this._baitCount    = 0;  // how many baits have been successfully punished (tracks pattern)
-    this._baitIgnoredStreak = 0; // consecutive baits the player refused to take — rations future baits
-    // ── Combo state ───────────────────────────────────────
+    this._baitIgnoredStreak = 0; // consecutive baits refused, rations future baits
+    // Combo state
     this._comboFollowTimer = 0; // frames until follow-up combo hit fires
     this._comboFollowHits  = 0; // queued follow-up hits remaining
 
-    // ── BehaviorModel integration ─────────────────────────────
+    // BehaviorModel integration
     this._behaviorModel  = new BehaviorModel();
     this._bmPrevSnap     = null;   // { onGround, vx, vy } snapshot of target last tick
     this._bmActivePunish = null;   // pending outcome check: { route, hpSnap, checkFrame }
@@ -100,14 +95,14 @@ class AdaptiveAI extends Fighter {
     const _dm = this.aiMemory;
     this.intelligence = (_dm.aggression + _dm.defense + _dm.spacing + _dm.reactionSpeed) / 4;
 
-    // Aura RGB — orange/gold at start (hard-bot level)
+    // Aura RGB: orange/gold at start (hard-bot level)
     this._auraR     = 255;
     this._auraG     = 200;
     this._auraB     = 0;
     this._auraPhase = 0;
   }
 
-  // ─── Event Recording ─────────────────────────────────────────
+  // Event recording
   _recordEvent(type, weight) {
     this._eventBuffer.push({ type, weight, frame: frameCount });
     if (this._eventBuffer.length > 280) this._eventBuffer.shift();
@@ -118,9 +113,9 @@ class AdaptiveAI extends Fighter {
     return this._eventBuffer.filter(e => e.type === type && e.frame >= cutoff).length;
   }
 
-  // ─── Per-frame adaptation tick (called from update()) ────────
+  // Per-frame adaptation tick, called from update()
   _tickAdaptation() {
-    // ── Punish outcome check ───────────────────────────────────
+    // Punish outcome check.
     // Runs ~22 frames after a punish fires; records whether it landed.
     if (this._bmActivePunish && typeof frameCount !== 'undefined' &&
         frameCount >= this._bmActivePunish.checkFrame) {
@@ -138,11 +133,7 @@ class AdaptiveAI extends Fighter {
       if (curTgtHp < this._prevTargetHealth && this._prevTargetHealth < Infinity) {
         this._recordEvent('hit_landed', 10);
         // Instant reward: more aggression, fight even closer.
-        // Steps are deliberately ~4x smaller than the originals (0.015/0.012).
-        // Starting values are 0.78-0.90, so the old steps plus the batch rates
-        // below pinned every dial at its limit within about six seconds of any
-        // fight, after which nothing could change and his behaviour became a
-        // constant. Small steps leave room for the fight to actually move them.
+        // Steps are small. Big steps pinned every dial at its limit within seconds.
         this.aiMemory.aggression = Math.min(1, this.aiMemory.aggression + 0.004);
         this.aiMemory.spacing    = Math.max(0, this.aiMemory.spacing    - 0.003);
         if (this._comboTimer > 0) {
@@ -161,28 +152,20 @@ class AdaptiveAI extends Fighter {
     if (this._comboTimer > 0) this._comboTimer--;
     else this._comboCount = 0;
 
-    // Detect damage taken — Garou adapts by getting FASTER, not backing off
+    // Damage taken makes him faster, not more cautious.
     const curHp = this.health;
     if (curHp < this._prevHealth && this._prevHealth > 0) {
       this._recordEvent('dmg_taken', -10);
-      // ── Was this hit a PUNISH, or just a hit? ──────────────────────────────
-      // The distinction decides whether aggression is the thing at fault, and
-      // getting it wrong is what made a previous version of this back off from
-      // bosses it was beating. Damage taken while mid-swing or in swing recovery
-      // is evidence that committing is being punished. Damage taken while neutral
-      // is just the opponent landing something — a boss deals damage on its own
-      // schedule no matter how far away he stands, so retreating from it costs
-      // offence and buys nothing.
+      // Only a punish (damage mid-swing or in recovery) argues for less aggression. Neutral hits don't.
       const _committed = this.attackTimer > 0 || this.attackEndlag > 0;
       if (_committed) this._recordEvent('dmg_punished', -12);
-      // Instant: sharpen reaction, NOT increase spacing
+      // Sharpen reaction, don't open spacing.
       this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.005);
       this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.004);
-      // Only a punish argues for less aggression.
       if (_committed) this.aiMemory.aggression = Math.max(0.35, this.aiMemory.aggression - 0.006);
       if (this._countRecent('dmg_taken', 90) >= 3) {
         this._recordEvent('being_comboed', -15);
-        // Getting comboed → spike reaction speed and slightly pull back spacing
+        // Comboed: spike reaction speed, pull spacing back a little.
         this.aiMemory.reactionSpeed = Math.min(1, this.aiMemory.reactionSpeed + 0.010);
         this.aiMemory.defense       = Math.min(1, this.aiMemory.defense       + 0.009);
         this.aiMemory.spacing       = Math.min(0.55, this.aiMemory.spacing    + 0.012);
@@ -205,7 +188,7 @@ class AdaptiveAI extends Fighter {
     this._updateAuraColor();
   }
 
-  // ─── Batch adaptation — Garou only gets more dangerous ───────
+  // Batch adaptation
   _applyAdaptation() {
     this._adaptCycles++;
     const m      = this.aiMemory;
@@ -219,40 +202,11 @@ class AdaptiveAI extends Fighter {
     const deaths       = recent.filter(e => e.type === 'death').length;
     const dodges       = recent.filter(e => e.type === 'dodge').length;
 
-    // ── Learning rate ────────────────────────────────────────────────────────
-    // R was 0.32, which is not a learning rate — it is a jump to the limit. One
-    // landed hit moved aggression by 0.448 from a 0.78 start, and reactionSpeed
-    // was raised by R*0.45 EVERY cycle unconditionally regardless of evidence.
-    // Measured live: aggression, defense, reactionSpeed and spacing all reached
-    // their caps 5.6 seconds into a fight, and evolution stage went 0 -> 3 in the
-    // same window. From that point on nothing about him could change, which is
-    // exactly why he repeats himself.
-    //
-    // With R = 0.05 a strong signal moves a dial by ~0.07 per cycle, so a read
-    // takes several seconds of consistent evidence to establish and can be undone
-    // by several seconds of contrary evidence. That is what makes the adaptation
-    // legible: you can out-play a read and watch it change.
-    // ── Converge toward a target, do not accumulate ─────────────────────────
-    // This is the structural fix, and it matters more than the rate. The batch
-    // runs every _adaptInterval = 8 frames but scores a 180-frame window, so ONE
-    // landed hit is re-counted by ~22 consecutive cycles. Any `m.x += k` rule is
-    // therefore multiplied by 22 no matter how small k is, which is why every dial
-    // hit its cap ~6 seconds into a fight (measured) and stayed there.
-    //
-    // So each cycle now derives a TARGET from the current evidence and eases
-    // toward it. Easing is idempotent under repeated evaluation: re-running it 22
-    // times converges to the target instead of blowing past it, and when the
-    // evidence changes the dial moves back the other way at the same rate. That
-    // is what makes the adaptation both stable and reversible.
+    // Learning rate: small steps. Dials ease toward a target instead of accumulating.
+    // Accumulating (m.x += k) gets re-counted by ~22 batches per hit, so ease toward a target instead.
     const RATE = 0.05;                 // ~2.7s to close most of a gap at 7.5 cyc/s
 
-    // ── Per-instance baseline ────────────────────────────────────────────────
-    // The rest-point each dial returns to must be THIS fighter's own starting
-    // profile, not the module defaults. _startGameCore deliberately boosts
-    // Sovereign above them ("maximum Sovereign from round 1" — aggression 0.94,
-    // defense 0.90), and easing toward the shared 0.78/0.70 defaults would quietly
-    // undo that within seconds. Captured lazily on the first cycle, which is after
-    // those post-construction boosts have been applied.
+    // Rest point is this fighter's own starting profile, not module defaults (Sovereign boosts survive).
     if (!this._memBaseline) this._memBaseline = { ...m };
     const B = this._memBaseline;
 
@@ -260,23 +214,7 @@ class AdaptiveAI extends Fighter {
       const tgt = Math.max(lo, Math.min(hi, target));
       m[k] += (tgt - m[k]) * RATE;
     };
-    // ── SELF-TERM BUDGET (SMK2_TUNE.oppAdapt) ───────────────────────────────
-    // The opponent offsets below were correct and were being thrown away. The
-    // self-referential part of each target routinely overshoots the ease()
-    // ceiling on its own — measured mean aggression target 1.13 / 1.89 / 1.10
-    // against parry_wall / gauntlet / regenerator, at or over the ceiling in
-    // ~85% of cycles — so adding a +-0.35 opponent offset to an already-clamped
-    // 1.89 changes nothing, and every opponent lands on the same endpoint.
-    //
-    // The control case is in the same measurement: escalator was the ONLY
-    // scenario whose target had headroom (0.845, 17.6% clamped) and the ONLY one
-    // whose converged dials differed from all the others.
-    //
-    // So the self term is squashed into a bounded budget. tanh keeps its sign and
-    // its ordering — a bigger win still means more aggression — while capping how
-    // much of the range it can consume, leaving the opponent offset decisive at
-    // the margin. It is NOT a nerf to self-adaptation: inside the budget the
-    // response is near-linear (tanh x ~ x for small x).
+    // Self-term is tanh-squashed into a budget, so the opponent offset still matters at the ceiling.
     const _oppAdapt = (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE && (SMK2_TUNE.oppAdapt || SMK2_TUNE.adaptV2));
     const SQ = (x, cap) => _oppAdapt ? cap * Math.tanh(x / cap) : x;
 
@@ -285,43 +223,16 @@ class AdaptiveAI extends Fighter {
     const winning  = hitsLanded + combosLanded * 1.5;
     const losing   = dmgTaken + beingComboed * 2 + deaths * 3;
 
-    // ── Aggression is driven by PUNISHMENT, not by scoreline ─────────────────
-    // The previous version used `winning - losing`, and that was wrong in a way
-    // the telemetry made obvious. Getting hit knocks him back, so the window
-    // containing a hit almost always contains ZERO hits landed by him — which
-    // made net negative, lowered aggression, opened spacing, slowed his
-    // re-engagement, and so produced another window with no hits. A
-    // self-reinforcing retreat, triggered by the CONSEQUENCE of being hit rather
-    // than by any evidence that pressing was the mistake. Measured mid-fight: when
-    // net went negative his spacing nearly tripled (0.047 -> 0.133) while he was
-    // comfortably ahead on damage, 1172 dealt to 154 taken.
-    //
-    // The honest signal is whether his COMMITMENTS are being punished — damage
-    // taken while mid-swing or in recovery. That is the only thing that actually
-    // argues "you are attacking too much". A boss that hits him in neutral is not
-    // evidence about his aggression at all, and backing off it just donates
-    // damage. Deaths still count: dying is always a reason to reconsider.
+    // Aggression follows punishment, not scoreline. Net score alone caused a retreat spiral after every hit.
     const pressure = punished * 1.6 + deaths * 2.5;
 
-    // ── Opponent-conditioned offsets ─────────────────────────────────────────
-    // Everything above is SELF-referential: hits he landed, damage he took,
-    // whether his commitments were punished. None of it contains one bit of
-    // information about WHO he is fighting, and that is not a subtle flaw — it is
-    // mathematically decisive. Measured over 9 trials (tools/sov-adapt-probe.js),
-    // his four dials converged to the same endpoint against a hammer berserker, a
-    // katana assassin and a spear zoner: between-opponent SD was SMALLER than
-    // rep-to-rep noise on all four. A target function with no opponent term
-    // cannot produce an opponent-specific answer no matter how well it is tuned.
-    //
-    // `_oppAdaptTerms()` supplies signed, bounded offsets derived from the
-    // opponent's measured reach, speed, endlag and action mix. Subclasses that do
-    // not model their opponent return nothing and behave exactly as before.
+    // Opponent-conditioned offsets
+    // The dials above are self-referential. Without an opponent term, every opponent converges to the same answer.
+    // _oppAdaptTerms() gives bounded offsets from the opponent's reach, speed, endlag and mix. Others get none.
     const O = (typeof this._oppAdaptTerms === 'function' && this._oppAdaptTerms()) || null;
     const OT = k => (O && typeof O[k] === 'number' && isFinite(O[k])) ? Math.max(-0.35, Math.min(0.35, O[k])) : 0;
 
-    // TARGET SATURATION PROBE (SMK2_TUNE.dialProbe): is the opponent term OT even
-    // reachable, or has the self-referential part already pinned the target at the
-    // ease() ceiling before OT is added? Records pre-clamp target and OT magnitude.
+    // Target saturation probe (SMK2_TUNE.dialProbe): records pre-clamp target and offset size.
     if (typeof SMK2_TUNE !== 'undefined' && SMK2_TUNE.dialProbe) {
       const _T = this._targProbe || (this._targProbe = { n: 0, tgt: 0, over: 0, ot: 0, otNonZero: 0 });
       const _raw = B.aggression + winning * 0.05 - pressure * 0.09 + OT('aggression');
@@ -330,20 +241,14 @@ class AdaptiveAI extends Fighter {
     }
     ease('aggression', B.aggression + SQ(winning * 0.05 - pressure * 0.09, 0.18) + OT('aggression'), 0.55, 1);
 
-    // Defense: bought when he is being hit, relaxed when he is not. A fighter
-    // taking nothing has no reason to keep paying for guard.
+    // Defense: bought when hit, relaxed when not.
     ease('defense', B.defense + SQ(losing * 0.10 - (dmgTaken === 0 ? 0.12 : 0)
                     + dodges * 0.02, 0.18) + OT('defense'), 0.30, 1);
 
-    // Spacing: tightens while pressure is working, and opens only when his
-    // APPROACH is what is being punished — same reasoning as aggression above.
-    // Keyed on raw damage it produced the retreat spiral described there, and the
-    // ceiling is lower now (0.34) so even a bad read never turns him passive.
+    // Spacing tightens under pressure. It opens only when his approach is what gets punished.
     ease('spacing', B.spacing + SQ(-winning * 0.03 + pressure * 0.05, 0.12) + OT('spacing'), 0, 0.34);
 
-    // Reaction speed: EVIDENCE-driven only. The old unconditional
-    // `reactionSpeed += R * 0.45` every cycle is gone — it alone pinned this dial
-    // at 1.0 within two cycles of every fight regardless of what happened.
+    // Reaction speed is evidence-driven only. No unconditional drift.
     ease('reactionSpeed', B.reactionSpeed + SQ(losing * 0.05, 0.15) + OT('reactionSpeed'), 0.45, 1);
 
     // Clamp all to [0, 1]
@@ -352,11 +257,11 @@ class AdaptiveAI extends Fighter {
     if (adaptiveAIDebug) logAIChanges();
   }
 
-  // ─── Called immediately on death ─────────────────────────────
+  // Called on death
   onDeath() {
     this._recordEvent('death', -20);
     this._applyAdaptation();
-    // Reset counter state — fresh read on respawn
+    // Fresh read on respawn
     this._punishTimer         = 0;
     this._counterWindowOpen   = false;
     this._prevPlayerAttacking = false;
@@ -364,7 +269,7 @@ class AdaptiveAI extends Fighter {
     this._prevPlayerAtk       = 0;
   }
 
-  // ─── Aura color: blue → cyan → yellow → orange → red ─────────
+  // Aura color: blue, cyan, yellow, orange, red
   _updateAuraColor() {
     const i = this.intelligence;
     if (i < 0.25) {
@@ -390,13 +295,13 @@ class AdaptiveAI extends Fighter {
     }
   }
 
-  // ─── Override update() to tick adaptation every physics frame ─
+  // Tick adaptation every physics frame
   update() {
     this._tickAdaptation();
     super.update();
   }
 
-  // ─── GAROU AI: reads moves, punishes mistakes, never backs down ─
+  // Garou AI: reads moves, punishes mistakes, never backs down
   updateAI() {
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
@@ -407,12 +312,11 @@ class AdaptiveAI extends Fighter {
     const m = this.aiMemory;
 
     // ── BehaviorModel: observe target this tick ───────────────────
-    // Always called — even if we return early below — so the bigram
-    // accumulates data every tick regardless of what the AI decides.
+    // BehaviorModel: observe target every tick, even on early return.
     const _bmObs = this._behaviorModel.observe(t, this._bmPrevSnap);
     this._bmPrevSnap = { onGround: t.onGround, vx: t.vx, vy: t.vy };
 
-    // ── Pattern tracking: edge-detect player inputs each AI tick ──
+    // Pattern tracking: edge-detect player inputs.
     const playerAttacking = t.attackTimer > 0;
     if (playerAttacking && !this._prevPlayerAttacking) {
       this._recordEvent('player_attack', 0);
@@ -425,14 +329,14 @@ class AdaptiveAI extends Fighter {
     }
     this._prevPlayerAirborne = playerAirborne;
 
-    // Punish window: player just finished a swing (attackTimer → 0) — Garou pounces
+    // Punish window: player just finished a swing.
     const playerJustWhiffed = this._prevPlayerAtk > 0 && t.attackTimer === 0;
     this._prevPlayerAtk = t.attackTimer;
     if (playerJustWhiffed) this._counterWindowOpen = true;
     if (this._baitCooldown > 0) this._baitCooldown--;
     if (this._comboFollowTimer > 0) this._comboFollowTimer--;
 
-    // ── Micro-adaptation: short-window reactive boosts ──
+    // Short-window reactive boosts
     const recentTaken  = this._countRecent('dmg_taken',    90);
     const recentLanded = this._countRecent('hit_landed',   90);
     const recentPAtks  = this._countRecent('player_attack', 150);
@@ -448,8 +352,7 @@ class AdaptiveAI extends Fighter {
     const GAROU_FLOOR = 0.70;
     const realAgg = Math.max(GAROU_FLOOR, effAgg);
 
-    // Derive real-time parameters
-    // spacing 0→1 maps to 25→110px — always close, never far
+    // spacing 0..1 maps to 25..110px: always close, never far
     const prefDist    = 25  + m.spacing * 85;
     const moveSpd     = 3.6 + realAgg  * 2.4;  // 3.6..6.0
     const atkFreq     = 0.40 + realAgg * 0.58; // 0.40..0.98
@@ -460,7 +363,7 @@ class AdaptiveAI extends Fighter {
     const dir = Math.sign(dx);
     const atkRange = this.weapon.range * 1.1 + 20;
 
-    // ─── Danger: boss beams ──────────────────────────────────
+    // Danger: boss beams
     if (typeof bossBeams !== 'undefined' && bossBeams && bossBeams.length) {
       for (const beam of bossBeams) {
         if (beam.done) continue;
@@ -473,7 +376,7 @@ class AdaptiveAI extends Fighter {
       }
     }
 
-    // ─── Danger: lava proximity ──────────────────────────────
+    // Danger: lava proximity
     if (currentArena && currentArena.hasLava && currentArena.lavaY) {
       if ((currentArena.lavaY - (this.y + this.h)) < 80 && this.onGround) {
         this.vx = this.cx() < GAME_W / 2 ? 6 : -6;
@@ -482,17 +385,15 @@ class AdaptiveAI extends Fighter {
       }
     }
 
-    // ─── Edge guard ──────────────────────────────────────────
+    // Edge guard
     const nearLeft  = this.x < 50;
     const nearRight = this.x + this.w > GAME_W - 50;
 
-    // ─── BehaviorModel: predict + bias ───────────────────────
+    // BehaviorModel: predict and bias
     const _bmPred = this._behaviorModel.predictNext(_bmObs.action, _bmObs.context);
     const _bmBias = this._behaviorModel.computeBias(_bmObs.action, _bmPred);
 
-    // Pre-dodge: if an attack is predicted with sufficient confidence,
-    // step back now — before the swing starts — so the AI is already
-    // at whiff range when the attack animation fires.
+    // Pre-dodge: step back before the swing starts, so we're at whiff range when it fires.
     if (_bmBias.preDodgeFrames > 0 && !playerAttacking && this.cooldown <= 0) {
       const _pdDir = (nearLeft && dir < 0) ? 1 : (nearRight && dir > 0) ? -1 : -dir;
       if (this.onGround && !this.isEdgeDanger(_pdDir)) {
@@ -503,8 +404,8 @@ class AdaptiveAI extends Fighter {
       }
     }
 
-    // ─── PHASE 1: COUNTER-ATTACK — punish player whiff ───────
-    // Garou's core loop: read the attack, dodge it, punish immediately.
+    // Counter-attack: punish a whiff.
+    // Read the attack, dodge it, punish immediately.
     if (playerAttacking && d < 160) {
       const dodgeRoll = Math.random();
       if (dodgeRoll < effDef * 0.88 * Math.min(1.45, _bmBias.dodgeBoost)) {
@@ -527,8 +428,7 @@ class AdaptiveAI extends Fighter {
         return;
       }
       // Didn't dodge: shield if timing is still good
-      // Scaled like the SovereignMK2 gate (see _dialGate there): a constant tuned
-      // for a 0.88 baseline is unreachable once adaptV2 starts the dial at 0.60.
+      // Gate scaled to the SovereignMK2 dial gate, since a constant tuned for 0.88 is unreachable at 0.60.
       const _defGate = (typeof this._dialGate === 'function') ? this._dialGate(0.682) : 0.60;
       if (effDef > _defGate && this.shieldCooldown === 0 && Math.random() < 0.40) {
         this.shielding     = true;
@@ -541,7 +441,7 @@ class AdaptiveAI extends Fighter {
       this.shielding = false;
     }
 
-    // ─── PHASE 2: PUNISH — close and strike after dodge ──────
+    // Punish: close and strike after a dodge
     if (this._punishTimer > 0) {
       this._punishTimer--;
       // Sprint toward them during the punish window
@@ -551,12 +451,11 @@ class AdaptiveAI extends Fighter {
         const _pRoute = this._behaviorModel.bestPunishRoute();
         if (this.cooldown <= 0 && d < this.weapon.range * 1.5 + 35) {
           if (_pRoute === 'crossup' && this.onGround && d < 90) {
-            // Jump over target — airborne follow-up fires on the next close pass
+            // Jump over target: airborne follow-up fires on the next close pass
             this.vy = -19;
             this.vx = dir * moveSpd * 1.2;
           } else {
-            // 'direct': swing immediately.
-            // 'delayed': add a short timing-trip delay (trips players who counter-time).
+            // 'direct': swing now. 'delayed': short timing-trip delay.
             if (_pRoute === 'delayed') this.aiReact = Math.max(2, reactFrames + 3);
             this.attack(t);
             this._counterWindowOpen = false;
@@ -582,7 +481,7 @@ class AdaptiveAI extends Fighter {
     }
     this._counterWindowOpen = false;
 
-    // ─── PHASE 2.5: COMBO FOLLOW-UP ──────────────────────────
+    // Combo follow-up
     // After landing a hit, queue immediate follow-up strikes
     if (this._comboFollowTimer === 0 && this._comboFollowHits > 0 && this.cooldown <= 0 && d < atkRange * 1.2) {
       this._comboFollowHits--;
@@ -591,7 +490,7 @@ class AdaptiveAI extends Fighter {
       return;
     }
 
-    // ─── PHASE 3: PATTERN ANTICIPATION & BAIT ────────────────
+    // Pattern anticipation and bait
     // Player jumps frequently → stay airborne too; predict aerial exchanges
     if (recentPJumps >= 3 && !this.onGround && this.canDoubleJump && Math.random() < 0.38) {
       this.vy = -15;
@@ -602,14 +501,13 @@ class AdaptiveAI extends Fighter {
       this.vx *= 0.80;
     }
 
-    // ─── BAIT MECHANIC: stand still at punish range to invite attack ──────
+    // Bait: stand still at punish range
     // Triggers at moderate intelligence; if player bites, dodge + punish harder
     if (this._baitTimer > 0) {
       this._baitTimer--;
-      // Stand completely still — tempting target
       this.vx = 0;
       if (playerAttacking && d < 160) {
-        // Player took the bait — dodge aggressively
+        // Player took the bait: dodge aggressively
         this._baitTimer = 0;
         this._baitCooldown = 280;
         this._baitCount++;
@@ -622,34 +520,31 @@ class AdaptiveAI extends Fighter {
         this._punishTimer = 4; // immediately punish
         this._recordEvent('dodge', 8);
       } else if (this._baitTimer === 0) {
-        // Bait expired un-taken — without a cooldown here, baits chain back-to-back
-        // against a disciplined player and the AI just stands at attack range doing nothing.
+        // Bait expired untaken. Without a cooldown, baits chain against a disciplined player and the AI stands at range doing nothing.
         this._baitIgnoredStreak++;
         this._baitCooldown = Math.max(this._baitCooldown, 160 + this._baitIgnoredStreak * 80);
       }
       return;
     }
-    // Player health low → finish them
+    // Low player health: finish them
     const finishMode = t.health < t.maxHealth * 0.30;
 
     // Activate bait: only at decent intelligence, not finishing, not in punish
     const canBait = this.intelligence > 0.50 && this._baitCooldown === 0 && !finishMode && d < 140 && d > prefDist * 0.8;
     if (canBait && Math.random() < (0.004 + this.intelligence * 0.006) * _bmBias.baitBoost / (1 + this._baitIgnoredStreak)) {
-      this._baitTimer = Math.round(18 + this.intelligence * 20); // 18–38 frames
+      this._baitTimer = Math.round(18 + this.intelligence * 20); // 18-38 frames
     }
 
-    // ─── PHASE 4: MOVEMENT — always pressure, never retreat ──
+    // Movement: always pressure, never retreat
     if (d > atkRange + 15 || finishMode) {
-      // Outside attack range OR finishing: ALWAYS close the gap — no hesitation
-      if (nearLeft  && dir < 0) { /* edge guard — do nothing */ }
+      // Outside range or finishing: always close the gap.
+      if (nearLeft  && dir < 0) { /* edge guard, do nothing */ }
       else if (nearRight && dir > 0) { /* edge guard */ }
       else {
-        // Anticipatory positioning: move toward where the target will be
-        // in 8 frames rather than their current position.
+        // Lead the target by 8 frames.
         const _proj    = this._behaviorModel.projectPosition(t, 8);
         const _projDir = Math.sign(_proj.x - this.cx()) || dir;
-        // Only trust the projection when it agrees with current direction
-        // or we're very close (< 60 px) — prevents drifting the wrong way.
+        // Trust the projection only if it agrees with direction, or we're very close (under 60px).
         const _aDir    = (Math.sign(_projDir) === dir || d < 60) ? _projDir : dir;
         this.vx = _aDir * moveSpd * (finishMode ? 1.3 : 1.0) * _bmBias.approachBoost;
       }
@@ -660,26 +555,25 @@ class AdaptiveAI extends Fighter {
         this.vy = -15; this.canDoubleJump = false;
       }
     } else if (d < prefDist - 15) {
-      // Slightly inside preferred gap: micro-adjustment, NOT retreat
-      // Garou just steps to the side — never backs away meaningfully
+      // Slightly inside preferred gap: small side step, never a real retreat.
       if (Math.random() < 0.25 && !this.isEdgeDanger(-dir)) {
         this.vx = -dir * moveSpd * 0.3;
       } else {
         this.vx *= 0.88;
       }
     } else {
-      // Ideal range: hold position with slight dynamic drift
+      // In range: hold with slight drift.
       this.vx *= 0.90;
       // Occasional hop to stay unpredictable
       if (this.onGround && Math.random() < 0.05) this.vy = -16;
     }
 
-    // ─── PHASE 5: ATTACK — aggressive, frequent, punishing ───
+    // Attack: frequent and aggressive
     if (d < atkRange && this.cooldown <= 0) {
       if (Math.random() < atkFreq) {
         this.attack(t);
         // Queue combo follow-ups based on intelligence
-        const comboHits = Math.floor(this.intelligence * 3.5); // 0–3 follow-up hits
+        const comboHits = Math.floor(this.intelligence * 3.5); // 0-3 follow-up hits
         if (comboHits > 0 && this._comboFollowHits === 0) {
           this._comboFollowHits = comboHits;
           this._comboFollowTimer = Math.max(6, Math.round(10 - m.reactionSpeed * 5));
@@ -691,7 +585,7 @@ class AdaptiveAI extends Fighter {
       this.attack(t);
     }
 
-    // ─── PHASE 6: ABILITY / SUPER ────────────────────────────
+    // Ability and super
     const abiChance = 0.05 + realAgg * 0.09;
     if (this.abilityCooldown <= 0 && d < 280 && Math.random() < abiChance) {
       this.ability(t);
@@ -703,13 +597,9 @@ class AdaptiveAI extends Fighter {
     this.aiReact = reactFrames;
   }
 
-  // ─── Draw override: aura behind fighter ──────────────────────
+  // Draw override: aura behind the fighter
   draw() {
-    // The aura and the ADAPTING label are drawn OUTSIDE Fighter.draw(), so the
-    // Trial of Sense invisibility (which only skips the body) left an adaptive
-    // opponent broadcasting its exact position through a glow and a floating
-    // label — the same class of leak as the floating nameplate. Hand off to the
-    // base draw, which does its own invisibility check, and skip both.
+    // Aura and ADAPTING label skip the invisibility check of Fighter.draw(), so they're hidden here too.
     if (this._trialInvisible) { super.draw(); return; }
     this._auraPhase = (this._auraPhase + 0.055) % (Math.PI * 2);
 
@@ -756,7 +646,6 @@ class AdaptiveAI extends Fighter {
       ctx.restore();
     }
 
-    // Base fighter draw
     super.draw();
 
     // "ADAPTING" label
@@ -773,7 +662,7 @@ class AdaptiveAI extends Fighter {
   }
 }
 
-// ─── Debug Overlay (drawn in screen space after HUD) ─────────
+// Debug overlay: screen space, after the HUD
 function drawAdaptiveAIDebug() {
   if (!adaptiveAIDebug || !gameRunning) return;
   const ai = (typeof players !== 'undefined') && players.find(p => p.isAdaptive);

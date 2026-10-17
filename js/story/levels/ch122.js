@@ -1,18 +1,7 @@
 'use strict';
-// js/story/levels/ch122.js — Chapter 122 map. See smb-story-levels.js for the contract.
+// js/story/levels/ch122.js. Chapter 122 map. See smb-story-levels.js for the contract.
 
-// ═════════════════════════════════════════════════════════════════════════════
-// Chapter 122 — Thresh (walk → duel vs Thresh, 1 life)
-// "You're standing in the middle of what my grief looks like when it has
-// nowhere to go." Pieces of the places Thresh tried to protect, rammed into
-// each other at the angles they hit: the front of a house buried to the
-// windows in a bank of forest, a road surface standing on end, the bow of a
-// ship through a wall, a playground frame half-swallowed by rock. Every one
-// of them is cracked from the point of impact outward. At the midpoint, the
-// crater: the deepest impact in the realm, rings of fractures radiating from
-// where Thresh stands, the ground still shuddering. The jammed fragments are
-// the climbs; the cache shafts are the deepest cracks.
-// ═════════════════════════════════════════════════════════════════════════════
+// Chapter 122, walk to duel vs Thresh (1 life). Jammed fragments are the climbs; cache shafts are the deepest cracks.
 (function () {
   const G = 440, CRATER = 3000;
   const CLIMB = [[520, 350, 100], [650, 270, 110], [1150, 340, 110], [1280, 260, 110], [2230, 350, 100], [2350, 270, 110],

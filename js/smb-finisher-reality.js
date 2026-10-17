@@ -1,13 +1,7 @@
 'use strict';
-// smb-finisher-reality — Depends on: smb-finisher-helpers.js
-
-// ============================================================
-// BOSS FINISHER 2: DIMENSIONAL PUNCH
-// Theme: TrueForm punches player HORIZONTALLY through reality
-// Player launches flat across screen, background transitions
-// through multiple realms, stickmen watch in awe, player
-// crashes into the CODE REALM to begin backstage phase.
-// ============================================================
+// smb-finisher-reality: Depends on: smb-finisher-helpers.js
+// Boss finisher 2, dimensional punch. TrueForm punches the player flat through
+// several realms and into the code realm, which sets up the backstage phase.
 const FIN_REALITY_BREAK = {
   name: 'DIMENSIONAL PUNCH',
   accentColor: 'rgba(0,220,180,1)',
@@ -24,15 +18,14 @@ const FIN_REALITY_BREAK = {
     data.glitchIntensity = 0;
     data.whiteAlpha    = 0;
     data.tearAlpha     = 0;
-    data.bgPhase       = 0;   // 0=normal,1=forest,2=city,3=void,4=lava,5=ice,6=code
+    data.bgPhase       = 0;   // 0 normal, 1 forest, 2 city, 3 void, 4 lava, 5 ice, 6 code
     data.codeRealm     = false;
-    data.realmFadeT    = 0;   // 0-1, fade into current realm
+    data.realmFadeT    = 0;   // 0-1
 
-    // Flat horizontal destination — player launched across reality
     data.launchX = data.tx0 + data.dir * 560;
     data.launchY = data.ty0;  // perfectly horizontal, no arc
 
-    // Background stickmen: 6 figures spread across the screen
+    // Background stickmen (6)
     data.bgStickmen = [];
     for (let i = 0; i < 6; i++) {
       data.bgStickmen.push({
@@ -46,7 +39,7 @@ const FIN_REALITY_BREAK = {
     data.dialogue = _FIN_DIALOGUE.trueform[Math.floor(Math.random() * _FIN_DIALOGUE.trueform.length)];
 
     data.timeline = _makeTimeline([
-      // ── ACT 1: Approach ─────────────────────────────────────
+      // Act 1: approach
       { frame: 0, fn() {
           CinCam.slowMo(0.25);
           CinCam.zoomTo(1.25);
@@ -57,13 +50,13 @@ const FIN_REALITY_BREAK = {
       { frame: 16, fn() { data.glitchIntensity = 1.5; CinCam.shake(10); } },
       { frame: 24, fn() { data.glitchIntensity = 0.4; } },
       { frame: 30, fn() { data.glitchIntensity = 0; } },
-      // ── ACT 2: TrueForm winds up punch ──────────────────────
+      // Act 2: wind-up
       { frame: 68, fn() {
           data.glitchIntensity = 3.0;
           CinCam.shake(18);
           spawnParticles(tgt.cx(), tgt.cy(), '#00ffcc', 22);
       }},
-      // ── ACT 3: IMPACT ───────────────────────────────────────
+      // Act 3: impact
       { frame: 80, fn() {
           data.whiteAlpha = 1.0;
           data.glitchIntensity = 5;
@@ -71,7 +64,7 @@ const FIN_REALITY_BREAK = {
           spawnParticles(tgt.cx(), tgt.cy(), '#ffffff', 50);
           spawnParticles(tgt.cx(), tgt.cy(), '#00ffcc', 25);
       }},
-      // ── ACT 4: HORIZONTAL LAUNCH ────────────────────────────
+      // Act 4: horizontal launch
       { frame: 90, fn() {
           CinCam.slowMo(1.0);
           data.glitchIntensity = 1.5;
@@ -80,17 +73,17 @@ const FIN_REALITY_BREAK = {
           CinCam.zoomTo(0.72);
           CinCam.focusOn(tgt);
       }},
-      // Realm transitions every ~20 frames
+      // Realm change every ~20 frames
       { frame: 100, fn() { data.bgPhase = 1; data.realmFadeT = 0; CinCam.shake(6); } },
       { frame: 118, fn() { data.bgPhase = 2; data.realmFadeT = 0; CinCam.shake(6); } },
       { frame: 136, fn() { data.bgPhase = 3; data.realmFadeT = 0; CinCam.shake(8); } },
       { frame: 154, fn() { data.bgPhase = 4; data.realmFadeT = 0; CinCam.shake(8); } },
       { frame: 172, fn() { data.bgPhase = 5; data.realmFadeT = 0; CinCam.shake(6); } },
-      // Stickmen notice player at each realm transition
+      // Stickmen react at each realm change
       { frame: 105, fn() { data.bgStickmen[0].looking = true; data.bgStickmen[3].looking = true; } },
       { frame: 125, fn() { data.bgStickmen[1].looking = true; data.bgStickmen[4].looking = true; } },
       { frame: 145, fn() { data.bgStickmen[2].looking = true; data.bgStickmen[5].looking = true; } },
-      // ── ACT 5: CODE REALM CRASH ─────────────────────────────
+      // Act 5: code realm crash
       { frame: 190, fn() {
           data.bgPhase = 6;
           data.realmFadeT = 0;
@@ -105,7 +98,7 @@ const FIN_REALITY_BREAK = {
           CinCam.zoomTo(1.1);
           CinCam.focusOn(tgt);
       }},
-      // ── ACT 6: Hold on CODE REALM, fade out ─────────────────
+      // Act 6: hold on the code realm, fade out
       { frame: 248, fn() { CinCam.zoomTo(1.0); CinCam.restore(); } },
       { frame: 258, fn() { data.bars = 0; } },
     ]);
@@ -114,14 +107,11 @@ const FIN_REALITY_BREAK = {
   update(att, tgt, timer, data) {
     _tickTimeline(data.timeline, timer);
 
-    // Bars fade in/out
     if (timer < 10)    data.bars = timer / 10;
     if (timer > 258)   data.bars = Math.max(0, (270 - timer) / 12);
 
-    // White flash decay
     if (data.whiteAlpha > 0) data.whiteAlpha = Math.max(0, data.whiteAlpha - 0.07);
 
-    // Realm fade-in progress
     data.realmFadeT = Math.min(1, data.realmFadeT + 0.08);
 
     // Tear alpha: pulse during launch, zero after code realm hit
@@ -131,7 +121,6 @@ const FIN_REALITY_BREAK = {
       data.tearAlpha = Math.max(0, data.tearAlpha - 0.06);
     }
 
-    // ── Position update ──────────────────────────────────────
     // Phase 1 (0-30): freeze both
     if (timer <= 30) {
       att.x = data.ax0; att.y = data.ay0;
@@ -144,21 +133,21 @@ const FIN_REALITY_BREAK = {
       att.y = data.ay0;
       tgt.x = data.tx0; tgt.y = data.ty0;
 
-    // Phase 3 (78-90): impact distort — player shakes in place
+    // Phase 3 (78-90): impact distort: player shakes in place
     } else if (timer <= 90) {
       const gi = Math.min(1, data.glitchIntensity / 4);
       tgt.x = data.tx0 + (Math.random() - 0.5) * 12 * gi;
       tgt.y = data.ty0 + (Math.random() - 0.5) *  5 * gi;
 
-    // Phase 4 (90-192): FLAT HORIZONTAL LAUNCH across dimensions
+    // Phase 4 (90-192): flat horizontal launch
     } else if (timer <= 192) {
       const t2 = (timer - 90) / 102;
-      // Pure horizontal — only a tiny Y wobble that decays
+      // Pure horizontal, with a tiny Y wobble that decays
       const wobble = Math.sin(timer * 0.28) * 6 * (1 - t2);
       tgt.x = _finLerp(data.tx0, data.launchX, _finEaseIn(t2));
       tgt.y = data.ty0 + wobble;
 
-    // Phase 5 (192+): rest in code realm
+    // Phase 5 (192+): rest in the code realm
     } else {
       tgt.x = data.launchX;
       tgt.y = data.launchY;
@@ -177,7 +166,7 @@ const FIN_REALITY_BREAK = {
     _finBars(ctx, data.bars);
     _finVignette(ctx, 0.4);
 
-    // ── REALM BACKGROUND TRANSITIONS (screen-space) ──────────
+    // Realm backgrounds (screen space)
     if (timer >= 90 && data.bgPhase > 0) {
       ctx.save(); ctx.setTransform(1,0,0,1,0,0);
 
@@ -206,14 +195,12 @@ const FIN_REALITY_BREAK = {
       const realm = REALMS[Math.min(data.bgPhase, REALMS.length - 1)];
       if (realm) {
         const fa = Math.min(0.88, data.realmFadeT * 0.88);
-        // Sky gradient
         const grd = ctx.createLinearGradient(0, 0, 0, H * 0.8);
         grd.addColorStop(0, realm.sky1);
         grd.addColorStop(1, realm.sky2);
         ctx.globalAlpha = fa;
         ctx.fillStyle = grd;
         ctx.fillRect(0, 0, W, H);
-        // Ground strip
         ctx.fillStyle = realm.gnd;
         ctx.fillRect(0, H * 0.76, W, H * 0.24);
         ctx.globalAlpha = 1;
@@ -233,7 +220,7 @@ const FIN_REALITY_BREAK = {
           ctx.globalAlpha = 1;
         }
 
-        // Realm label — flash in at transition
+        // Realm label: flash in at transition
         const labelAge = timer - (
           [0, 100, 118, 136, 154, 172, 190][Math.min(data.bgPhase, 6)]
         );
@@ -253,7 +240,7 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── BACKGROUND STICKMEN (screen-space) ───────────────────
+    // Background stickmen (screen space)
     if (timer >= 100 && timer < 230) {
       ctx.save(); ctx.setTransform(1,0,0,1,0,0);
       const fadeIn  = Math.min(1, (timer - 100) / 18);
@@ -274,13 +261,11 @@ const FIN_REALITY_BREAK = {
         ctx.shadowColor = s.looking ? '#ffcc44' : 'transparent';
         ctx.shadowBlur  = s.looking ? 10 : 0;
 
-        // Head
         ctx.beginPath(); ctx.arc(bx, by - r * 3.6, r, 0, Math.PI * 2); ctx.stroke();
-        // Torso
         ctx.beginPath(); ctx.moveTo(bx, by - r * 2.6); ctx.lineTo(bx, by); ctx.stroke();
 
         if (s.looking) {
-          // Arms raised in surprise — pointing in launch direction
+          // Arms raised in surprise: pointing in launch direction
           ctx.beginPath();
           ctx.moveTo(bx, by - r * 2.2);
           ctx.lineTo(bx - r * 2.8, by - r * 3.8); // arm up-left
@@ -289,7 +274,6 @@ const FIN_REALITY_BREAK = {
           ctx.moveTo(bx, by - r * 2.2);
           ctx.lineTo(bx + r * 1.5, by - r * 1.2); // other arm out
           ctx.stroke();
-          // Legs planted
           ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx - r * 1.1, by + r * 2.2); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + r * 1.1, by + r * 2.2); ctx.stroke();
         } else {
@@ -312,7 +296,7 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── SCREEN TEARING (horizontal displaced strips) ─────────
+    // Screen tearing (horizontal displaced strips)
     if (data.tearAlpha > 0 && timer >= 90 && timer < 200) {
       ctx.save(); ctx.setTransform(1,0,0,1,0,0);
       const tearCount = 3 + Math.floor(data.tearAlpha * 5);
@@ -329,7 +313,6 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── COLOR SHIFT OVERLAY ──────────────────────────────────
     if (timer >= 90 && timer < 196) {
       ctx.save(); ctx.setTransform(1,0,0,1,0,0);
       const hue = (timer * 7) % 360;
@@ -340,7 +323,7 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── GLITCH SCANLINES (pre/post punch) ────────────────────
+    // Glitch scanlines (before and after the punch)
     if (data.glitchIntensity > 0) {
       ctx.save(); ctx.setTransform(1,0,0,1,0,0);
       const gi = Math.min(1, data.glitchIntensity / 4);
@@ -354,7 +337,7 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── TRUEFORM ENERGY AURA (approach) ──────────────────────
+    // TrueForm energy aura (approach)
     if (timer > 30 && timer < 95) {
       const ba = Math.min(1, (timer - 30) / 20);
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
@@ -367,7 +350,7 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── DISTORTION RINGS (wind-up) ───────────────────────────
+    // Distortion rings (wind-up)
     if (timer > 60 && timer < 90) {
       const ra = Math.min(1, (timer - 60) / 15);
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
@@ -381,11 +364,10 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── HORIZONTAL LAUNCH TRAIL ───────────────────────────────
     if (timer > 90 && timer < 195) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       const trailStrength = Math.min(1, (timer - 90) / 25);
-      // Afterimage streaks — purely horizontal
+
       for (let i = 0; i < 5; i++) {
         const ta2 = (0.52 - i * 0.09) * trailStrength;
         ctx.strokeStyle = `rgba(0,255,200,${ta2})`;
@@ -409,11 +391,9 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── CODE REALM CRASH SHOCKWAVE ────────────────────────────
     if (data.codeRealm && timer >= 200) {
       ctx.save(); ctx.setTransform(scX,0,0,scY,ox,oy);
       const age = timer - 200;
-      // Expanding ring
       const cr  = age * 4;
       const ca  = Math.max(0, 0.9 - age * 0.035);
       if (ca > 0) {
@@ -441,7 +421,6 @@ const FIN_REALITY_BREAK = {
       ctx.restore();
     }
 
-    // ── WHITE FLASH ──────────────────────────────────────────
     if (data.whiteAlpha > 0) {
       _finFlash(ctx, data.whiteAlpha, 220, 255, 240);
     }

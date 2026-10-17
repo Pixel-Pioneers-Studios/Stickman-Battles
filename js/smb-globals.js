@@ -1,17 +1,14 @@
 'use strict';
 
-// ============================================================
-// CANVAS
-// ============================================================
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = true;
 
-// Logical game-space dimensions — all game coordinates use these
+// Logical game-space dimensions: all game coordinates use these
 const GAME_W = 900;
 const GAME_H = 520;
 
-// Resize canvas to fill the browser window; game world stays GAME_W x GAME_H (fixed resolution)
+// Resize canvas to fill the window. The game world stays GAME_W x GAME_H (fixed resolution).
 function resizeCanvas() {
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -20,46 +17,21 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// ============================================================
-// FIGHTER FIGURE PROPORTIONS
-// ============================================================
-// These were duplicated as literals across draw(), the melee-arc geometry,
-// the ragdoll rig, the replay viewer and the anime FX — five copies that had
-// to agree by hand, with only a comment holding them together. They live here
-// so a proportion change cannot silently desync hit detection from the figure
-// you can actually see.
-//
-// The vertical budget is load-bearing: head top sits at y+1, shoulders at
-// y + FIG_SHOULDER_DY, hips 30 below that, feet at hips + FIG_LEG_LEN. That
-// must land at ~y+86 against a 84px collision box or the fighter floats above
-// the floor or sinks into it.
-const FIG_HEAD_R  = 9;    // was 11 — a 22px head on an 85px figure read bobble-headed
+// Figure proportions. Hit detection, draw and ragdoll all read these, so a change here moves hitboxes too.
+// Vertical budget: feet at hips + FIG_LEG_LEN must land at ~y+86 to match the 84px collision box.
+const FIG_HEAD_R  = 9;    // was 11; a 22px head read bobble-headed
 const FIG_NECK    = 5;
-const FIG_ARM_LEN = 24;   // drives melee reach — do not retune for looks alone
-const FIG_LEG_LEN = 31;   // was 27; +4 exactly offsets the smaller head, keeping feet at y+86
+const FIG_ARM_LEN = 24;   // drives melee reach, don't retune for looks
+const FIG_LEG_LEN = 31;   // was 27; +4 offsets the smaller head, feet stay at y+86
 const FIG_SHOULDER_DY = FIG_HEAD_R * 2 + 2 + FIG_NECK;   // head top -> shoulder
-const FIG_LINE_W  = 3.8;  // outlined stickman model: thin limbs, dark interior, bright contour
+const FIG_LINE_W  = 3.8;  // outline width
 
-// ============================================================
-// SERVER SYNC CONFIGURATION
-// ============================================================
-// Set `url` to your server address so bans are enforced cross-device.
-// Leave url as '' to run fully offline (bans are local-only).
-//
-// Deploying to Glitch / Railway / Render?
-//   url: 'https://your-project.glitch.me'   ← no trailing slash
-//
-// Running locally?
-//   url: 'http://localhost:3001'
-//
+// Server sync: bans are enforced across devices when url is set. Empty url means offline, local bans only.
 const SERVER_CONFIG = {
   url:            'https://stickman-battles.onrender.com',
   syncIntervalMs: 300000,                     // re-sync bans every 5 min
 };
 
-// ============================================================
-// CHANGELOG
-// ============================================================
 const CHANGELOG = [
   {
     version: '4.6.0',
@@ -68,27 +40,23 @@ const CHANGELOG = [
     flavor: 'Private lobbies you open with a link, a weekly gauntlet to race your friends through, bots that finally fight back, and a rebalanced, redrawn and re-recorded arsenal.',
     isLatest: true,
     changes: [
-      // ── Online ────────────────────────────────────────────────────────────
       { cat: 'Network', text: 'Play with friends: opening a private lobby drops you into a waiting room, and friends who use your link or code arrive in it. Stand on a game\'s pad to pick it; the host starts the round, and if the host leaves another player takes over' },
       { cat: 'Network', text: 'New lobby rounds: Basketball, Loadout Scramble (a new weapon and class every life, first to 10 KOs), Infection, King of the Hill and co-op Horde Defense. Rounds end on a podium and pay coins' },
       { cat: 'Network', text: 'Friends: swap friend codes or add people from your lobby, see who is online and invite them to your game. Friends cannot message each other; chat stays inside a match' },
       { cat: 'Network', text: 'Quick emotes in lobbies: number keys 1 to 6, or the buttons in the corner' },
 
-      // ── Modes & menus ─────────────────────────────────────────────────────
       { cat: 'Mode',    text: 'Weekly Challenge: clearing the Fight Ladder unlocks a three-fight gauntlet that changes every Monday. Everyone gets the same kit, opponents and twist, the run is timed, and friends see your best time' },
       { cat: 'UI',       text: 'Move previews: every weapon and class card has a preview button. A short scripted training match shows the basic chain, the ability, the super and the class perk with captions, then puts you back on the loadout screen' },
       { cat: 'UI',       text: 'Gamepads work. Stick or D-pad to move, A to jump, X to attack, Y for the ability, B for the super, any shoulder button to shield, Start to pause. The stick also moves through menus. A second pad drives player two in local matches' },
       { cat: 'UI',       text: 'The first fight starts sooner (first hit at about 4 seconds, was 20), the menu fits small portal frames, and HUD text is larger' },
       { cat: 'UI',       text: 'When fighters are more than 1400px apart the camera follows you instead of zooming out to fit everyone, and the edge arrows show how far away the others are' },
 
-      // ── Bots ──────────────────────────────────────────────────────────────
       { cat: 'AI',       text: 'Bots at Medium and above now decide every frame. They hold the distance their weapon wins at, follow a landed hit with a second swing and then an ability or super, throw a super soon after the meter fills, and jump or guard a shot they have had time to see' },
       { cat: 'AI',       text: 'The old bots counted their timers wrong: a pause meant to last under a second lasted eleven, and a melee bot in range almost never reached the code that uses an ability or super. Easy bots still play the old way' },
       { cat: 'AI',       text: 'Bots holding a ranged weapon keep their distance and fire as soon as the weapon is ready, instead of walking into melee range' },
       { cat: 'AI',       text: 'Story enemies and Battle Royale bots use the new tactics too. Public Server lobby bots do not' },
       { cat: 'AI',       text: 'The Sovereign is played by a neural network that learned by fighting copies of itself', spoilerLevel: 3 },
 
-      // ── Balance ───────────────────────────────────────────────────────────
       { cat: 'Balance',  text: 'Weapon pass, measured with the same AI on both sides. Heavy weapons hit harder: Hammer 26 (was 20), Flail 24 (was 17), Anchor 28 (was 22), Frying Pan 22 (was 18). Fast weapons give a little back: Sword 14, Axe 19, Spear 15, Electric Staff 16, Whip 11, and Axe and Whip swing slower' },
       { cat: 'Balance',  text: 'Ranged weapons were well behind melee and are all stronger. Gun bullets deal 17 to 20 with a 12-round clip, Slingshot stones 23 to 27 and fire faster, peas 8 to 9, Throwing Knives 12 to 14, Bow and Boomerang hold four shots and reload sooner, and the Flamethrower reaches further with a bigger tank. The point-blank damage penalty is 22% (was 34%). Ranged still trails melee on small arenas' },
       { cat: 'Balance',  text: 'Combat (fists) 20 damage (was 16) with a longer step into each punch, and Roundhouse hits harder' },
@@ -100,7 +68,6 @@ const CHANGELOG = [
       { cat: 'Combat',   text: 'Landing an ability or super clears SWITCH IT UP, so you can swing again after it. One that misses does not' },
       { cat: 'Combat',   text: 'A guard-break locks your shield until its cooldown ends. You could raise it again straight away' },
 
-      // ── Look & sound ──────────────────────────────────────────────────────
       { cat: 'Visual',   text: 'Twenty-three weapons are redrawn in the style of the Axe and Scythe: inked outlines, one strong colour each, wrapped grips and shaped pommels. Reach is unchanged' },
       { cat: 'Visual',   text: 'A body keeps the fighter\'s own look and shows what killed it: cut apart by a blade finisher, charred by fire, flattened by a hammer. An ordinary kill leaves a lighter mark' },
       { cat: 'Cinematic', text: 'The five weapons that had no move scenes or finishers have them now', spoilerLevel: 2 },
@@ -108,7 +75,6 @@ const CHANGELOG = [
       { cat: 'Audio',    text: 'Recorded sound effects replace the synthesised beeps: different swings for light and heavy weapons, different shots for guns, bows, throwing weapons and flame, and new sounds for parries, hard landings, double jumps, respawns and finishers' },
       { cat: 'Audio',    text: 'A soundtrack ships with the game: separate tracks for arena fights, story, Battle Royale and bosses. Portals that blocked the old streamed music were silent' },
 
-      // ── Story ─────────────────────────────────────────────────────────────
       { cat: 'Story',    text: 'Levels have a minimap (M), and the star chart shows your progress and where you are' },
       { cat: 'Story',    text: 'Optional sidequests in eight chapters pay coins and experience and never block the exit. Eleven chapters hide chests, some of them guarded by an elite' },
       { cat: 'Story',    text: 'An early chapter is rebuilt as one continuous 6000px lava crossing' },
@@ -117,7 +83,6 @@ const CHANGELOG = [
       { cat: 'Story',    text: 'On CrazyGames, a story defeat offers one continue per attempt for watching an ad' },
       { cat: 'Boss',     text: 'The final secret boss has a new fight that moves through four locations', spoilerLevel: 3 },
 
-      // ── Fixes ─────────────────────────────────────────────────────────────
       { cat: 'Fix',      text: 'Online: damage scaling was applied on both the attacker\'s and the victim\'s side, so some hits were scaled twice. Guests see themselves as P1 on the HUD, and projectiles show for everyone in the match' },
       { cat: 'Fix',      text: 'Map pickups no longer disappear when the arena changes mid-match' },
       { cat: 'Fix',      text: 'Battle Royale: the order fighters updated in gave one side of a mirror fight an edge. It is a coin flip each frame now' },
@@ -187,7 +152,6 @@ const CHANGELOG = [
     flavor: 'Six new weapons, three new classes, a stadium with four sports in it, and hits that finally land when they should.',
     isLatest: false,
     changes: [
-      // ── Weapons & classes ─────────────────────────────────────────────────
       { cat: 'Weapon', text: 'Bomb — lobbed bombs that roll along the floor and set each other off. Q throws stickies that cling to floors, walls and enemies, up to six at once; hold it to set the whole field off together' },
       { cat: 'Weapon', text: 'Throwing Knives — six of them, and every throw leaves a blade on the floor. Walk over one to pick it up, or Recall them all at once and cut through anything standing between you and your knives' },
       { cat: 'Weapon', text: 'Glass Blade — the hardest-hitting fast blade in the game, and it cracks every time you are hit. Three cracks and it shatters; break it yourself with Shatterstep before a fight you cannot win breaks it for you' },
@@ -198,7 +162,6 @@ const CHANGELOG = [
       { cat: 'Weapon', text: 'A new fighting style is waiting at the end of a late-campaign lesson: the Fragment, and the Adept class built around it. Charging it pulls enemies in; the blast holds them in front of you instead of throwing them away, so Barrage follows straight into it', spoilerLevel: 2 },
       { cat: 'Fix',    text: 'Fragment Barrage pushed its own target out of reach — by the third punch the gap was half again longer than a punch, so the last two always missed. You now follow them in, the punches hold them, and its shockwaves no longer vanish into the punch that threw them. Overdrive heals on cast, since it never deals the damage every other super heals from', spoilerLevel: 2 },
 
-      // ── Combat ────────────────────────────────────────────────────────────
       { cat: 'Combat', text: 'Your own hits no longer protect the opponent from you. The invulnerability a hit grants used to block your next swing, your ability and your super too, so a hit followed by anything fast lost the follow-up — measured at 8% to 44% of every weapon\'s damage. It now only stops the same attack from hitting twice, and a second attacker from piling on' },
       { cat: 'Combat', text: 'Combo escapes no longer switch on invulnerability halfway through a string. The wall escape, the air-juggle escape and the cap on long stuns now leave you unstunnable for a moment instead — the hits still land, but none of them can lock you down again, so the way out is getting your controls back rather than a patch of immunity' },
       { cat: 'Combat', text: 'Combo strings. The first two basic melee hits of a combo push lightly and hold the target until your next swing connects; the third launches. Before this, every hit launched and only one in four ever led to a second' },
@@ -207,20 +170,17 @@ const CHANGELOG = [
       { cat: 'Combat', text: 'The ground roll has followed the Air Dash out. Double-tapping a direction no longer does anything' },
       { cat: 'Fix',    text: 'Guns, bows and every ability could stun their own user. The punishment for whiffing a melee swing was applied to any attack that ended without a melee hit, including shots and abilities that connected' },
 
-      // ── Balance ───────────────────────────────────────────────────────────
       { cat: 'Balance', text: 'Weapons and classes retuned with the strongest AI in the game on both sides, rather than against the stock bot — which never punishes recovery and so made every heavy weapon look better than it plays' },
       { cat: 'Balance', text: 'Varek\'s rage never reset, so from the third life of a long match every hit carried the full bonus. It now resets each life and caps at +20%' },
       { cat: 'Fix',     text: 'Katana follow-through slashes could cut the same target a second time for a hidden 22 damage' },
       { cat: 'Fix',     text: 'Class descriptions matched the code for the first time in a while: HP and speed are read live, and every perk says what it actually does' },
 
-      // ── AI ────────────────────────────────────────────────────────────────
       { cat: 'AI', text: 'Bots no longer freeze under a ledge you are standing on. They walk to somewhere they can jump from and come up after you' },
       { cat: 'AI', text: 'The Sovereign chooses from the whole arsenal now — every weapon and class — starting from the kits he found strongest in his own fights, and he takes his class\'s health with it', spoilerLevel: 3 },
       { cat: 'AI', text: 'He learns your habits per opponent: whether you live in the air, and how you come down when you are near him', spoilerLevel: 3 },
       { cat: 'AI', text: 'A safety net, disclosed: if you lead him by two stocks or more, his hits grow stronger until the gap closes', spoilerLevel: 3 },
       { cat: 'Arena', text: 'The Circuit no longer drops pickups or crates. Its curses only ever landed on the player', spoilerLevel: 3 },
 
-      // ── Modes & sound ─────────────────────────────────────────────────────
       { cat: 'Mode',  text: 'Soccer grew into the Sports Arena: soccer, basketball, volleyball and dodgeball. Nobody takes damage but every hit still knocks back, so fighting is how you win the ball — and each weapon\'s ability doubles as a signature ball move' },
       { cat: 'Audio', text: 'Music ducks under spoken story dialogue instead of talking over it' },
     ],
@@ -232,7 +192,6 @@ const CHANGELOG = [
     flavor: 'Thirteen weapons measured against each other until none of them was the obvious answer, a front door worth walking through, and levels that expect you to actually finish them.',
     isLatest: false,
     changes: [
-      // ── Story levels ──────────────────────────────────────────────────────
       { cat: 'Story',  text: 'Reaching the exit no longer finishes a level. Every enemy in the area has to be down first, and the exit marker burns red until they are — running the length of a world past everything that lived in it was, until now, a complete clear' },
       { cat: 'Story',  text: 'A level\'s objective is a requirement rather than decoration. Caches have to be recovered, mechanisms thrown, an escort actually delivered — and finishing the objective no longer ends the level on its own while enemies are still standing' },
       { cat: 'Story',  text: 'Optional fights stay optional. Guardians posted on hidden caches and the elites behind side portals are off the required list, so nothing off the main path can hold a level open' },
@@ -241,20 +200,17 @@ const CHANGELOG = [
       { cat: 'Fix',    text: 'Scenes between levels played on top of a live match. The world underneath kept running for the whole cutscene — enemies fought, timers ran, and you could take damage from a fight nobody could see. Everything stops now while a scene, or a branching choice, is on screen' },
       { cat: 'Fix',    text: 'Escape during a between-level scene both skipped the scene and opened the pause menu underneath it' },
 
-      // ── Combat ────────────────────────────────────────────────────────────
       { cat: 'Combat', text: 'Clashes are a precision beat now, not a default outcome. Two blades only ring off each other if the swings began within three frames, both fighters are swinging into each other, and both weapons actually reach — miss any of those and someone simply gets hit' },
       { cat: 'Combat', text: 'Strength has to match. A swing meets a swing, an ability meets an ability, a super meets a super — bring the weaker action into a stronger one and it breaks outright: your swing is cancelled with real recovery on it and their attack lands untouched' },
       { cat: 'Combat', text: 'Three fast hits with your back to a wall and you get out of it, with invulnerability on the way. This existed but belonged to one boss alone, so no player, bot or story enemy had any answer to being pinned — and the walls that spring up mid-level put a corner anywhere. It was also measuring the wrong wall: it tested the edges of the screen rather than of the world, so in a walking world it could not fire where you were actually trapped. It now reads the walls that are really there, the spring-up ones first' },
       { cat: 'Balance', text: 'Air Dash is gone. Two very different moves were sharing one double-tap — a ground roll and an air burst — and the airborne half turned spacing into a non-question. The skill node is removed and the 120 EXP it cost is refunded to saves that had bought it' },
 
-      // ── Balance ───────────────────────────────────────────────────────────
       { cat: 'Balance', text: 'Every melee weapon rebalanced against measurement rather than feel. A headless harness fought all thirteen against each other, 384 matches per weapon per round, and the spread between the best and worst weapon fell from 95 points of win rate to 51 — the imbalance, measured as distance from an even 50%, roughly halved' },
       { cat: 'Balance', text: 'The flail and the hammer were the two genuinely broken weapons, winning 100% and 92% of their matchups. Both are now near the middle of the field, still the heaviest and slowest things you can carry — the per-hit weight is the point, and it stayed' },
       { cat: 'Balance', text: 'The axe was the worst weapon in the game by a distance, winning 5% of its matchups; it is now competitive. The combat gloves, shield, electric staff and broomstick were all raised out of the bottom of the table' },
       { cat: 'Balance', text: 'Weapon stats now appear as bars in the picker, read live from the weapons themselves. The old descriptions carried damage figures typed in by hand, and the balance pass had quietly made nearly every one of them wrong' },
       { cat: 'Fix',    text: 'Ranged weapons were deliberately left alone. They come last in every simulated table, but that is the bots refusing to keep their distance rather than the weapons being weak — a bow with 700 range was fighting at a median gap of 130 pixels, inside the band where its own damage is penalised. Buffing the numbers would have broken them for anyone who actually kites' },
 
-      // ── The shell ─────────────────────────────────────────────────────────
       { cat: 'Visual', text: 'The in-game HUD was reading as a debug readout. Health bars stretched to nearly half the screen on a wide display — which also made a 10-damage hit look like nothing had happened — so they are capped, set into a recess, and pulled off full saturation. Lives are drawn pips now instead of characters that landed differently on every machine' },
       { cat: 'Visual', text: 'Damage numbers no longer out-shout the fight. They appear on every hit, and at full chroma a normal exchange was a confetti spray over the fighters throwing the punches — the damage tier still reads at a glance' },
       { cat: 'Fix',    text: 'A clash printed itself as "-CLASH". The floating-number code assumed it was always given a number, so it prefixed the label with a minus sign and picked its colour by comparing text against damage thresholds' },
@@ -267,7 +223,6 @@ const CHANGELOG = [
       { cat: 'Visual', text: 'New home screen art: instead of a figure standing still, you come through the rift mid-dash with hunters closing from the other side' },
       { cat: 'Visual', text: 'Loading screens are animated scenes now, one for each situation — story, boss, Cosmic Axiom, Battle Royale, minigames, training, online and versus. Three still images had been covering six modes between them, and Battle Royale and online matches had no art of their own at all', spoilerLevel: 2 },
 
-      // ── Fixes ─────────────────────────────────────────────────────────────
       { cat: 'Fix',    text: 'Checkmarks sat off-centre in every checkbox in the game. The tick was positioned by hand against a box that two competing rules had made 18 by 15 pixels — not square, so no amount of nudging could have centred it' },
       { cat: 'Fix',    text: 'Story progress could read past 100% — a finished save reported 201%, because completed chapters were being counted with duplicates. The percentage on the home screen and the journey screen are now the same number, and that number is the count of distinct chapters you have actually beaten' },
       { cat: 'Fix',    text: 'The Resume button on the pause screen was printing a black outline over its own near-black label, smearing the word into an unreadable double image' },
@@ -281,14 +236,12 @@ const CHANGELOG = [
     date: '2026-09-09',
     flavor: 'Every road you walk is somewhere now, every scene between the fights plays as a film, and three tests are waiting that no amount of reflex will pass.',
     changes: [
-      // ── Worlds ────────────────────────────────────────────────────────────
       { cat: 'Visual', text: 'Every walking chapter renders the place it was written for. All 55 of them were authored with an arena — a coast, a cave, a burning city — and the walking-world builder was throwing that away and drawing the same navy sky and the same generic city tiles for the entire campaign. 33 distinct worlds now render across 59 chapters, up from one' },
       { cat: 'Visual', text: 'Enclosed places are visibly enclosed — the suburb has its fence, the void and the god domain have their walls, drawn at the real edges of the map rather than somewhere out in the middle of it' },
       { cat: 'Visual', text: 'New backdrops built out for the soccer stadium, deep space, the lava fields, the frozen peaks, Mega City, the Warp Zone, the Grand Colosseum and The New Realm, each with its own depth layers instead of a flat gradient' },
       { cat: 'Visual', text: 'Eight arenas that existed in the game but appeared in no chapter at all are now placed across the campaign, breaking up stretches that had been repeating the same theme' },
       { cat: 'Fix',    text: 'One chapter\'s palette could bleed into the next — the sky and ground gradients were cached under a single name shared by every walking world' },
 
-      // ── Story presentation ────────────────────────────────────────────────
       { cat: 'Cinematic', text: 'Every story scene is a cutscene now. Beats advance on their own once a line has typed and held, the camera keeps drifting so a long hold is never a frozen still, the letterbox slides in, and there is a real skip that ends the sequence instead of nudging you forward one line at a time. Hold the button to fast-forward at 4x' },
       { cat: 'Cinematic', text: 'A run of consecutive story chapters can now play as one continuous film — narration, your choice, then straight into the next — instead of eleven chapters and eleven victory screens' },
       { cat: 'Cinematic', text: 'Characters in story scenes are hand-posed now. A keyframed rig drives them through held poses, anticipation and three-frame snaps, which is something the old motion could not express at all; figures also scale with your window instead of sitting at a fixed size that vanished on a large display' },
@@ -299,20 +252,17 @@ const CHANGELOG = [
       { cat: 'Fix',    text: 'Story figures drew in the wrong colour. The face was setting a pen for the brows and mouth and never putting it back, so every attacking figure was rendered entirely in mouth-red and every hurt figure in washed-out black, across all 113 scenes' },
       { cat: 'Fix',    text: 'Cleaned up 273 stray quote-comma marks that were being printed inside story captions across 34 chapters, and fixed a crash in nine scenes that opened with a ring of portals' },
 
-      // ── New content ───────────────────────────────────────────────────────
       { cat: 'Mode', text: 'The Trials — three chapters that test something other than your damage. The Trial of Sense hands you a lantern that deals no damage and fires a reveal sweep against an opponent you cannot see; the band between its two rings shows the distortions a body leaves in space, not the body, and the echo it stamps is already stale by the time you read it. Your weapon arc, your opponent\'s footfall dust and their hit reactions stay visible — you are blind to find them and sighted to fight them' },
       { cat: 'Mode', text: 'The Trial of Control inverts gravity or your own controls mid-fight, each on its own readable tell — horizontal bands for one, vertical for the other — so you learn which rule is about to change rather than only that one is' },
       { cat: 'Mode', text: 'The Trial of Self-knowledge fights you with a copy that replays your own inputs, mirrored, on a delay, carrying your weapon. It cannot be beaten by reacting faster; it can only be beaten by breaking your own habits' },
       { cat: 'Mode', text: 'A late-campaign chapter now fields every one of the ninety-four before you at once, in order, each a little harder than the last. Ninety-four, and you — which is the number in the title', spoilerLevel: 2 },
 
-      // ── Combat ────────────────────────────────────────────────────────────
       { cat: 'Combat', text: 'Whip rework — the tip is a sweet spot now. Connect at full extension for 1.55x damage and a bleed; connect up close and you only chip. Q lassos and hooks the target for two and a half seconds with every lash counting as a tip hit, and E is now Serpent\'s Coil: three extending lashes with the third launching' },
       { cat: 'Combat', text: 'Finishers smear. The single biggest swing in the game was the only swing that never trailed its weapon, because a finisher deliberately never enters the attacking state. All 29 of them now trail through the blow' },
       { cat: 'Combat', text: 'You get 48 frames of invulnerability when a finisher hands control back, so executing someone in a crowd no longer gets you punished on the exact frame the camera lets go' },
       { cat: 'Balance', text: 'Supers no longer heal you faster than a boss can hurt you. Every super restores health and every fifth becomes a domain, and the fill rate was quick enough that a player could out-heal a boss indefinitely. Damage dealt while your own domain is open now charges nothing — the domain already pays you in every other way — and damage to minions charges at a third, because a stream of minions is not an opponent' },
       { cat: 'Balance', text: 'Domain hazard knockback cut from 18 to 10. It was the hardest knockback of any domain hazard, so a single sure-hit near the edge was taking a whole life on 16 damage' },
 
-      // ── Bosses ────────────────────────────────────────────────────────────
       { cat: 'AI',  text: 'Boss recovery is paced by phase. Later phases buy far more specials than early ones, so a flat recovery cost meant the deeper into the fight you got the less the boss did — melee dropped from 25 swings a minute to 11. The cost now scales with the phase, and a melee pressure window opens as each recovery ends so two recoveries can never chain back to back' },
       { cat: 'Fix', text: 'One boss super was buying 22 seconds of silence from a single cast — its recovery was written in the wrong unit. That was the single largest cause of dead air in the fight' },
       { cat: 'Combat', text: 'Boss specials tell you where they land. The meteor drew a shadow a fifth the size of its blast, so standing clear of the only visible marker still cost you 43. The chain slam teleported its victim and read as a 76-damage combo out of nowhere — it telegraphs now and whiffs if you leave. Spike volleys warn before they rise and are no longer narrower than the fighter they are aimed at, and beam warnings drop from five seconds to under two, which was long enough to walk away and come back before it fired' },
@@ -324,13 +274,11 @@ const CHANGELOG = [
       { cat: 'AI',  text: 'His counter-picking reads a weapon\'s authored class and its reach instead of guessing from cooldown — spear, scythe and katana all read as heavy to him, and nothing in the decision looked at range, so he would answer a 130-reach spear with an 80-reach hammer and walk into pokes all match', spoilerLevel: 3 },
       { cat: 'AI',  text: 'He stops retreating from domains that do not need him close. Against hazard-rain domains distance buys him nothing and costs him his entire offense — he spent one whole domain at zero attack uptime, 40% stunned, took 142 and dealt nothing. He also no longer gets pulled off the corner by the ring-out guard, which is where his kills come from', spoilerLevel: 3 },
 
-      // ── Engine ────────────────────────────────────────────────────────────
       { cat: 'Fix', text: 'Bots follow a path again. The waypoint check measured from the middle of the bot to the top of the platform, a gap that is always larger than the tolerance while standing on one, so a bot walked to the first point of its route and stopped there permanently' },
       { cat: 'Fix', text: 'The camera holds still. It biases toward you as fighters separate so a distant opponent on a wide map stops dragging the view, tracks from the edge of a soft dead zone instead of snapping, and no longer fights the HUD for the top of the world — which is what was causing the vibration' },
       { cat: 'Visual', text: 'Hand-drawn weapon art is in for the axe and scythe, with the drawn shapes falling through to the old procedural art if they fail to load. Asymmetric weapons no longer draw upside down when you face left, and the ammo dots, cooldown bar, invincibility ring and scar trail no longer get rotated off the screen along with the weapon' },
       { cat: 'Fix', text: 'Fixed a crash on chapters whose world has no floor beneath it — the void fog was building an impossible gradient and taking the frame down with it' },
 
-      // ── UI ────────────────────────────────────────────────────────────────
       { cat: 'UI', text: 'The version number is back on the home screen, under the title, and clicking it opens these notes' },
       { cat: 'UI', text: 'Phone layout fixes for the home button cluster and the tutorial prompt' },
       { cat: 'System', text: 'Portal builds: CrazyGames support and its consent notice, and Newgrounds and Game Jolt are now allowed origins for online play' },
@@ -1021,29 +969,26 @@ const CHANGELOG = [
   },
 ];
 
-// ============================================================
-// GLOBAL STATE
-// ============================================================
 let gameMode        = '2p';
 let selectedArena   = 'grass';
 let isRandomMapMode    = false;
 let completeRandomizer = false; // Complete Randomizer mode: reroll arena+weapon+class on every death
 let chosenLives     = 3;
 let gameRunning     = false;
-let gameLoading     = false; // true while loading screen is visible — freezes input/physics
+let gameLoading     = false; // true while loading screen is visible: freezes input/physics
 let p1IsBot         = false;
 let p2IsBot         = false;
 let training2P      = false; // 2-player training mode toggle
-let p2IsNone        = false; // "None" — no P2 at all (solo mode)
+let p2IsNone        = false; // "None": no P2 at all (solo mode)
 let paused          = false;
-let gameFrozen      = false; // true during cinematics — halts physics, input, hazard damage, boss AI
+let gameFrozen      = false; // true during cinematics: halts physics, input, hazard damage, boss AI
 let players         = [];
 let minions         = [];    // boss-spawned minions
 let verletRagdolls  = [];    // active Verlet death ragdolls
 let bossBeams       = [];    // boss beam attacks (warning + active)
 let bossSpikes      = [];    // boss spike attacks rising from floor
-let infiniteMode    = false; // if true, no game over — just win counter
-let tutorialMode       = false; // kept as stub — tutorial mode fully removed, always false
+let infiniteMode    = false; // if true, no game over: just win counter
+let tutorialMode       = false; // kept as stub: tutorial mode fully removed, always false
 let trainingMode          = false; // training mode flag
 let trainingDesignerOpen  = false; // in-game live map designer active
 let trainingDummies    = [];    // training dummies/bots
@@ -1062,7 +1007,7 @@ const BOSS_FLOOR_WARNING_FRAMES = 180; // 3 seconds at 60 FPS
 let bossFightLivesLock = false;
 let bossFightLivesPrev = null;
 
-// Dynamic camera zoom — lerped each frame
+// Dynamic camera zoom: lerped each frame
 let camZoomTarget = 1, camZoomCur = 1;
 let hitStopFrames  = 0; // frames to freeze game for hit impact feel
 let hitSlowTimer   = 0; // frames remaining on post-hit slow-motion burst
@@ -1082,20 +1027,13 @@ let camDramaTimer  = 0;
 let camDramaTarget = null;
 let camDramaZoom   = 1.0;
 
-// ============================================================
-// SETTINGS & FRAME STATE
-// ============================================================
-// User-configurable settings (toggled from menu)
 const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') !== '0'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high'), quickFightHazards: (localStorage.getItem('smc_qfHazards') === '1'), autoPerf: (localStorage.getItem('smc_autoPerf') !== '0') };
 
-// Active finisher state — set by triggerFinisher(), cleared when animation completes or on backToMenu
+// Active finisher state: set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;
-// Battle Royale finisher: plays for the local player only while the match keeps
-// running around it (see triggerFinisher). Separate slot so nothing that reads
-// activeFinisher as "the world is frozen" fires for it.
+// Battle Royale finisher: local player only, match keeps running. Own slot so 'world frozen' checks ignore it.
 let activeWorldFinisher = null;
 
-// ── World System ──────────────────────────────────────────────────────────────
 let currentWorld   = null; // STORY_WORLDS entry for the active chapter's world
 let worldModifiers = {};   // modifier key(s) from currentWorld, applied by game systems
 let worldId        = null; // string id of active world (e.g. 'fracture')
@@ -1109,11 +1047,8 @@ let _firstDeathPlayer  = null; // that player ref (to find the opponent)
 let aiTick             = 0;    // AI update runs every N frames (see AI_TICK_INTERVAL)
 const AI_TICK_INTERVAL = 15;
 
-// ── Combat class super: Combo Strike (see Fighter.update) ────────────────────
-// The move used to land its opening hit from anywhere on the map. REACH is the
-// horizontal gap the dash must actually close for the combo to confirm; miss it
-// and the super is spent. AIM_RATE/AIM_FRAMES govern the aimed-kick window.
-const COMBO_SUPER_REACH      = 78;   // px — dash must close to this to connect
+// The dash must close COMBO_SUPER_REACH px to connect, or the super is spent. AIM_* govern the aimed-kick window.
+const COMBO_SUPER_REACH      = 78;   // px: dash must close to this to connect
 const COMBO_SUPER_AIM_RATE   = 0.052; // rad/frame while a direction key is held
 const COMBO_SUPER_AIM_FRAMES = 110;  // auto-fire if the player never commits
 let currentArena    = null;    // the arena data object
@@ -1123,14 +1058,10 @@ let currentArenaKey = 'grass';
 let bgStars     = [];
 let bgBuildings = [];
 
-// ============================================================
-// TRUE FORM BOSS STATE
-// ============================================================
 let unlockedTrueBoss   = false;
 let tfGravityInverted  = false;
 let tfGravityTimer     = 0;    // countdown (frames); 0 = gravity normal
 
-// ── Gravity failsafe ─────────────────────────────────────────────────────────
 // Tracks active inversion with a hard 4-second cap so no gravity flip can get permanently stuck.
 let gravityState = { active: false, type: 'normal', timer: 0, maxTimer: 0 };
 
@@ -1149,7 +1080,6 @@ function forceResetGravity() {
 }
 let tfControlsInverted    = false;
 let tfControlsInvertTimer = 0;   // countdown (frames); controls auto-restore when 0
-// Mirror arena gimmick
 let mirrorFlipTimer     = 0;    // counts up; flips controls at interval
 let mirrorFlipped       = false; // current inversion state
 let mirrorFlipWarning   = 0;    // warning flash timer (counts down)
@@ -1167,19 +1097,17 @@ let tfDimensionIs3D    = false; // true while TrueForm has shifted the game to 3
 let tfDimensionPunch   = null;  // { stage, timer, target, boss, launchDir, travelTimer, bgPhase, inputLocked }
 let tfEndingScene      = null;  // TrueForm ending cinematic state machine (smb-trueform-ending.js)
 
-// ── TrueForm intro cinematic state machine ────────────────────────────────────
 // Strict ordering: opening_fight → paradox_death → absorption → punch_transition → backstage
-// 'none'            — not in trueform mode yet
-// 'opening_fight'   — player + Paradox vs TF (1000 damage threshold)
-// 'paradox_death'   — TF kills Paradox cinematic (_makeTFKillsParadoxCinematic)
-// 'absorption'      — Paradox energy flows into player (_tfAbsorptionState active)
-// 'punch_transition'— dimension-punch intro (startTFEnding isIntro=true)
-// 'backstage'       — real fight resumed; normal death/ending logic allowed
+// 'none'           : not in trueform mode yet
+// 'opening_fight'  : player + Paradox vs TF (1000 damage threshold)
+// 'paradox_death'  : TF kills Paradox cinematic (_makeTFKillsParadoxCinematic)
+// 'absorption'     : Paradox energy flows into player (_tfAbsorptionState active)
+// 'punch_transition',  dimension-punch intro (startTFEnding isIntro=true)
+// 'backstage'      : real fight resumed; normal death/ending logic allowed
 let tfCinematicState     = 'none';
 let paradoxDeathComplete = false;  // set true when kills-Paradox cinematic onEnd() fires
 let absorptionComplete   = false;  // set true when absorption phase completes
 
-// ── Eternal Damnation arc globals ────────────────────────────────────────────
 let damnationActive          = false;
 let damnationWave            = 0;
 let damnationDeaths          = 0;
@@ -1211,7 +1139,6 @@ function resetDamnationState() {
   }
 }
 
-// ── Boss telegraph / warning system ──────────────────────────────────────────
 // Visual warning indicators shown before attacks land (give player time to dodge)
 let bossWarnings        = [];   // { type:'circle'|'arc'|'cone', x, y, r, color, timer, maxTimer, label, safeZone, facing }
 let bossMetSafeZones    = [];   // safe zones during meteor storm { x, y, r, timer, maxTimer }
@@ -1223,9 +1150,6 @@ let bossStaggerDecay    = 0;    // decay timer; when 0 accumulator resets
 let bossDesperationMode  = false;
 let bossDesperationFlash = 0;   // visual flash timer on activate
 
-// ============================================================
-// SECRET LETTER HUNT
-// ============================================================
 let bossBeaten         = false;
 let collectedLetterIds = new Set();
 // 0 = fresh player, 1 = boss beaten, 2 = true form unlocked
@@ -1248,16 +1172,12 @@ const SECRET_LETTER_POS = {
 const ARENA_KEYS_ORDERED = ['grass', 'city', 'space', 'lava', 'forest', 'ice', 'ruins',
   'cave', 'mirror', 'underwater', 'volcano', 'colosseum', 'cyberpunk', 'haunted', 'clouds', 'neonGrid', 'mushroom', 'sewer'];
 
-// Menu background cycling state
 let menuBgArenaIdx   = 0;
 let menuBgTimer      = 0;
 let menuBgFade       = 0;      // 0→1 fade to black, 1→2 fade from black
 let menuBgFrameCount = 0;
 let menuLoopRunning  = false;
 
-// ============================================================
-// ONLINE STATE
-// ============================================================
 let onlineMode               = false;
 let onlineReady              = false;
 let onlineLocalSlot          = 0;
@@ -1274,64 +1194,50 @@ let onlineCamX = 450, onlineCamY = 260; // free camera target position for onlin
 let _cheatBuffer     = ''; // tracks recent keypresses for cheat codes
 let unlockedMegaknight = false;
 // Public room browser state
-let _publicRooms     = [];  // [{code, host, created}] — discovered public rooms
+let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-// ============================================================
-// ============================================================
-// VERSION
-// ============================================================
 const GAME_VERSION = '4.6.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
-// DEBUG / DEVELOPER STATE
-// ============================================================
 let debugMode          = false;
 let timeScale          = 1.0;
-let showHitboxes       = false;  // F1 — fighter hitboxes + weapon tips
-let showCollisionBoxes = false;  // F2 — platform collision geometry
-let showPhysicsInfo    = false;  // F3 — velocity vectors + onGround/vy labels
+let showHitboxes       = false;  // F1: fighter hitboxes + weapon tips
+let showCollisionBoxes = false;  // F2: platform collision geometry
+let showPhysicsInfo    = false;  // F3: velocity vectors + onGround/vy labels
 let _debugKeyBuf       = '';     // rolling key buffer for "debugmode" cheat
 
-// ============================================================
-// STORY MODE STATE
-// ============================================================
 let playerPowerLevel    = 1.0;   // hidden: grows +0.02 per chapter cleared; applied to player damage in story
 let storyModeActive      = false; // true while a story level is in progress
 let multiverseModeActive = false; // true while a multiverse encounter is in progress
 let storyCurrentLevel   = 1;     // which story level is being played (1-indexed)
-let storyPlayerOverride = null;  // { speedMult, dmgMult, noAbility, noSuper, noDoubleJump, weapon } — applied to p1 on level start
-let storyFightSubtitle  = null;  // { text, timer, maxTimer, color } — in-fight narrative subtitle
-let storyFightScript    = [];    // [{ frame, text, color }] — scheduled messages for current level
+let storyPlayerOverride = null;  // { speedMult, dmgMult, noAbility, noSuper, noDoubleJump, weapon }: applied to p1 on level start
+let storyFightSubtitle  = null;  // { text, timer, maxTimer, color }: in-fight narrative subtitle
+let storyFightScript    = [];    // [{ frame, text, color }]: scheduled messages for current level
 let storyFightScriptIdx = 0;     // next unplayed entry index
-let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings'] — armor pieces on enemy this chapter
+let storyEnemyArmor     = [];    // ['helmet','chestplate','leggings']: armor pieces on enemy this chapter
 let storyTwoEnemies     = false; // true = spawn a second enemy bot in this chapter
 let storySecondEnemyDef = null;  // { weaponKey, classKey, aiDiff, color } for the second enemy
-let storyAllyDef        = null;  // { name, weaponKey, classKey, aiDiff, color, health } — ally fighter on the player's side (ch.allyDef)
+let storyAllyDef        = null;  // { name, weaponKey, classKey, aiDiff, color, health }: ally fighter on the player's side (ch.allyDef)
 let storyOpponentName   = null;  // display name of the story chapter opponent (shown in HUD)
-let storyChapterCtx     = null;  // { origId, noAdaptive } — set at story fight launch; drives Lever-2 AdaptiveAI selection in _startGameCore
+let storyChapterCtx     = null;  // { origId, noAdaptive }: set at story fight launch; drives Lever-2 AdaptiveAI selection in _startGameCore
 let storyOpponentColor  = null;  // hex color for the story opponent fighter (applied at spawn)
 let storyCharId         = null;  // named character ID for appearance overlay ('veran','herald', etc.)
-let storyBossType       = null;  // 'fallen_god' | null — overrides which Boss subclass is spawned
+let storyBossType       = null;  // 'fallen_god' | null: overrides which Boss subclass is spawned
 let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
 let storyPhaseIndicator = null;  // { index, total, label, type }
 let storyGauntletState  = null;  // active chapter phase runtime
 let storyPendingPhaseConfig = null; // temporary launch override for next story phase
 let storyCameraLock     = null;  // { left, right, reason }
-// ── Objective system ──────────────────────────────────────────────────────────
 window.currentObjective        = null;   // { text, completedAt } | null
 window.objectiveCompleteTimer  = 0;      // frames to show "COMPLETE" banner
 let storyPressureState  = { dodgeFatigue: 0, dodgeTimer: 0 };
 
-// ============================================================
-// ENTITY & VISUAL STATE
-// ============================================================
-let lightningBolts   = [];    // { x, y, timer, segments } — Torren perk visual lightning
+let lightningBolts   = [];    // { x, y, timer, segments }: Torren perk visual lightning
 let backstagePortals = [];    // {x,y,type,phase,timer,radius,maxRadius,shards,done}
 let phaseTransitionRings = []; // expanding ring effects on phase change
-// ---- Combat Phase Lock ----
-// Single authority for which phase owns the frame. Higher-priority phases block lower ones.
+// One owner per frame. Higher priority phases block lower ones. Only the system that set a lock can clear it.
 // Priorities: normal=0, hitstop=1, finisher=3, qte=3, cinematic=4.
 // Only the system that SET the lock can CLEAR it (matched by phase name).
 let combatLock = {
@@ -1370,11 +1276,10 @@ function isCombatLocked(system) {
   return !!combatLock.blocks[system];
 }
 
-// ---- Cinematic System ----
 let cinGroundCracks  = [];    // world-space crack effects (managed by smc-cinematics.js)
 let cinScreenFlash   = null;  // screen-space flash { color, alpha, timer, maxTimer }
 let activeCinematic      = null;  // active cinematic sequence or null
-let isCinematic          = false; // true during any cinematic or finisher — blocks new attack/projectile creation
+let isCinematic          = false; // true during any cinematic or finisher: blocks new attack/projectile creation
 let slowMotion           = 1.0;   // physics time scale (1=normal, 0=fully frozen)
 let cinematicCamOverride = false; // when true, camera uses cinematic focus targets
 let cinematicZoomTarget  = 1.0;   // zoom level during cinematic
@@ -1387,13 +1292,12 @@ let _camPrevFocusX      = 450;    // previous cinematic focus target X (for spri
 let _camPrevFocusY      = 260;    // previous cinematic focus target Y (for spring feel)
 let _camOvershootX      = 0;      // decaying cinematic camera overshoot X
 let _camOvershootY      = 0;      // decaying cinematic camera overshoot Y
-// ── Cinematic Enhancements (smb-cinematics-core.js) ──────────────────────
 let cinSpeedLines       = [];     // radial/directional speed line burst effects
 let cinMotionTrails     = [];     // [{entity, positions:[{x,y}], color, maxLen}]
 let cinImpactFrame      = null;   // hard-cut impact frame {timer, maxTimer, color, entities[]}
 let cinNameCard         = null;   // move name card {text, color, accentColor, timer, maxTimer}
 let cinematicTiltAngle  = 0;      // current Dutch angle in radians (world-space render tilt)
-let cinematicTiltTarget = 0;      // target Dutch angle — lerped toward each frame
+let cinematicTiltTarget = 0;      // target Dutch angle: lerped toward each frame
 let cinBgContrast       = null;   // bg contrast override {color, alpha, timer, maxTimer}
 let cinShakeDir         = null;   // directional shake first-frame bias {x, y, timer}
 let bossDeathScene   = null;  // boss defeat animation state
@@ -1404,7 +1308,6 @@ let forestBeastCooldown = 0;  // frames until beast can spawn again after death
 let yeti             = null;  // current Yeti instance in ice arena
 let yetiCooldown     = 0;     // frames until yeti can spawn again
 
-// ── Spawn config — single source of truth for all enemy spawn timing ──────────
 const SPAWN_CONFIG = {
   yeti: {
     minDelay:      900,   // frames before yeti can first spawn (15s at 60fps)
@@ -1427,8 +1330,7 @@ let bossFloorState = 'normal';  // 'normal' | 'warning' | 'hazard'
 let bossFloorType  = 'lava';    // 'lava' | 'void'
 let bossFloorTimer = 1500;      // frames until next state transition
 
-// ── Depth Phase: Z-axis final phase (triggers after Code Realm + fight reset) ──
-// Entities gain a z-coordinate (-1 to 1); only same-layer hits land (|dz| < 0.4).
+// Depth Phase: Z-axis final phase, after Code Realm and the fight reset.
 // Player uses Q (ability key) to decrease Z and E (super key) to increase Z.
 let tfDepthPhaseActive     = false; // true while Z-axis illusion phase is live
 let tfDepthTransitionTimer = 0;     // >0 = input frozen during scripted entry (~30f)
@@ -1438,24 +1340,21 @@ const TF_DEPTH_CX = 450;           // circular arena center X
 const TF_DEPTH_CY = 300;           // circular arena center Y
 const TF_DEPTH_R  = 300;           // circular arena radius
 
-// True Form — dimensional attacks
 let tfPhaseShift   = null;  // { timer, maxTimer, echoes:[{x,y}], realIdx, revealed }
 let tfRealityTear  = null;  // { x, y, timer, maxTimer, phase:'warn'|'active'|'close' }
 let tfMathBubble   = null;  // { text, timer, maxTimer, x, y }
 let tfCalcStrike   = null;  // { timer, maxTimer, predictX, predictY, fired, strikeDelay }
-let tfGhostPaths      = null;  // { paths:[{pts,selected,alpha}], timer, maxTimer } — 5D path visualization
-let tfRealityOverride = null;  // { timer, maxTimer, bossRef, targetRef, phase } — dominance mechanic
-// ── New cosmic attacks ─────────────────────────────────────────────────────────
+let tfGhostPaths      = null;  // { paths:[{pts,selected,alpha}], timer, maxTimer }: 5D path visualization
+let tfRealityOverride = null;  // { timer, maxTimer, bossRef, targetRef, phase }: dominance mechanic
 let tfGammaBeam     = null;  // { phase:'telegraph'|'active', timer, y, hit:Set }
-let tfBurnTrail     = null;  // { y, timer, maxTimer } — glowing aftermath streak after gamma beam
+let tfBurnTrail     = null;  // { y, timer, maxTimer }: glowing aftermath streak after gamma beam
 let tfNeutronStar   = null;  // { phase:'pull'|'warn'|'slam', timer, bossRef, startX }
 let tfGalaxySweep   = null;  // { angle, speed, timer, maxTimer, hit:Set }
 let tfMultiverse    = null;  // { timer, maxTimer, echoes:[{x,y,selected}], targetIdx, phase, bossRef, targetRef }
 let tfSupernova     = null;  // { timer, maxTimer, phase:'buildup'|'active', bossRef, hit:Set, r }
 let tfAttackRetryQueue = []; // [{ ctx, move, targetRef, source, framesLeft, attempts }]
 
-// ── Story event / cinematic system ────────────────────────────────────────────
-let storyEventFired    = {};   // { [eventName]: true } — dedup per fight
+let storyEventFired    = {};   // { [eventName]: true }: dedup per fight
 let storyFreezeTimer   = 0;    // frames of physics halt for cinematic freezes
 let storyDistortLevel  = 0;    // 0-1 world distortion intensity (rises with chapter progress)
 let sovereignBeaten    = false; // set true after Sovereign MK2 is defeated
@@ -1467,28 +1366,20 @@ let absoluteAxiomUnlocked = false; // set true by cheat code AXIOMSQUARED
 let playerCoins        = 0;     // coin balance; hydrated per account
 let unlockedCosmetics  = [];    // cosmetic IDs; hydrated per account
 
-// ── Ability unlock toast ─────────────────────────────────────────────────
 let abilityUnlockToast = null;  // { text, icon, timer, maxTimer }
 
-// ── Between-level overlay hold ────────────────────────────────────────────
-// Narrative scenes and branch prompts are fullscreen overlays that open while a
-// match is still running. gameLoop() parks on this flag (and smb-input.js stops
-// feeding it keys) so the world underneath stops instead of simulating out of
-// sight. Held keys are dropped on both edges.
+// Fullscreen narrative overlays. gameLoop() parks on this flag, so the world underneath stops.
 function storyHoldGameplay(on) {
   window._storySceneHold = !!on;
   if (typeof _clearAllKeys === 'function') _clearAllKeys();
 }
 
-// ── Exploration chapter state ─────────────────────────────────────────────
 let exploreActive    = false;   // true while exploration chapter is running
 let exploreWorldLen  = 4200;    // total world length in game px (set per chapter)
 let exploreGoalX     = 3800;    // world x of goal object
 let exploreGoalName  = '';      // display name of the goal object
 let exploreGoalFound = false;   // true when player reaches the goal
-// Clear-the-area gate: the exit stays sealed while the level's objective is
-// unfinished or a required enemy is alive. Set by storyLevelClearBlocker()
-// consumers; read by the exploration HUD to explain WHY the mark won't take.
+// Clear-the-area gate: exit stays sealed until the objective is done and required enemies are dead.
 let exploreGoalBlocked     = 0;  // count of required enemies still standing (0 = clear)
 let exploreGoalBlockReason = ''; // player-facing reason the exit is sealed
 let exploreFoesRemaining   = 0;  // required enemies left (alive + queued), for the HUD
@@ -1510,10 +1401,9 @@ let storyChaseTimer    = 0;     // frames remaining in a chase phase (0 = no cha
 let storyChaseMaxTimer = 0;     // max frames (used for the HUD progress bar)
 let storeSurvivalState = null;  // { active, state, wave, totalWaves, waveSize, timer, baseEnemy }
 
-// ── TrueForm clone position history (ring buffer for multiverse lag effect) ──
-let _tfCloneHistory = [];   // [{ x, cy, facing }, ...] — last 24 frames
+// TrueForm clone position history, for the multiverse lag effect.
+let _tfCloneHistory = [];   // [{ x, cy, facing }, ...]: last 24 frames
 
-// ── New interactive chapter mode globals ─────────────────────────────────────
 
 // Mode-active flags (checked in updateExploration each frame)
 let stealthModeActive    = false;
@@ -1522,17 +1412,14 @@ let defenseModeActive    = false;
 let scavengeModeActive   = false;
 let puzzleModeActive     = false;
 
-// Stealth mode
 let stealthGuards        = [];   // [{ x, y, radius, alertTimer, maxAlertTimer, alerted }]
 let stealthAlarmed       = false; // true once any alarm fires
 let stealthNeverAlarmed  = true;  // bonus flag: never triggered alert
 
-// Escape mode
 let escapeWallX          = -80;  // world x of the collapse wall
 let escapeWallSpeed      = 1.2;  // px/frame; accelerates over time
 let escapeWallAccelTimer = 0;    // frames since last speed tick
 
-// Defense mode
 let defenseNexusHP       = 300;
 let defenseNexusMaxHP    = 300;
 let defenseNexusX        = 450;
@@ -1540,43 +1427,32 @@ let defenseNexusY        = 390;
 let defenseNexusHitTimer = 0;    // per-enemy cooldown (frames since last nexus hit)
 let defenseNexusPulse    = 0;    // glow animation counter
 
-// Scavenge mode
 let scavengeItems        = [];   // [{ x, y, name, icon, collected }]
 let scavengeTotal        = 0;
 
-// Puzzle mode
 let puzzleSwitches       = [];   // [{ x, y, label, activated, pulseTimer }]
 let puzzleStep           = 0;    // next switch index that must be activated
 
-// Assassination mode
 let assassinationTimer   = 0;    // frames remaining (counts down)
 let assassinationTarget  = null; // reference to target fighter
 
-// Gauntlet mode
 let gauntletRound        = 0;    // current round (0-indexed)
 let gauntletTotalRounds  = 3;
 let gauntletRoundDelay   = 0;    // frames until next round starts
 let gauntletActive       = false;
 
-// Ship flight mode
 let shipFlightShip       = null; // { x, y, vx, vy, hp, maxHp, bullets:[], fireTimer:0 }
 let shipFlightEnemies    = [];   // [{ x, y, hp, maxHp, speed, hitTimer }]
 let shipFlightScrollX    = 0;    // camera scroll (based on ship.x)
 let shipFlightLen        = 6000; // total flight length
 let shipFlightStars      = [];   // parallax star layer
 
-// Escort mode (implemented in smb-story-engine-modes.js)
 let escortNPCTarget      = null; // Fighter-like NPC wrapper object
 let escortNPCHP          = 200;
 let escortNPCMaxHP       = 200;
 let escortGoalX          = 4000; // world x the NPC must reach
 
-// ============================================================
-// SHIP PROGRESSION SYSTEM
-// Axiom cannot travel the multiverse without a stable vessel.
-// Parts are collected through main story chapters and exploration.
-// When all 5 parts are gathered, SHIP.built = true → full branch access.
-// ============================================================
+// Ship parts come from main story chapters. With all 5 (SHIP.built = true), the multiverse branches open.
 window.SHIP = {
     built: false,
     parts: {
@@ -1587,13 +1463,9 @@ window.SHIP = {
     }
 };
 
-// ============================================================
-// FRACTURE SYSTEM
 // Fractures are visible tears to other branches.
-// Before SHIP.built: only a 10-second preview with one branch guardian.
-// After SHIP.built: full branch entry unlocked.
+// Before SHIP.built: a 10-second preview with one guardian. After: full branch entry.
 // Each fracture is tied to one of Axiom's former allies turned rulers.
-// ============================================================
 window.FRACTURES = [
     {
         id:          'branch_alpha',
@@ -1630,79 +1502,60 @@ window.FRACTURES = [
     }
 ];
 
-// Active fracture preview state — set by enterFracturePreview(), cleared on exit
+// Active fracture preview state: set by enterFracturePreview(), cleared on exit
 let fracturePreviewActive = false;   // true while 10s preview is running
 let fracturePreviewTimer  = 0;       // counts down from 600 (10 seconds at 60fps)
 let fracturePreviewId     = null;    // id of the fracture being previewed
 
-// ============================================================
-// STORY PROGRESS SYSTEM
 // Tracks act/chapter position and persistent story flags.
-// Acts 0–9; chapter is a 0-based index within the current act.
-// flags{} is a free-form key→true store for one-shot events.
-// ============================================================
 window.STORY_PROGRESS = {
     act:     0,
     chapter: 0,
     flags:   {}
 };
 
-// ── resetProgressionGlobals ───────────────────────────────────────────────────
-// Resets all account-specific progression globals to their initial defaults.
-// Called at the start of _refreshRuntimeFromSave() (smb-save.js) so every
-// account load begins from a clean slate before the save patch is applied.
-//
-// Rules:
-//   - Mutate in-place throughout — object/array references are never replaced,
-//     so no system holding a ref to SHIP, FRACTURES, or settings can break.
-//   - motivationStage lives in smb-progression.js (loaded after this file);
-//     guard with typeof so this is safe to call at any point.
-//   - playerProgressLevel is recalculated at the end once its sources are reset.
+// Resets account-scoped progression globals to defaults. Runs at the top of _refreshRuntimeFromSave() (smb-save.js).
+// Mutate in place: refs to SHIP, FRACTURES and settings must stay valid. playerProgressLevel is recalculated at the end.
 function resetProgressionGlobals() {
-  // SHIP — mutate properties, preserve object identity
+  // SHIP: mutate properties, preserve object identity
   SHIP.built         = false;
   SHIP.parts.hull    = 0;
   SHIP.parts.engine  = false;
   SHIP.parts.core    = false;
   SHIP.parts.crystal = false;
 
-  // FRACTURES — reset each entry's state fields, preserve array and object identities
+  // FRACTURES: reset each entry's state fields, preserve array and object identities
   for (const f of FRACTURES) {
     f.unlocked  = false;
     f.previewed = false;
     f.completed = false;
   }
 
-  // STORY_PROGRESS — mutate in-place
   STORY_PROGRESS.act     = 0;
   STORY_PROGRESS.chapter = 0;
   STORY_PROGRESS.flags   = {};
 
-  // Unlock booleans
   bossBeaten         = false;
   unlockedTrueBoss   = false;
   unlockedMegaknight = false;
 
-  // Settings — ragdoll preference is account-specific (persisted per account)
+  // Settings: ragdoll preference is account-specific (persisted per account)
   settings.ragdollEnabled = false;
 
-  // motivationStage — declared in smb-progression.js, loaded after this file; guarded
+  // motivationStage: declared in smb-progression.js, loaded after this file; guarded
   if (typeof motivationStage !== 'undefined') motivationStage = 0;
 
-  // collectedLetterIds — must clear in-memory Set so old account's letters don't bleed through
+  // collectedLetterIds: must clear in-memory Set so old account's letters don't bleed through
   if (typeof collectedLetterIds !== 'undefined' && collectedLetterIds instanceof Set) collectedLetterIds.clear();
 
-  // earnedAchievements — declared in smb-achievements.js (loaded after this file); guarded
+  // earnedAchievements: declared in smb-achievements.js (loaded after this file); guarded
   if (typeof earnedAchievements !== 'undefined' && earnedAchievements instanceof Set) earnedAchievements.clear();
 
   // playerProgressLevel is derived from the two booleans above; recalculate
   playerProgressLevel = 0;
 }
 
-// Second reset layer — clears account-scoped runtime globals not covered by
-// resetProgressionGlobals(). Called at the top of _refreshRuntimeFromSave() and
-// from the new-account path in loadGame(). Does NOT touch localStorage — that is
-// handled by _applySaveData() (primary path) or explicit removeItem (new-account path).
+// Second reset layer for account-scoped globals not covered above. Doesn't touch localStorage, which the save code handles.
 function resetAccountScopedGlobals() {
   sovereignBeaten    = false;
   storyOnline        = false;
@@ -1710,6 +1563,6 @@ function resetAccountScopedGlobals() {
   godDefeated        = false;
   playerCoins        = 0;
   unlockedCosmetics.length = 0;
-  // paradoxCompanionActive — declared in smb-paradox-ai.js (loaded later); guarded
+  // paradoxCompanionActive: declared in smb-paradox-ai.js (loaded later); guarded
   if (typeof paradoxCompanionActive !== 'undefined') paradoxCompanionActive = false;
 }

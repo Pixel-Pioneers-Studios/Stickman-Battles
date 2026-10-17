@@ -1,20 +1,13 @@
 'use strict';
 /*
- * smb-palette.js — the game-wide colour grade.
+ * smb-palette.js: game-wide colour grade.
  *
- * One place that decides what "grounded" means numerically, so the figure, the
- * terrain and (later) the HUD cannot drift apart into three different looks.
- * Everything here is a pure function of an authored colour; nothing is stored
- * and nothing is mutated, so a system can be graded by wrapping its existing
- * colour lookup and reverted by removing the wrap.
+ * Pure functions over authored colours. Nothing is stored or mutated, so a
+ * system can be graded by wrapping its colour lookup and reverted by unwrapping.
+ * Grading beats re-authoring: ~40 arenas plus runtime-built maps have no
+ * palette to edit by hand.
  *
- * Why grade instead of re-authoring the source colours: there are ~40 arenas
- * with a platColor/platEdge pair plus runtime-built Battle Royale and custom
- * maps that have no authored palette at all. Editing 80 hex literals by hand
- * would miss the runtime maps entirely, destroy the relative value structure
- * each arena was tuned with, and give no single knob to tune afterwards.
- *
- * Load order: immediately after smb-globals.js. Depends on nothing.
+ * Load order: right after smb-globals.js. Depends on nothing.
  */
 
 const SMBPal = (function () {
@@ -24,7 +17,7 @@ const SMBPal = (function () {
   function hex2rgb(h) {
     if (typeof h !== 'string') return _NEUTRAL.slice();
     let s = h.trim();
-    // rgb()/rgba() appears in places that predate the hex convention.
+    // rgb()/rgba() predates the hex convention.
     if (s[0] === 'r') {
       const m = s.match(/(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/);
       return m ? [+m[1] | 0, +m[2] | 0, +m[3] | 0] : _NEUTRAL.slice();
@@ -65,24 +58,16 @@ const SMBPal = (function () {
 
   function hsl(hex) { const c = hex2rgb(hex); return rgb2hsl(c[0], c[1], c[2]); }
 
-  // ── The grade ─────────────────────────────────────────────────────────────
 
   const _cache = new Map();
+  const _SAT_KEEP = 0.94, _LIGHT_KEEP = 0.86;
 
   /**
    * Pull an authored colour into the grounded material range.
    *
-   * Two rules, and only two:
-   *   - Saturation is compressed. Poster-paint chroma is the loudest "free
-   *     flash game" signal there is, and it is what makes a realistic weapon or
-   *     a shaded figure look pasted onto the scene.
-   *   - Lightness is compressed only at the TOP. Bright colours get pulled down
-   *     (lime green -> field green); dark colours are left alone, because the
-   *     dark arenas are already grounded and crushing them further just makes
-   *     them muddy and unreadable.
-   *
-   * Hue is never touched: it is the authored identity of the arena and of the
-   * player, and shifting it would silently redesign 40 levels.
+   * Saturation is compressed (loud chroma reads as a flash game and pastes
+   * shaded figures onto the scene). Lightness is compressed only at the top,
+   * so bright colours drop but dark arenas stay readable. Hue is never touched.
    *
    * @param hex   authored colour
    * @param amt   0 = untouched, 1 = full grade (default 1)
@@ -94,22 +79,22 @@ const SMBPal = (function () {
     if (hit) return hit;
 
     const [h, s0, l0] = hsl(hex);
-    const sG = s0 * 0.66;
-    // Only the top of the range is compressed — see above.
-    const lG = l0 > 0.50 ? 0.50 + (l0 - 0.50) * 0.62 : l0;
+    // Desaturated look was dropped (read as depressing). Only the loudest
+    // chroma and hottest highlights are trimmed now.
+    const sG = s0 * _SAT_KEEP;
+    // Only the top of the range is compressed.
+    const lG = l0 > 0.50 ? 0.50 + (l0 - 0.50) * _LIGHT_KEEP : l0;
     const out = hsl2css(h, s0 + (sG - s0) * k, l0 + (lG - l0) * k);
     _cache.set(key, out);
     return out;
   }
 
   /**
-   * Is this edge colour meant to GLOW rather than to outline?
+   * Is this edge colour meant to glow rather than outline?
    *
-   * Several arenas deliberately rim their platforms with neon — cyberpunk's
-   * cyan, the matrix green, the void's white, the Circuit's red. Those are
-   * authored light sources, not keylines, and grading them into a low-contrast
-   * dark line would erase the whole look of those levels. An edge that is
-   * clearly lighter or much more saturated than the body is one of those.
+   * Neon rims (cyberpunk cyan, matrix green) are light sources. Grading them
+   * into a dark keyline would erase the look. Lighter or much more saturated
+   * than the body means glow.
    */
   function isEmissiveEdge(edgeHex, baseHex) {
     if (typeof edgeHex !== 'string' || typeof baseHex !== 'string') return false;
@@ -121,11 +106,8 @@ const SMBPal = (function () {
   /**
    * Hex form of grade().
    *
-   * Most of the game's older colour helpers (_platRGB/_platShade, _dpMix) parse
-   * HEX ONLY and fall back to a neutral grey on anything else — so handing them
-   * an 'rgb(...)' string silently repaints whole arenas grey rather than
-   * throwing. Any graded colour that flows into one of those must come from
-   * here, not from grade().
+   * Older helpers (_platRGB/_platShade, _dpMix) parse hex only and turn anything
+   * else grey. Colours feeding them must come from here, not grade().
    */
   function gradeHex(hex, amt) {
     const key = 'H' + hex + '|' + (amt === undefined ? 1 : amt);

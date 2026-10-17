@@ -32,13 +32,11 @@ STORY_CHAPTER_REGISTRY.push(
       { wx: 2700, name: 'Ash Walker',      weaponKey: 'hammer', classKey: 'thor',      aiDiff: 'hard',   color: '#554433' },
       { wx: 3100, name: 'Grove Assassin',  weaponKey: 'sword',  classKey: 'ninja',     aiDiff: 'expert', color: '#2a3a11' },
       { wx: 3400, name: 'Grove Elder',     weaponKey: 'sword',  classKey: 'warrior',   aiDiff: 'expert', color: '#224411' },
-      // Relic guardians — hold position at the sanctum
       { wx: 4000, name: 'Sanctum Warden', weaponKey: 'axe',    classKey: 'thor',      aiDiff: 'expert', color: '#1a3311', isGuard: true, health: 130 },
       { wx: 4080, name: 'Elder Protector',weaponKey: 'hammer', classKey: 'warrior',   aiDiff: 'expert', color: '#223322', isGuard: true, health: 110 },
       { wx: 4160, name: 'Root Keeper',    weaponKey: 'spear',  classKey: 'ninja',     aiDiff: 'hard',   color: '#334422', isGuard: true, health: 90  },
     ],
-    // Pacing peak: the canopy's resident predator roams this traversal.
-    // ForestBeast is already mini-boss tier (300 HP) — no scaling needed.
+    // Pacing peak. ForestBeast is already mini-boss tier (300 HP), so no scaling.
     miniBoss: 'forestBeast',
     storeNag: '\u26a0\ufe0f Something large hunts the canopy. Spend tokens first.',
     playerLives: 3,
@@ -133,8 +131,7 @@ STORY_CHAPTER_REGISTRY.push(
     opponentName: 'Ice Dimension Elite', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', opponentColor: '#4488cc',
     playerLives: 2,
     arena: 'ice',
-    // Pacing peak: the ice dimension's resident predator fights alongside the
-    // Architect's guard. Yeti is already mini-boss tier (200 HP) — no scaling.
+    // Pacing peak. Yeti is already mini-boss tier (200 HP), so no scaling.
     miniBoss: 'yeti',
     storeNag: '\u26a0\ufe0f A YETI hunts this dimension. Two enemies. Spend tokens first.',
     walkFight: true, worldLength: 3000,
@@ -211,8 +208,7 @@ STORY_CHAPTER_REGISTRY.push(
     objectName: 'Probability Seal',
     preText: 'The Third Architect\'s probability engine is locked behind four calculation nodes. Activate them in sequence to access the closure data.',
     puzzleSwitchDefs: [
-      // Zig-zag through the probability engine (js/story/levels/ch45.js):
-      // floor dais, gyroscope tower top, west gallery, lift top stop.
+      // Stops: floor dais, gyroscope tower top, west gallery, lift top (js/story/levels/ch45.js).
       { wx: 1300, y: 420, label: '1' },
       { wx: 2440, y: 170, label: '2' },
       { wx: 480,  y: 250, label: '3' },
@@ -233,6 +229,6 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'A fourteen-percent survival chance. The Third Architect is already modeling alternatives. So, quietly, are you.',
   },
 
-  // ─────── Arc 2-2: Ruins & Collapse (ids 42–44) ────────────────────
+  // Arc 2-2: Ruins & Collapse (ids 42-44)
 
 );

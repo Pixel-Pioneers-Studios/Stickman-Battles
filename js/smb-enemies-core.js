@@ -1,10 +1,8 @@
 'use strict';
-// smb-enemies-core.js — Minion class (wave AI) + ForestBeast class (roaming melee AI)
+// smb-enemies-core.js: Minion (wave AI) and ForestBeast (roaming melee AI).
 // Depends on: smb-globals.js, smb-fighter.js, smb-data-weapons.js
 
-// ============================================================
-// MINION  (lightweight boss-spawned enemy)
-// ============================================================
+// Minion: lightweight boss-spawned enemy
 class Minion extends Fighter {
   constructor(x, y) {
     const wKey = Math.random() < 0.5 ? 'axe' : 'sword';
@@ -14,8 +12,7 @@ class Minion extends Fighter {
     this.name      = 'MINION';
     this.isMinion  = true;
     this.w         = 32;
-    // h must match the fixed-size stickman Fighter.draw() renders (~84px from this.y),
-    // or grounded minions stand with their feet inside the floor
+    // Must match Fighter.draw()'s ~84px stickman, or grounded minions sink into the floor.
     this.h         = 84;
     this.health    = 150;
     this.maxHealth = 150;
@@ -30,13 +27,12 @@ class Minion extends Fighter {
   useSuper() {}
   activateSuper() {}
 
-  // Flat respawn override — minions just die, no countdown
+  // Minions don't respawn
   respawn() { this.health = 0; }
 }
 
-// Everyone a wild creature can hurt. Battle Royale bots live in minions[], not
-// players[], so a players-only loop let every bot walk through a beast slam.
-// Other minions (boss summons, story allies) stay out, as they always were.
+// Targets for wild creatures. BR bots live in minions[], not players[], so a players-only loop
+// let them walk through a beast slam. Other minions (boss summons, story allies) stay out.
 function creatureFoes(self) {
   const out = players.slice();
   if (typeof minions !== 'undefined') {
@@ -45,9 +41,7 @@ function creatureFoes(self) {
   return out;
 }
 
-// ============================================================
-// FOREST BEAST  (rare random encounter in forest arena)
-// ============================================================
+// ForestBeast: rare random encounter in the forest arena
 class ForestBeast extends Fighter {
   constructor(x, y) {
     super(x, y, '#1a8a2e', 'axe',
@@ -78,10 +72,8 @@ class ForestBeast extends Fighter {
     this._burstCd     = 0;
   }
 
-  // Vertical gap between this beast's feet and a target's feet.
-  // The slam and leap shockwaves travel along the ground, so they must only reach
-  // targets standing on (roughly) the same surface — without this, a beast on the
-  // floor hits a player on the top platform 400px above it.
+  // Vertical gap between beast feet and target feet. Shockwaves run along the ground, so only
+  // targets on about the same surface are hit (not someone 400px up on a platform).
   _feetGap(p) {
     return Math.abs((p.y + (p.h || 0)) - (this.y + this.h));
   }
@@ -102,13 +94,13 @@ class ForestBeast extends Fighter {
     // Block AI behavior during cinematic
     if (activeCinematic) return;
 
-    // ── Cooldown ticks ──────────────────────────────────────────
+    // Cooldown ticks
     if (this.dashCooldown   > 0) this.dashCooldown--;
     if (this._slamCd   > 0) this._slamCd--;
     if (this._leapCd   > 0) this._leapCd--;
     if (this._burstCd  > 0) this._burstCd--;
 
-    // ── Slam wind-up / release ──────────────────────────────────
+    // Slam wind-up and release
     if (this._slamPhase === 'windup') {
       this._slamTimer--;
       this.vx = 0; // plant feet during windup
@@ -117,8 +109,7 @@ class ForestBeast extends Fighter {
         screenShake = Math.max(screenShake, 10);
         spawnParticles(this.cx(), this.y + this.h, '#553300', 20);
         spawnParticles(this.cx(), this.y + this.h, '#aa6600', 10);
-        // Damage any target standing close on the ground.
-        // dmgMult is applied centrally by dealDamage() — do NOT pre-multiply here.
+        // Damage targets standing close on the ground. dealDamage() applies dmgMult, so don't pre-multiply.
         for (const p of creatureFoes(this)) {
           if (p === this || p.health <= 0) continue;
           const dist = Math.abs(p.cx() - this.cx());
@@ -133,7 +124,7 @@ class ForestBeast extends Fighter {
       return;
     }
 
-    // ── Leap wind-up / airborne ─────────────────────────────────
+    // Leap wind-up and airborne
     if (this._leapPhase === 'launch') {
       // Already launched via vy; wait until we land
       if (this.onGround && this._leapAirborne) {
@@ -153,13 +144,12 @@ class ForestBeast extends Fighter {
       return;
     }
 
-    // Dynamic retargeting: immediately retarget if current target is dead/missing
+    // Retarget at once if the target is dead or gone
     if (!this.target || this.target.health <= 0) this._fbRetargetCd = 0;
     this._fbRetargetCd = (this._fbRetargetCd || 0) - 1;
     if (this._fbRetargetCd <= 0) {
       const _pool = creatureFoes(this).filter(p => p !== this && p.health > 0 && !p.godmode && !areAlliedEntities(this, p));
-      // True 2D distance — a horizontal-only comparison makes a player parked directly
-      // overhead read as "nearest" and locks the beast onto a target it cannot reach.
+      // 2D distance. A horizontal-only check locks onto a player parked overhead, which the beast can't reach.
       if (_pool.length > 0) {
         const _d2 = (p) => Math.hypot(p.cx() - this.cx(), p.cy() - this.cy());
         this.target = _pool.reduce((a, b) => _d2(b) < _d2(a) ? b : a);
@@ -172,9 +162,8 @@ class ForestBeast extends Fighter {
     const dx  = tgt.cx() - this.cx();
     const dist = Math.abs(dx);
 
-    // ── Ground slam: use when target is close AND on our level ──
-    // The vertical gate keeps the beast from burning its slam on an unreachable target
-    // overhead — it leaps instead, which is the move that actually closes that gap.
+    // Slam when the target is close and on our level. The vertical gate stops slams on someone overhead;
+    // the beast leaps at them instead.
     if (this._slamCd <= 0 && dist < 100 && this._feetGap(tgt) < 60 &&
         this.onGround && this._slamPhase === 'none') {
       this._slamPhase = 'windup';
@@ -187,7 +176,7 @@ class ForestBeast extends Fighter {
       return;
     }
 
-    // ── Leap attack: use at medium range ───────────────────────
+    // Leap at medium range
     if (this._leapCd <= 0 && dist > 120 && dist < 340 && this.onGround && this._leapPhase === 'none') {
       this._leapPhase    = 'launch';
       this._leapAirborne = false;
@@ -197,34 +186,31 @@ class ForestBeast extends Fighter {
       return;
     }
 
-    // ── Dash attack: charge when far away ──────────────────────
+    // Dash when far away
     if (this.dashCooldown <= 0 && dist > 180) {
       this.vx = Math.sign(dx) * (this.isRaged ? 20 : 16);
       spawnParticles(this.cx(), this.cy(), '#1a8a2e', 8);
       this.dashCooldown = this.isRaged ? 130 : 180 + Math.floor(Math.random() * 120);
     }
 
-    // ── Fast burst combo in rage mode ──────────────────────────
+    // Rage burst combo
     if (this.isRaged && this._burstCd <= 0 && dist < 80) {
       this.attack();
       this._burstCd = 22;
     }
   }
 
-  // Disable inherited bot AI — beast has its own complete AI in update().
-  // The base updateAI() fires ability/super/attack independently and conflicts with
-  // the beast's slam/leap/burst system, causing erratic damage and unexpected arc hits.
+  // Disable inherited bot AI. The beast's update() owns slam, leap and burst. The base updateAI()
+  // would fire abilities on its own and cause erratic hits.
   updateAI() { return; }
   ability()   { return; }
   useSuper()  {}
   activateSuper() {}
   respawn() { this.health = 0; }
 
-  // ── Shaggy silhouette helper ──────────────────────────────────────────────
-  // A blob built from an ellipse with deterministic radial noise, so the beast
-  // has a fur outline instead of the smooth vector egg it used to be. The noise
-  // is keyed on the point index (never on Math.random) so it cannot crawl
-  // between frames; `wob` is the only animated term.
+  // Shaggy silhouette helper
+  // Ellipse with deterministic radial noise for a fur outline. Noise is keyed on point index, not
+  // Math.random, so it doesn't crawl between frames. Only `wob` animates.
   _furPath(cx, cy, rx, ry, seed, n, spike, wob) {
     ctx.beginPath();
     for (let i = 0; i <= n; i++) {
@@ -280,8 +266,7 @@ class ForestBeast extends Fighter {
     const dark  = raged ? '#4d0602' : '#0d3316';
     const belly = raged ? '#e0603c' : '#4f9a49';
 
-    // Stride phase from distance travelled, not from a free-running timer, so
-    // the paws track the ground instead of skating under a moving body.
+    // Stride phase comes from distance travelled, so the paws track the ground instead of skating.
     this._gait = (this._gait || 0) + Math.abs(this.vx) * 0.085;
     const moving = Math.abs(this.vx) > 0.4 && this.onGround;
     const stride = this._gait;
@@ -298,14 +283,14 @@ class ForestBeast extends Fighter {
     const bodyX = cx + lunge;
     const rx    = this.w * 0.98, ry = this.h * 0.27;
 
-    // Shadow — tightens as the beast leaves the ground
+    // Shadow: tightens as the beast leaves the ground
     const lift = Math.max(0, Math.min(1, (gy - (this.onGround ? gy : this.y + this.h)) / 60));
     ctx.fillStyle = `rgba(0,0,0,${air ? 0.12 : 0.28})`;
     ctx.beginPath();
     ctx.ellipse(cx, gy + 3, this.w * (air ? 0.5 : 0.78), 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // ── Rear legs (behind the body) ───────────────────────────────────────────
+    // Rear legs (behind the body)
     const swing = moving ? Math.sin(stride) * 11 : (air ? -7 : Math.sin(t * 0.04) * 1.4);
     const swing2 = moving ? Math.sin(stride + Math.PI) * 11 : (air ? -4 : -Math.sin(t * 0.04) * 1.4);
     const rearX  = bodyX - f * this.w * 0.62;
@@ -316,7 +301,7 @@ class ForestBeast extends Fighter {
     this._drawLimb(frontX, hipY - 2, frontX + f * 4 + swing2 * 0.3, hipY + 15,
                    frontX + f * 7 + swing2 * 0.8, gy - Math.max(0, swing2) * 0.3, f, 9, dark, mid, true);
 
-    // ── Tail ──────────────────────────────────────────────────────────────────
+    // Tail
     const tailBase = bodyX - f * rx * 0.92;
     const tSway = Math.sin(t * 0.06) * 8 + (moving ? Math.sin(stride) * 4 : 0);
     ctx.strokeStyle = mid;
@@ -333,7 +318,7 @@ class ForestBeast extends Fighter {
     ctx.stroke();
     ctx.lineCap = 'butt';
 
-    // ── Torso ─────────────────────────────────────────────────────────────────
+    // Torso
     const seed = (this._furSeed || (this._furSeed = ((this.spawnX | 0) % 97) + 3));
     const bodyGrad = ctx.createLinearGradient(0, bodyY - ry, 0, bodyY + ry);
     bodyGrad.addColorStop(0,    clr);
@@ -345,7 +330,7 @@ class ForestBeast extends Fighter {
     this._furPath(bodyX, bodyY, rx, ry, seed, 30, 0.14, t * 0.05);
     ctx.fill(); ctx.stroke();
 
-    // Shoulder hump — the mass that makes it read as a predator, not a barrel
+    // Shoulder hump: the mass that makes it read as a predator, not a barrel
     ctx.fillStyle = clr;
     this._furPath(bodyX + f * rx * 0.30, bodyY - ry * 0.62, rx * 0.42, ry * 0.72, seed + 11, 20, 0.18, t * 0.05 + 1);
     ctx.fill(); ctx.stroke();
@@ -373,7 +358,7 @@ class ForestBeast extends Fighter {
       ctx.fill();
     }
 
-    // ── Neck + head ───────────────────────────────────────────────────────────
+    // Neck and head
     const headX = bodyX + f * (rx * 0.92);
     const headY = bodyY - ry * (windup ? 0.28 : 0.55) + (air ? -4 : 0);
     ctx.strokeStyle = mid;
@@ -391,8 +376,7 @@ class ForestBeast extends Fighter {
     this._furPath(headX, headY, this.w * 0.52, this.w * 0.40, seed + 5, 18, 0.12, t * 0.05);
     ctx.fill(); ctx.stroke();
 
-    // Muzzle + jaw. The jaw drops on the wind-up and on a leap — this is the
-    // whole reason the head is a separate piece from the skull.
+    // Muzzle and jaw. The jaw drops on wind-up and leap, which is why the head is its own piece.
     const gape = windup ? 11 : (air ? 8 : 2 + Math.sin(t * 0.07) * 0.8);
     const snoutX = headX + f * this.w * 0.34;
     ctx.fillStyle = mid;
@@ -434,7 +418,7 @@ class ForestBeast extends Fighter {
       ctx.fill();
     }
 
-    // Brow + eye. The brow ridge is what makes it read as angry rather than cute.
+    // Brow and eye. The brow ridge makes it read as angry, not cute.
     const eyeX = headX + f * 7, eyeY = headY - 5;
     ctx.fillStyle = raged ? '#ffe14a' : '#ff3a10';
     ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
@@ -448,7 +432,7 @@ class ForestBeast extends Fighter {
     ctx.lineTo(eyeX + f * 6, eyeY - 4);
     ctx.stroke();
 
-    // ── Near-side legs (in front of the body) ────────────────────────────────
+    // Near-side legs (in front of the body)
     this._drawLimb(rearX + f * 5, hipY, rearX - f * 3 + swing * 0.4, hipY + 17,
                    rearX + f * 1 + swing, gy - Math.max(0, swing) * 0.35, f, 11, dark, clr, false);
     this._drawLimb(frontX + f * 4, hipY - 3,
@@ -460,8 +444,7 @@ class ForestBeast extends Fighter {
       spawnParticles(bodyX, bodyY - ry * 0.6, '#ff4400', 2);
     }
 
-    // Name tag + HP bar — a fighter wearing this body (BR creature form) has
-    // the shared overhead nameplate already.
+    // Name tag and HP bar. BR creature-form fighters already have the shared nameplate.
     if (!this._brForm) {
       ctx.globalAlpha = 1;
       ctx.fillStyle = raged ? '#ff6600' : '#aaffaa';
@@ -480,4 +463,3 @@ class ForestBeast extends Fighter {
   }
 }
 
-// ============================================================
