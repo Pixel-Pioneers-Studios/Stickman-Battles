@@ -411,7 +411,7 @@ const WEAPONS = {
     crackMult: 1.2,  // damage multiplier on a crack
     hookMult:  1.25, // extra multiplier while the target is hooked by the lasso
     bleedDmg:  2,    // damage per bleed tick
-    bleedTicks: 3,   // ticks from a body hit (a crack applies 5)
+    bleedTicks: 3,   // ticks from a crack (body hits don't bleed)
     abilityName: 'Lasso',
     ability(user, _target) {
       // Lasso the nearest enemy, yank them in, and stun. Hooked targets take crack hits until it wears off.

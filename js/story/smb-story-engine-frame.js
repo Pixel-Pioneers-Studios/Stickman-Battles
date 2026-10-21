@@ -209,12 +209,61 @@ function storyUpdateBoundaries() {
 (function _patchLaunchChapter2Fight() {
 })();
 
-// Called from _startGameCore (smb-menu-startcore.js) in story mode, before startGame().
+// Story Sovereign skips chapter scaling and mirrors the player's story boosts instead: upgrades,
+// multiverse bonuses and super charge, applied as ratios so his class HP and speed stay his own.
+// Situational skill-tree tricks (last stand, medkit) are the player's alone.
+function _storyMirrorPlayerBoosts(sov, p1, pre) {
+  if (!sov || !p1 || !pre || sov._storyMirrored) return;
+  sov._storyMirrored = true;
+  const hpR  = (p1.maxHealth || pre.hp) / pre.hp;
+  const dmgR = (p1.dmgMult || 1) / pre.dmg;
+  sov.maxHealth = Math.max(1, Math.round((sov.maxHealth || 150) * hpR));
+  sov.health    = sov.maxHealth;
+  // Base under the kill-floor governor, which multiplies onto it rather than overwriting dmgMult.
+  sov._kfBase   = dmgR;
+  sov.dmgMult   = dmgR * (sov._kfMult || 1);
+  if (pre.spd > 0 && p1.speed > 0) sov.speed = (sov.speed || p1.speed) * (p1.speed / pre.spd);
+  sov.damageReductionMult = Math.max(0.05, (sov.damageReductionMult || 1) * ((p1.damageReductionMult || 1) / pre.dr));
+  sov._superChargeMult    = (sov._superChargeMult || 1) * ((p1._superChargeMult || 1) / pre.sc);
+  if (p1.kbResist)    sov.kbResist    = Math.max(sov.kbResist || 0, p1.kbResist);
+  if (p1.kbBonus)     sov.kbBonus     = Math.max(sov.kbBonus || 0, p1.kbBonus);
+  if (p1._mvJumpMult) sov._mvJumpMult = p1._mvJumpMult;
+}
+
+// Story bosses keep their standalone stats (tuned from replays) instead of the regular-enemy curve,
+// whose 2x-player HP cap would leave a 3000-HP boss at 200. Like Sovereign they copy the player's
+// story boosts as ratios, multiplied onto their own stats, then take the difficulty tier's layer.
+function _storyScaleBoss(boss, p1, pre) {
+  if (!boss || boss._storyBossScaled) return;
+  boss._storyBossScaled = true;
+  const diff = typeof _storyDiffCfg === 'function' ? _storyDiffCfg() : null;
+  const hpR  = (p1 && pre) ? (p1.maxHealth || pre.hp) / pre.hp : 1;
+  const dmgR = (p1 && pre) ? (p1.dmgMult || 1) / pre.dmg : 1;
+  const drR  = (p1 && pre) ? (p1.damageReductionMult || 1) / pre.dr : 1;
+  boss.maxHealth = Math.max(1, Math.round(boss.maxHealth * hpR * (diff ? diff.hp * diff.hpCap : 1)));
+  boss.health    = boss.maxHealth;
+  boss.dmgMult   = (boss.dmgMult || 1) * dmgR * (diff ? diff.dmg : 1);
+  boss.damageReductionMult = Math.max(0.05, (boss.damageReductionMult || 1) * drR);
+  if (diff) boss.attackCooldownMult = Math.max(0.2, (boss.attackCooldownMult || 0.5) * diff.cd);
+}
+
+// Called from startGame (smb-menu-spawn.js) in story mode. _startGameCore runs 120-800 ms later, so the
+// buffs wait for it: a fixed 80 ms timer used to land on the previous match's fighters.
+let _storyFightBuffsPending = false;
 function _onStoryFightStart() {
   resetStoryEventState();
-  // Apply purchased story abilities to p1 once players[] is populated
-  setTimeout(() => {
+  _storyFightBuffsPending = true;
+}
+
+// Called at the end of _startGameCore, once players[] holds this match's fighters.
+function _storyApplyFightStartBuffs() {
+  if (!_storyFightBuffsPending || !storyModeActive) return;
+  _storyFightBuffsPending = false;
+  {
     const p1 = players && players[0];
+    // Pre-buff snapshot: Sovereign copies the boost, not the totals (see _storyMirrorPlayerBoosts).
+    const _p1Pre = p1 ? { hp: p1.maxHealth || 150, dmg: p1.dmgMult || 1, spd: p1.speed || 0,
+                          dr: p1.damageReductionMult || 1, sc: p1._superChargeMult || 1 } : null;
     if (p1 && !p1.isAI) {
       p1._story2BaseDmg = p1.dmgMult || 1;
       const meta = _story2.metaUpgrades || { damage: 0, survivability: 0, healUses: 0 };
@@ -227,8 +276,12 @@ function _onStoryFightStart() {
       if (typeof MultiverseScalingSystem !== 'undefined' && typeof MultiverseManager !== 'undefined') {
         MultiverseScalingSystem.applyToFighter(p1, MultiverseManager.getSave());
       }
+      _applySkillTreeToPlayer(p1);
     }
-    for (const enemy of players.filter(p => p && p !== p1 && (p.isAI || p.isBoss))) {
+    // isSovereignMK2 is listed separately: the brain marks him isAI=false once its checkpoint loads.
+    for (const enemy of players.filter(p => p && p !== p1 && (p.isAI || p.isBoss || p.isSovereignMK2))) {
+      if (enemy.isSovereignMK2) { _storyMirrorPlayerBoosts(enemy, p1, _p1Pre); continue; }
+      if (enemy.isBoss) { _storyScaleBoss(enemy, p1, _p1Pre); continue; }
       _storyScaleEnemyUnit(enemy, _activeStory2Chapter ? _activeStory2Chapter.id : 1, {
         elite: !!(storyPendingPhaseConfig && (storyPendingPhaseConfig.type === 'elite_wave' || storyPendingPhaseConfig.type === 'mini_boss'))
       });
@@ -243,7 +296,7 @@ function _onStoryFightStart() {
     } else if (typeof MultiverseManager !== 'undefined' && MultiverseManager.isActive()) {
       MultiverseManager.deactivate();
     }
-  }, 80);
+  }
 }
 
 // Called from smc-drawing.js each frame after the world is drawn, before HUD.

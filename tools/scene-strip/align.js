@@ -11,6 +11,8 @@ const want=process.argv.slice(2).map(Number);
 const S=ctx.window.STORY_SCENE_SPECS;
 for(const ch of ctx.STORY_CHAPTER_REGISTRY){ if(want.length&&!want.includes(ch.id))continue; const sp=S[ch.id]; if(!sp)continue;
  const lines=ch.narrative||ch.lines||ch.text||[]; const b=parse(lines);
- console.log(`\n=== id ${ch.id} "${ch.title}" text ${b.length} / staged ${sp.beats.length}  arena=${ch.arena||ch.style} type=${ch.type||''} opp=${ch.opponentName||''}`);
- b.forEach((x,i)=>{const t=x.lines.join(' ');const c=t.length;console.log(`  [${i}] ${x.speaker} ${c}ch typed@${Math.round(.84*c)} len~${Math.round(Math.max(.84*c+80,2.5*c))}: ${t}`);});
+ // afterNarrative plays after the branch beat, staged from the same spec at an offset of the narrative's beat count.
+ const nMain=b.length; if(Array.isArray(ch.afterNarrative)) parse(ch.afterNarrative).forEach(x=>{x.after=true;b.push(x);});
+ console.log(`\n=== id ${ch.id} "${ch.title}" text ${b.length}${b.length!==nMain?' ('+nMain+'+'+(b.length-nMain)+' after)':''} / staged ${sp.beats.length}  arena=${ch.arena||ch.style} type=${ch.type||''} opp=${ch.opponentName||''}`);
+ b.forEach((x,i)=>{const t=x.lines.join(' ');const c=t.length;console.log(`  [${i}]${x.after?'A':''} ${x.speaker} ${c}ch typed@${Math.round(.84*c)} len~${Math.round(Math.max(.84*c+80,2.5*c))}: ${t}`);});
 }

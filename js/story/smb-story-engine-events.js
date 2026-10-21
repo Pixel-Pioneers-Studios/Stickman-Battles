@@ -154,7 +154,7 @@ function _handleBuiltinEvent(name, data) {
     }
 
     case 'BOSS_INTRO': {
-      _showBossCinematicIntro(data && data.bossRef);
+      _showBossCinematicIntro(data && data.bossRef, data && data.ch);
       break;
     }
 
@@ -259,8 +259,17 @@ function _hexToRgb(hex) {
 }
 
 /** Boss intro: three-beat fullscreen overlay with typewriter lines. Called from triggerEvent('BOSS_INTRO'). */
-function _showBossCinematicIntro(_bossRef) {
-  const lines = [
+function _showBossCinematicIntro(_bossRef, ch) {
+  const lines = (ch && ch.bossType === 'fallen_god') ? [
+    { text: 'He built the walls between dimensions.',                delay: 0,    color: '#fff2c0' },
+    { text: 'He held them longer than anything has held anything.',  delay: 1100, color: '#ffdd88' },
+    { text: 'Then Axiom came for them.',                             delay: 2100, color: '#ffdd88' },
+    { text: 'The walls held. He did not.',                           delay: 3100, color: '#ffcc44' },
+    { text: '"Words are insufficient."',                             delay: 4200, color: '#ffffff', italic: true },
+    { text: '"Show me."',                                            delay: 5100, color: '#ffffff', italic: true },
+    { text: '...',                                                   delay: 6100, color: '#665533' },
+    { text: 'Face the Fallen God.',                                  delay: 6800, color: '#ffcc44' },
+  ] : [
     { text: 'The fracture system was not an accident.',              delay: 0,    color: '#dde4ff' },
     { text: 'Someone built it.',                                     delay: 1100, color: '#aaccff' },
     { text: 'Fragment bearers. Rift entities. Architects.',          delay: 2000, color: '#aaccff' },
@@ -294,7 +303,7 @@ function _showBossCinematicIntro(_bossRef) {
   const glow = document.createElement('div');
   glow.style.cssText = [
     'position:absolute', 'inset:0', 'z-index:-1',
-    'background:radial-gradient(ellipse at center, rgba(180,0,30,0.18) 0%, transparent 70%)',
+    'background:radial-gradient(ellipse at center, ' + ((ch && ch.bossType === 'fallen_god') ? 'rgba(255,190,60,0.16)' : 'rgba(180,0,30,0.18)') + ' 0%, transparent 70%)',
     'animation:bossCinGlow 2s ease-in-out infinite alternate',
   ].join(';');
   ov.appendChild(glow);

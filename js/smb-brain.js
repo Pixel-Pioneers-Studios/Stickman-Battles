@@ -339,6 +339,26 @@ const Brain = (() => {
   function _release(k) { keysDown.delete(k); delete keyHeldFrames[k]; }
   function _hold(k, on) { if (on) keysDown.add(k); else _release(k); }
 
+  // Twitch filter. The 15705 net reversed facing ~200 times a minute in sim, mostly in the air directly
+  // over its opponent, where 'toward' flips sides every frame. Play and evaluation only: in training the
+  // filtered act would not match the logged log-prob. A checkpoint opts in with `play: { turnAway, turnDz }`
+  // (it costs 12756 ~10 pts, 15705 nothing; hunteval.js --turnaway --turndz). `ts` = per-fighter state.
+  const TWITCH_WINDOW = 12;   // a turn this soon after the last one counts as a twitch (stats)
+  // A turn away from the opponent `o` goes through only after the net has asked for it
+  // for `hold` frames running (until then: stand). Turns toward `o` are never delayed. Targets the
+  // glance-away-and-back flicker; a real retreat starts `hold` frames late. Within `dz` px of the
+  // opponent's x (one above the other) no side is 'toward', so those turns wait too: that is where
+  // most of the twitch was, chasing a side that flips every frame.
+  function turnAway(ts, act, frame, hold, f, o, dz) {
+    if (!(hold > 0) || !f || !o) return;
+    const m = act[0] === 0 ? -1 : act[0] === 2 ? 1 : 0;
+    const dx = o.cx() - f.cx();
+    const away = m && m !== f.facing && (Math.abs(dx) < (dz || 0) || m !== Math.sign(dx));
+    if (!away) { ts.pend = 0; return; }
+    if (ts.pend !== m) { ts.pend = m; ts.pendAt = frame; }
+    if (frame - ts.pendAt < hold) act[0] = 1;
+  }
+
   function applyKeys(f, act) {
     const c = f.controls;
     _hold(c.left,  act[0] === 0);
@@ -363,7 +383,12 @@ const Brain = (() => {
     // Damage in the first 10 s vs after: a net that reads its opponent should trade better late.
     'dmgDealtEarly', 'dmgTakenEarly',
     // Habit opponents (HABITS below): how often the habit fired, and the damage traded while it ran.
-    'habitFires', 'habitDealt', 'habitTaken', 'habitFiresLate', 'habitDealtLate', 'habitTakenLate'];
+    'habitFires', 'habitDealt', 'habitTaken', 'habitFiresLate', 'habitDealtLate', 'habitTakenLate',
+    // Facing reversals, and the ones that come back within TWITCH_WINDOW frames of the last (the twitch).
+    'turns', 'twitchTurns',
+    // What the twitches were: the opponent changed sides between the two turns, the turn came in the air,
+    // in stun, or with no move key toward the new side (a swing or a hit turned him).
+    'twitchCross', 'twitchAir', 'twitchStun', 'twitchNoKey'];
   function newStats() { const s = {}; for (const k of STAT_KEYS) s[k] = 0; return s; }
 
   const BRAIN_TEAM = 'brain_a', ENEMY_TEAM = 'brain_b';
@@ -439,6 +464,20 @@ const Brain = (() => {
     // Five landed supers in one life is a chain paid nothing along the way. Opening a domain is
     // worth a stock, so the chain has an end.
     if (dom && !p.dom) { st.domains++; T.bonus += 2; }
+    if (p.facing && b.facing !== p.facing) {
+      st.turns++;
+      const side = Math.sign(o.cx() - b.cx());
+      if (T.frame - (p.turnAt === undefined ? -1e9 : p.turnAt) <= TWITCH_WINDOW) {
+        st.twitchTurns++;
+        if (T.twitchPen) T.bonus -= T.twitchPen;
+        if (side !== p.turnSide) st.twitchCross++;
+        if (!b.onGround) st.twitchAir++;
+        if ((b.stunTimer || 0) > 0 || (b.ragdollTimer || 0) > 0) st.twitchStun++;
+        if (!keysDown.has(b.facing < 0 ? b.controls.left : b.controls.right)) st.twitchNoKey++;
+      }
+      p.turnAt = T.frame; p.turnSide = side;
+    }
+    p.facing = b.facing;
     p.onGround = b.onGround; p.canDoubleJump = b.canDoubleJump; p.vy = b.vy;
     p.shielding = b.shielding; p.attackTimer = b.attackTimer || 0;
     p.abilityCooldown = b.abilityCooldown || 0; p.superReady = b.superReady;
@@ -603,6 +642,11 @@ const Brain = (() => {
     _histOff = !!opts.histOff;
     // Eval only (adapt.js --wipe): clear the brain's memory every N decisions. Opponents keep theirs.
     const memWipe = opts.memWipe | 0;
+    // Eval only (hunteval.js --turnaway/--turndz): the brain's twitch filter (turnAway). 0 = off.
+    const turnAwayN = opts.turnAway | 0, turnDz = opts.turnDz | 0;
+    // Training (train.js --twitchpen): reward paid per twitch turn, so the net learns not to twitch
+    // instead of having it filtered at play time.
+    const twitchPen = +opts.twitchPen || 0;
     if (opts.hunt) _huntWeights = opts.hunt;
     // Eval only (shieldtest.js): who controls the brain's shield key. undefined = the net; 'none' = never;
     // 'f1' = scripted guard every frame; 'dec' = scripted, at decisions only; 'hold' = guard ahead while a
@@ -679,10 +723,11 @@ const Brain = (() => {
       // swing started (-1 = none in progress: ability, projectile, hazard), and
       // the brain's state as that frame began: stun / air / atk / open].
       const swingStart = new Map(), hitLag = [];
-      const T = _track = { brain, opp: opps[0], opps, st, bonus: 0, frame: 0, lastAbi: -999, lastSup: -999,
+      const T = _track = { brain, opp: opps[0], opps, st, bonus: 0, frame: 0, lastAbi: -999, lastSup: -999, twitchPen,
         prev: { onGround: false, canDoubleJump: false, vy: 0, shielding: false, attackTimer: 0,
                 abilityCooldown: 0, superReady: false, clashCd: 0, oClashCd: 0, dom: false } };
       const act = [1, 0, 0, 0], prevAct = [1, 0, 0, 0], mem = newState(net);
+      const turnSt = {};
       const oppIO = opps.map(f => f._brainNet ? { act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), h: newState(f._brainNet) } : null);
       const seen = {};
       const alive = f => f.lives > 0 && players.indexOf(f) >= 0;
@@ -710,6 +755,7 @@ const Brain = (() => {
         logps.push(sample(forward(net, o, mem), act, greedy));
         acts.push(act[0], act[1], act[2], act[3]);
         if (brain._bRead) BrainRead.adjust(brain._bRead, brain, main, act);
+        turnAway(turnSt, act, frame, turnAwayN, brain, main, turnDz);
         if (shieldMode === 'hold') holdKey(brain, act);
         applyKeys(brain, act);
         if (shieldMode === 'none' || shieldMode === 'dec') oracleKey(brain, act);
@@ -856,7 +902,7 @@ const Brain = (() => {
     release();
     fighter._bHist = null;
     _live = { f: fighter, net, opp: opponent, act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), t: 0, h: newState(net),
-              wasAI: fighter.isAI, controls: fighter.controls,
+              wasAI: fighter.isAI, controls: fighter.controls, turn: {}, play: null,
               read: typeof BrainRead !== 'undefined' ? Object.assign(BrainRead.create(), { live: true }) : null };
     fighter.isAI = false;
     fighter.controls = controlsFor(9);
@@ -871,11 +917,14 @@ const Brain = (() => {
               : players.find(p => p !== L.f && p.health > 0);
     // The read (smb-brain-read.js) watches every frame; the net decides every REPEAT.
     if (opp && L.read) BrainRead.frame(L.read, L.f, opp);
+    // Sovereign runs at his opponent's speed, whatever class he counter-picked (jump is already shared).
+    if (opp && L.f.isSovereignMK2) L.f.classSpeedMult = opp.classSpeedMult || 1;
     if (L.t++ % REPEAT !== 0) return;
     if (!opp) return;
     observe(L.f, opp, L.prev, L.obs);
     sample(forward(L.net, L.obs, L.h), L.act, !!L.greedy);
     if (L.read) BrainRead.adjust(L.read, L.f, opp, L.act);
+    if (L.play) turnAway(L.turn, L.act, L.t, L.play.turnAway, L.f, opp, L.play.turnDz);
     applyKeys(L.f, L.act);
     for (let k = 0; k < 4; k++) L.prev[k] = L.act[k];
   }
@@ -912,10 +961,12 @@ const Brain = (() => {
       if (known.length) sov._applyLoadout(known[0]);
     }
     const ck = _sovCkpt ? Promise.resolve(_sovCkpt)
-      : fetch('data/brain/latest.json').then(r => r.json()).then(j => (_sovCkpt = j));
+      // no-cache revalidates, so a swapped checkpoint is picked up without a hard reload.
+      : fetch('data/brain/latest.json', { cache: 'no-cache' }).then(r => r.json()).then(j => (_sovCkpt = j));
     return ck.then(j => {
       if (players.indexOf(sov) < 0 || !possess(sov, j.pi || j, opponent)) return -1;
       _live.greedy = true;
+      _live.play = j.play || null;   // the checkpoint's own play settings (twitch filter)
       return j.iter || 0;
     }).catch(() => -1);
   }

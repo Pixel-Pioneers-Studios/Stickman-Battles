@@ -18,6 +18,9 @@ SMB.env
 # ── Generated output ─────────────────────────────────────────────────────────
 # tools/tour/tour-capture.js regenerates these frames on demand.
 tools/tour/tour-frames/
+# tools/voice/render.py's Python env and the 350MB Kokoro model it downloads.
+tools/voice/.venv/
+tools/voice/model/
 
 # ── OS / editor cruft ────────────────────────────────────────────────────────
 .DS_Store

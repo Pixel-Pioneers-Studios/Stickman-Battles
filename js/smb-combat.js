@@ -566,7 +566,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Sampled before the overflow break below clears `shielding`. A DoT tick never counts as guarded.
   let _guardUp = !!target.shielding && !isDot;
-  const _shieldedHit = _guardUp;
+  let _shieldedHit = _guardUp;
   let _parried = false;
   if (_guardUp) {
     const _stacks = Math.max(1, target.shieldStacks || 1);
@@ -593,7 +593,23 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         actualKb  = 0;
       }
     }
-    if (actualDmg > 0) {
+    // Q/E guard break (smb-move-scenes.js): the guard shatters like an overflow break,
+    // and the hit lands as an unguarded one, knockback and all.
+    if (!_parried && actualDmg > 0 && typeof msGuardBreakClaim === 'function' && msGuardBreakClaim(attacker, target)) {
+      target.shieldHP        = 0;
+      target.shielding       = false;
+      target.shieldBroken    = true;
+      target.shieldHoldTimer = 0;
+      if (SHIELD_RULES === 'pool') target._shieldRegenWait = SHIELD_BREAK_DELAY;
+      _guardUp     = false;
+      _shieldedHit = false;
+      spawnParticles(target.cx(), target.cy(), '#ff8844', 18);
+      spawnParticles(target.cx(), target.cy(), '#88ddff', 10);
+      SoundManager.clang && SoundManager.clang();
+      if (settings.dmgNumbers)
+        damageTexts.push(new DamageText(target.cx(), target.y - 38, 'GUARD BREAK!', '#ff8844'));
+    }
+    if (actualDmg > 0 && _guardUp) {
       if (_stacks <= 3) {
         // Overflow past the HP pool breaks the guard and goes through as damage.
         const _shHP = target.shieldHP || 0;
@@ -634,7 +650,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         Math.abs(attacker.cx() - target.cx()) < 260) {
       attacker._blockedEndlag = BLOCK_ENDLAG;
     }
-  } else {
+  }
+  if (!_shieldedHit) {
     target.hurtTimer = 8;
     target._hitFlashTimer = actualDmg >= 22 ? 5 : 3;
     // Hitstop, shake, camera punch and slow-mo are global. In Battle Royale only the
@@ -960,7 +977,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     frame: (typeof frameCount !== 'undefined') ? frameCount : 0,
   };
   // Finishers stage both fighters themselves, so skip knockback for them.
-  if (!target.godmode && !_finisherFired && !_superArmored) {
+  // A DoT tick has no knockback and must not write velocity: kb 0 zeroed it, which killed
+  // jumps under decks and stopped runs dead on every whip bleed tick.
+  if (!target.godmode && !_finisherFired && !_superArmored && !isDot) {
     target.vx      = dir * actualKb;
     target.vy      = -actualKb * 0.55;
     if (currentArena && currentArena.isLowGravity)  target.vy = -actualKb * 0.25;

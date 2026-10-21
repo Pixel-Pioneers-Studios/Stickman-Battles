@@ -588,7 +588,8 @@ function updateBossPendingAttacks() {
     bossStaggerDmg   = 0;
     bossStaggerDecay = 0;
     screenShake = Math.max(screenShake, 25);
-    showBossDialogue(randChoice(['...that landed.', 'Hm.', 'You hit harder than you look.', '...fine.']), 120);
+    showBossDialogue(randChoice(boss.isFallenGod ? ['There it is.', 'Hm.', 'Good. Again.']
+      : ['...that landed.', 'Hm.', 'You hit harder than you look.', '...fine.']), 120);
     spawnParticles(boss.cx(), boss.cy(), '#ffffff', 22);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.4);
   }
@@ -596,7 +597,8 @@ function updateBossPendingAttacks() {
     bossStaggerTimer--;
     boss.vx *= 0.85; // slow boss during stagger
     if (bossStaggerTimer === 0) {
-      showBossDialogue(randChoice(['That cost you nothing. My turn costs more.', 'I allowed that.', 'Done being generous.']), 120);
+      showBossDialogue(randChoice(boss.isFallenGod ? ['Now answer this.', 'Do not stop.']
+        : ['That cost you nothing. My turn costs more.', 'I allowed that.', 'Done being generous.']), 120);
     }
   }
 

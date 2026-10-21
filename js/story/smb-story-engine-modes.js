@@ -73,6 +73,7 @@ function updateStealthMode() {
             aiDiff:    ch && ch.aiDiff ? ch.aiDiff : 'medium',
             color:     '#cc2222',
             isElite:   _lead,
+            isAlarmEnemy: true,   // getting caught seals the exit until these are down
             health:    _lead ? 150 : 100,
           }, p1);
         }
@@ -170,6 +171,13 @@ function updateEscapeMode() {
   if (escapeWallAccelTimer >= 60) {
     escapeWallSpeed      = Math.min(4.5, escapeWallSpeed + 0.015);
     escapeWallAccelTimer = 0;
+  }
+
+  // Respawn ahead of the wall, or every remaining life burns behind it. The margin covers the
+  // wall's travel during the respawn delay. Fighter respawn snaps to the platform nearest spawnX.
+  const _spawnMargin = 220 + escapeWallSpeed * 120;
+  if (p1.spawnX < escapeWallX + _spawnMargin) {
+    p1.spawnX = Math.min(exploreGoalX - 240, escapeWallX + _spawnMargin + 120);
   }
 
   if (p1.x <= escapeWallX + 10 && p1.health > 0) {
@@ -513,7 +521,10 @@ function updatePuzzleMode() {
     const dy = Math.abs(p1.cy() - sw.y);
     // A wrong switch fires once per visit, not every frame.
     if (!(dx < 30 && dy < 60)) { sw._wrongHold = false; continue; }
-    if (!sw._wrongHold) {
+    // Running or jumping across a switch on the way to another is not a wrong press:
+    // only a stop on it counts. The correct switch still takes on contact.
+    const _stopped = p1.onGround && Math.abs(p1.vx) < 1.5;
+    if (!sw._wrongHold && (i === puzzleStep || _stopped)) {
       if (i === puzzleStep) {
         sw.activated  = true;
         sw.pulseTimer = 60;
@@ -543,8 +554,9 @@ function updatePuzzleMode() {
         puzzleSwitches.forEach(s => { s.activated = false; });
         puzzleStep = 0;
         sw._wrongHold = true;
-        _exploreSpawnEnemy({
-          wx: p1.x + 120, name: 'Guard', weaponKey: 'sword',
+        // One penalty guard at a time.
+        if (!minions.some(m => m.health > 0 && m._puzzlePenalty)) _exploreSpawnEnemy({
+          wx: p1.x + 120, name: 'Guard', weaponKey: 'sword', _puzzlePenalty: true,
           classKey: 'warrior', aiDiff: 'medium', color: '#884422', health: 100
         }, p1);
       }

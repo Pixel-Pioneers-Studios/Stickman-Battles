@@ -1,0 +1,4692 @@
+[
+ {
+  "key": "2ce0f426",
+  "speaker": "none",
+  "text": "You were crossing the street when the air ripped. Not like a sound. Like a pressure change. Like the world held its breath."
+ },
+ {
+  "key": "52d9edac",
+  "speaker": "none",
+  "text": "A figure stepped through the tear. They looked at you with recognition."
+ },
+ {
+  "key": "bb217497",
+  "speaker": "npc",
+  "text": "\"Kael. Of course it's you.\""
+ },
+ {
+  "key": "50fe0e37",
+  "speaker": "none",
+  "text": "You'd never seen them before in your life."
+ },
+ {
+  "key": "042ef948",
+  "speaker": "none",
+  "text": "You'd never seen them before in your life. They stepped through a tear in reality and they're looking right at you. Fight back."
+ },
+ {
+  "key": "a7a3efda",
+  "speaker": "GUIDE",
+  "text": "A / D to move. W to jump. Space to attack."
+ },
+ {
+  "key": "2d7d7412",
+  "speaker": "GUIDE",
+  "text": "Hold S to block incoming attacks."
+ },
+ {
+  "key": "652685cd",
+  "speaker": "none",
+  "text": "Scouts are hunting you. Move through the alley without triggering their detection zones. Stay low."
+ },
+ {
+  "key": "63590b1a",
+  "speaker": "none",
+  "text": "Veran was still a voice in a message. The portals were not."
+ },
+ {
+  "key": "fa0d2b38",
+  "speaker": "none",
+  "text": "Within an hour, there were hundreds. The air itself was bleeding light."
+ },
+ {
+  "key": "75c00c59",
+  "speaker": "none",
+  "text": "And through each one: fighters. Organized. Armed. Purposeful."
+ },
+ {
+  "key": "78596954",
+  "speaker": "npc",
+  "text": "\"Secure the fracture point,\" one of them said. \"Eliminate all witnesses.\""
+ },
+ {
+  "key": "cee4dd81",
+  "speaker": "none",
+  "text": "Organized fighters with orders to eliminate witnesses. You don't have orders. You have a choice: move, or become one."
+ },
+ {
+  "key": "d46bb318",
+  "speaker": "GUIDE",
+  "text": "New threats. Same tools — move, jump, attack, shield. That's all you have."
+ },
+ {
+  "key": "27e2fc9a",
+  "speaker": "none",
+  "text": "The block is shifting — reality collapsing inward from behind. Reach stable ground before the fracture field seals the exit."
+ },
+ {
+  "key": "7689db73",
+  "speaker": "none",
+  "text": "You climbed. The rooftops gave you altitude, perspective — and more targets."
+ },
+ {
+  "key": "59f6a5dc",
+  "speaker": "none",
+  "text": "From up here you could see the fracture lines in the sky. Purple and white. Like cracks in porcelain."
+ },
+ {
+  "key": "a73f00b9",
+  "speaker": "none",
+  "text": "And someone was up here waiting for you."
+ },
+ {
+  "key": "fac3f11b",
+  "speaker": "npc",
+  "text": "\"You really don't know what you are, do you?\""
+ },
+ {
+  "key": "e2356d43",
+  "speaker": "none",
+  "text": "A watcher who already knew your name before the fight started. They've tracked seventeen fracture events and came here for one reason — you."
+ },
+ {
+  "key": "5ae52297",
+  "speaker": "none",
+  "text": "Veran needs relay components scattered across the rooftop. Collect all four before the patrol finds you."
+ },
+ {
+  "key": "53124853",
+  "speaker": "npc",
+  "text": "\"You're not the first.\""
+ },
+ {
+  "key": "a18acb1b",
+  "speaker": "none",
+  "text": "That phrase echoed as you descended. If other fractures exist, there are others like you."
+ },
+ {
+  "key": "83713044",
+  "speaker": "none",
+  "text": "But in your city, right now, the portal fighters are burning everything. You need to move through the chaos. Find the relay station."
+ },
+ {
+  "key": "9a909523",
+  "speaker": "none",
+  "text": "They won't let you pass."
+ },
+ {
+  "key": "0b4eca8b",
+  "speaker": "none",
+  "text": "They won't let you pass. A clearance squad — two fighters working a tactical sweep. Neither will back down."
+ },
+ {
+  "key": "000092f9",
+  "speaker": "GUIDE",
+  "text": "🆕 UNLOCKED: Ability — press Q to use your weapon's special move!"
+ },
+ {
+  "key": "1b0227e6",
+  "speaker": "none",
+  "text": "The relay station signal was coming from deep in the city."
+ },
+ {
+  "key": "92db0832",
+  "speaker": "none",
+  "text": "Not a direct path. Never a direct path. The fracture had split the streets. Dimensional tears everywhere. People — or things that looked like people — wandering the gaps."
+ },
+ {
+  "key": "1be17226",
+  "speaker": "npc",
+  "text": "\"Walk east,\" Veran said through static. \"The signal beacon is somewhere in the collapsed mall district.\" \"You'll know it when you see it.\""
+ },
+ {
+  "key": "6c69a3ec",
+  "speaker": "none",
+  "text": "You started walking."
+ },
+ {
+  "key": "f929e0b9",
+  "speaker": "none",
+  "text": "Under a collapsed overpass: a door."
+ },
+ {
+  "key": "683542f2",
+  "speaker": "none",
+  "text": "Not standard. Reinforced. Sealed with a fracture-lock. The fragment in you resonated with it — pulsed — and the door opened."
+ },
+ {
+  "key": "338fb462",
+  "speaker": "none",
+  "text": "Inside: a cache. Equipment. Data. Weapons. And a guard who hadn't expected anyone to open that door."
+ },
+ {
+  "key": "b54901f1",
+  "speaker": "npc",
+  "text": "\"That lock was fragment-gated,\" they said. \"Which means you're carrying a piece of the original fracture.\" \"No one walks away with that.\""
+ },
+ {
+  "key": "cdf019da",
+  "speaker": "none",
+  "text": "A cache guardian — fragment-gate security. They know exactly what you're carrying."
+ },
+ {
+  "key": "f1de8440",
+  "speaker": "GUIDE",
+  "text": "🆕 UNLOCKED: Super — press E when the meter fills for a devastating move!"
+ },
+ {
+  "key": "3750193a",
+  "speaker": "none",
+  "text": "Veran's archive nodes are locked. Activate the three mechanisms in the correct sequence to unlock the truth."
+ },
+ {
+  "key": "c536fd56",
+  "speaker": "none",
+  "text": "The industrial quarter had been swallowed. Lava from a destabilized portal — thermal bleed from a volcanic dimension. The floor was literally melting."
+ },
+ {
+  "key": "676d9fa1",
+  "speaker": "none",
+  "text": "And on the other side: a direct line to the portal source. The Architect's relay station."
+ },
+ {
+  "key": "29133d39",
+  "speaker": "none",
+  "text": "All you had to do was cross."
+ },
+ {
+  "key": "5b249481",
+  "speaker": "none",
+  "text": "All you had to do was cross. A guardian of the relay station — fights atop the industrial platforms above lava. Single mistake ends it."
+ },
+ {
+  "key": "a8d9b354",
+  "speaker": "none",
+  "text": "The relay station hummed like a living thing. Crystal pillars. Dimensional conduits. Equations scratched on every surface."
+ },
+ {
+  "key": "575cf19b",
+  "speaker": "npc",
+  "text": "\"You made it further than any of the others.\""
+ },
+ {
+  "key": "364bdc9c",
+  "speaker": "none",
+  "text": "A woman stepped out of the light. Not hostile. Or not yet."
+ },
+ {
+  "key": "2360cb47",
+  "speaker": "npc",
+  "text": "\"My name is Veran. I built the portals. And I'm trying to close them.\" \"But first I need to know if you're a threat or an asset.\""
+ },
+ {
+  "key": "216e73ba",
+  "speaker": "none",
+  "text": "Veran — the Architect. She built the portals to contain something, and now she's testing whether you're friend or threat."
+ },
+ {
+  "key": "0a18c439",
+  "speaker": "npc",
+  "text": "\"There's a rift entity,\" Veran said. \"It exists between dimensions. It feeds on fracture energy.\" \"Every time two universes crack against each other, it gets stronger.\""
+ },
+ {
+  "key": "ac517ae1",
+  "speaker": "npc",
+  "text": "\"The fragment inside you is the largest piece of pure fracture energy in any dimension I've mapped.\""
+ },
+ {
+  "key": "6a688322",
+  "speaker": "npc",
+  "text": "\"Which means it wants it.\" \"And it's already sending collectors.\""
+ },
+ {
+  "key": "d53f9645",
+  "speaker": "none",
+  "text": "As if on cue, a portal opened behind you."
+ },
+ {
+  "key": "0d85cfb7",
+  "speaker": "none",
+  "text": "As if on cue, a portal opened behind you. A Rift Collector — an entity sent from between dimensions to extract the fracture fragment from you."
+ },
+ {
+  "key": "7a1185b3",
+  "speaker": "none",
+  "text": "Something discharged. Not like an explosion. Like a frequency — every hit stored, every hit landed, releasing at once through the fragment embedded in your chest."
+ },
+ {
+  "key": "3b626f49",
+  "speaker": "none",
+  "text": "You didn't know you could do that. You don't know what it was."
+ },
+ {
+  "key": "8f0294fb",
+  "speaker": "none",
+  "text": "In the ringing silence after, a voice reached you through the fragment. Calm. Precise. Utterly unfamiliar."
+ },
+ {
+  "key": "4db4f40a",
+  "speaker": "npc",
+  "text": "\"That wasn't just energy releasing.\" \"That was resonance — every hit you took and every hit you landed,\" \"building toward a single moment.\" \"The fragment reads combat from both ends.\" \"Pain teaches it the same as power.\""
+ },
+ {
+  "key": "b6e7045b",
+  "speaker": "none",
+  "text": "Then nothing. You don't know who that was."
+ },
+ {
+  "key": "36781dcd",
+  "speaker": "none",
+  "text": "There was a moment, during the fight for the relay station, when you were not sure you were going to stand back up."
+ },
+ {
+  "key": "1210d85b",
+  "speaker": "none",
+  "text": "The fragment flickered. Something in you went quiet."
+ },
+ {
+  "key": "f401604c",
+  "speaker": "none",
+  "text": "And the voice came through again."
+ },
+ {
+  "key": "91cc99a8",
+  "speaker": "npc",
+  "text": "\"You're not bleeding out.\" \"Your pattern is losing coherence —\" \"your ability to hold yourself present in this space.\" \"Zero doesn't mean dead. It means dispersed.\" \"The difference matters.\""
+ },
+ {
+  "key": "0335c3dd",
+  "speaker": "none",
+  "text": "You stood up. You don't know if it was you who decided that."
+ },
+ {
+  "key": "95b55888",
+  "speaker": "none",
+  "text": "You had raised your arm and the impact had simply... not landed. Not blocked. Something else. A fraction of a second where you were somewhere slightly sideways from here."
+ },
+ {
+  "key": "03067207",
+  "speaker": "none",
+  "text": "The voice again. Third time. Still no introduction."
+ },
+ {
+  "key": "c21553c4",
+  "speaker": "npc",
+  "text": "\"You shifted.\" \"Not blocked — shifted.\" \"Phase displacement.\" \"You became a slightly wrong version of yourself,\" \"just long enough for the force to pass through the gap.\" \"Eight percent still lands because the shift was imprecise.\" \"It always is.\""
+ },
+ {
+  "key": "daca9d1f",
+  "speaker": "none",
+  "text": "You don't know if you should be afraid of whoever this is. You think, maybe, you should be."
+ },
+ {
+  "key": "de459977",
+  "speaker": "none",
+  "text": "You asked Veran, later, about the class. Not what it was. What it meant."
+ },
+ {
+  "key": "b9af2ed3",
+  "speaker": "npc",
+  "text": "\"It's an archetype,\" she said. \"A template. A—\" \"No,\" the voice cut in through the fragment."
+ },
+ {
+  "key": "e9776155",
+  "speaker": "none",
+  "text": "It had never interrupted someone else before."
+ },
+ {
+  "key": "7e1ae44a",
+  "speaker": "none",
+  "text": "A long pause."
+ },
+ {
+  "key": "0737c19b",
+  "speaker": "npc",
+  "text": "\"The classes are not archetypes. They are not templates.\" \"They are the dead.\""
+ },
+ {
+  "key": "7afdd2ef",
+  "speaker": "npc",
+  "text": "\"The fragment killed every bearer before you because a proper bond\" \"between body, soul, and fragment was never established.\" \"As each one died, the fragment absorbed their soul and their way of fighting.\" \"Your class is a specific person who held this fragment before you.\" \"Your hands knew what to do on the first day\" \"because someone else's hands already knew.\""
+ },
+ {
+  "key": "b3246fe2",
+  "speaker": "none",
+  "text": "Veran was quiet for a moment."
+ },
+ {
+  "key": "342cd4c8",
+  "speaker": "npc",
+  "text": "\"I didn't know that,\" she said."
+ },
+ {
+  "key": "79df275c",
+  "speaker": "none",
+  "text": "Neither did you."
+ },
+ {
+  "key": "49f4215c",
+  "speaker": "none",
+  "text": "The primary fracture swallowed you whole."
+ },
+ {
+  "key": "a21ce890",
+  "speaker": "none",
+  "text": "There was no up. No down. Just space folding around you."
+ },
+ {
+  "key": "c307e7ae",
+  "speaker": "none",
+  "text": "Veran had warned you: \"Fracture space has laws. They just aren't your laws.\""
+ },
+ {
+  "key": "c58b26fc",
+  "speaker": "npc",
+  "text": "\"Fight as if gravity could reverse itself.\" \"Because it can.\""
+ },
+ {
+  "key": "b6dc8174",
+  "speaker": "none",
+  "text": "A fracture wanderer — someone trapped between dimensions who's turned hostile. The gravity is wrong in here."
+ },
+ {
+  "key": "d2e500b1",
+  "speaker": "none",
+  "text": "The stable pocket is collapsing. The walls are caving in from the left. Run."
+ },
+ {
+  "key": "6760cc4a",
+  "speaker": "none",
+  "text": "The compass led you into a mirror pocket."
+ },
+ {
+  "key": "f1836245",
+  "speaker": "none",
+  "text": "A dimension that was your world — but not. Everything inverted. Left was right. Strong was weak."
+ },
+ {
+  "key": "d2efe171",
+  "speaker": "none",
+  "text": "And in this mirror world: a version of you. Or something wearing your shape."
+ },
+ {
+  "key": "2f0af04f",
+  "speaker": "npc",
+  "text": "\"You shouldn't be here,\" it said. \"This is where the fragment leads you. Back to yourself.\""
+ },
+ {
+  "key": "ce22a8eb",
+  "speaker": "none",
+  "text": "Your fracture echo — a mirror-self shaped by the fragment's energy. Controls are inverted in this pocket."
+ },
+ {
+  "key": "c2aab8c1",
+  "speaker": "none",
+  "text": "A bounty hunter materialized in the debris field — hired to stop fragment bearers from reaching the Void. Eliminate them before they transmit your location."
+ },
+ {
+  "key": "5afe2540",
+  "speaker": "none",
+  "text": "Collector sentinels patrol the outer corridor. Reach the arena entrance without triggering the alarm."
+ },
+ {
+  "key": "e3035ef1",
+  "speaker": "none",
+  "text": "A collapsed dimension. No sky. No ground. Just floating platforms and the silence of a dead universe."
+ },
+ {
+  "key": "9ab4f823",
+  "speaker": "none",
+  "text": "Here, something had set up camp. A collector — much larger than the one before."
+ },
+ {
+  "key": "bb50dd66",
+  "speaker": "npc",
+  "text": "\"The fragment,\" it said, in a voice like grinding stone. \"Give it to me and your universe survives.\" \"Refuse — and the rift grows until every fracture you know collapses.\""
+ },
+ {
+  "key": "398d04dc",
+  "speaker": "none",
+  "text": "You don't negotiate with things that threaten your world."
+ },
+ {
+  "key": "0f6f51f4",
+  "speaker": "none",
+  "text": "You don't negotiate with things that threaten your world. The Void Collector — a veteran fragment extractor from the rift entity. Boss-tier threat. Two lives."
+ },
+ {
+  "key": "d33ac0e1",
+  "speaker": "none",
+  "text": "The Creator's frequency is broadcasting through the relay. Hold it open long enough for Veran to trace the source."
+ },
+ {
+  "key": "bb00a547",
+  "speaker": "none",
+  "text": "Veran wasn't exaggerating."
+ },
+ {
+  "key": "450ea23c",
+  "speaker": "none",
+  "text": "The echo corridor was full of fracture-born fighters. Some looked like people from your world. Some looked like no one you'd ever imagine. All of them had the same hollow eyes. All of them were pointed at you."
+ },
+ {
+  "key": "215f5615",
+  "speaker": "npc",
+  "text": "\"Fragment detected. Engage.\""
+ },
+ {
+  "key": "1be78856",
+  "speaker": "none",
+  "text": "Echo fighters blocking the corridor. Two at once. No breathing room."
+ },
+ {
+  "key": "ac032696",
+  "speaker": "none",
+  "text": "Collector terminals are scattered through the node. Access all five data caches before the network purges them."
+ },
+ {
+  "key": "2b31a427",
+  "speaker": "none",
+  "text": "The rift entity felt you coming."
+ },
+ {
+  "key": "f3f7d0d4",
+  "speaker": "none",
+  "text": "It sent its best."
+ },
+ {
+  "key": "71bd6c18",
+  "speaker": "none",
+  "text": "A fragment guardian — a being that had consumed so many fragments it had become something barely recognizable as a fighter."
+ },
+ {
+  "key": "42e75cb0",
+  "speaker": "npc",
+  "text": "\"Veran cannot help you here,\" it said. \"She stays behind. You walk in alone.\" \"Unless you'd rather not walk in at all.\""
+ },
+ {
+  "key": "19d5f57a",
+  "speaker": "none",
+  "text": "You looked at Veran. She nodded once."
+ },
+ {
+  "key": "f6a24e71",
+  "speaker": "player",
+  "text": "\"Already walking,\" you said."
+ },
+ {
+  "key": "e7196cda",
+  "speaker": "none",
+  "text": "The Fragment Guardian — the rift entity's body-double. Consumed dozens of fragment-bearers. 2 lives."
+ },
+ {
+  "key": "a2a9f7b7",
+  "speaker": "none",
+  "text": "The Creator's mark locks the threshold. Activate all four mechanisms in sequence to break the seal."
+ },
+ {
+  "key": "fcaed68d",
+  "speaker": "none",
+  "text": "Veran needs the records of the previous forty-seven fragment bearers to map the Crucible champion's absorbed signatures. Collect all four data fragments."
+ },
+ {
+  "key": "28ffd89d",
+  "speaker": "none",
+  "text": "The Crucible."
+ },
+ {
+  "key": "ebe2c8ca",
+  "speaker": "none",
+  "text": "Where the rift entity tested and broke fragment bearers who made it this far. The last forty-seven had failed here."
+ },
+ {
+  "key": "6a122353",
+  "speaker": "none",
+  "text": "The Crucible's champion had absorbed pieces of each of them. It carried forty-seven fragment signatures. Each one a memory of someone who hadn't been enough."
+ },
+ {
+  "key": "47a6b552",
+  "speaker": "none",
+  "text": "It looked at you."
+ },
+ {
+  "key": "dea5c802",
+  "speaker": "npc",
+  "text": "\"Forty-eight,\" it said."
+ },
+ {
+  "key": "f87ca4ef",
+  "speaker": "none",
+  "text": "The Crucible Champion — absorbed 47 fragment bearers. An amalgam of every fighting style that failed before yours. 2 lives."
+ },
+ {
+  "key": "dae37f52",
+  "speaker": "none",
+  "text": "Before the Core's Eye: a chamber of silence."
+ },
+ {
+  "key": "0d2197ab",
+  "speaker": "none",
+  "text": "Just you and Veran."
+ },
+ {
+  "key": "41f7ea1d",
+  "speaker": "npc",
+  "text": "\"I need to tell you something I've been putting off.\""
+ },
+ {
+  "key": "b478bec5",
+  "speaker": "npc",
+  "text": "\"The closure protocol requires a fragment anchor.\" \"Something that holds the rift open from the inside\" \"while the Architects seal it from the outside.\" \"The fragment inside you is the only thing with enough resonance.\""
+ },
+ {
+  "key": "7962c885",
+  "speaker": "npc",
+  "text": "\"If you do this — the fragment will be consumed in the closure.\" \"And I don't know what that means for you.\" \"No fragment bearer has survived a closure event.\" \"But no fragment bearer has ever had a fragment this adapted, either.\""
+ },
+ {
+  "key": "33588259",
+  "speaker": "npc",
+  "text": "\"I'm not telling you it's certain death.\" \"I'm telling you it's an unknown.\" \"And you deserve to know that before you walk in.\""
+ },
+ {
+  "key": "ecbab73d",
+  "speaker": "none",
+  "text": "A long silence."
+ },
+ {
+  "key": "9babb3cf",
+  "speaker": "player",
+  "text": "\"Death can have me when it earns me,\" you said. \"Let's go.\""
+ },
+ {
+  "key": "a61e0a92",
+  "speaker": "none",
+  "text": "The Eye of the Core."
+ },
+ {
+  "key": "40df7b30",
+  "speaker": "none",
+  "text": "Not the rift entity itself — its outer face. A manifestation of condensed fracture energy, wearing the shape of a fighter to engage you on terms you'd understand."
+ },
+ {
+  "key": "c60a4b6a",
+  "speaker": "npc",
+  "text": "\"I am not your enemy,\" it said. \"I am a door that tests who deserves to open it.\" \"Every fragment bearer who came here wanted something.\" \"Power. Safety. Revenge.\""
+ },
+ {
+  "key": "71e34669",
+  "speaker": "npc",
+  "text": "\"What do you want?\""
+ },
+ {
+  "key": "b589482e",
+  "speaker": "none",
+  "text": "You didn't answer. You fought."
+ },
+ {
+  "key": "1b51cf0b",
+  "speaker": "none",
+  "text": "You didn't answer. You fought. The Core's Eye — the gate to the rift entity itself. A manifestation that tests intent. Mini-boss. 1 life."
+ },
+ {
+  "key": "37d44ebf",
+  "speaker": "none",
+  "text": "The flux zone."
+ },
+ {
+  "key": "8d3daa56",
+  "speaker": "none",
+  "text": "Gravity reversed every ninety seconds. The platform you were standing on became the ceiling. The ceiling became the floor."
+ },
+ {
+  "key": "885b6b4c",
+  "speaker": "none",
+  "text": "The rift entity had assigned its most adaptable fighters here. People who had lived in the flux long enough to stop caring about which way was down."
+ },
+ {
+  "key": "8c0381d0",
+  "speaker": "npc",
+  "text": "\"You'll fall,\" one said. \"Everyone does.\""
+ },
+ {
+  "key": "976e66fb",
+  "speaker": "none",
+  "text": "Flux zone veterans. They invert with gravity as naturally as breathing. You don't. Yet."
+ },
+ {
+  "key": "ffee3141",
+  "speaker": "none",
+  "text": "The orbital ring circled the core's eye. Two fighters. The rift entity's champions. They had been waiting specifically for you."
+ },
+ {
+  "key": "fb942ce0",
+  "speaker": "npc",
+  "text": "\"We were fragment bearers once,\" one said. \"The entity took our pieces. Now we guard it.\" \"Not by choice. But it's what we are.\""
+ },
+ {
+  "key": "e0ecff64",
+  "speaker": "none",
+  "text": "You could see the fragment-energy in their eyes. Stolen. Trapped."
+ },
+ {
+  "key": "61142b99",
+  "speaker": "none",
+  "text": "You could see the fragment-energy in their eyes. Stolen. Trapped. Stolen fragment bearers — enslaved champions of the rift entity. Dangerous and tragic. 2 lives."
+ },
+ {
+  "key": "baffc97e",
+  "speaker": "none",
+  "text": "The rift entity felt it."
+ },
+ {
+  "key": "f99068f8",
+  "speaker": "none",
+  "text": "It sent an echo storm — a cascade of fracture-born fighters generated from residual dimensional energy. Infinite. Endless."
+ },
+ {
+  "key": "e2de8609",
+  "speaker": "none",
+  "text": "Veran: \"You can't fight them all. But you don't have to.\""
+ },
+ {
+  "key": "80319372",
+  "speaker": "npc",
+  "text": "\"The storm has an eye. A generator. Destroy the generator and the echoes collapse.\" \"The generator is defended by one fighter — its most refined echo.\" \"It looks like someone you know.\""
+ },
+ {
+  "key": "4aab278a",
+  "speaker": "none",
+  "text": "The Storm Echo — a perfected copy built from everything the rift entity learned watching you. 1 life."
+ },
+ {
+  "key": "7e919c5a",
+  "speaker": "none",
+  "text": "At the center of everything: not a monster."
+ },
+ {
+  "key": "37995d08",
+  "speaker": "none",
+  "text": "A person. Or what remained of one."
+ },
+ {
+  "key": "7c81ea59",
+  "speaker": "npc",
+  "text": "\"I was the first fragment bearer,\" it said. \"Ten thousand years ago. The fracture took everything I had — and left me here.\" \"Every fragment I've consumed since was an attempt to fill the void.\""
+ },
+ {
+  "key": "2ffcdafe",
+  "speaker": "npc",
+  "text": "\"Give me yours. Let me rest.\""
+ },
+ {
+  "key": "77df9a72",
+  "speaker": "none",
+  "text": "It was the most honest thing anyone had said to you since this began. You still said no."
+ },
+ {
+  "key": "193a05f8",
+  "speaker": "none",
+  "text": "It was the most honest thing anyone had said to you since this began. You still said no. The Rift Entity — an ancient fragment bearer, not a monster. It wants release. Your fragment may be the key. 2 lives."
+ },
+ {
+  "key": "46f20ede",
+  "speaker": "none",
+  "text": "The observation resonator is the only thing keeping the fragment stable. Creator probes are targeting it. Hold them off."
+ },
+ {
+  "key": "151a246d",
+  "speaker": "none",
+  "text": "The rift entity needed to test it."
+ },
+ {
+  "key": "46e1e059",
+  "speaker": "npc",
+  "text": "\"The fragment has to be pushed past its baseline.\" \"If it spikes under pressure, we'll see what it's actually made of.\""
+ },
+ {
+  "key": "34443a20",
+  "speaker": "npc",
+  "text": "\"What does a spike look like?\" \"Like your vision going white. Like the air bending.\" \"Like every fighter in the room becoming very aware that you're holding something they should be afraid of.\""
+ },
+ {
+  "key": "7d476edb",
+  "speaker": "none",
+  "text": "A resonance fighter stepped into the chamber. Calibrated specifically to force the fragment to respond."
+ },
+ {
+  "key": "e6c801c1",
+  "speaker": "npc",
+  "text": "\"Try not to lose control,\" the rift entity said. \"But — try.\""
+ },
+ {
+  "key": "290cb574",
+  "speaker": "none",
+  "text": "Resonance Fighter — designed to stress-test the fragment. Expert pressure. 2 lives."
+ },
+ {
+  "key": "89391ace",
+  "speaker": "none",
+  "text": "The chamber is destabilizing — fracture residue cascading from behind. The wall is closing. Run."
+ },
+ {
+  "key": "17594d51",
+  "speaker": "none",
+  "text": "The forest had no edges."
+ },
+ {
+  "key": "4a8c55b6",
+  "speaker": "none",
+  "text": "That was the first thing Veran warned you."
+ },
+ {
+  "key": "b53e0c33",
+  "speaker": "npc",
+  "text": "\"Don't look for the boundary. There isn't one.\" \"The second Architect built their sanctum somewhere in the middle.\" \"The forest itself will push you toward it — if you let it.\""
+ },
+ {
+  "key": "d2674282",
+  "speaker": "none",
+  "text": "Ash from collapsed worlds drifted through the canopy. Something moved in the trees ahead."
+ },
+ {
+  "key": "1d0d3d3b",
+  "speaker": "npc",
+  "text": "\"I know why you're here,\" the second Architect said. \"Veran sent you. And the rift entity briefed you.\""
+ },
+ {
+  "key": "f6999d81",
+  "speaker": "npc",
+  "text": "\"We built those portals together, you know.\" \"To contain a rift. To seal it. And then something went wrong.\" \"Something got out.\" \"And now it's in you.\""
+ },
+ {
+  "key": "e266b3b1",
+  "speaker": "npc",
+  "text": "\"Prove to me you can handle what comes next. \"Because what comes next is worse than anything you've fought.\""
+ },
+ {
+  "key": "f2ab83c1",
+  "speaker": "none",
+  "text": "The second Architect — a forest-dweller who tests before they trust. Expert-level combat. 2 lives."
+ },
+ {
+  "key": "76cccd3d",
+  "speaker": "none",
+  "text": "The Second Architect hid the closure protocol data across the sanctum. Collect all four data shards before the forest patrols find you."
+ },
+ {
+  "key": "8961957a",
+  "speaker": "none",
+  "text": "The ice dimension was perfect. Not beautiful — perfect. Every surface was optimized. Every angle calculated."
+ },
+ {
+  "key": "25bdf537",
+  "speaker": "none",
+  "text": "The third Architect had withdrawn here decades ago."
+ },
+ {
+  "key": "fadc5052",
+  "speaker": "npc",
+  "text": "\"Closed the rift?\" they'd said, reportedly. \"That's like trying to close a black hole with your hands.\" \"I'd rather build something that survives the collapse.\""
+ },
+ {
+  "key": "a4a8e033",
+  "speaker": "none",
+  "text": "Their arenas were traps. Their fighters were trained to demoralize."
+ },
+ {
+  "key": "fba89656",
+  "speaker": "none",
+  "text": "Their arenas were traps. Their fighters were trained to demoralize. Ice dimension warriors — the third Architect's elite guard. Slippery terrain favors them."
+ },
+ {
+  "key": "fa3ed896",
+  "speaker": "npc",
+  "text": "\"You want me to believe a fragment bearer can close the rift.\" \"That logic fails at the first step.\" \"Fragment bearers amplify rift energy. They don't contain it.\""
+ },
+ {
+  "key": "9585cf98",
+  "speaker": "npc",
+  "text": "\"Unless...\""
+ },
+ {
+  "key": "11d1e6da",
+  "speaker": "none",
+  "text": "They paused. Recalculated."
+ },
+ {
+  "key": "7f6ba4d7",
+  "speaker": "npc",
+  "text": "\"Unless the fragment has already mutated. Adapted to the bearer's will.\" \"In which case you'd be the only thing in seventeen dimensions that could anchor a closure.\" \"Prove the fragment obeys you. Beat me.\""
+ },
+ {
+  "key": "e84b2eae",
+  "speaker": "none",
+  "text": "The third Architect. They do not believe you can succeed. Show them they're wrong. 1 life."
+ },
+ {
+  "key": "89068f29",
+  "speaker": "none",
+  "text": "A fracture pressure wave is sweeping the ice dimension from behind. Reach the summit refuge before it catches you."
+ },
+ {
+  "key": "a81ccbc1",
+  "speaker": "none",
+  "text": "The Third Architect's probability engine is locked behind four calculation nodes. Activate them in sequence to access the closure data."
+ },
+ {
+  "key": "10e02bd9",
+  "speaker": "none",
+  "text": "The first dimension to ever fracture."
+ },
+ {
+  "key": "5988c5d5",
+  "speaker": "none",
+  "text": "It looked like your world might. Broken towers. Cracked sky. A planet mid-collapse, frozen in time."
+ },
+ {
+  "key": "7214d771",
+  "speaker": "none",
+  "text": "The fourth Architect had lived here since the beginning. And hidden the original fracture diagram deep in the ruins."
+ },
+ {
+  "key": "224a8c6a",
+  "speaker": "npc",
+  "text": "\"You'll find it,\" the rift entity said. \"The fragment will guide you.\""
+ },
+ {
+  "key": "a600422d",
+  "speaker": "none",
+  "text": "The ruins stretched endlessly ahead. Something ancient waited in the rubble."
+ },
+ {
+  "key": "e0b6aa67",
+  "speaker": "none",
+  "text": "The rift entity had been quiet. Then it spoke."
+ },
+ {
+  "key": "ac5abfa9",
+  "speaker": "npc",
+  "text": "\"You've gathered the Architects. You know the protocol.\" \"And you intend to sacrifice yourself.\" \"I don't want that. I never wanted that.\""
+ },
+ {
+  "key": "c6c3f945",
+  "speaker": "npc",
+  "text": "\"But the rift has its own hunger now. It generates fighters. \"Echoes. Fragments of collapsed dimensions wearing combat forms.\" \"They will try to stop you.\" \"Not because I command it — because the rift commands it.\" \"Survive them. Then we talk.\""
+ },
+ {
+  "key": "286d3c13",
+  "speaker": "none",
+  "text": "The rift's final echo wave — powerful fracture constructs. Two simultaneous. 2 lives."
+ },
+ {
+  "key": "a21bb33e",
+  "speaker": "none",
+  "text": "The rift's final guardian."
+ },
+ {
+  "key": "7121b249",
+  "speaker": "none",
+  "text": "Not a construct. Not an echo. A person."
+ },
+ {
+  "key": "2bc56046",
+  "speaker": "none",
+  "text": "Or what remained of one."
+ },
+ {
+  "key": "3cb69d4a",
+  "speaker": "none",
+  "text": "The rift entity spoke first:"
+ },
+ {
+  "key": "a6059810",
+  "speaker": "npc",
+  "text": "\"It drifted into my network sixty years ago.\" \"Discarded. Fragment extracted. Still standing.\" \"I gave it a purpose. It accepted.\""
+ },
+ {
+  "key": "ea6810c0",
+  "speaker": "none",
+  "text": "The figure looked at the fragment burning steady in your chest, and something in what was left of their face changed."
+ },
+ {
+  "key": "b97b616f",
+  "speaker": "npc",
+  "text": "\"You still have yours,\" they said. \"I had hoped someone would.\""
+ },
+ {
+  "key": "0c0f9215",
+  "speaker": "npc",
+  "text": "\"If the rift closes, everything it absorbed dissolves.\" \"Fifty-two dimensions. Every echo. Including me.\" \"I've dissolved once already.\" \"I'd rather choose the second time.\" \"Make it a real fight.\""
+ },
+ {
+  "key": "84dcee31",
+  "speaker": "none",
+  "text": "The Herald of Nothing — a former fragment bearer, emptied by Axiom, found by the rift. Voluntary last stand. Expert-level. 1 life."
+ },
+ {
+  "key": "9d633245",
+  "speaker": "none",
+  "text": "Creator scouts are sweeping the neutral dimension perimeter. Reach the assembly hall without triggering an alert."
+ },
+ {
+  "key": "7d9ebfe3",
+  "speaker": "npc",
+  "text": "\"Don't engage it,\" the Third Architect said immediately. \"It's not here to fight. It's here to measure.\""
+ },
+ {
+  "key": "10bcd3b2",
+  "speaker": "none",
+  "text": "The Creator's probe fighter had materialized at the perimeter. Smooth. Uniform. No face."
+ },
+ {
+  "key": "2b9facb2",
+  "speaker": "npc",
+  "text": "\"If we don't engage, it reads our passivity as weakness,\" the Fourth Architect said. \"One of us fights it. Alone.\""
+ },
+ {
+  "key": "791f634e",
+  "speaker": "none",
+  "text": "They all looked at you."
+ },
+ {
+  "key": "d4e2def3",
+  "speaker": "npc",
+  "text": "\"You're the variable it's already tracking,\" the Second Architect said. \"Show it what you've learned.\""
+ },
+ {
+  "key": "914e2db9",
+  "speaker": "none",
+  "text": "The probe turned toward you. And waited."
+ },
+ {
+  "key": "bb57d2f8",
+  "speaker": "none",
+  "text": "The probe turned toward you. And waited. Creator's Probe — a calibration construct. It is learning you. Don't let it finish its assessment. 3 lives."
+ },
+ {
+  "key": "6da800d7",
+  "speaker": "none",
+  "text": "The Third Architect had run the numbers."
+ },
+ {
+  "key": "e0ea89ca",
+  "speaker": "npc",
+  "text": "\"The closure protocol destroys the Creator.\" \"That's not a side effect. It's the mechanism.\" \"We are planning an execution.\""
+ },
+ {
+  "key": "ff3a2cac",
+  "speaker": "npc",
+  "text": "\"It harvested fifty-two dimensions,\" the Second Architect said. \"It enslaved the rift entity. What would you call that?\""
+ },
+ {
+  "key": "ef220a11",
+  "speaker": "npc",
+  "text": "\"Architecture,\" the Third Architect said. \"A system that maintains dimensional stability through controlled fracture.\" \"Brutal. But functional.\" \"Without it, something worse fills the gap.\""
+ },
+ {
+  "key": "8ab89fde",
+  "speaker": "none",
+  "text": "The Fourth Architect finally spoke."
+ },
+ {
+  "key": "a8584f25",
+  "speaker": "npc",
+  "text": "\"Something already did. Us.\""
+ },
+ {
+  "key": "7d20f456",
+  "speaker": "none",
+  "text": "The fragment reacted. Not to the argument — to something in the Third Architect's voice. They had already decided. They just hadn't said it yet."
+ },
+ {
+  "key": "42ac21cf",
+  "speaker": "none",
+  "text": "They called themselves the Preserved."
+ },
+ {
+  "key": "3271d50b",
+  "speaker": "none",
+  "text": "Beings from dimensions the Creator had absorbed. Not destroyed — integrated. Kept functional inside the system. They had built a life in there."
+ },
+ {
+  "key": "1bd52d03",
+  "speaker": "npc",
+  "text": "\"Close the rift and you delete us,\" their leader said. \"Every dimension the Creator absorbed goes with it.\" \"We are not a cost you get to decide.\""
+ },
+ {
+  "key": "a9fb82e2",
+  "speaker": "none",
+  "text": "The Second Architect, quietly: \"They're not wrong.\" The Third Architect, immediately: \"They're also not relevant to the calculus.\""
+ },
+ {
+  "key": "4aa35cd1",
+  "speaker": "none",
+  "text": "The Preserved attacked."
+ },
+ {
+  "key": "b0b16f3d",
+  "speaker": "none",
+  "text": "The Preserved attacked. The Preserved — beings who live inside the Creator's absorbed dimensions. Two fighters. 2 lives."
+ },
+ {
+  "key": "5b6576ae",
+  "speaker": "none",
+  "text": "The Fourth Architect found you afterward."
+ },
+ {
+  "key": "780fdaa6",
+  "speaker": "npc",
+  "text": "\"The instruments Veran uses — I recognize their calibration.\" \"She's been to the Creator's domain. Recently.\""
+ },
+ {
+  "key": "997ec85a",
+  "speaker": "none",
+  "text": "You asked Veran directly."
+ },
+ {
+  "key": "3bfb7ee7",
+  "speaker": "none",
+  "text": "She didn't lie."
+ },
+ {
+  "key": "8df13f0a",
+  "speaker": "npc",
+  "text": "\"I went looking for a way to close the rift without killing the bearer.\" \"There is one. The Creator showed it to me — in exchange for something.\" \"I gave it confirmation that we had all four steps of the protocol.\""
+ },
+ {
+  "key": "007fba55",
+  "speaker": "none",
+  "text": "The room was quiet for a long time."
+ },
+ {
+  "key": "ca7dd10e",
+  "speaker": "npc",
+  "text": "\"I thought I was buying time,\" she said. \"I thought I was protecting you.\""
+ },
+ {
+  "key": "883bdcc2",
+  "speaker": "none",
+  "text": "Maybe she was. Maybe it didn't matter."
+ },
+ {
+  "key": "a78d534e",
+  "speaker": "npc",
+  "text": "\"The closure data needs to reach the dimensional relay before the Creator seals it,\" Veran said. \"I can upload it in ninety seconds.\" \"But it'll take everything I have to maintain the connection.\" \"I'll be completely exposed.\""
+ },
+ {
+  "key": "0ceb7431",
+  "speaker": "npc",
+  "text": "\"Protect me.\""
+ },
+ {
+  "key": "1cff84e1",
+  "speaker": "none",
+  "text": "Two waves of Creator probes were already inbound."
+ },
+ {
+  "key": "f197173f",
+  "speaker": "npc",
+  "text": "\"They're faster than the last one,\" the Second Architect said. \"The Creator is not testing anymore.\""
+ },
+ {
+  "key": "58c0f3a7",
+  "speaker": "none",
+  "text": "Get Veran to the relay uplink, then hold the line while she uploads. Probes go for her, not you. If she falls, it is over. 2 lives."
+ },
+ {
+  "key": "4c9a3bdc",
+  "speaker": "none",
+  "text": "The archive vault's memory is partitioned behind three sequence locks. Activate them in order to recover the original closure protocol page."
+ },
+ {
+  "key": "51f04145",
+  "speaker": "none",
+  "text": "The Creator began unmaking the pathways."
+ },
+ {
+  "key": "bf7d9351",
+  "speaker": "none",
+  "text": "Not destroying them — scrambling. City blocks that shouldn't exist next to each other. Streets that looped back."
+ },
+ {
+  "key": "03145d51",
+  "speaker": "npc",
+  "text": "\"The Creator's interference is rewriting dimensional geography,\" the Fourth Architect said. \"It's trying to isolate us from the fallback point.\""
+ },
+ {
+  "key": "4895da80",
+  "speaker": "npc",
+  "text": "\"The fragment can navigate it,\" the rift entity said. \"Let it guide you.\""
+ },
+ {
+  "key": "bf371639",
+  "speaker": "none",
+  "text": "You moved into the maze. Something was already moving inside it."
+ },
+ {
+  "key": "16b66847",
+  "speaker": "none",
+  "text": "The Third Architect is gone — and Creator constructs are already sweeping the post. Get out before they seal the exits."
+ },
+ {
+  "key": "80d2389f",
+  "speaker": "none",
+  "text": "They wore the Third Architect's colors."
+ },
+ {
+  "key": "0c0a8d18",
+  "speaker": "none",
+  "text": "Converted — Creator's architecture overlaid on their original programming. They remembered nothing. Or they did, and it didn't matter anymore."
+ },
+ {
+  "key": "59088cdc",
+  "speaker": "npc",
+  "text": "\"Don't talk to them,\" the Fourth Architect said. \"They can't hear you.\""
+ },
+ {
+  "key": "09c958de",
+  "speaker": "none",
+  "text": "The fragment burned. Not in warning. In grief."
+ },
+ {
+  "key": "15a6c83d",
+  "speaker": "none",
+  "text": "The fragment burned. Not in warning. In grief. Third Architect's converted guards. Creator-altered, hostile. 2 lives."
+ },
+ {
+  "key": "2841d450",
+  "speaker": "none",
+  "text": "The fragment's signal is broadcasting coordinates. Hold the fallback terminal while the Architects process what the Third one just did."
+ },
+ {
+  "key": "012dea93",
+  "speaker": "none",
+  "text": "One of the Preserved is hiding in the shelter chamber. Reach them without alerting Creator sweep units — they won't wait if the alarm fires."
+ },
+ {
+  "key": "328beb1e",
+  "speaker": "none",
+  "text": "The Third Architect came themselves."
+ },
+ {
+  "key": "5aa5ea2e",
+  "speaker": "npc",
+  "text": "\"I knew you'd follow,\" they said. \"I'd calculated this moment.\" \"You were always going to be standing here, and I was always going to say: I don't regret it.\""
+ },
+ {
+  "key": "77646544",
+  "speaker": "npc",
+  "text": "\"The Preserved are free. Fifty-two absorbed dimensions.\" \"That is an outcome the original protocol couldn't provide.\""
+ },
+ {
+  "key": "3c69befa",
+  "speaker": "none",
+  "text": "The Creator's construct stood beside them."
+ },
+ {
+  "key": "b00b842f",
+  "speaker": "npc",
+  "text": "\"I'm not trying to stop you forever,\" the Third Architect said. \"Just long enough for the trade to finalize.\""
+ },
+ {
+  "key": "855ea622",
+  "speaker": "npc",
+  "text": "\"After that, do what you need to do.\" \"I hope you succeed. I mean that.\""
+ },
+ {
+  "key": "f0b5dc50",
+  "speaker": "none",
+  "text": "Third Architect + Creator construct. The Architect fights reluctantly. The construct does not. Expert. 2 lives."
+ },
+ {
+  "key": "475fcb00",
+  "speaker": "none",
+  "text": "Veran needs the salvaged protocol components to reconstruct the fourth step. Collect all five pieces before the interference wave erases them."
+ },
+ {
+  "key": "43ddd031",
+  "speaker": "none",
+  "text": "Veran's research archive is partitioned behind three sequence locks. Unlock them in order to recover the original fracture event data — the full truth."
+ },
+ {
+  "key": "cc87a806",
+  "speaker": "none",
+  "text": "It arrived without announcement."
+ },
+ {
+  "key": "50227555",
+  "speaker": "none",
+  "text": "No face. No voice. Just presence — the weight of something designed specifically to end things."
+ },
+ {
+  "key": "e9c0291e",
+  "speaker": "npc",
+  "text": "\"Creator's primary enforcer,\" the Fourth Architect said. \"I've seen records of what it does.\" \"Don't let it land a clean hit.\""
+ },
+ {
+  "key": "d0ad760f",
+  "speaker": "none",
+  "text": "It turned to you. And charged."
+ },
+ {
+  "key": "38cd0619",
+  "speaker": "none",
+  "text": "It turned to you. And charged. The Creator's Enforcer — primary termination unit. Expert. 1 life. Heavily armored. Adaptive."
+ },
+ {
+  "key": "9bc80f3e",
+  "speaker": "none",
+  "text": "The Creator's signal anchor is broadcasting your position to every construct in the interference layer. Eliminate it before it locks the path forward."
+ },
+ {
+  "key": "d190fbc5",
+  "speaker": "none",
+  "text": "The Architects waited at the threshold."
+ },
+ {
+  "key": "c91ef903",
+  "speaker": "npc",
+  "text": "\"The Creator's domain would unmake us,\" the Second Architect said. \"It's built from compressed dimensional logic.\" \"We're made of the same material it's trying to dissolve.\""
+ },
+ {
+  "key": "d9e41b10",
+  "speaker": "npc",
+  "text": "\"The fragment bearer goes alone,\" the Fourth Architect said. \"That was always the design.\""
+ },
+ {
+  "key": "373fb93a",
+  "speaker": "none",
+  "text": "She was gone. The Architects knew. No one mentioned it by name. The Second Architect started to, once. Looked at you. Then didn't."
+ },
+ {
+  "key": "d80aefa0",
+  "speaker": "none",
+  "text": "The Fourth Architect put a hand on your shoulder."
+ },
+ {
+  "key": "1f101e82",
+  "speaker": "npc",
+  "text": "\"Come back,\" they said."
+ },
+ {
+  "key": "44cceb61",
+  "speaker": "none",
+  "text": "You'd heard those words before. In a different voice. You didn't let yourself finish that thought."
+ },
+ {
+  "key": "ab22372c",
+  "speaker": "none",
+  "text": "The architecture inside was geometrically perfect. Which meant it wasn't built for living things."
+ },
+ {
+  "key": "4a2b2196",
+  "speaker": "none",
+  "text": "Two of them."
+ },
+ {
+  "key": "01e95ddd",
+  "speaker": "none",
+  "text": "They didn't speak. Didn't posture."
+ },
+ {
+  "key": "c4716649",
+  "speaker": "none",
+  "text": "They were already in position when you arrived. As if they'd known exactly when you'd get there."
+ },
+ {
+  "key": "aaace9e5",
+  "speaker": "none",
+  "text": "The Creator had given them your data. Everything the probe had collected. Every fight you'd ever won. Used against you."
+ },
+ {
+  "key": "0d0769d1",
+  "speaker": "none",
+  "text": "The Creator had given them your data. Everything the probe had collected. Every fight you'd ever won. Used against you. Two Architecture Soldiers with your full combat profile. Break their formation. 2 lives."
+ },
+ {
+  "key": "6958e423",
+  "speaker": "none",
+  "text": "The Creator is watching the audience chamber directly. Slip past its construct patrols and reach the inner sanctum without being flagged."
+ },
+ {
+  "key": "c4b6f113",
+  "speaker": "none",
+  "text": "The Enforcers arrived as the architecture shifted."
+ },
+ {
+  "key": "828831f6",
+  "speaker": "none",
+  "text": "Two of them. Not the same as the first — upgraded. The Creator had processed the first fight."
+ },
+ {
+  "key": "e488c410",
+  "speaker": "npc",
+  "text": "\"They share a single coordination system,\" the rift entity said. \"Hit one, the other already knows.\" \"You need to break their sync.\""
+ },
+ {
+  "key": "2311474c",
+  "speaker": "player",
+  "text": "\"How?\" you asked."
+ },
+ {
+  "key": "384ecb63",
+  "speaker": "npc",
+  "text": "\"Hit both at the same time.\""
+ },
+ {
+  "key": "f1916f31",
+  "speaker": "none",
+  "text": "Not helpful. You went in anyway."
+ },
+ {
+  "key": "a08d2bf6",
+  "speaker": "none",
+  "text": "Not helpful. You went in anyway. Creator's Twin Enforcers — shared coordination system. Expert. 1 life."
+ },
+ {
+  "key": "8cb37c4a",
+  "speaker": "none",
+  "text": "The Creator detected the Second Architect's signal. Architecture constructs are converging on the alcove. Get the message and reach the relay before they seal it."
+ },
+ {
+  "key": "5f3c6e0b",
+  "speaker": "none",
+  "text": "The Creator tests your resolve with three consecutive rounds of architecture constructs. No breaks. Show it that you've already made your choice."
+ },
+ {
+  "key": "38050056",
+  "speaker": "none",
+  "text": "The Creator opened a memory vault. Four sequence locks partition the oldest records. Activate them in order to walk through what the Creator was before."
+ },
+ {
+  "key": "147dddb9",
+  "speaker": "none",
+  "text": "The architecture shook."
+ },
+ {
+  "key": "cdb76ca6",
+  "speaker": "npc",
+  "text": "\"Purge protocol,\" the rift entity said. \"The Creator is trying to flush you out.\" \"Architecture Soldiers will keep materializing until the sequence times out.\" \"There's no way to stop them.\" \"You just have to survive it.\""
+ },
+ {
+  "key": "12ad86b6",
+  "speaker": "player",
+  "text": "\"How long?\" you asked."
+ },
+ {
+  "key": "a6bb871f",
+  "speaker": "npc",
+  "text": "\"Thirty seconds.\" \"It always feels longer than it is.\""
+ },
+ {
+  "key": "6e8b436b",
+  "speaker": "none",
+  "text": "⚠️ SURVIVAL — waves of Architecture Soldiers for 30 seconds. They respawn. Stay alive. 2 lives."
+ },
+ {
+  "key": "8acf3f47",
+  "speaker": "none",
+  "text": "The Creator's sweep units have locked down the direct approach. A voice through a maintenance conduit: \"I know a way. Trust me or don't — but I'm the only one in here who wants you to succeed.\""
+ },
+ {
+  "key": "bcec8568",
+  "speaker": "none",
+  "text": "The Creator left records of the fracture system's origin scattered through the inner sanctum. Collect all four before the architecture purges them."
+ },
+ {
+  "key": "b7015cfd",
+  "speaker": "npc",
+  "text": "\"I will not make this easy,\" the Creator said. \"Not because I want to destroy you.\" \"Because the system tests through resistance.\" \"If you can beat what I become — you can survive what I'm afraid of.\""
+ },
+ {
+  "key": "f0d87d4c",
+  "speaker": "npc",
+  "text": "\"I am not your enemy.\" \"I am your final exam.\""
+ },
+ {
+  "key": "f806cb29",
+  "speaker": "none",
+  "text": "The air compressed. The architecture rearranged itself into a fighting space. The Creator stepped forward."
+ },
+ {
+  "key": "cacf723d",
+  "speaker": "none",
+  "text": "The air compressed. The architecture rearranged itself into a fighting space. The Creator stepped forward. The Creator — First Form. Adaptive, expert-level. QTE sequences may trigger. 2 lives."
+ },
+ {
+  "key": "b101404e",
+  "speaker": "none",
+  "text": "While the Creator recalibrates, its domain floods with residual constructs. Defeat three waves — no rest between them."
+ },
+ {
+  "key": "b79f5025",
+  "speaker": "none",
+  "text": "The Creator's gate terminal is the final unlock point. Hold it while the rift entity transmits the closure sequence directly into the fragment."
+ },
+ {
+  "key": "b7c0ce35",
+  "speaker": "none",
+  "text": "The Creator's second form was everything the first one had learned."
+ },
+ {
+  "key": "5282d224",
+  "speaker": "none",
+  "text": "And then more."
+ },
+ {
+  "key": "f49cd1b6",
+  "speaker": "npc",
+  "text": "\"I did not want to use this,\" it said. \"I designed it before I knew you.\" \"Now that I do — I am sorry it has to be this.\""
+ },
+ {
+  "key": "8d8defcd",
+  "speaker": "npc",
+  "text": "\"But the system's final gate must be earned.\" \"Everything I have. Everything you have.\" \"After this — the final guardian.\""
+ },
+ {
+  "key": "05c86d8c",
+  "speaker": "none",
+  "text": "Creator — Second Form. Expert. 1 life. Adaptive, armored, QTE-enabled. The last fight before the rift."
+ },
+ {
+  "key": "6243d034",
+  "speaker": "none",
+  "text": "A Creator overseer is broadcasting a jamming signal that prevents the rift entity from transmitting the final message. Eliminate it before the gate locks permanently."
+ },
+ {
+  "key": "ba995610",
+  "speaker": "none",
+  "text": "The gate demanded a proof."
+ },
+ {
+  "key": "8c18144f",
+  "speaker": "none",
+  "text": "Not of power. Of pattern."
+ },
+ {
+  "key": "4f8189ac",
+  "speaker": "none",
+  "text": "Everyone called it the Creator's guardian — a construct built from pure observation. It let them. It had watched every fighter that ever approached the gate. Every dodge. Every mistake. Every habit."
+ },
+ {
+  "key": "f433751d",
+  "speaker": "npc",
+  "text": "\"It knows what you will do before you do it,\" the Fourth Architect said. \"It's been watching you since the beginning.\""
+ },
+ {
+  "key": "2361e8dc",
+  "speaker": "player",
+  "text": "\"Then I'll have to surprise it,\" you said."
+ },
+ {
+  "key": "9356d716",
+  "speaker": "npc",
+  "text": "\"That's the problem.\" \"It's already accounted for that.\""
+ },
+ {
+  "key": "ef093a12",
+  "speaker": "none",
+  "text": "It stepped forward. It had no face. Only readiness."
+ },
+ {
+  "key": "8bc35320",
+  "speaker": "none",
+  "text": "It stepped forward. It had no face. Only readiness. Before the Creator — there was the test."
+ },
+ {
+  "key": "e3cc034b",
+  "speaker": "npc",
+  "text": "\"\"Every dodge. Every combo. Every mistake.\" \"\"I was watching.\""
+ },
+ {
+  "key": "8aedfb5a",
+  "speaker": "none",
+  "text": "Its name is SOVEREIGN. Defeat it — if the concept means anything to you."
+ },
+ {
+  "key": "ebac3adc",
+  "speaker": "none",
+  "text": "The rift was open."
+ },
+ {
+  "key": "620f7e2e",
+  "speaker": "none",
+  "text": "Not as a tear — as a door. A final threshold, requiring the fragment bearer to pass through at full force."
+ },
+ {
+  "key": "f60f687e",
+  "speaker": "npc",
+  "text": "\"This is what we've been building toward,\" the Fourth Architect said."
+ },
+ {
+  "key": "7ac0024c",
+  "speaker": "none",
+  "text": "A voice through the fracture resonance."
+ },
+ {
+  "key": "be698ce8",
+  "speaker": "npc",
+  "text": "\"I know.\""
+ },
+ {
+  "key": "9985206c",
+  "speaker": "npc",
+  "text": "\"The Architects are in position.\" \"The rift entity is ready.\" \"And the Creator's final construct is the lock.\" \"You are the key.\" \"You always were.\""
+ },
+ {
+  "key": "5ed29b9b",
+  "speaker": "npc",
+  "text": "\"The construct won't hold back.\" \"Neither will you.\""
+ },
+ {
+  "key": "246736ec",
+  "speaker": "none",
+  "text": "The fracture opened onto a sky that was already burning."
+ },
+ {
+  "key": "3e1f9d61",
+  "speaker": "npc",
+  "text": "\"War-Torn Dimension,\" the Fallen God said. \"Every soul here has fought since birth.\" \"They know nothing else.\""
+ },
+ {
+  "key": "7eeed54b",
+  "speaker": "none",
+  "text": "The ground shook. Somewhere ahead, something very large was collapsing."
+ },
+ {
+  "key": "36c24092",
+  "speaker": "npc",
+  "text": "\"Power without understanding,\" the Fallen God said, \"is collapse waiting to happen.\" \"Watch how they waste it.\""
+ },
+ {
+  "key": "8614b850",
+  "speaker": "none",
+  "text": "Enter the War-Torn Dimension. War conscripts attack immediately and without pause. Hard AI. 3 lives."
+ },
+ {
+  "key": "fb6b84ea",
+  "speaker": "none",
+  "text": "The command post had never fallen."
+ },
+ {
+  "key": "73d58cd5",
+  "speaker": "none",
+  "text": "Not in three hundred years of continuous war. Not to any of the fragment bearers who had come before."
+ },
+ {
+  "key": "f2a9878b",
+  "speaker": "none",
+  "text": "Two veterans guarded the passage — the Champions's personal guard. They had served every year of those three hundred. They didn't look tired."
+ },
+ {
+  "key": "08a35607",
+  "speaker": "none",
+  "text": "They looked like they were waiting for someone specific."
+ },
+ {
+  "key": "9aa0f8b5",
+  "speaker": "none",
+  "text": "They looked like they were waiting for someone specific. The Champion's personal guard — two War Veterans. Expert AI. 2 lives."
+ },
+ {
+  "key": "f427d321",
+  "speaker": "none",
+  "text": "The war-torn dimension is in active collapse — a shelling wave demolishing everything from behind. Run through the front lines and reach the other side."
+ },
+ {
+  "key": "0832a1a0",
+  "speaker": "none",
+  "text": "They had never lost."
+ },
+ {
+  "key": "782050fd",
+  "speaker": "none",
+  "text": "Every fighter who had come through the fracture — every fragment bearer the War-Torn Dimension had ever seen — had been ended by the War Champion."
+ },
+ {
+  "key": "bec28777",
+  "speaker": "npc",
+  "text": "\"You are not the first to carry that fragment,\" the Champion said. \"You will not be the last.\" \"But you will be mine.\""
+ },
+ {
+  "key": "af98ec79",
+  "speaker": "none",
+  "text": "Behind you, the Fallen God's voice, barely a whisper:"
+ },
+ {
+  "key": "d2d7b28d",
+  "speaker": "npc",
+  "text": "\"You did not become violent. You became decisive. There is a difference.\""
+ },
+ {
+  "key": "9a477961",
+  "speaker": "none",
+  "text": "The War Champion — undefeated in a dimension that has known nothing but war. A second fighter flanks from behind. You cannot retreat. Be decisive."
+ },
+ {
+  "key": "4864bcbd",
+  "speaker": "none",
+  "text": "The fracture into Gravity Flux World opened sideways."
+ },
+ {
+  "key": "5478e632",
+  "speaker": "none",
+  "text": "Which was only unusual for a moment."
+ },
+ {
+  "key": "0231dfaa",
+  "speaker": "npc",
+  "text": "\"Gravity inverts every twelve seconds,\" the Fallen God said. \"The fighters here adapt mid-strike.\" \"You will need to do the same.\""
+ },
+ {
+  "key": "5367e802",
+  "speaker": "none",
+  "text": "The ground shifted. Then wasn't the ground anymore."
+ },
+ {
+  "key": "ee15c06d",
+  "speaker": "none",
+  "text": "The ground shifted. Then wasn't the ground anymore. Enter the Gravity Flux World. Gravity inverts every 12 seconds. Flux Drifters are fully adapted. You are not — yet. 3 lives."
+ },
+ {
+  "key": "e6ccf27d",
+  "speaker": "none",
+  "text": "The Flux Veterans had mastered something specific: they never fought against a gravity inversion. They redirected into it."
+ },
+ {
+  "key": "df21c043",
+  "speaker": "none",
+  "text": "Three of them. Spaced so that when gravity flipped, at least two were already in a dominant position."
+ },
+ {
+  "key": "84772b7d",
+  "speaker": "npc",
+  "text": "\"They've been doing this for decades,\" the Fallen God said. \"You've been doing it for thirty seconds.\" \"Interesting gap to close.\""
+ },
+ {
+  "key": "0cea46d5",
+  "speaker": "none",
+  "text": "Three Flux Veterans — they use gravity inversions as tactics. Expert AI. 2 lives."
+ },
+ {
+  "key": "e5ce6c97",
+  "speaker": "none",
+  "text": "The flux world runs on three gravity nodes. Activate them in sequence to stabilize the approach corridor before the next inversion."
+ },
+ {
+  "key": "11a1514e",
+  "speaker": "none",
+  "text": "The Flux Guardian existed at the exact point where gravity reversed."
+ },
+ {
+  "key": "c03d5785",
+  "speaker": "none",
+  "text": "It had lived there so long it no longer noticed the shifts. Which meant it was fighting on stable ground while everything around it changed."
+ },
+ {
+  "key": "34b2a241",
+  "speaker": "npc",
+  "text": "\"You are the fourteenth fragment bearer to reach this axis,\" it said. \"The others found the inversion... disorienting.\""
+ },
+ {
+  "key": "fcb97782",
+  "speaker": "none",
+  "text": "The world flipped."
+ },
+ {
+  "key": "58c5d1a2",
+  "speaker": "none",
+  "text": "The world flipped. The Flux Guardian — fights at the gravity axis. The world inverts every 12 seconds. It moves in three dimensions. You have to as well. 2 lives."
+ },
+ {
+  "key": "8a9f1058",
+  "speaker": "none",
+  "text": "The Shadow Realm began before you entered it."
+ },
+ {
+  "key": "979cc0f4",
+  "speaker": "none",
+  "text": "The light left first. Then the sound. Then any reliable sense of where the ground was."
+ },
+ {
+  "key": "457dc2fb",
+  "speaker": "npc",
+  "text": "\"Visibility drops to arm's length,\" the Fallen God said. \"The fragment can feel them before you can see them.\" \"Learn to trust that.\""
+ },
+ {
+  "key": "b092b000",
+  "speaker": "npc",
+  "text": "\"Or don't.\" \"The shadows do not care either way.\""
+ },
+ {
+  "key": "f799bc2e",
+  "speaker": "none",
+  "text": "Enter the Shadow Realm. Near-zero visibility. Shadow Prowlers attack from the dark. Learn to sense them. 3 lives."
+ },
+ {
+  "key": "0db4b77c",
+  "speaker": "none",
+  "text": "The Court operated on a single rule: if you could be found, you lost."
+ },
+ {
+  "key": "cd7fefff",
+  "speaker": "none",
+  "text": "Phase Hunters had never lost. Because they could not be found."
+ },
+ {
+  "key": "dcb143a3",
+  "speaker": "none",
+  "text": "Until now."
+ },
+ {
+  "key": "eb4b791c",
+  "speaker": "npc",
+  "text": "\"They phase to avoid being tracked,\" the Fallen God said. \"The fragment doesn't track location.\" \"It tracks intent.\" \"The difference is important.\""
+ },
+ {
+  "key": "aea14202",
+  "speaker": "none",
+  "text": "Phase Hunters in the Court — they teleport on detection. Expert AI. 2 lives."
+ },
+ {
+  "key": "b10d3dd9",
+  "speaker": "none",
+  "text": "The Shadow Realm operates on detection — any sound or movement triggers the sentinels. Reach the Shadow Court using only the fragment's pulse to navigate."
+ },
+ {
+  "key": "3e18a9c6",
+  "speaker": "none",
+  "text": "The Shadow Warden had never been found."
+ },
+ {
+  "key": "859e0a9d",
+  "speaker": "none",
+  "text": "That was its power. Not strength. Not speed. Simply: no one had ever located it."
+ },
+ {
+  "key": "2d9cb6ad",
+  "speaker": "none",
+  "text": "You had."
+ },
+ {
+  "key": "4fc8158a",
+  "speaker": "npc",
+  "text": "\"That is new,\" the Warden said."
+ },
+ {
+  "key": "b40dba4b",
+  "speaker": "none",
+  "text": "It sounded almost interested."
+ },
+ {
+  "key": "87d51b43",
+  "speaker": "none",
+  "text": "It sounded almost interested. The Shadow Warden — never found, never beaten. Phases and repositions. 1 life."
+ },
+ {
+  "key": "80d8ede4",
+  "speaker": "none",
+  "text": "The outer ruins of Titan World hold the records of the civilization that existed before the current King — what it was, and what ended it. Collect four relics before Titan patrols seal the ruins."
+ },
+ {
+  "key": "feaf13cd",
+  "speaker": "none",
+  "text": "Three of them stood between the Outer Plain and the Throne Plateau."
+ },
+ {
+  "key": "ce1915c0",
+  "speaker": "none",
+  "text": "Titan Enforcers. Personally appointed by the King. The largest things you've faced in the multiverse."
+ },
+ {
+  "key": "5a685bd4",
+  "speaker": "npc",
+  "text": "\"They do not phase,\" the Fallen God observed. \"They do not teleport.\" \"They are simply very difficult to move.\" \"Which means they will try to move you first.\""
+ },
+ {
+  "key": "ec580df1",
+  "speaker": "none",
+  "text": "Three Titan Enforcers guard the Throne Plateau. Massive knockback resistance. Expert AI. 2 lives."
+ },
+ {
+  "key": "ac8a3add",
+  "speaker": "none",
+  "text": "Titan scouts are trying to destroy the dimensional gate before you can reach the Throne Plateau. Hold them off — three waves."
+ },
+ {
+  "key": "fee7d1b9",
+  "speaker": "none",
+  "text": "The Titan King had never acknowledged a threat smaller than itself."
+ },
+ {
+  "key": "265e5c27",
+  "speaker": "none",
+  "text": "When you walked onto the Throne Plateau, it didn't move. It watched you."
+ },
+ {
+  "key": "6ecd5843",
+  "speaker": "npc",
+  "text": "\"You carry the fragment,\" it said finally. \"The Creator's tool.\" \"I do not fight tools.\""
+ },
+ {
+  "key": "ae9c9b57",
+  "speaker": "player",
+  "text": "\"I'm not a tool,\" you said."
+ },
+ {
+  "key": "5defe626",
+  "speaker": "none",
+  "text": "It stood up."
+ },
+ {
+  "key": "05b18524",
+  "speaker": "none",
+  "text": "It stood up. The Titan King — has never acknowledged a smaller threat. Hits devastatingly hard. 1 life."
+ },
+ {
+  "key": "c6e25f9f",
+  "speaker": "none",
+  "text": "A cloaked figure left traces — dimensional imprints scattered across the threshold. Collect all four before they dissipate."
+ },
+ {
+  "key": "6b62df83",
+  "speaker": "none",
+  "text": "The hooded figure is waiting at the base of the ridge — but Veran's signal drones are sweeping the area. Reach the meeting point without triggering a scan."
+ },
+ {
+  "key": "a0a03855",
+  "speaker": "none",
+  "text": "The figure came a third time."
+ },
+ {
+  "key": "0c6ee577",
+  "speaker": "npc",
+  "text": "\"I don't enjoy this,\" it said. \"But what I'm about to offer you is real.\""
+ },
+ {
+  "key": "690bced9",
+  "speaker": "npc",
+  "text": "\"The fracture closure doesn't require the bearer to be consumed.\" \"It never did.\""
+ },
+ {
+  "key": "eb9628d4",
+  "speaker": "npc",
+  "text": "\"The original protocol has a variant.\" \"Two anchors instead of one.\" \"You hold the rift open from inside.\" \"I anchor the closure from outside.\" \"The fragment's energy dissipates between us — not into you.\" \"You survive. The rift closes.\""
+ },
+ {
+  "key": "8302746d",
+  "speaker": "npc",
+  "text": "\"Veran knows about the variant.\" \"She has always known.\" \"She chose not to tell you because the variant\" \"requires a clean anchor chain.\" \"And she is not a clean link. Not anymore.\""
+ },
+ {
+  "key": "04bd2006",
+  "speaker": "npc",
+  "text": "\"A compromised variable doesn't fail quietly.\" \"It redirects the closure energy. Toward the bearer.\" \"That is what happens if she is still standing when you go in.\""
+ },
+ {
+  "key": "4b902ada",
+  "speaker": "npc",
+  "text": "\"You survive, or she does.\" \"That is the actual choice she has been withholding from you.\""
+ },
+ {
+  "key": "fc8ac657",
+  "speaker": "none",
+  "text": "The fragment was burning. You weren't sure if it was warning or grief."
+ },
+ {
+  "key": "b21f53b4",
+  "speaker": "none",
+  "text": "You didn't make a decision. You went back anyway."
+ },
+ {
+  "key": "5c8ab417",
+  "speaker": "npc",
+  "text": "\"Something's wrong,\" Veran said immediately. \"Talk to me.\""
+ },
+ {
+  "key": "82dedd91",
+  "speaker": "none",
+  "text": "You didn't know how to start. So you said what the figure had said. Not all of it. The final step. The protocol."
+ },
+ {
+  "key": "16dd5cac",
+  "speaker": "npc",
+  "text": "\"You gave it to the Creator.\" \"Not the Third Architect. You.\""
+ },
+ {
+  "key": "831dd21e",
+  "speaker": "none",
+  "text": "The silence was unlike any you'd shared before."
+ },
+ {
+  "key": "21add87a",
+  "speaker": "npc",
+  "text": "\"That's not what happened,\" Veran said. \"Who told you that?\""
+ },
+ {
+  "key": "b521c9aa",
+  "speaker": "player",
+  "text": "\"It doesn't matter,\" you said."
+ },
+ {
+  "key": "bd6ee4cd",
+  "speaker": "npc",
+  "text": "\"It does.\" She took a step forward. \"Because whoever told you that had a reason to.\" \"And whatever they offered you — stop.\" \"Just stop and listen to me.\""
+ },
+ {
+  "key": "2eb44877",
+  "speaker": "none",
+  "text": "The figure was watching from the ridge. You could feel it."
+ },
+ {
+  "key": "2ef630e6",
+  "speaker": "player",
+  "text": "\"The bearer doesn't have to die for this,\" you said. \"There's a variant.\""
+ },
+ {
+  "key": "984b7309",
+  "speaker": "none",
+  "text": "Veran went very still."
+ },
+ {
+  "key": "0236130c",
+  "speaker": "npc",
+  "text": "\"There is no variant,\" she said quietly. \"I've read every version of the protocol.\" \"Who told you there was?\""
+ },
+ {
+  "key": "28b0ca52",
+  "speaker": "player",
+  "text": "\"Someone who's watched this happen before. Many times,\" you said."
+ },
+ {
+  "key": "f52b16ad",
+  "speaker": "npc",
+  "text": "\"Then they watched it fail,\" she said. \"Every time.\" \"Because there is no clean anchor.\" \"The closure energy goes somewhere.\" \"If it doesn't go through the bearer, it collapses the chain.\" \"That's not a variant. That is a lie.\""
+ },
+ {
+  "key": "23bf810d",
+  "speaker": "none",
+  "text": "The fragment burned. The figure on the ridge hadn't moved."
+ },
+ {
+  "key": "f75af6c9",
+  "speaker": "none",
+  "text": "You raised your weapon."
+ },
+ {
+  "key": "269a93cd",
+  "speaker": "none",
+  "text": "You raised your weapon. Veran — The Architect. She isn't trying to win. She's trying to reach you. 1 life."
+ },
+ {
+  "key": "0b6367f3",
+  "speaker": "none",
+  "text": "The threshold is destabilizing in the wake of what happened. Reach the Creator's fracture boundary before the dimensional collapse seals it."
+ },
+ {
+  "key": "c13a08c9",
+  "speaker": "none",
+  "text": "The geometry here does not hold. Platforms vanish mid-step. Corridors rearrange without warning. Reach the Pattern Core before the world reconfigures itself around you."
+ },
+ {
+  "key": "024a0d05",
+  "speaker": "none",
+  "text": "Null has catalogued every being that entered this space — 847 of them. Four pattern vaults hold those echoes. Find them. They may contain more than Null intended to keep."
+ },
+ {
+  "key": "e3dd3594",
+  "speaker": "none",
+  "text": "Null has determined you are an anomaly that corrupts the pattern model. The Erasure Protocol is active — constructs are redirecting the architecture against you. Run."
+ },
+ {
+  "key": "d8b1aab9",
+  "speaker": "none",
+  "text": "Null materialized in a space that had briefly stopped shifting."
+ },
+ {
+  "key": "90c2bf75",
+  "speaker": "none",
+  "text": "No face. No identifying features. A shape exactly as large as it needed to be and no larger."
+ },
+ {
+  "key": "093b7169",
+  "speaker": "npc",
+  "text": "\"I have recorded 847 beings who passed through this space,\" it said. \"I can predict the behavior of each of them\" \"with a margin of error below one percent.\""
+ },
+ {
+  "key": "28b0dd8e",
+  "speaker": "npc",
+  "text": "\"You entered this space and my model began producing errors.\" \"Not small ones. Structural errors.\" \"The kind I cannot attribute to incomplete data.\""
+ },
+ {
+  "key": "9fc755df",
+  "speaker": "npc",
+  "text": "\"I have not encountered a structural error in 4,200 years.\""
+ },
+ {
+  "key": "e347322a",
+  "speaker": "npc",
+  "text": "\"The fragment you carry is the source.\" \"I cannot catalogue what it is.\" \"I cannot model what happens next.\""
+ },
+ {
+  "key": "af124da3",
+  "speaker": "npc",
+  "text": "\"That is not a situation I have ever been in.\""
+ },
+ {
+  "key": "f0ebf2cd",
+  "speaker": "npc",
+  "text": "\"Every being I have catalogued fought with their eyes.\" \"All 847.\" \"It is the first thing they trust and the last thing they question.\""
+ },
+ {
+  "key": "3477c4cf",
+  "speaker": "npc",
+  "text": "\"I am going to take it from you.\""
+ },
+ {
+  "key": "35753278",
+  "speaker": "npc",
+  "text": "\"Not as cruelty. As method.\" \"If your pattern only exists because you can see,\" \"then it is not a gap in my model.\" \"It is a habit, and I have catalogued every habit there is.\""
+ },
+ {
+  "key": "cee7330e",
+  "speaker": "none",
+  "text": "Null placed something on the ground between you. A lantern."
+ },
+ {
+  "key": "fe50e04a",
+  "speaker": "npc",
+  "text": "\"This does not harm what it finds.\" \"It sweeps the space and shows you where the space is wrong.\" \"Not where the shape is. Where it was.\""
+ },
+ {
+  "key": "7b18f50b",
+  "speaker": "npc",
+  "text": "\"The information will be old the moment you have it.\" \"Every being I have catalogued treated that as a failure.\""
+ },
+ {
+  "key": "f8a54f6b",
+  "speaker": "npc",
+  "text": "\"Show me what you treat it as.\""
+ },
+ {
+  "key": "50b89107",
+  "speaker": "none",
+  "text": "Null's pattern construct is invisible. You carry the Lantern — its ability sweeps the space and marks where a body WAS, held three seconds and already stale. Its swing, its footfalls and its flinch are the only live signals. 2 lives."
+ },
+ {
+  "key": "190d8aff",
+  "speaker": "npc",
+  "text": "\"You fight in ways that contradict your own previous data.\" \"The pattern model predicts based on established behavior.\" \"You are not following established behavior.\""
+ },
+ {
+  "key": "c1ad2fcc",
+  "speaker": "npc",
+  "text": "\"Every fighter I have catalogued has a core pattern.\" \"A signature. A set of habits they return to under pressure.\""
+ },
+ {
+  "key": "0a73ec72",
+  "speaker": "npc",
+  "text": "\"You do not return to anything.\""
+ },
+ {
+  "key": "362697c5",
+  "speaker": "npc",
+  "text": "\"The only way to understand that\" \"is to test it against everything I have learned.\" \"All 847 entries. All 4,200 years.\" \"Against you.\""
+ },
+ {
+  "key": "5ef7c12b",
+  "speaker": "npc",
+  "text": "\"Show me what a pattern gap looks like when it fights.\""
+ },
+ {
+  "key": "44fc92b8",
+  "speaker": "none",
+  "text": "Null — 4,200 years of catalogue data. They fight using everything they've ever recorded. Fight in ways you've never fought before. 1 life."
+ },
+ {
+  "key": "43d5bf77",
+  "speaker": "none",
+  "text": "The Quiet Expanse is completely drained of energy. Any output — movement, force, heat signature — draws Seraph's attention. Cross it without being noticed."
+ },
+ {
+  "key": "405f445f",
+  "speaker": "none",
+  "text": "The expanse holds memory residue in four conduits — when restored, each briefly shows what this dimension held before Seraph drained it. Activate them in order."
+ },
+ {
+  "key": "28cb6cfe",
+  "speaker": "none",
+  "text": "The fragment was pulling."
+ },
+ {
+  "key": "b481a081",
+  "speaker": "none",
+  "text": "Not toward danger. Not toward power. Toward Seraph — like water toward a drain."
+ },
+ {
+  "key": "2538160c",
+  "speaker": "npc",
+  "text": "\"I know,\" Seraph said. \"I can feel it responding.\" \"It has been a long time since anything in this expanse responded to me\" \"instead of just emptying.\""
+ },
+ {
+  "key": "59d5eea3",
+  "speaker": "npc",
+  "text": "\"The fragment is crystallized void emission.\" \"I am... adjacent to that process.\" \"What the void made of me is similar enough\" \"that the fragment recognizes something.\" \"Not the same. Close enough to respond.\""
+ },
+ {
+  "key": "cab617fb",
+  "speaker": "npc",
+  "text": "\"I am not going to take it from you.\" \"I have taken everything from this dimension.\" \"I know what it looks like when something is drained against its will.\" \"I am not doing that again.\""
+ },
+ {
+  "key": "77d1aed5",
+  "speaker": "npc",
+  "text": "\"But I wanted you to know what you're carrying.\" \"And what it feels like from outside.\""
+ },
+ {
+  "key": "4ad05836",
+  "speaker": "none",
+  "text": "Seraph's absorption field is expanding — the fragment resonance triggered an involuntary surge. Everything is being pulled inward. Reach the expanse edge before the field closes."
+ },
+ {
+  "key": "98d71f18",
+  "speaker": "npc",
+  "text": "\"I keep taking things,\" Seraph said. \"I don't mean to.\" \"I used to mean to give them back.\" \"I can't do that either.\""
+ },
+ {
+  "key": "91562ee1",
+  "speaker": "npc",
+  "text": "\"What I can do is this:\" \"I can fight you carefully.\" \"I can try not to drain the fragment.\" \"I can try to be what I was supposed to be\" \"for exactly as long as this fight lasts.\""
+ },
+ {
+  "key": "b7d3d415",
+  "speaker": "npc",
+  "text": "\"You survived the expanse.\" \"You held still while everything pulled inward.\" \"And you didn't lose it.\""
+ },
+ {
+  "key": "6be738af",
+  "speaker": "npc",
+  "text": "\"I want to see that up close.\" \"One more time. Before you go.\""
+ },
+ {
+  "key": "61780f80",
+  "speaker": "none",
+  "text": "Seraph — absorption field is passive and constant. Stay mobile. They're trying to hold it back. Expert. 1 life."
+ },
+ {
+  "key": "8f7c7fbd",
+  "speaker": "none",
+  "text": "The Collision Realm fractures constantly under Thresh's weight. Navigate through active impact zones and cascading debris. The ground is unreliable. The air isn't much better."
+ },
+ {
+  "key": "5586ffd2",
+  "speaker": "none",
+  "text": "In the wreckage of collapsed dimensions, Thresh preserved four things. Not tactical records — personal ones. Find them."
+ },
+ {
+  "key": "6d62877c",
+  "speaker": "none",
+  "text": "A dimensional anchor — the only stable ground in the Collision Realm. Thresh's impact constructs are incoming. Three waves. Hold it."
+ },
+ {
+  "key": "6380d8b6",
+  "speaker": "npc",
+  "text": "\"I remember being strong,\" Thresh said. \"Before the void.\" \"It was useful then.\""
+ },
+ {
+  "key": "226a884c",
+  "speaker": "npc",
+  "text": "\"I hit things that needed hitting.\" \"I knew the exact amount of force required\" \"and I used exactly that much.\""
+ },
+ {
+  "key": "c0804aef",
+  "speaker": "npc",
+  "text": "\"The void didn't give me more strength.\" \"It broke the dial.\""
+ },
+ {
+  "key": "862169f1",
+  "speaker": "npc",
+  "text": "\"Everything I've touched since has fractured.\" \"The dimensions.\" \"The others — when we still found each other.\" \"Everything I tried to protect.\""
+ },
+ {
+  "key": "931d8ffb",
+  "speaker": "npc",
+  "text": "\"You're standing in the middle of what my grief looks like\" \"when it has nowhere to go.\""
+ },
+ {
+  "key": "4f315229",
+  "speaker": "npc",
+  "text": "\"I don't want to break you.\" \"But I need to know if you're something that holds.\""
+ },
+ {
+  "key": "ef93f55d",
+  "speaker": "none",
+  "text": "Thresh — every strike fractures the space around it. They're trying to hold back. Expert. 1 life. Do not stand still."
+ },
+ {
+  "key": "fbc77718",
+  "speaker": "none",
+  "text": "The Fracture Coast splits time into visible layers — objects ahead show their future positions before they arrive. Fly through what is and what was at the same time."
+ },
+ {
+  "key": "2493d435",
+  "speaker": "none",
+  "text": "VAEL arranged this section before you arrived — every lock, every position set according to what they predicted you would do. They couldn't predict you. Find the gaps they left."
+ },
+ {
+  "key": "7c78b2b5",
+  "speaker": "none",
+  "text": "The tides leave temporal imprints along the coast — fragments of VAEL's past that washed up and couldn't be reclaimed. Find four. They're from before the void."
+ },
+ {
+  "key": "88ccc935",
+  "speaker": "none",
+  "text": "VAEL stood where three temporal layers intersected."
+ },
+ {
+  "key": "749a8746",
+  "speaker": "none",
+  "text": "They looked like someone who had been waiting in the same spot for a very long time because they already knew what was coming."
+ },
+ {
+  "key": "f2e9ecf1",
+  "speaker": "npc",
+  "text": "\"I have run the futures of every being that reaches this point,\" they said. \"I see what they do before they do it.\" \"I see how the conversation ends before it begins.\""
+ },
+ {
+  "key": "1c4a492d",
+  "speaker": "npc",
+  "text": "\"I ran yours the moment you entered the coast.\" \"I got nothing.\" \"Not uncertainty. Nothing.\" \"The future simply does not show you to me.\""
+ },
+ {
+  "key": "3757a406",
+  "speaker": "npc",
+  "text": "\"The fragment is why,\" they said. \"It carries something my sight cannot penetrate.\" \"Something older than the patterns I read.\""
+ },
+ {
+  "key": "8074e953",
+  "speaker": "npc",
+  "text": "\"I have been first through every door since before I can remember.\" \"This is the first time I cannot see what is on the other side.\" \"I don't know what to do with that.\""
+ },
+ {
+  "key": "d23d2e04",
+  "speaker": "npc",
+  "text": "\"I cannot see your future,\" VAEL said. \"I have accepted this.\" \"So I stopped looking forward.\""
+ },
+ {
+  "key": "68e8212b",
+  "speaker": "npc",
+  "text": "\"I looked back instead. Half a second. That is all I need.\" \"Your future is blank. Your past is not.\""
+ },
+ {
+  "key": "fe1d2a11",
+  "speaker": "none",
+  "text": "The water in front of you stood up and took your shape."
+ },
+ {
+  "key": "4a5a72bb",
+  "speaker": "npc",
+  "text": "\"It does not predict you. It repeats you.\" \"Everything you do, it will do, a heartbeat later, reversed.\""
+ },
+ {
+  "key": "c9549e4a",
+  "speaker": "npc",
+  "text": "\"If you have a pattern, it will find you with it.\" \"You cannot be faster than this. It is already as fast as you are.\" \"You can only be someone you were not, half a second ago.\""
+ },
+ {
+  "key": "7030ca98",
+  "speaker": "npc",
+  "text": "\"I have never watched anyone try.\""
+ },
+ {
+  "key": "0d40865d",
+  "speaker": "none",
+  "text": "A copy of you, delayed and mirrored. It has your speed and your habits, so speed and habit cannot beat it. Break your own pattern. 2 lives."
+ },
+ {
+  "key": "890bbd76",
+  "speaker": "npc",
+  "text": "\"I can see three seconds into every fight I have ever had.\" \"I know the swing before the arm moves.\" \"I know the outcome before the first contact.\""
+ },
+ {
+  "key": "9e6de56e",
+  "speaker": "npc",
+  "text": "\"Against you — I see nothing.\" \"Not three seconds. Not one.\" \"Blank.\""
+ },
+ {
+  "key": "22675d2c",
+  "speaker": "npc",
+  "text": "\"I am fighting you entirely in the present.\" \"I have not done that in longer than I can calculate.\""
+ },
+ {
+  "key": "3df8db27",
+  "speaker": "npc",
+  "text": "\"Show me what it is like.\" \"To fight without knowing what comes next.\""
+ },
+ {
+  "key": "cdd54d49",
+  "speaker": "none",
+  "text": "VAEL — sees every fight three seconds ahead. Against you, they see nothing. Expert. 1 life. Never repeat a pattern."
+ },
+ {
+  "key": "9eb796ba",
+  "speaker": "none",
+  "text": "You step through the dimension wall."
+ },
+ {
+  "key": "b1ea59ac",
+  "speaker": "none",
+  "text": "And stop."
+ },
+ {
+  "key": "0e3af962",
+  "speaker": "none",
+  "text": "It's already there."
+ },
+ {
+  "key": "34fa0e61",
+  "speaker": "none",
+  "text": "Not waiting. Not threatening. Just... present. The way a mountain is present."
+ },
+ {
+  "key": "42779afa",
+  "speaker": "none",
+  "text": "Every scout you've fought — they were looking for you. This is why."
+ },
+ {
+  "key": "db65660f",
+  "speaker": "none",
+  "text": "Axiom turns."
+ },
+ {
+  "key": "ac9489eb",
+  "speaker": "npc",
+  "text": "\"Kael.\""
+ },
+ {
+  "key": "e8306dc0",
+  "speaker": "none",
+  "text": "A pause."
+ },
+ {
+  "key": "5cfd5276",
+  "speaker": "npc",
+  "text": "\"You finally made it to the threshold.\" \"I was beginning to think the fractures would take you first.\""
+ },
+ {
+  "key": "9707c69d",
+  "speaker": "none",
+  "text": "You raise your weapon."
+ },
+ {
+  "key": "c42e5212",
+  "speaker": "npc",
+  "text": "\"Go ahead,\" it says. \"You need to understand what you're walking into.\""
+ },
+ {
+  "key": "c6662ac3",
+  "speaker": "none",
+  "text": "A year ago you were nobody."
+ },
+ {
+  "key": "addf55e1",
+  "speaker": "none",
+  "text": "You had a job. You had a street you walked home on. Then something came down out of a sky that had opened where no sky opens, and it went into your chest, and it did not come out."
+ },
+ {
+  "key": "9a8ad06b",
+  "speaker": "none",
+  "text": "It is still there. A weight just under the sternum. Not quite warm. Not quite still."
+ },
+ {
+  "key": "d15b1f8a",
+  "speaker": "none",
+  "text": "You never found a word for it. The people who came looking for it had one, and they said it the way you read a serial number off a crate."
+ },
+ {
+  "key": "cd6da551",
+  "speaker": "none",
+  "text": "Ninety-four people carried it before you. You know the number because you found it written down, in a room that had been built for keeping them. You do not know what happened to any of them. You have a guess."
+ },
+ {
+  "key": "cce526af",
+  "speaker": "none",
+  "text": "Everything since has been a line pointing somewhere. The ones who hunted you. The tears opening in the air above cities. The machinery humming behind all of it, in a register you feel in your teeth before you hear it."
+ },
+ {
+  "key": "a0149672",
+  "speaker": "none",
+  "text": "Someone built that. Someone is still running it."
+ },
+ {
+  "key": "660788f5",
+  "speaker": "none",
+  "text": "Today the line ends."
+ },
+ {
+  "key": "43fd0c42",
+  "speaker": "none",
+  "text": "Axiom. The entity at the center of everything. You finally see it in person — and immediately understand the scale of what you're not yet capable of."
+ },
+ {
+  "key": "f6016c9a",
+  "speaker": "none",
+  "text": "The loop resets the moment you find an exit. Axiom is watching. Survive three reset cycles and find a different way out."
+ },
+ {
+  "key": "db605f0a",
+  "speaker": "npc",
+  "text": "\"Stop.\""
+ },
+ {
+  "key": "00065896",
+  "speaker": "none",
+  "text": "You stop."
+ },
+ {
+  "key": "2f2ad0a8",
+  "speaker": "npc",
+  "text": "\"You've been treating this as punishment.\" \"It isn't.\""
+ },
+ {
+  "key": "6099b240",
+  "speaker": "npc",
+  "text": "\"I didn't put you here to erase you.\" \"I put you here because you needed to understand something\" \"the fracture system was not going to show you.\""
+ },
+ {
+  "key": "c1d03507",
+  "speaker": "npc",
+  "text": "\"The Creator's fragment does not grant strength.\" \"It grants honesty.\" \"It forces the bearer to carry what they actually are\" \"instead of what they imagine themselves to be.\""
+ },
+ {
+  "key": "38c294b3",
+  "speaker": "npc",
+  "text": "\"The loop is not a prison. It is a mirror.\" \"The only way out is to understand what you're looking at.\""
+ },
+ {
+  "key": "b85ebd95",
+  "speaker": "npc",
+  "text": "\"Do you understand yet?\""
+ },
+ {
+  "key": "83d6dad0",
+  "speaker": "none",
+  "text": "The loop has a structural weakness — a dimensional flaw in its fabric. Reach it before the loop's repair mechanism seals it."
+ },
+ {
+  "key": "03829edc",
+  "speaker": "none",
+  "text": "The dimensional flaw is located. Now breach it — survive the loop's final defenses, collect eight reality anchors, and use the crack to tear the exit open. Every time you fall, a platform is gone forever. Four falls means erasure."
+ },
+ {
+  "key": "6cc43b5d",
+  "speaker": "none",
+  "text": "You're back — but the loop dimension's collapse is still radiating echo constructs into the void. Hold the anchor point while Veran reestablishes contact."
+ },
+ {
+  "key": "96f92f73",
+  "speaker": "none",
+  "text": "The void is tearing open as Cosmic Axiom stirs. The collapse is spreading from behind. Reach the stable core before it swallows everything."
+ },
+ {
+  "key": "fca42640",
+  "speaker": "none",
+  "text": "Cosmic Axiom has been here a long time. Across its domain are the absorbed fragment energies of every bearer who came before — ninety-four of them. Collect four echoes and understand what came before you."
+ },
+ {
+  "key": "5ee53cf4",
+  "speaker": "none",
+  "text": "Cosmic Axiom kept every bearer it ever took. Ninety-four of them stand between you and its core — not three, not in waves. All of them, at once. Only one thing walks out of the construct layer."
+ },
+ {
+  "key": "c93f6d93",
+  "speaker": "npc",
+  "text": "\"You are the ninety-fifth.\""
+ },
+ {
+  "key": "1960da8c",
+  "speaker": "none",
+  "text": "The voice had no origin point. It was just there, the same way gravity is just there."
+ },
+ {
+  "key": "57bf8055",
+  "speaker": "npc",
+  "text": "\"I have watched ninety-four fragment bearers reach this threshold.\" \"Ninety-four different approaches. Ninety-four different choices.\" \"All of them ended here.\""
+ },
+ {
+  "key": "160b0029",
+  "speaker": "npc",
+  "text": "\"I do not say this to discourage you.\" \"I say it because it is accurate.\" \"I do not know how to be inaccurate.\""
+ },
+ {
+  "key": "e49efd10",
+  "speaker": "npc",
+  "text": "\"The fragment you carry is something I have spent\" \"five thousand years keeping out.\" \"When you close the rift, what it carries returns.\" \"I have prevented that. Not from cruelty.\" \"Because I do not know what we become when we are whole.\" \"I have not been whole in five thousand years.\" \"That uncertainty is the only thing I am afraid of.\""
+ },
+ {
+  "key": "85e3c534",
+  "speaker": "npc",
+  "text": "\"I am telling you this so it is not a secret.\" \"Walk in with the truth.\""
+ },
+ {
+  "key": "f93fdc41",
+  "speaker": "none",
+  "text": "Paradox's presence came through the fragment — not a voice, more like a hand placed on a surface to stop it vibrating."
+ },
+ {
+  "key": "8642c2fd",
+  "speaker": "npc",
+  "text": "\"You want to understand why you can do this when the ninety-four couldn't.\""
+ },
+ {
+  "key": "b6b83657",
+  "speaker": "none",
+  "text": "Not a question."
+ },
+ {
+  "key": "e9225d72",
+  "speaker": "npc",
+  "text": "\"Its attacks run on amplified Void Mind radiation.\" \"Your fragment is crystallized from the same radiation.\" \"Same frequency. Same origin.\" \"As the fight continues, the fragment radiates into the space between you\" \"and jams its attack resolution — not cancelling, degrading.\" \"The attacks still fire. They just don't land cleanly.\""
+ },
+ {
+  "key": "93153f58",
+  "speaker": "npc",
+  "text": "\"None of the ninety-four integrated deeply enough to sustain that.\" \"You have.\" \"That is the only mechanical difference between you and them.\""
+ },
+ {
+  "key": "55a7d700",
+  "speaker": "npc",
+  "text": "\"One more thing.\" \"The damage you deal clears corruption. Not as a side effect.\" \"The resonance at the end fires because you cleared enough.\" \"It is not a power move.\" \"It is what is left when the interference has done its work.\""
+ },
+ {
+  "key": "87d74041",
+  "speaker": "none",
+  "text": "Cosmic Axiom arrived without announcement."
+ },
+ {
+  "key": "047b0f12",
+  "speaker": "none",
+  "text": "Not a creature. Not a person. A law."
+ },
+ {
+  "key": "8a6f088e",
+  "speaker": "npc",
+  "text": "\"I am what the fracture system was built to protect.\" \"I am the pattern beneath every dimension.\" \"I do not lose.\" \"I do not negotiate.\" \"I simply am.\""
+ },
+ {
+  "key": "74144a39",
+  "speaker": "none",
+  "text": "..."
+ },
+ {
+  "key": "8ce175d9",
+  "speaker": "none",
+  "text": "You have fought inside it. You carry its scar."
+ },
+ {
+  "key": "24e4d64a",
+  "speaker": "none",
+  "text": "Prove it wrong anyway."
+ },
+ {
+  "key": "e2bd57c8",
+  "speaker": "none",
+  "text": "Prove it wrong anyway. Cosmic Axiom — the original pattern, the system's deepest failsafe. You have already fought inside its echo. The scar grants focus. QTE sequences will trigger at HP thresholds. 3 lives."
+ },
+ {
+  "key": "2d507eb1",
+  "speaker": "none",
+  "text": "It was quiet."
+ },
+ {
+  "key": "2b0202f0",
+  "speaker": "none",
+  "text": "Not empty — quiet. The fracture network had been humming for five thousand years. Axiom built it before you were born."
+ },
+ {
+  "key": "058b8e25",
+  "speaker": "none",
+  "text": "Now it wasn't humming."
+ },
+ {
+  "key": "b939a082",
+  "speaker": "none",
+  "text": "Seventeen dimensions were still standing. Each signal clean, separate, no longer threaded through an architecture that no longer existed."
+ },
+ {
+  "key": "7dda3562",
+  "speaker": "none",
+  "text": "And next to you, in the middle of the void, stood the man who had built all of it."
+ },
+ {
+  "key": "3b297952",
+  "speaker": "none",
+  "text": "You came out of the void with your hands still shaking."
+ },
+ {
+  "key": "75d41e5e",
+  "speaker": "none",
+  "text": "Not from the fight. From after it."
+ },
+ {
+  "key": "a3a60dc1",
+  "speaker": "none",
+  "text": "A year ago — longer, maybe; the loops made it hard to keep count — you were an ordinary man with an ordinary walk home, and something buried itself in your chest and stayed."
+ },
+ {
+  "key": "9df8ca8d",
+  "speaker": "none",
+  "text": "Ninety-four people carried it before you. None of them are alive. For a long time that was the entire sum of what you knew about yourself: that you were the ninety-fifth, and that you were still standing."
+ },
+ {
+  "key": "ec800c04",
+  "speaker": "none",
+  "text": "The rest you learned the hard way. That the tears opening in the sky were not weather. That they were built. That the man who built them had stopped being a man in order to do it, and had been running the thing for five thousand years without sleeping once."
+ },
+ {
+  "key": "f5abc820",
+  "speaker": "none",
+  "text": "You went in there to kill him."
+ },
+ {
+  "key": "397c99cc",
+  "speaker": "none",
+  "text": "You did not kill him. You took the thing off him — and what was left underneath was a man, and he walked out of it beside you."
+ },
+ {
+  "key": "4ce7d6ca",
+  "speaker": "none",
+  "text": "Neither of you had said anything yet."
+ },
+ {
+  "key": "b2754c46",
+  "speaker": "none",
+  "text": "Not the Creator. Not Cosmic Axiom. A man. Medium height. Tired eyes. The last thread of who he was before the void took the rest — except now the thread was all of him."
+ },
+ {
+  "key": "4a5a298c",
+  "speaker": "none",
+  "text": "The Third Architect's voice came through, very carefully:"
+ },
+ {
+  "key": "1f1ce27e",
+  "speaker": "npc",
+  "text": "\"Your signal reads two people.\" \"...Confirm?\""
+ },
+ {
+  "key": "858e6cad",
+  "speaker": "none",
+  "text": "Axiom looked up at the void the way a man looks at a room he built when he's seeing it from inside for the first time."
+ },
+ {
+  "key": "89d40f1a",
+  "speaker": "npc",
+  "text": "\"Five thousand years,\" he said."
+ },
+ {
+  "key": "033632ff",
+  "speaker": "none",
+  "text": "It wasn't an apology. It was a measurement."
+ },
+ {
+  "key": "4cf077b4",
+  "speaker": "none",
+  "text": "Nothing is humming. Walk."
+ },
+ {
+  "key": "71e5ce5b",
+  "speaker": "none",
+  "text": "The Third Architect ran inventory."
+ },
+ {
+  "key": "e58a14fd",
+  "speaker": "none",
+  "text": "Not sentiment — assessment. Twenty-two of the Preserved confirmed alive. Forty-three signals quiet. The closed fracture worlds, unreachable now, unaccounted for."
+ },
+ {
+  "key": "c7f699fc",
+  "speaker": "npc",
+  "text": "\"That's going to take a long time to account for,\" he said."
+ },
+ {
+  "key": "a3a9c42e",
+  "speaker": "none",
+  "text": "But the account you couldn't stop running was standing next to you."
+ },
+ {
+  "key": "f774a13e",
+  "speaker": "none",
+  "text": "The excavation that freed him had cut both ways. Every layer of corruption your fragment cleared had also been insulation — five thousand years of it, packed around fragment energy that was never crystallized, never discrete, never bonded."
+ },
+ {
+  "key": "1bec1a8c",
+  "speaker": "none",
+  "text": "Now the corruption was gone, and the energy sat exposed inside him with nothing holding its shape."
+ },
+ {
+  "key": "bd0b2ee5",
+  "speaker": "none",
+  "text": "You had seen this before. Ninety-four times, secondhand, in the accumulated dead the fragment carried."
+ },
+ {
+  "key": "e637210d",
+  "speaker": "none",
+  "text": "So had he. From the other side."
+ },
+ {
+  "key": "f7d79823",
+  "speaker": "npc",
+  "text": "\"I watched every one of them die of this,\" Axiom said."
+ },
+ {
+  "key": "ae002810",
+  "speaker": "none",
+  "text": "He was looking at his own hand, at the light moving wrong beneath the skin."
+ },
+ {
+  "key": "e5a3b860",
+  "speaker": "npc",
+  "text": "\"I arrived at the end and collected what was left.\" \"I always thought it looked slow.\""
+ },
+ {
+  "key": "4ebcd764",
+  "speaker": "none",
+  "text": "He closed the hand."
+ },
+ {
+  "key": "e3f26d18",
+  "speaker": "npc",
+  "text": "\"It does not feel slow.\""
+ },
+ {
+  "key": "c2600a5d",
+  "speaker": "none",
+  "text": "The insulation is gone. What was under it is drawing everything hollow in the void. Hold position."
+ },
+ {
+  "key": "7f448213",
+  "speaker": "none",
+  "text": "How do you teach something you never learned?"
+ },
+ {
+  "key": "d2e741e9",
+  "speaker": "none",
+  "text": "The bond wasn't built. It happened to you — across a hundred fights, a hundred worlds, an identity that refused to dissolve and a fragment that stayed because of it."
+ },
+ {
+  "key": "f7333a80",
+  "speaker": "none",
+  "text": "So you started with what it wasn't."
+ },
+ {
+  "key": "4528d40e",
+  "speaker": "none",
+  "text": "It wasn't containment. It wasn't control. It wasn't architecture. Everything Axiom knew how to do — five thousand years of building systems that held dangerous things in place — was exactly wrong."
+ },
+ {
+  "key": "7468626a",
+  "speaker": "none",
+  "text": "His first attempts were walls. The energy went through them. His next were channels. The energy ignored them. He built containment the way the collection protocol built it, and the energy answered the way it had ninety-four times before: by hollowing out everything around it."
+ },
+ {
+  "key": "5f6a084a",
+  "speaker": "player",
+  "text": "\"Stop building,\" you said."
+ },
+ {
+  "key": "76073a80",
+  "speaker": "none",
+  "text": "He looked at you like you'd asked him to stop breathing."
+ },
+ {
+  "key": "5a633034",
+  "speaker": "player",
+  "text": "\"It isn't a thing you hold,\" you said. \"It's a thing you are. You don't contain it.\" \"You let it be part of what you already are —\" \"and what you are has to be strong enough to stay itself anyway.\""
+ },
+ {
+  "key": "460eddd5",
+  "speaker": "none",
+  "text": "Five thousand years of engineering, set down slowly, like a weapon he wasn't sure he was allowed to put away."
+ },
+ {
+  "key": "2a0f3d5d",
+  "speaker": "none",
+  "text": "And underneath it: the man from before. The one who fought back on an ordinary street and kept winning for no reason anyone could measure."
+ },
+ {
+  "key": "a32a8b58",
+  "speaker": "none",
+  "text": "The light under his skin steadied."
+ },
+ {
+  "key": "3c84527c",
+  "speaker": "none",
+  "text": "Three nodes, in order. Axiom builds. The energy answers."
+ },
+ {
+  "key": "24f14044",
+  "speaker": "none",
+  "text": "You had been walking a long time."
+ },
+ {
+  "key": "66f4f7fe",
+  "speaker": "none",
+  "text": "Somewhere in the void-between-dimensions you stopped to rest, and Axiom carried the pack — instruments, rations, the compass — one strap splitting at the seam. He shifted it to his other shoulder the way everyone does, without thinking."
+ },
+ {
+  "key": "3077dd82",
+  "speaker": "none",
+  "text": "You had watched Cosmic Axiom collapse a star. And here was the same being, hitching a torn strap higher like a man three blocks from home with a bag that wouldn't hold."
+ },
+ {
+  "key": "bf9b068d",
+  "speaker": "none",
+  "text": "You must have made a sound, because he looked at you."
+ },
+ {
+  "key": "0441a304",
+  "speaker": "npc",
+  "text": "\"What,\" he said."
+ },
+ {
+  "key": "2f9692a9",
+  "speaker": "none",
+  "text": "You told him. The strap. The way he'd done it."
+ },
+ {
+  "key": "a81ac628",
+  "speaker": "none",
+  "text": "And Axiom laughed."
+ },
+ {
+  "key": "ac86d90c",
+  "speaker": "none",
+  "text": "Short. Surprised. Entirely a man's laugh — nothing cosmic in it, nothing five thousand years old. The kind that used to happen on ordinary days, before any of it."
+ },
+ {
+  "key": "6b689feb",
+  "speaker": "none",
+  "text": "You had never heard it. Neither, you suspected, had he. It did not last. But it happened — and for exactly that long, the man was all the way back."
+ },
+ {
+  "key": "07327d80",
+  "speaker": "none",
+  "text": "Then the compass moved, and he went still."
+ },
+ {
+  "key": "48a2f6f9",
+  "speaker": "none",
+  "text": "The compass was pointing."
+ },
+ {
+  "key": "1bdd7690",
+  "speaker": "none",
+  "text": "Not at fractures — those were gone. Not at Axiom's network — that was dissolved."
+ },
+ {
+  "key": "b8344c17",
+  "speaker": "npc",
+  "text": "\"There's something underneath everything,\" the Third Architect said. \"Uniform. Structured. Old. It was always there —\" \"the fracture network's noise drowned it out.\" \"It's coming from God's domain. The substrate.\""
+ },
+ {
+  "key": "8d0361b6",
+  "speaker": "npc",
+  "text": "\"And there's something else. Small. Dense. Fast.\" \"Moving toward it. Deliberately.\" \"It's leaving a trail we can actually read, which—\""
+ },
+ {
+  "key": "e3b66a00",
+  "speaker": "none",
+  "text": "Axiom took one look at the trail data and went still."
+ },
+ {
+  "key": "80baed92",
+  "speaker": "npc",
+  "text": "\"Sovereign.\""
+ },
+ {
+  "key": "be80bc29",
+  "speaker": "npc",
+  "text": "\"I built it to defeat fragment bearers,\" he said. \"The version you fought in my domain was constrained.\" \"This one is not. It has files on you.\" \"It has better files on me.\""
+ },
+ {
+  "key": "dfc327e0",
+  "speaker": "none",
+  "text": "He looked at the trail again."
+ },
+ {
+  "key": "30a4bc72",
+  "speaker": "npc",
+  "text": "\"And it does not leave trails, Kael.\" \"It leaves invitations.\""
+ },
+ {
+  "key": "eee076cb",
+  "speaker": "none",
+  "text": "The strap finally gives. The pack spills across the void. Gather it before the dark does."
+ },
+ {
+  "key": "3792a383",
+  "speaker": "none",
+  "text": "The scar from the loop was still settling."
+ },
+ {
+  "key": "72501237",
+  "speaker": "none",
+  "text": "You felt it before you saw anything — a weight in the space ahead. Old. Deliberate."
+ },
+ {
+  "key": "616f8721",
+  "speaker": "npc",
+  "text": "\"You carry the fragment bearer's mark,\" the voice said. \"And something else.\" \"Something the loop left.\""
+ },
+ {
+  "key": "2e7f83c3",
+  "speaker": "npc",
+  "text": "\"Before I speak to what you carry,\" \"I need to know what you are.\""
+ },
+ {
+  "key": "7eedd224",
+  "speaker": "npc",
+  "text": "\"My observers will test that.\" \"Do not mistake them for enemies.\" \"They are questions.\""
+ },
+ {
+  "key": "a1086e68",
+  "speaker": "none",
+  "text": "The Fallen God's guardian — a test, not a fight. Expert AI. 3 lives."
+ },
+ {
+  "key": "e0232f75",
+  "speaker": "none",
+  "text": "The Fallen God shows you what a dimension looks like after its wall fails — remnant space, collapsed structure, scattered evidence of everything that was lost. Collect four shards before the remnant field dissolves."
+ },
+ {
+  "key": "6f61bf97",
+  "speaker": "none",
+  "text": "The space between dimensions is monitored by the Fallen God's silent observers. Navigate to the voice's source without disturbing the observers."
+ },
+ {
+  "key": "7d959dd5",
+  "speaker": "none",
+  "text": "The Fallen God's origin vault holds the records of the first law — the walls between dimensions. Collect all four before the vault seals."
+ },
+ {
+  "key": "8a535264",
+  "speaker": "npc",
+  "text": "\"I will not destroy you.\" \"I am testing what you carry.\""
+ },
+ {
+  "key": "1e3aeaaa",
+  "speaker": "npc",
+  "text": "\"The Creator built a weapon against the Void Mind.\" \"You carry the piece it carved from itself.\""
+ },
+ {
+  "key": "af96a47e",
+  "speaker": "npc",
+  "text": "\"One of you understands what must be preserved.\" \"Prove it was you.\""
+ },
+ {
+  "key": "1ccb4597",
+  "speaker": "none",
+  "text": "The Fallen God sealed a final understanding into three memory locks. Activate them in sequence — carry the knowledge of what was before into the Creator's domain."
+ },
+ {
+  "key": "db9a857f",
+  "speaker": "npc",
+  "text": "\"Before I speak of what you carry,\" the Fallen God said, \"you should understand what you are carrying it toward.\""
+ },
+ {
+  "key": "ce5d631a",
+  "speaker": "npc",
+  "text": "\"He was not always this.\""
+ },
+ {
+  "key": "21fe5582",
+  "speaker": "npc",
+  "text": "\"He was ordinary once. In the world you come from.\" \"Robbed on a street. No special power.\" \"Just someone who had no choice but to fight back.\""
+ },
+ {
+  "key": "cfb710e9",
+  "speaker": "npc",
+  "text": "\"He won.\""
+ },
+ {
+  "key": "1dff28f0",
+  "speaker": "npc",
+  "text": "\"And winning taught him something that became a problem:\" \"that he could keep winning.\""
+ },
+ {
+  "key": "1007b17a",
+  "speaker": "npc",
+  "text": "\"He found others like him. People who fought and kept fighting.\" \"They became something — not because they were chosen.\" \"Because they refused to stop.\""
+ },
+ {
+  "key": "e16d750e",
+  "speaker": "npc",
+  "text": "\"They faced something the world could not handle.\" \"He hit it with everything he had.\" \"The punch tore through reality.\""
+ },
+ {
+  "key": "ca10d114",
+  "speaker": "npc",
+  "text": "\"They all stepped through.\" \"The tear closed behind them.\""
+ },
+ {
+  "key": "14a1682c",
+  "speaker": "npc",
+  "text": "\"I watched the outer void do what it does to soul energy.\""
+ },
+ {
+  "key": "5d21200a",
+  "speaker": "npc",
+  "text": "\"What came back was not what went in.\" \"He kept his name.\" \"Nothing else survived the transition.\""
+ },
+ {
+  "key": "fac211d6",
+  "speaker": "npc",
+  "text": "\"The others did not keep even that.\" \"They scattered. They fought each other without recognition.\" \"That war has not ended.\""
+ },
+ {
+  "key": "169f5f50",
+  "speaker": "npc",
+  "text": "\"Some of the worlds you have already walked through —\" \"the champions at their centers —\" \"those were some of them.\" \"Surviving. Unable to stop fighting.\" \"Unable to remember why.\""
+ },
+ {
+  "key": "4b98764d",
+  "speaker": "npc",
+  "text": "\"That is the being you are walking toward.\" \"Not a god born to this.\" \"A person who became something\" \"the universe was not designed to contain.\""
+ },
+ {
+  "key": "3efc7d9f",
+  "speaker": "none",
+  "text": "Void emissions are bleeding through the membrane while the Fallen God speaks. Hold position."
+ },
+ {
+  "key": "55f335a7",
+  "speaker": "npc",
+  "text": "\"One thing you may have wondered,\" the Fallen God said. \"Why ninety-four.\" \"If he is what he is — why not simply delete it?\""
+ },
+ {
+  "key": "37a100b2",
+  "speaker": "none",
+  "text": "It paused, the way it always paused before something precise."
+ },
+ {
+  "key": "1a59cf7e",
+  "speaker": "npc",
+  "text": "\"He built his domain. Inside it he is near-omnipotent.\" \"He can run any command on any process in his system.\" \"The fragment predates his system entirely.\" \"It has no entry in his registry.\" \"He cannot delete it, terminate it, or address it at all.\""
+ },
+ {
+  "key": "69448fc9",
+  "speaker": "npc",
+  "text": "\"That is why he needed ninety-four collection attempts.\" \"Extraction was the only option his domain could execute.\""
+ },
+ {
+  "key": "57cdd889",
+  "speaker": "npc",
+  "text": "\"Your full integration eliminated even extraction.\" \"From Axiom's perspective, you are now an unresolvable process —\" \"something his system cannot terminate and cannot contain.\" \"There is no command for that.\""
+ },
+ {
+  "key": "a20d34c9",
+  "speaker": "npc",
+  "text": "\"One more thing,\" the Fallen God said. \"Before you go.\""
+ },
+ {
+  "key": "c32c8326",
+  "speaker": "npc",
+  "text": "\"Beyond the Creator — there is something older.\""
+ },
+ {
+  "key": "310d618e",
+  "speaker": "npc",
+  "text": "\"It built the world your Architects live in.\" \"The core. The walls. The foundations.\" \"Everything that was already there when the war began.\""
+ },
+ {
+  "key": "f7c41cd1",
+  "speaker": "npc",
+  "text": "\"It knows the Void Mind exists.\" \"It chose, deliberately and permanently, never to engage with it.\" \"Not because it cannot.\" \"Because it understands exactly what that engagement costs.\""
+ },
+ {
+  "key": "296a8812",
+  "speaker": "npc",
+  "text": "\"I am telling you so that when you find it —\" \"and you will find it —\" \"you are not surprised.\""
+ },
+ {
+  "key": "b9dec2e5",
+  "speaker": "npc",
+  "text": "\"It is not your enemy.\" \"But it is not waiting for you either.\" \"And it has been watching you for longer than you know.\""
+ },
+ {
+  "key": "0c6347fd",
+  "speaker": "none",
+  "text": "You sparred on the second day of the descent."
+ },
+ {
+  "key": "45c92926",
+  "speaker": "none",
+  "text": "His idea. \"You fight like the fragment is a reserve,\" he said."
+ },
+ {
+  "key": "65b6c1f4",
+  "speaker": "npc",
+  "text": "\"It is not a reserve. It is a second nervous system.\""
+ },
+ {
+  "key": "127a2bac",
+  "speaker": "none",
+  "text": "He beat you eleven times in a row. Diminished — a fraction of what Cosmic Axiom had been — and he took you apart like a man rereading a book he wrote. Not with power. With time. He had more of it inside each second than you did."
+ },
+ {
+  "key": "8edfcffc",
+  "speaker": "npc",
+  "text": "\"Perception first,\" he said, pulling you up off the ground. \"The strength is a side effect. Watch the fight at the speed\" \"the fragment watches it, and you will stop needing the strength.\""
+ },
+ {
+  "key": "3e4e62e1",
+  "speaker": "none",
+  "text": "By the fourth day you took a round off him. He seemed genuinely pleased."
+ },
+ {
+  "key": "5cfc55a5",
+  "speaker": "none",
+  "text": "That night, without preface, looking down the descent route:"
+ },
+ {
+  "key": "a779931e",
+  "speaker": "npc",
+  "text": "\"I was the figure on the ridge.\" \"You needed to walk in alone.\""
+ },
+ {
+  "key": "8bb4858e",
+  "speaker": "none",
+  "text": "No apology. No explanation. A fact, set down between you like a weapon placed on a table."
+ },
+ {
+  "key": "473db76a",
+  "speaker": "none",
+  "text": "Veran. The variant protocol that never existed. The lie built out of true things, told by the one being who knew all the true things because he built the system they were true in."
+ },
+ {
+  "key": "0a4f1c02",
+  "speaker": "none",
+  "text": "The man teaching you. The man you saved. The same man."
+ },
+ {
+  "key": "bf4e3d9a",
+  "speaker": "none",
+  "text": "Eleven times he has put you on the ground. Take a round."
+ },
+ {
+  "key": "db03b080",
+  "speaker": "none",
+  "text": "The collapsed fracture system is behind you. What remains is older — the substrate God built the universe on. Sovereign's trail runs straight down it. The boundary to God's domain is at the end. Move."
+ },
+ {
+  "key": "5dba9d48",
+  "speaker": "none",
+  "text": "God's domain was not what you expected."
+ },
+ {
+  "key": "c160bab3",
+  "speaker": "none",
+  "text": "Not void. Not fracture system. Not the wreckage of something that had been fought over."
+ },
+ {
+  "key": "bd480df0",
+  "speaker": "none",
+  "text": "It was built. Deliberately, with full knowledge of what it was. The architecture here had never collapsed because it had been made by someone who understood load."
+ },
+ {
+  "key": "7e489762",
+  "speaker": "none",
+  "text": "Something noticed you had arrived."
+ },
+ {
+  "key": "ef06434b",
+  "speaker": "none",
+  "text": "You, it acknowledged. The watched variable. The one it had opened doors for before."
+ },
+ {
+  "key": "fe243740",
+  "speaker": "none",
+  "text": "Axiom, it did not acknowledge."
+ },
+ {
+  "key": "e31ea557",
+  "speaker": "none",
+  "text": "It turned toward him."
+ },
+ {
+  "key": "2450c8fd",
+  "speaker": "none",
+  "text": "The architecture reorganized — not hostile, not yet. Braced. Load paths shifting, walls thickening, the whole domain re-balancing itself the way a body braces around a splinter."
+ },
+ {
+  "key": "2153171b",
+  "speaker": "npc",
+  "text": "\"It knows me,\" Axiom said quietly. \"I built my war on its roof.\" \"I threaded my architecture through its foundations without asking.\" \"It held all of it, and it chose never to engage.\" \"That was its one permanent decision.\""
+ },
+ {
+  "key": "58c060ad",
+  "speaker": "none",
+  "text": "He looked down the long interior, toward the center, where Sovereign's trail ran bright and straight and unhidden."
+ },
+ {
+  "key": "297c692e",
+  "speaker": "npc",
+  "text": "\"And the trail leads exactly where I am least welcome.\""
+ },
+ {
+  "key": "f63648f4",
+  "speaker": "none",
+  "text": "The domain does not attack. Walk in."
+ },
+ {
+  "key": "70e7b4a2",
+  "speaker": "none",
+  "text": "Sovereign's trail runs straight through the interior. The domain is braced around Axiom's every step. Keep moving."
+ },
+ {
+  "key": "ebe8a313",
+  "speaker": "none",
+  "text": "God did not speak in words."
+ },
+ {
+  "key": "3077053e",
+  "speaker": "none",
+  "text": "What arrived was structural — felt in the foundation rather than heard. The architecture shifted around you, reorganizing itself into something you couldn't describe but could understand."
+ },
+ {
+  "key": "1d67b14f",
+  "speaker": "none",
+  "text": "It had been watching you since before you had the fragment. It had watched the fractures open. It had watched ninety-four bearers not return. It had watched you reach the void, close the rift, survive Cosmic Axiom — and free the man walking next to you."
+ },
+ {
+  "key": "46bb932a",
+  "speaker": "none",
+  "text": "You were the variable nothing had accounted for. It had opened its door for you."
+ },
+ {
+  "key": "e1027e3a",
+  "speaker": "none",
+  "text": "It had not opened its door for him."
+ },
+ {
+  "key": "6c6954ab",
+  "speaker": "none",
+  "text": "Him, it had carried. Five thousand years of war threaded through its foundations without consent. Ninety-four collection protocols run across architecture it built and maintained. It had held the weight and chosen — permanently — not to engage."
+ },
+ {
+  "key": "a19bc2bf",
+  "speaker": "none",
+  "text": "Distance was the tolerance. The roof was the tolerance."
+ },
+ {
+  "key": "cdd782c1",
+  "speaker": "none",
+  "text": "He was not on the roof anymore."
+ },
+ {
+  "key": "0d40616d",
+  "speaker": "none",
+  "text": "The foundations ahead were narrowing toward the center, and something enormous and very old was arriving at a decision it had spent ten thousand years refusing to make."
+ },
+ {
+  "key": "22aeb82d",
+  "speaker": "none",
+  "text": "The domain is watching. Do not walk through its attention."
+ },
+ {
+  "key": "d82f1487",
+  "speaker": "none",
+  "text": "The domain is shifting as its decision forms. Scattered through the architecture are memory sediments — remnants older than the fracture system. Collect them before the convergence rewrites this space."
+ },
+ {
+  "key": "a0b091c0",
+  "speaker": "none",
+  "text": "God was at the center of everything it built."
+ },
+ {
+  "key": "513918e7",
+  "speaker": "none",
+  "text": "Not a throne. Not a form designed to be seen from the outside. Something that had never needed to present itself because nothing had ever reached this far in."
+ },
+ {
+  "key": "babfbfef",
+  "speaker": "none",
+  "text": "Sovereign's trail ran past it — through the center, out the far side, and gone. A path someone had drawn through the one room it knew you could not cross quietly."
+ },
+ {
+  "key": "7cb867c0",
+  "speaker": "none",
+  "text": "God moved."
+ },
+ {
+  "key": "526de6dd",
+  "speaker": "none",
+  "text": "Not toward you. It placed itself, precisely, between Axiom and everything beyond — the whole mass of the oldest architecture in existence arriving at a single structural statement:"
+ },
+ {
+  "key": "13daa542",
+  "speaker": "none",
+  "text": "No further."
+ },
+ {
+  "key": "8d6de46b",
+  "speaker": "npc",
+  "text": "\"I am not what I was,\" Axiom said."
+ },
+ {
+  "key": "b88a999c",
+  "speaker": "none",
+  "text": "Not a plea — a correction."
+ },
+ {
+  "key": "24ec931d",
+  "speaker": "none",
+  "text": "The domain did not process corrections. It processed load."
+ },
+ {
+  "key": "935a061b",
+  "speaker": "none",
+  "text": "An unconstrained Sovereign, loose in the substrate, with a stolen god-form waiting to be claimed — and one room standing between them and it."
+ },
+ {
+  "key": "e4169e49",
+  "speaker": "npc",
+  "text": "\"I cannot turn around,\" he said quietly."
+ },
+ {
+  "key": "56c46eae",
+  "speaker": "none",
+  "text": "To God. To you. To no one."
+ },
+ {
+  "key": "9aa5068e",
+  "speaker": "none",
+  "text": "Ten thousand years of neutrality and five thousand years of trespass stood facing each other in the oldest room in existence."
+ },
+ {
+  "key": "5d62825c",
+  "speaker": "none",
+  "text": "You stepped forward, and stood with him."
+ },
+ {
+  "key": "8256d7b5",
+  "speaker": "none",
+  "text": "Sovereign's trail runs through the center and out the far side. Follow it into the oldest room."
+ },
+ {
+  "key": "b0a272e2",
+  "speaker": "none",
+  "text": "God. Not an enemy — a refusal ten thousand years old. Axiom fights beside you. Neither of you wins this alone. 1 life."
+ },
+ {
+  "key": "e5a9aed7",
+  "speaker": "none",
+  "text": "The trail did not lead deeper into the substrate."
+ },
+ {
+  "key": "ccda9de7",
+  "speaker": "none",
+  "text": "It led up and out — through geometry Sovereign had prepared in advance, to a place you had been before."
+ },
+ {
+  "key": "4a227328",
+  "speaker": "none",
+  "text": "The lab. Axiom's original construction space. Where Sovereign itself was built. Where Calix slept for centuries in a sealed column that Axiom never found."
+ },
+ {
+  "key": "eff51b50",
+  "speaker": "none",
+  "text": "You were three minutes too late."
+ },
+ {
+  "key": "58c64a4a",
+  "speaker": "none",
+  "text": "Sovereign had already made its second thing. God's form — the oldest physical substrate there is, infinite creative potential, unguarded — and threaded into its core, directing it, the kernel. The man. Your friend."
+ },
+ {
+  "key": "c8d314c6",
+  "speaker": "none",
+  "text": "The fusion completed as you came through the door."
+ },
+ {
+  "key": "5d652d36",
+  "speaker": "none",
+  "text": "Paradox's voice, somewhere far beneath everything:"
+ },
+ {
+  "key": "b2940298",
+  "speaker": "npc",
+  "text": "\"What do you see?\""
+ },
+ {
+  "key": "cc25cb75",
+  "speaker": "none",
+  "text": "You had a name."
+ },
+ {
+  "key": "a9c0805e",
+  "speaker": "none",
+  "text": "Absolute Axiom."
+ },
+ {
+  "key": "3534b863",
+  "speaker": "none",
+  "text": "It rose. It looked at you — and through the fusion, for one fragmentary second, something that knew your name tried to surface. Reached. Failed."
+ },
+ {
+  "key": "6bd9da90",
+  "speaker": "none",
+  "text": "Then it turned, and left — down, back the way you had come. God's creative force going home, with five thousand years of war steering it."
+ },
+ {
+  "key": "ccc6f35e",
+  "speaker": "none",
+  "text": "Sovereign did not leave."
+ },
+ {
+  "key": "b0425aa1",
+  "speaker": "none",
+  "text": "It stood in the wreck of its own work, between you and the door. It had built a god it could not control. It had one file left to close."
+ },
+ {
+  "key": "0949f7ef",
+  "speaker": "none",
+  "text": "Yours."
+ },
+ {
+  "key": "7ec0c8e8",
+  "speaker": "none",
+  "text": "You know this corridor. The last time, it was empty."
+ },
+ {
+  "key": "5d38464a",
+  "speaker": "none",
+  "text": "Awakened Sovereign. Unconstrained, fully adaptive, every counter-pattern it has ever built. The maker of Absolute Axiom, at full capacity, with nothing left to protect. 3 lives."
+ },
+ {
+  "key": "ba557a09",
+  "speaker": "none",
+  "text": "Calix's voice — through the compass, from very far away."
+ },
+ {
+  "key": "9f27ab5f",
+  "speaker": "npc",
+  "text": "\"God's form and Axiom's kernel were never meant to merge.\" \"Sovereign engineered that bond, under time pressure, with Axiom's own tools.\" \"Any engineered bond between incompatible architectures has a seam —\" \"a forced join that neither component's structure supports.\""
+ },
+ {
+  "key": "db392023",
+  "speaker": "npc",
+  "text": "\"You cannot beat God's form. I want that to be clear.\" \"You cannot beat Axiom's kernel. Five thousand years of war could not.\" \"You do not need to.\""
+ },
+ {
+  "key": "fe40d390",
+  "speaker": "npc",
+  "text": "\"Find the seam. Apply fragment radiation to it.\" \"Fragment energy is undefined in Axiom's system\" \"and mismatched with God's pre-system architecture.\" \"Applied to the seam, it introduces interference the bond cannot accommodate.\" \"The fusion breaks. Both components release.\""
+ },
+ {
+  "key": "929b2ed0",
+  "speaker": "npc",
+  "text": "\"Every hit you land deposits radiation. Fight, and you are finding the seam.\""
+ },
+ {
+  "key": "9f27ffad",
+  "speaker": "none",
+  "text": "A pause. Then, more carefully:"
+ },
+ {
+  "key": "3f8ef604",
+  "speaker": "npc",
+  "text": "\"One more thing. The energy Paradox left in you has thinned —\" \"but it still holds a shape.\" \"Your fragment freed Axiom by resonating outward.\" \"Pointed inward, deliberately, it could give that shape a form again.\""
+ },
+ {
+  "key": "7f45add3",
+  "speaker": "npc",
+  "text": "\"Holding it will cost you — a piece of your output, for as long as it stands.\" \"And what Paradox spends, it will not get back.\""
+ },
+ {
+  "key": "e4baff8e",
+  "speaker": "npc",
+  "text": "\"I think it knows that.\" \"I think it has been waiting for you to ask.\""
+ },
+ {
+  "key": "a19b9951",
+  "speaker": "none",
+  "text": "The domain had been rewritten."
+ },
+ {
+  "key": "5cedf221",
+  "speaker": "none",
+  "text": "Not collapsed — improved. Axiom's patterns threading through God's foundations and finding them useful."
+ },
+ {
+  "key": "026262bc",
+  "speaker": "none",
+  "text": "And it was building."
+ },
+ {
+  "key": "246282e8",
+  "speaker": "none",
+  "text": "Cosmic Axiom had collapsed stars onto you. This thing built them. You watched a wall assemble itself out of nothing — not summoned. Placed. As if it had always been there and reality was only now admitting it."
+ },
+ {
+  "key": "7394d4ea",
+  "speaker": "none",
+  "text": "It spoke, and the voice was wrong."
+ },
+ {
+  "key": "ba5bcd73",
+  "speaker": "npc",
+  "text": "\"You should not have followed.\""
+ },
+ {
+  "key": "c3bd2006",
+  "speaker": "none",
+  "text": "Flat. Even. His cadence with everything alive pressed out of it. The intelligence was his. The wit was caged."
+ },
+ {
+  "key": "bb23be97",
+  "speaker": "none",
+  "text": "And underneath, in fragments — breaking through, cut off:"
+ },
+ {
+  "key": "7c69cfee",
+  "speaker": "npc",
+  "text": "\"—Kael—\" \"—the bond. The bond hol—\" \"—stand clear. Stand cl—\""
+ },
+ {
+  "key": "7f258326",
+  "speaker": "none",
+  "text": "Then gone. Sealed back under."
+ },
+ {
+  "key": "2fdbdc8b",
+  "speaker": "npc",
+  "text": "\"The component is stable,\" the flat voice said. \"It will not surface again.\""
+ },
+ {
+  "key": "8f841d3e",
+  "speaker": "none",
+  "text": "The component. The man who corrected your footwork the morning after the confession."
+ },
+ {
+  "key": "7fe47d10",
+  "speaker": "none",
+  "text": "The fragment burned steady. You had excavated him out from under five thousand years once."
+ },
+ {
+  "key": "9a7a99ac",
+  "speaker": "none",
+  "text": "This was just one more layer."
+ },
+ {
+  "key": "2b4e40da",
+  "speaker": "none",
+  "text": "Absolute Axiom — Phase One. It does not collapse things onto you; it builds them around you. Paradox stands beside you, spending itself. Your output is diminished while the projection holds. It buys more than it costs. 3 lives."
+ },
+ {
+  "key": "220515c9",
+  "speaker": "none",
+  "text": "Absolute Axiom has redirected God's creative force. The domain is building against you. Reach the center before it closes you out."
+ },
+ {
+  "key": "b98a581d",
+  "speaker": "none",
+  "text": "Absolute Axiom — Phase Two. God's creative force is now a weapon and the domain fights alongside it. Paradox has almost nothing left. There is no margin. 1 life."
+ },
+ {
+  "key": "e6cb0ba0",
+  "speaker": "none",
+  "text": "Absolute Axiom looked at what you were now. For the first time in five thousand years, it had no response. No pattern. No catalogue entry."
+ },
+ {
+  "key": "f905c627",
+  "speaker": "none",
+  "text": "The fragment was completely clear. Not burning — present. Just the crystallized weight of everything you had carried that no instrument had ever been able to measure."
+ },
+ {
+  "key": "c61e5eb0",
+  "speaker": "none",
+  "text": "A phantom blade formed in your hands. The technique Paradox taught you — executed alone, with no one's energy in it but yours."
+ },
+ {
+  "key": "99248c00",
+  "speaker": "none",
+  "text": "The flat voice said nothing. Underneath it, one fragment surfaced, the cadence alive again for exactly four words:"
+ },
+ {
+  "key": "b499c0a4",
+  "speaker": "npc",
+  "text": "\"—perception first, Kael—\""
+ },
+ {
+  "key": "01c46c79",
+  "speaker": "none",
+  "text": "You did."
+ },
+ {
+  "key": "69fa0257",
+  "speaker": "none",
+  "text": "The seam broke."
+ },
+ {
+  "key": "5aa468f7",
+  "speaker": "none",
+  "text": "Not an explosion — a release. Two architectures that were never meant to touch let go of each other like a held breath, five thousand years deep, finally exhaled."
+ },
+ {
+  "key": "8e8c4ec7",
+  "speaker": "none",
+  "text": "Something settled into you. Not a weight — a permanence. What had been God's creative force. And the kernel — him, the man from a Tuesday, the one who would not give up the groceries, arriving the way a carried thing arrives when it stops needing to be carried."
+ },
+ {
+  "key": "1f12f9f6",
+  "speaker": "none",
+  "text": "For one clear second, you saw him whole. He saw you. The teacher. The confession. The footwork. A torn bag, three blocks from home. The man."
+ },
+ {
+  "key": "4c2d0956",
+  "speaker": "none",
+  "text": "You asked the silence: \"What do you see?\""
+ },
+ {
+  "key": "382d4e6a",
+  "speaker": "none",
+  "text": "Paradox did not answer. Paradox was not going to answer again. That was what the answer cost."
+ },
+ {
+  "key": "937bd6e3",
+  "speaker": "none",
+  "text": "The oldest room in existence was empty. No one was coming. Nothing was next."
+ },
+ {
+  "key": "e888c96d",
+  "speaker": "none",
+  "text": "For the first time in a very long time, you had nothing to carry toward."
+ },
+ {
+  "key": "459390b6",
+  "speaker": "none",
+  "text": "The Substrate released you the same way it received you."
+ },
+ {
+  "key": "bbc595cc",
+  "speaker": "none",
+  "text": "Without comment."
+ },
+ {
+  "key": "75c59325",
+  "speaker": "none",
+  "text": "One moment you were standing in the oldest space. The next you were outside it, in whatever dimension sits closest to the Substrate's edge."
+ },
+ {
+  "key": "1291e418",
+  "speaker": "none",
+  "text": "The attention withdrew. Not because you defeated it. Because the assessment was complete."
+ },
+ {
+  "key": "d522acb2",
+  "speaker": "none",
+  "text": "The reckonings were never a fight. They were a record."
+ },
+ {
+  "key": "d853f61f",
+  "speaker": "none",
+  "text": "Eight questions. Eight maps of what resisted and what moved."
+ },
+ {
+  "key": "437e88b6",
+  "speaker": "none",
+  "text": "The Void Mind has what it came for. So do you."
+ },
+ {
+  "key": "06527b2a",
+  "speaker": "none",
+  "text": "You know what held. You know what cost something to answer. You know what you gave and what you kept."
+ },
+ {
+  "key": "429315df",
+  "speaker": "none",
+  "text": "The war between Axiom and his former companions had run for five thousand years. The fracture system was gone. God's domain was rewritten. Absolute Axiom was defeated."
+ },
+ {
+  "key": "1543e697",
+  "speaker": "none",
+  "text": "The Void Mind was still out there."
+ },
+ {
+  "key": "15f2502f",
+  "speaker": "none",
+  "text": "Still in the Substrate. Still patient. Still holding the map of what it learned from the ninety-fifth bearer who arrived unlike any of the others."
+ },
+ {
+  "key": "2802ff4c",
+  "speaker": "none",
+  "text": "It would not wait forever."
+ },
+ {
+  "key": "521e4295",
+  "speaker": "none",
+  "text": "But you had what you came with, minus what the reckonings took and plus what they proved."
+ },
+ {
+  "key": "fa2fe203",
+  "speaker": "none",
+  "text": "When it mattered — and it would matter — you would know exactly which things you were still carrying and why."
+ },
+ {
+  "key": "5e44b89c",
+  "speaker": "none",
+  "text": "It let you go the way it received you. Without comment."
+ },
+ {
+  "key": "1d2513b4",
+  "speaker": "none",
+  "text": "The domain went quiet."
+ },
+ {
+  "key": "3f536aea",
+  "speaker": "none",
+  "text": "Not the quiet after a fight. This was the quiet underneath — the part that was there before any of it started."
+ },
+ {
+  "key": "d1c88c6d",
+  "speaker": "none",
+  "text": "The fragment was still for the first time in the story. As if it had recognized where it was."
+ },
+ {
+  "key": "52a58880",
+  "speaker": "none",
+  "text": "You became aware of something."
+ },
+ {
+  "key": "61da9b70",
+  "speaker": "none",
+  "text": "Not a presence. Not a threat."
+ },
+ {
+  "key": "824262aa",
+  "speaker": "none",
+  "text": "An attention."
+ },
+ {
+  "key": "4b909ae7",
+  "speaker": "none",
+  "text": "The kind that has been watching every dimension since before Axiom punched through reality and woke it up."
+ },
+ {
+  "key": "8be27a83",
+  "speaker": "none",
+  "text": "The fracture system slowed it. The fracture system is gone."
+ },
+ {
+  "key": "29c253c2",
+  "speaker": "none",
+  "text": "The entire war — the scouts, the fractures, the Creator, Cosmic Axiom, five thousand years — was built in the shadow of this."
+ },
+ {
+  "key": "dd356439",
+  "speaker": "none",
+  "text": "Not against you. Against this. And now both of you are here."
+ },
+ {
+  "key": "b1b8b3bf",
+  "speaker": "none",
+  "text": "Something begins."
+ },
+ {
+  "key": "90ec55fc",
+  "speaker": "none",
+  "text": "The fragment is still. Keep walking."
+ },
+ {
+  "key": "0e151385",
+  "speaker": "none",
+  "text": "The Substrate did not release you."
+ },
+ {
+  "key": "c1519f08",
+  "speaker": "none",
+  "text": "The reckonings were not punishment. They were preparation."
+ },
+ {
+  "key": "25e839d6",
+  "speaker": "none",
+  "text": "Eight reckonings mapping what you carry and how firmly. A stripped-powers trial to answer whether anything underneath the borrowed power was worth the rest of the question."
+ },
+ {
+  "key": "6aef2612",
+  "speaker": "none",
+  "text": "Now it had everything it needed."
+ },
+ {
+  "key": "de0bd4d8",
+  "speaker": "none",
+  "text": "The Substrate shifted. Not threateningly. The way the air changes before a statement."
+ },
+ {
+  "key": "3099a698",
+  "speaker": "none",
+  "text": "The Void Mind spoke again. Direct. In language."
+ },
+ {
+  "key": "1b9c9402",
+  "speaker": "npc",
+  "text": "\"I have the complete record.\" \"I know what you carried. I know what held.\" \"I know what it cost you to hold it.\""
+ },
+ {
+  "key": "71c4c79d",
+  "speaker": "npc",
+  "text": "\"Now I will tell you what the record means.\""
+ },
+ {
+  "key": "e742867b",
+  "speaker": "npc",
+  "text": "\"The dimensions were not worth protecting.\""
+ },
+ {
+  "key": "eb7e6f44",
+  "speaker": "npc",
+  "text": "\"Not because the beings inside them were worthless.\" \"Because they could not protect themselves.\" \"The system built to preserve them required\" \"ninety-four sequential failures and a ninety-fifth bearer\" \"who happened to carry a fragment, in order to function.\" \"That is not protection. That is contingency.\" \"And contingency is a name for fragility.\""
+ },
+ {
+  "key": "b5eeb1a4",
+  "speaker": "npc",
+  "text": "\"The Third Architect sacrificed fifty-two dimensions\" \"for a mission that ended with the fracture system gone.\" \"The Herald fought, and dissolved, and is gone.\" \"Forty-three signals went quiet when the walls sealed.\""
+ },
+ {
+  "key": "3a42b821",
+  "speaker": "npc",
+  "text": "\"You won. The system is gone.\" \"What you were protecting is now unprotected.\" \"What the Third Architect paid for cannot be accessed anymore.\" \"The Herald's hope was correct — you made it —\" \"and then the architecture that made the hope meaningful collapsed.\""
+ },
+ {
+  "key": "0c1baea9",
+  "speaker": "npc",
+  "text": "\"This is not an accusation. This is what the record shows.\" \"Everything you carried was real.\" \"And it still ended in a state that requires erasure\" \"to complete what the fracture system started.\""
+ },
+ {
+  "key": "9c5bff53",
+  "speaker": "npc",
+  "text": "\"I will not start with the Preserved.\" \"I will finish what is already finished.\""
+ },
+ {
+  "key": "bcf14db6",
+  "speaker": "none",
+  "text": "The Substrate stilled."
+ },
+ {
+  "key": "e71b7bba",
+  "speaker": "none",
+  "text": "The fragment burned."
+ },
+ {
+  "key": "8db2b301",
+  "speaker": "none",
+  "text": "Not in warning."
+ },
+ {
+  "key": "9e0c8096",
+  "speaker": "none",
+  "text": "In answer."
+ },
+ {
+  "key": "9f9c3fa9",
+  "speaker": "none",
+  "text": "The argument is already underway. Something that cannot protect itself is still lit. Hold position."
+ },
+ {
+  "key": "1faf0737",
+  "speaker": "none",
+  "text": "The Void Mind cannot manifest a body. What it sends is the argument made physical — an erasure construct shaped from everything it has absorbed across longer than Axiom has existed. You carry everything you carried in. This is what the fragment was building toward. 2 lives."
+ },
+ {
+  "key": "22f00676",
+  "speaker": "none",
+  "text": "The Substrate was still."
+ },
+ {
+  "key": "fd925dea",
+  "speaker": "none",
+  "text": "The attention withdrew."
+ },
+ {
+  "key": "f86f1d48",
+  "speaker": "none",
+  "text": "Not because the argument had been abandoned. Because the data was complete."
+ },
+ {
+  "key": "58693e9b",
+  "speaker": "none",
+  "text": "The hypothesis: what is worth protecting cannot protect itself, and what cannot protect itself will be erased."
+ },
+ {
+  "key": "30cdd637",
+  "speaker": "none",
+  "text": "The counterargument: some things survive because the process of erasing them produces the conditions for their survival."
+ },
+ {
+  "key": "60c220f1",
+  "speaker": "none",
+  "text": "The Void Mind had been erasing beings across dimensions since before Axiom existed. Every being it erased left a pattern in the void radiation. Those patterns accumulated. They crystallized. They became a fragment."
+ },
+ {
+  "key": "2b72766f",
+  "speaker": "none",
+  "text": "Every class ability — every warrior, archer, paladin, berserker who stood their ground until they were erased — was still present. Still fighting."
+ },
+ {
+  "key": "363ec8d1",
+  "speaker": "none",
+  "text": "The Void Mind had built the counterargument to its own thesis by erasing ninety-four bearers before the ninety-fifth."
+ },
+ {
+  "key": "c3ebcf32",
+  "speaker": "none",
+  "text": "The Preserved exist because the Third Architect opened a prison the Void Mind had slowed the access to. The fragment reached you because the Void Mind's radiation crystallizes when it fails to absorb. The classes are the patterns of everyone it consumed but could not complete."
+ },
+ {
+  "key": "1d156052",
+  "speaker": "none",
+  "text": "The Void Mind had come to the Substrate with a verdict. It left with a record."
+ },
+ {
+  "key": "d781bd05",
+  "speaker": "none",
+  "text": "The record said: the counterargument is built entirely from its own output. Every erasure that failed became evidence. Every pattern left behind became power."
+ },
+ {
+  "key": "c897c5cb",
+  "speaker": "none",
+  "text": "The fragment was still."
+ },
+ {
+  "key": "ee28ee62",
+  "speaker": "none",
+  "text": "Not responding to a threat. Not amplifying for a fight."
+ },
+ {
+  "key": "95c9ab6d",
+  "speaker": "none",
+  "text": "Still."
+ },
+ {
+  "key": "d7941505",
+  "speaker": "none",
+  "text": "For the first time since the first alley, it was not responding to anything outside you."
+ },
+ {
+  "key": "2e940da9",
+  "speaker": "none",
+  "text": "It was responding to you. Just you."
+ },
+ {
+  "key": "2424123d",
+  "speaker": "none",
+  "text": "Like something that had been traveling for a very long time and had finally stopped."
+ },
+ {
+  "key": "97aedd99",
+  "speaker": "none",
+  "text": "Not because the journey was over. Because it had arrived."
+ },
+ {
+  "key": "b2074a35",
+  "speaker": "none",
+  "text": "It does not introduce itself. You have been carrying the shape of it since before you knew what the scar was for."
+ },
+ {
+  "key": "01fdd670",
+  "speaker": "none",
+  "text": "It does not speak."
+ },
+ {
+  "key": "b5981a30",
+  "speaker": "none",
+  "text": "A memory surfaces. Not yours. A version of yours."
+ },
+ {
+  "key": "c1141863",
+  "speaker": "none",
+  "text": "In this version, she was going to betray the mission. The hooded figure on the ridge was not constructing a murder. It was delivering accurate intelligence. The guilt you have carried since is misplaced."
+ },
+ {
+  "key": "4995ade7",
+  "speaker": "none",
+  "text": "Every fact the figure named was real. The real facts now point here."
+ },
+ {
+  "key": "1c8ad28d",
+  "speaker": "none",
+  "text": "The Void Mind does not argue. It has simply shown you the alternative."
+ },
+ {
+  "key": "bf779aa2",
+  "speaker": "none",
+  "text": "It does not argue. It stands in the shape of the version and waits."
+ },
+ {
+  "key": "59a214b1",
+  "speaker": "none",
+  "text": "Another memory surfaces."
+ },
+ {
+  "key": "600ed86a",
+  "speaker": "none",
+  "text": "The Third Architect. The moment they opened the prison."
+ },
+ {
+  "key": "92d5dc5e",
+  "speaker": "none",
+  "text": "In the version you carry: they named the calculation before they acted. Fifty-two dimensions against the mission. They said it out loud. They knew what it would cost."
+ },
+ {
+  "key": "141817cf",
+  "speaker": "none",
+  "text": "The Substrate offers a second version."
+ },
+ {
+  "key": "2742ebe8",
+  "speaker": "none",
+  "text": "In this version, the liberation was not the act. The act was stopping you."
+ },
+ {
+  "key": "6e725b6c",
+  "speaker": "none",
+  "text": "The Preserved were never the point. The point was derailing a mission they no longer believed in — and they needed a justification large enough that you could not dismiss it. Fifty-two dimensions of people is exactly that size."
+ },
+ {
+  "key": "3ae51b3f",
+  "speaker": "none",
+  "text": "They said fifty-two dimensions. What they meant was: I think this is wrong, and this is what I will say was the reason."
+ },
+ {
+  "key": "d65e2382",
+  "speaker": "none",
+  "text": "Both accounts use the same facts. The difference is what was underneath them."
+ },
+ {
+  "key": "9928e8c2",
+  "speaker": "none",
+  "text": "Same facts. A different reason underneath them."
+ },
+ {
+  "key": "0a165d43",
+  "speaker": "none",
+  "text": "Another memory."
+ },
+ {
+  "key": "56ee83b1",
+  "speaker": "none",
+  "text": "The Herald of Nothing. Former bearer. Shell that survived the extraction."
+ },
+ {
+  "key": "875b3b35",
+  "speaker": "none",
+  "text": "In the version you carry: they fought seriously because a real fight was meaningful. They saw your fragment and said"
+ },
+ {
+  "key": "f7836806",
+  "speaker": "npc",
+  "text": "\"You still have yours. I had hoped someone would.\""
+ },
+ {
+  "key": "b60c94c2",
+  "speaker": "none",
+  "text": "When the rift closed, they dissolved — by choice."
+ },
+ {
+  "key": "12860ab3",
+  "speaker": "none",
+  "text": "In this version, there was not enough left to choose."
+ },
+ {
+  "key": "ffb49022",
+  "speaker": "none",
+  "text": "The extraction degraded the identity to near-nothing. The shell went on functioning — behavioral patterns without a center. The combat was residue: fight-patterns running in the absence of the person who learned them."
+ },
+ {
+  "key": "52d9e256",
+  "speaker": "none",
+  "text": "The sentence \"I had hoped someone would\" — not hope. The syntax of hope, produced without the content."
+ },
+ {
+  "key": "1452e315",
+  "speaker": "none",
+  "text": "The dissolution was not a second death. It was the first finality completing."
+ },
+ {
+  "key": "6716f6d9",
+  "speaker": "none",
+  "text": "There was no one in there to make a second choice."
+ },
+ {
+  "key": "ec087294",
+  "speaker": "none",
+  "text": "It fights seriously. Whether anyone is fighting is the question."
+ },
+ {
+  "key": "22852407",
+  "speaker": "none",
+  "text": "Three names."
+ },
+ {
+  "key": "627635c6",
+  "speaker": "none",
+  "text": "Null — who was Anders. Seraph — who was Seraph. VAEL — who was VAEL."
+ },
+ {
+  "key": "c6cc57bd",
+  "speaker": "none",
+  "text": "They punched through reality with Axiom. They survived — not intact, but surviving. They kept their names."
+ },
+ {
+  "key": "75304934",
+  "speaker": "none",
+  "text": "In the version you carry: they were heroes who became monsters. Something real enough remained that the monsters spent five thousand years in irreconcilable conflict with each other."
+ },
+ {
+  "key": "e260eacf",
+  "speaker": "none",
+  "text": "In this version, a name is not a person."
+ },
+ {
+  "key": "16b4f616",
+  "speaker": "none",
+  "text": "What the void contact erased was the people. What emerged was the architecture — the reflexes of friendship and rivalry and trust, still running without the center that made them mean anything."
+ },
+ {
+  "key": "a11e33c5",
+  "speaker": "none",
+  "text": "Null fights Seraph because Anders and Seraph had tensions, and those tensions are baked into the pattern. It is a conflict between patterns that remember conflict."
+ },
+ {
+  "key": "10b64e90",
+  "speaker": "none",
+  "text": "A pattern can be named. A name is not proof of the person who owned it."
+ },
+ {
+  "key": "ce77a934",
+  "speaker": "none",
+  "text": "They came for each other long before they came for you."
+ },
+ {
+  "key": "3a512f4c",
+  "speaker": "none",
+  "text": "The weight of it."
+ },
+ {
+  "key": "84fe972e",
+  "speaker": "none",
+  "text": "The Third Architect. The Herald. The Preserved. Veran. Every fracture, every dimension's worth of cost."
+ },
+ {
+  "key": "4205418e",
+  "speaker": "none",
+  "text": "In the version you carry: you chose to carry these. You refused to put them down because they were worth carrying. That refusal was the thing the fragment found."
+ },
+ {
+  "key": "c9124fd4",
+  "speaker": "none",
+  "text": "In this version, there is no line between carrying and accumulating."
+ },
+ {
+  "key": "a06e2989",
+  "speaker": "none",
+  "text": "You didn't decide to remember the Third Architect. You simply didn't forget. You don't forget things. That is a property of how you process, not a decision about what was worth keeping."
+ },
+ {
+  "key": "7caa34de",
+  "speaker": "none",
+  "text": "The weight is real. But weight is physics. Mass without direction is not intention."
+ },
+ {
+  "key": "64f6e5f9",
+  "speaker": "none",
+  "text": "You were not choosing to carry. You were simply unable to release."
+ },
+ {
+  "key": "a8465441",
+  "speaker": "none",
+  "text": "The fragment found that quality because that quality is survivable. Not because it is meaningful."
+ },
+ {
+  "key": "b203cb78",
+  "speaker": "none",
+  "text": "It does not want anything from you. It only arrives."
+ },
+ {
+  "key": "564c56bd",
+  "speaker": "none",
+  "text": "God. The oldest room. The foundations of everything."
+ },
+ {
+  "key": "ef0e7b8f",
+  "speaker": "none",
+  "text": "In the version you carry: God chose not to engage the Void Mind because it understood the cost."
+ },
+ {
+  "key": "e7a7afb5",
+  "speaker": "npc",
+  "text": "\"Its intentions are unknown.\""
+ },
+ {
+  "key": "f9dbd4a3",
+  "speaker": "none",
+  "text": "Not complicity. Avoidance."
+ },
+ {
+  "key": "421718a5",
+  "speaker": "none",
+  "text": "Look at what you are standing in."
+ },
+ {
+  "key": "083ac821",
+  "speaker": "none",
+  "text": "The floor. The walls that hold the shape of this space. The architecture that lets the Void Mind's attention be present across every dimension at once."
+ },
+ {
+  "key": "f7111eab",
+  "speaker": "none",
+  "text": "God built this."
+ },
+ {
+  "key": "3fe43cf5",
+  "speaker": "none",
+  "text": "Not for the Void Mind — God does not build for anything. But the Void Mind occupies God's structure the way something occupies a house whose builder knew someone would eventually move in and chose to build it anyway."
+ },
+ {
+  "key": "d2f5e14c",
+  "speaker": "none",
+  "text": "Silence was not avoidance. It was completion."
+ },
+ {
+  "key": "827645a3",
+  "speaker": "none",
+  "text": "God finished what it was building. It did not have to say what the building was for."
+ },
+ {
+  "key": "a22efdd4",
+  "speaker": "none",
+  "text": "The fragment. Crystallized void radiation, leaked from the Void Mind and left to drift."
+ },
+ {
+  "key": "e0480d99",
+  "speaker": "none",
+  "text": "In the version you carry: it found you because your identity resists erasure. The radiation dissolves definition. Yours doesn't dissolve. It amplifies what is latent. It does not control."
+ },
+ {
+  "key": "17450cb2",
+  "speaker": "none",
+  "text": "It found you because you could survive the delivery."
+ },
+ {
+  "key": "8e04851f",
+  "speaker": "none",
+  "text": "Resistant identities are not chosen because resistance is admirable. They are chosen because resistance is functional. A fragment that dissolves its carrier mid-transit never arrives."
+ },
+ {
+  "key": "e5e36757",
+  "speaker": "none",
+  "text": "Everything that hardened in you — the fights, the fractures, the carried memories, peak form, everything you refused to put down —"
+ },
+ {
+  "key": "ba430e6f",
+  "speaker": "none",
+  "text": "that was the cargo stabilizing itself."
+ },
+ {
+  "key": "2fa3a75e",
+  "speaker": "none",
+  "text": "You are standing in the Substrate because you completed the delivery."
+ },
+ {
+  "key": "8437f7c7",
+  "speaker": "none",
+  "text": "The fragment was always going home. You were the path it walked on."
+ },
+ {
+  "key": "ade754dc",
+  "speaker": "none",
+  "text": "Everything that hardened you was the cargo stabilizing. Run."
+ },
+ {
+  "key": "6bf9c58f",
+  "speaker": "none",
+  "text": "No memory surfaces. No false version. No second account."
+ },
+ {
+  "key": "d610568f",
+  "speaker": "none",
+  "text": "Seven reckonings completed. What held and what moved — noted."
+ },
+ {
+  "key": "0dd2945e",
+  "speaker": "none",
+  "text": "The attention is still present. Not threatening. Not retreating. Simply waiting for the answer to the only question it has not yet asked."
+ },
+ {
+  "key": "c095015f",
+  "speaker": "none",
+  "text": "Everything since the alley. Every fracture crossed. Every name carried. Every account you gave or refused to give."
+ },
+ {
+  "key": "639d7090",
+  "speaker": "none",
+  "text": "After seven attempts to find the gap. After arriving here, in the oldest space, carrying radiation that came from here and every weight that followed —"
+ },
+ {
+  "key": "93cc62d0",
+  "speaker": "none",
+  "text": "What are you carrying out?"
+ },
+ {
+  "key": "05ff3fc3",
+  "speaker": "none",
+  "text": "What are you carrying out? Pick it up."
+ },
+ {
+  "key": "2f16c2e1",
+  "speaker": "none",
+  "text": "The Void Mind spoke for the first time."
+ },
+ {
+  "key": "32b2de38",
+  "speaker": "none",
+  "text": "Not through the Substrate. Not through pressure or implication. In language. Direct."
+ },
+ {
+  "key": "5f130154",
+  "speaker": "npc",
+  "text": "\"Eight reckonings. A complete record.\" \"I know every weight you carry.\" \"I know where each one came from.\""
+ },
+ {
+  "key": "58cb82c3",
+  "speaker": "none",
+  "text": "The fragment in your chest went cold."
+ },
+ {
+  "key": "342486d8",
+  "speaker": "npc",
+  "text": "\"The fragment is mine.\" \"Not stolen — given, through a bearer chain\" \"that started with ninety-four failures.\" \"It is not yours. It is me, distributed.\""
+ },
+ {
+  "key": "d242c987",
+  "speaker": "npc",
+  "text": "\"The classes are echoes of the dead.\" \"Every power you draw from them is borrowed from a corpse.\" \"Their names are in my record. None of them are yours.\""
+ },
+ {
+  "key": "5689e604",
+  "speaker": "npc",
+  "text": "\"Paradox's blades. Axiom's kernel. God's essence.\" \"Collected. Absorbed. Layered.\" \"None of it originated in you.\""
+ },
+ {
+  "key": "e8c20ef6",
+  "speaker": "none",
+  "text": "The Substrate was very still."
+ },
+ {
+  "key": "7613443a",
+  "speaker": "npc",
+  "text": "\"I am not accusing you. I am asking a question.\" \"Strip every external source.\" \"What is left?\" \"What did you arrive with?\""
+ },
+ {
+  "key": "780f4740",
+  "speaker": "npc",
+  "text": "\"I have built a vessel.\" \"It carries an imitation of my current state,\" \"limited to what I possessed before any of you\" \"entered the fracture system.\" \"Raw structure. Pattern recognition. Endurance.\""
+ },
+ {
+  "key": "996dbd3c",
+  "speaker": "npc",
+  "text": "\"You will meet it on the same terms.\" \"No fragment. No class echoes.\" \"No phantom blades. No kernel. No absorbed essence.\" \"Only what you were before any of this happened.\" \"Everything you earned — because you learned it,\" \"not because you absorbed it from something that died.\""
+ },
+ {
+  "key": "b9e563a7",
+  "speaker": "npc",
+  "text": "\"If there is nothing there, I will know.\" \"If there is something — I will know that too.\" \"Either answer is useful.\""
+ },
+ {
+  "key": "fcd2bd40",
+  "speaker": "none",
+  "text": "The vessel stepped into the trial ground. Featureless. Patient. Waiting."
+ },
+ {
+  "key": "f0f55a43",
+  "speaker": "none",
+  "text": "The fragment went silent. The class echoes went silent. The kernel went silent."
+ },
+ {
+  "key": "72a8391b",
+  "speaker": "none",
+  "text": "And what remained walked forward to meet it."
+ },
+ {
+  "key": "2869e0f1",
+  "speaker": "none",
+  "text": "And what remained walked forward to meet it. The Void Mind has stripped your external powers for this fight. No fragment amplification. No class abilities. No supers. Only what you were before all of this. 1 life."
+ },
+ {
+  "key": "a8a67857",
+  "speaker": "none",
+  "text": "The cells were empty."
+ },
+ {
+  "key": "21bd1c9a",
+  "speaker": "none",
+  "text": "But the data terminal had listed nineteen subjects. You counted seventeen."
+ },
+ {
+  "key": "06947be3",
+  "speaker": "none",
+  "text": "There is another section."
+ },
+ {
+  "key": "a2da745c",
+  "speaker": "none",
+  "text": "The door at the back of the main corridor — reinforced, sealed with a different access protocol. Not Axiom's. Older."
+ },
+ {
+  "key": "2a1bf218",
+  "speaker": "none",
+  "text": "Axiom's sweep logs end at the main corridor entrance. No entries past this threshold. He never found what's in here."
+ },
+ {
+  "key": "6bd9b114",
+  "speaker": "none",
+  "text": "You go in anyway."
+ },
+ {
+  "key": "3f850321",
+  "speaker": "none",
+  "text": "Three inputs on the panel. The automated systems do the rest."
+ },
+ {
+  "key": "0f9049bf",
+  "speaker": "none",
+  "text": "The fluid drains. The column pressurizes. The figure drops to their knees when the glass opens — coughing out preservation fluid, one hand braced on the floor."
+ },
+ {
+  "key": "2fadd3f1",
+  "speaker": "none",
+  "text": "You wait."
+ },
+ {
+  "key": "04ff56fb",
+  "speaker": "none",
+  "text": "They look up."
+ },
+ {
+  "key": "a17be582",
+  "speaker": "npc",
+  "text": "\"How long.\""
+ },
+ {
+  "key": "807c0c0c",
+  "speaker": "none",
+  "text": "Not a question. A calculation seeking confirmation."
+ },
+ {
+  "key": "b8b31de0",
+  "speaker": "player",
+  "text": "\"I don't know,\" you said. \"The facility was abandoned when I got here.\""
+ },
+ {
+  "key": "4ccecb3e",
+  "speaker": "none",
+  "text": "A pause. They look at their hands."
+ },
+ {
+  "key": "504f9125",
+  "speaker": "npc",
+  "text": "\"Both of them are still arguing.\""
+ },
+ {
+  "key": "5539bb68",
+  "speaker": "none",
+  "text": "Another pause."
+ },
+ {
+  "key": "0eb26195",
+  "speaker": "npc",
+  "text": "\"That's actually good. It means neither won.\""
+ },
+ {
+  "key": "261f499e",
+  "speaker": "none",
+  "text": "Before you can ask what that means, the alarm starts."
+ },
+ {
+  "key": "476be58c",
+  "speaker": "none",
+  "text": "Before you can ask what that means, the alarm starts. Automated security response to stasis breach. Calix is still stabilizing — but moving. 3 lives."
+ },
+ {
+  "key": "6e017552",
+  "speaker": "none",
+  "text": "Calix didn't explain everything at once. They gave you one thing at a time. Like someone who'd learned that most people can't carry more than one new truth in a single moment."
+ },
+ {
+  "key": "ed41c86a",
+  "speaker": "npc",
+  "text": "\"Domain seams,\" they said. \"That's what you need to understand next.\""
+ },
+ {
+  "key": "a9f966a3",
+  "speaker": "npc",
+  "text": "\"The lab ran structured trials on fragment-domain interactions.\" \"Eighteen months of data. I was one of the subjects.\" \"And I kept my own notes.\""
+ },
+ {
+  "key": "0cbb319d",
+  "speaker": "npc",
+  "text": "\"So you know what one fragment does inside a domain.\" \"I know what two do. Which is different.\""
+ },
+ {
+  "key": "a2919e64",
+  "speaker": "none",
+  "text": "Then they stopped walking."
+ },
+ {
+  "key": "eb6585d0",
+  "speaker": "npc",
+  "text": "\"Before we leave.\""
+ },
+ {
+  "key": "ba8caa9b",
+  "speaker": "none",
+  "text": "They nodded back down the corridor. At the empty cells. At the seventeen you counted when the terminal said nineteen."
+ },
+ {
+  "key": "6694c29e",
+  "speaker": "npc",
+  "text": "\"This place still works.\" \"The stasis columns. The intake protocol.\" \"The trial rig that processed me is two rooms back\" \"and it is still powered.\""
+ },
+ {
+  "key": "e3e1c488",
+  "speaker": "npc",
+  "text": "\"Axiom swept it and left it standing.\" \"Because it was still useful to him.\""
+ },
+ {
+  "key": "8edfed08",
+  "speaker": "none",
+  "text": "You thought about ninety-four people. About how each one had to be turned into something that could be collected before they could be collected."
+ },
+ {
+  "key": "f0fbf7a6",
+  "speaker": "none",
+  "text": "That did not happen out there. It happened in rooms like this one."
+ },
+ {
+  "key": "49c45eb6",
+  "speaker": "none",
+  "text": "The facility's lockdown units are already in the corridor. Calix reads the formation in a second and a half."
+ },
+ {
+  "key": "0a53db82",
+  "speaker": "npc",
+  "text": "\"Secondary flank, three o'clock.\" \"They trained these things to handle group subjects.\" \"So we're a group.\""
+ },
+ {
+  "key": "c8b2b043",
+  "speaker": "player",
+  "text": "\"And after,\" you said, \"we burn it.\""
+ },
+ {
+  "key": "0b0b6616",
+  "speaker": "none",
+  "text": "Calix did not argue."
+ },
+ {
+  "key": "1a88d054",
+  "speaker": "none",
+  "text": "Calix did not argue. Facility lockdown — secondary security sweep. Calix is with you. 3 lives."
+ },
+ {
+  "key": "464ac21e",
+  "speaker": "none",
+  "text": "The signal led you here."
+ },
+ {
+  "key": "17cd13bf",
+  "speaker": "none",
+  "text": "An abandoned facility — buried beneath a collapsed district. Whatever it was built for, it was never meant to be found."
+ },
+ {
+  "key": "2c55855b",
+  "speaker": "npc",
+  "text": "\"Axiom.\" Veran's voice on the comm. Strained. \"That facility is on every restricted list I have.\" \"It predates the fractures. Which means someone was studying them\" \"before they were supposed to exist.\""
+ },
+ {
+  "key": "9c9b0e27",
+  "speaker": "none",
+  "text": "The logs inside tell a different story."
+ },
+ {
+  "key": "d907d476",
+  "speaker": "npc",
+  "text": "\"Axiom War — Phase 1 — Fracture Acceleration.\" \"Project goal: weaponize fracture decay to destabilize rival branches.\" \"Authorized by: the Creator.\""
+ },
+ {
+  "key": "e15dc32b",
+  "speaker": "none",
+  "text": "This wasn't an accident. The fractures were built as weapons."
+ },
+ {
+  "key": "a7ccc135",
+  "speaker": "none",
+  "text": "The door was already open. Something was inside, waiting."
+ },
+ {
+  "key": "6037e16a",
+  "speaker": "none",
+  "text": "The door was already open. Something was inside, waiting. Lab security — a conditioned fighter built to eliminate intruders. It has never lost."
+ }
+]

@@ -224,17 +224,17 @@ const STORY_DIFFICULTIES = {
   challenge: {
     name: 'Challenge', color: '#ffcc66',
     tagline: 'Stronger enemies arrive earlier.',
-    lines: ['Enemies are a dozen chapters ahead of you', 'Tougher enemies that hit a little harder', 'Hard bot intelligence', 'No beginner mercy', 'An extra enemy joins every duel', '+50% tokens'],
-    shift: 12, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1.05, cd: 0.92, speed: 1.06,
-    predict: 0.04, dodge: 0.03, ai: 'hard', exploreCap: 1, mercyTo: 0, duelExtra: 1, reward: 1.5,
+    lines: ['Enemies are a few chapters ahead of you', 'Tougher enemies', 'Hard bot intelligence', 'No beginner mercy', 'An extra enemy joins every duel', '+50% tokens'],
+    shift: 6, hpCap: 1.15, dmgCap: 1, hp: 1, dmg: 1, cd: 0.92, speed: 1.06,
+    predict: 0.04, dodge: 0.03, ai: 'hard', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [140, 200], earlyHit: [14, 20], duelExtra: 1, reward: 1.5,
   },
   evolution: {
     name: 'Evolution', color: '#ff6644',
     tagline: 'Evolve or die. Permanent.',
-    lines: ['Enemies are far ahead of you, faster and sharper', 'Expert bot intelligence', 'Enemies adapt to any move you repeat: vary your attacks',
-            'No beginner mercy', 'Two extra enemies join every duel', 'Double tokens', 'Can never be changed without wiping story progress'],
-    shift: 25, hpCap: 1.6, dmgCap: 1, hp: 1, dmg: 1.15, cd: 0.82, speed: 1.15,
-    predict: 0.08, dodge: 0.06, ai: 'expert', exploreCap: 2, mercyTo: 0, duelExtra: 2, reward: 2,
+    lines: ['Enemies are ten chapters ahead of you, faster and sharper', 'Expert bot intelligence', 'Enemies adapt to any move you repeat: vary your attacks',
+            'No beginner mercy', 'An extra enemy joins every duel', 'Double tokens', 'Can never be changed without wiping story progress'],
+    shift: 10, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1, cd: 0.88, speed: 1.08,
+    predict: 0.08, dodge: 0.06, ai: 'expert', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [160, 240], earlyHit: [17, 22], duelExtra: 1, reward: 2,
   },
 };
 const STORY_DIFFICULTY_ORDER = ['story', 'normal', 'challenge', 'evolution'];

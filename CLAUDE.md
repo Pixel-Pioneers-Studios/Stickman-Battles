@@ -138,7 +138,7 @@ Environment variables:
 | `docs/` | All design and architecture docs, including `README_ANALYSIS.md` |
 | `images/` | Game art; `images/store/` holds the CrazyGames submission assets |
 | `replays/` | Saved `.smbreplay` capture files — artifacts, nothing loads them |
-| `tools/` | Dev tooling; `tools/tour/` is the trailer capture script, frames, and mp4 |
+| `tools/` | Dev tooling; `tools/tour/` is the trailer capture script, frames, and mp4; `tools/workbench/` is the weapon workbench and the figure studio (`?wb=figures`: poses, clips, scene viewer); use `shot.js` / `figure-shot.js` contact sheets to see weapon and figure changes |
 | `axiom-prequel/`, `stickman-roblox/`, `Stickman-Battles-3d/` | Separate sibling games, not part of the main build |
 
 ---
@@ -193,6 +193,7 @@ Script load order in `index.html` — files may only reference globals from earl
 44. `js/boss/smb-boss-tf-visuals1.js` — Phase shift, reality tear, calc strike, math bubble, reality override, gamma beam
 45. `js/boss/smb-boss-tf-visuals2.js` — Burn trail, neutron star, galaxy sweep, multiverse fracture, supernova
 46. `js/boss/smb-boss-helpers.js` — Boss utility functions
+    - `js/boss/smb-fallen-god.js` — `FallenGod` boss (story ch80 + Simulator refight), own AI and moves; `_isFallenGodFight()`
 47. `js/boss/smb-trueform.js` — TrueForm class
 48. `js/boss/smb-trueform-attacks.js` — TrueForm move set
 49. `js/smb-paradox-class.js` — Paradox entity class + global state

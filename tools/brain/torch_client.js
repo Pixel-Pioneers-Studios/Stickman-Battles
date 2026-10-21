@@ -73,9 +73,12 @@ class TorchPPO {
       this._drain();
     });
   }
-  async init(pi, vf, cfg, threads, seed) {
-    const { head } = await this.call({ type: 'init', piSizes: pi.sizes, vfSizes: vf.sizes, gru: pi.gru ? pi.gru.H : 0, cfg, threads, seed },
-      [['pi', flatOf(pi)], ['vf', flatOf(vf)]]);
+  // ref: optional frozen policy (same sizes as pi) the update is pulled toward by cfg.refKl.
+  async init(pi, vf, cfg, threads, seed, ref) {
+    const bufs = [['pi', flatOf(pi)], ['vf', flatOf(vf)]];
+    if (ref) bufs.push(['ref', flatOf(ref)]);
+    const { head } = await this.call({ type: 'init', piSizes: pi.sizes, vfSizes: vf.sizes, gru: pi.gru ? pi.gru.H : 0,
+      refGru: ref && ref.gru ? ref.gru.H : 0, cfg, threads, seed }, bufs);
     return head;
   }
   // Runs values + GAE + the PPO epochs on the sidecar, then copies the new

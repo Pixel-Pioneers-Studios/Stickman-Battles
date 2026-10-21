@@ -16,13 +16,15 @@ function _exploreHostile(m) {
 function _exploreRemainingFoes() {
   const p1 = players && players[0];
   let count = 0, nearest = null, nd = Infinity;
-  // Escape and stealth levels: enemies are obstacles, not a clear requirement.
-  if ((typeof escapeModeActive  !== 'undefined' && escapeModeActive) ||
-      (typeof stealthModeActive !== 'undefined' && stealthModeActive)) {
+  // Escape levels: enemies are obstacles, not a clear requirement.
+  if (typeof escapeModeActive !== 'undefined' && escapeModeActive) {
     return { count: 0, alive: 0, queued: 0, nearest: null, nearestDist: nd };
   }
+  // Stealth levels: the posted guards can be sneaked past, but an alarm's response must be beaten.
+  const _stealth = typeof stealthModeActive !== 'undefined' && stealthModeActive;
   const consider = (m) => {
     if (!_exploreHostile(m) || _exploreOptionalFoe(m)) return;
+    if (_stealth && !m.isAlarmEnemy) return;
     count++;
     if (!p1) return;
     const d = Math.abs(m.cx() - p1.cx());
@@ -33,7 +35,7 @@ function _exploreRemainingFoes() {
     for (const p of players) { if (p !== p1 && p.storyFaction === 'enemy') consider(p); }
   }
   let queued = 0;
-  if (typeof exploreSpawnQ !== 'undefined' && exploreSpawnQ) {
+  if (!_stealth && typeof exploreSpawnQ !== 'undefined' && exploreSpawnQ) {
     for (const d of exploreSpawnQ) if (!_exploreOptionalFoe(d)) queued++;
   }
   return { count: count + queued, alive: count, queued, nearest, nearestDist: nd };
@@ -506,6 +508,9 @@ function updateExploration() {
       for (let e = 0; e < _extra; e++) {
         const _ex = e % 2 === 0 ? cp.x - 160 - e * 40 : cp.x + 260 + e * 40;
         _exploreSpawnEnemy({ wx: _ex, exactX: _ex, name: _opp.name + ' Escort', weaponKey: _escW[e % _escW.length], classKey: 'warrior', aiDiff: _opp.aiDiff, color: _opp.color, health: 60, isArenaLockEnemy: true }, p1);
+        // Escorts are reinforcements: they hold back ~8s so the duel opens one on one.
+        const _esc = minions[minions.length - 1];
+        if (_esc && _esc.name === _opp.name + ' Escort') _esc._aiHoldUntil = frameCount + 480 + e * 120;
       }
       storyFightSubtitle = { text: `${_opp.name}${_sec ? ' and ' + _sec.name : ''}${_extra ? ' and ' + _extra + ' more' : ''} block${_sec || _extra ? '' : 's'} your path!`, timer: 180, maxTimer: 180, color: '#ffcc66' };
       if (typeof setCameraDrama === 'function') setCameraDrama('wideshot', 46);
@@ -823,6 +828,8 @@ function _exploreSpawnEnemy(def, p1) {
   if (def._foeKey) m._foeKey = def._foeKey;   // authored mob, its kill is remembered
   if (def.isSidePortalEnemy) m.isSidePortalEnemy = true;
   if (def.isOptionalEnemy) m.isOptionalEnemy = true;   // sidequest foes never gate the exit
+  if (def._puzzlePenalty) m._puzzlePenalty = true;    // wrong-switch guard, one at a time
+  if (def.isAlarmEnemy) m.isAlarmEnemy = true;        // stealth alarm response, gates the exit
   if (def.isChestGuardian) {
     m.isChestGuardian = true; m._chestKey = def.chestKey;
     if (def.postX != null) { m._guardPostX = def.postX; m._guardPostY = (def.exactY != null ? def.exactY + 86 : my + 84); }

@@ -119,6 +119,19 @@ function _msGroundTop(x, footY, depth) {
 }
 
 // Horizontal stretch around x that has ground somewhere below footY.
+// A Q or E shatters a raised guard: the first guarded hit it owns on each victim breaks
+// the guard and lands in full. Ownership is the move-finisher claim (scene running, or its
+// projectiles within MS_KILL_TAIL, until the performer swings again). Called from dealDamage().
+function msGuardBreakClaim(att, t) {
+  const k = att && att._msKill;
+  if (!k || !t || (k.guardBroke && k.guardBroke.includes(t))) return false;
+  const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
+  const live = att._msScene && att._msScene.key === k.key;
+  if (!live && !(k.end && fc - k.end <= MS_KILL_TAIL)) return false;
+  (k.guardBroke = k.guardBroke || []).push(t);
+  return true;
+}
+
 function _msSpan(x, footY) {
   const STEP = 8, MAX = 3200;
   const has = (px) => _msGroundTop(px, footY, 900) !== null;
@@ -289,8 +302,9 @@ const MS_PROTO = {
     return true;
   },
 
-// The opener reaching a victim. A raised guard takes it as a hit (a fresh guard can
-  // parry). Otherwise it is a clean catch that deals nothing yet.
+// The opener reaching a victim. A raised guard takes it as a hit: a fresh guard can
+  // parry, otherwise the move shatters it (dealDamage, msGuardBreakClaim) and the catch goes through.
+  // Otherwise it is a clean catch that deals nothing yet.
   contact(t, chip) {
     if (!t || t.health <= 0 || t.godmode) return 'miss';
     const u = this.user;
@@ -466,7 +480,8 @@ const MoveScene = {
     user._msKill = { key, end: 0 };
     user.attackTimer = 0;
     user.shielding = false;
-    user._msHideWas = user._hideWeapon;
+    // A weapon still out from a throw is hidden by that throw, not by this fighter's baseline.
+    if (!user._msHideWhile) user._msHideWas = user._hideWeapon;
     this.scenes.push(sc);
     if (def.start) def.start(sc);
     this._pose(sc);
@@ -483,7 +498,7 @@ const MoveScene = {
     for (let i = this.outs.length - 1; i >= 0; i--) {
       const f = this.outs[i];
       if (f._msOut && (--f._msOut.t <= 0 || f._msScene)) f._msOut = null;
-      if (f._msHideWhile && (f._msScene || f.health <= 0 || !f._msHideWhile(f))) {
+      if (f._msHideWhile && (f.health <= 0 || !f._msHideWhile(f))) {
         f._msHideWhile = null;
         if (!f._msScene) f._hideWeapon = f._msHideWas;
       }
@@ -583,7 +598,7 @@ const MoveScene = {
     let p = tr ? msSample(tr.keys, sc.lt) : null;
     if (p && sc.def.poseMod) p = sc.def.poseMod(sc, p) || p;
     u._movePose = p;
-    if (p) u._hideWeapon = p.hide ? true : u._msHideWas;
+    if (p) u._hideWeapon = (p.hide || u._msHideWhile) ? true : u._msHideWas;
   },
 
   // Normal end: anyone still held drops where they are.
@@ -631,7 +646,8 @@ const MoveScene = {
       u._movePose = null;
       u._hideWeapon = u._msHideWas;
       // A thrown weapon stays out of the hand until it comes back.
-      if (sc.def.hideWhile) { u._msHideWhile = sc.def.hideWhile; u._hideWeapon = true; if (!this.outs.includes(u)) this.outs.push(u); }
+      if (sc.def.hideWhile) u._msHideWhile = sc.def.hideWhile;
+      if (u._msHideWhile) { u._hideWeapon = true; if (!this.outs.includes(u)) this.outs.push(u); }
       if (sc.kind === 'e') u.superActive = false;
     }
     for (const b of sc.bodies.values()) {

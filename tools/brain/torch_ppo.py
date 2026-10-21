@@ -139,6 +139,12 @@ class Trainer:
         self.vf = MLP(head["vfSizes"], self.H).to(self.dev)
         self.pi.load_flat(bufs["pi"])
         self.vf.load_flat(bufs["vf"])
+        # Reference policy (train.js --ref, e.g. the clone of the user): refKl * KL(pi || ref) joins the
+        # policy loss, so training improves the net without walking away from how the reference plays.
+        self.ref, self.ref_kl = None, float(self.cfg.get("refKl") or 0)
+        if "ref" in bufs and bufs["ref"].size:
+            self.ref = MLP(head["piSizes"], int(head.get("refGru") or 0)).to(self.dev)
+            self.ref.load_flat(bufs["ref"])
         # ppo.js's Adam: b1 0.9, b2 0.999, eps 1e-8, bias-corrected; torch's matches.
         self.pi_opt = torch.optim.Adam(self.pi.parameters(), lr=self.cfg["lr"], betas=(0.9, 0.999), eps=1e-8)
         self.vf_opt = torch.optim.Adam(self.vf.parameters(), lr=self.cfg["lr"], betas=(0.9, 0.999), eps=1e-8)
@@ -156,7 +162,29 @@ class Trainer:
             o += n
         return logp, ent
 
-    def minibatch(self, obs, acts, old_logp, adv, ret, idx):
+    def ref_term(self, logits, ref_lp):
+        """Per decision KL(pi || ref), summed over heads. ref_lp: the reference's log-softmax per head."""
+        kl, o = torch.zeros(logits.shape[0], dtype=logits.dtype), 0
+        for n in self.heads:
+            lp = torch.log_softmax(logits[:, o:o + n], dim=1)
+            kl = kl + (lp.exp() * (lp - ref_lp[:, o:o + n])).sum(1)
+            o += n
+        return kl
+
+    def ref_logps(self, obs, eps):
+        """The reference's per-head log-softmax for every decision, each match from an empty memory."""
+        out = torch.zeros(obs.shape[0], sum(self.heads))
+        with torch.no_grad():
+            for start, length, _ in eps:
+                x = obs[start:start + length]
+                lg = self.ref.seq(x.unsqueeze(0), torch.zeros(1, self.ref.gru.hidden_size))[0][0] if self.ref.gru is not None else self.ref(x)
+                o = 0
+                for n in self.heads:
+                    out[start:start + length, o:o + n] = torch.log_softmax(lg[:, o:o + n], dim=1)
+                    o += n
+        return out
+
+    def minibatch(self, obs, acts, old_logp, adv, ret, idx, ref_lp=None):
         """One minibatch step for both nets. Same objective as ppo.js chunkGrads():
         mean over the minibatch of -min(r*A, clip(r)*A) - entCoef*H, and 0.5*(v-ret)^2."""
         c = self.cfg
@@ -166,6 +194,9 @@ class Trainer:
         A = adv[idx]
         s1, s2 = ratio * A, torch.clamp(ratio, 1 - c["clip"], 1 + c["clip"]) * A
         pl = -torch.minimum(s1, s2)
+        if ref_lp is not None:
+            rk = self.ref_term(self.pi(x), ref_lp[idx])
+            pl = pl + self.ref_kl * rk
         self.pi_opt.zero_grad(set_to_none=True)
         (pl.mean() - c["entCoef"] * ent.mean()).backward()
         nn.utils.clip_grad_norm_(self.pi.parameters(), c["maxGrad"])
@@ -178,9 +209,10 @@ class Trainer:
         self.vf_opt.step()
         with torch.no_grad():
             return {"pl": pl.sum().item(), "vl": vl.sum().item(), "ent": ent.sum().item(),
-                    "kl": (old_logp[idx] - logp).sum().item(), "clip": (s2 < s1).sum().item(), "n": len(idx)}
+                    "kl": (old_logp[idx] - logp).sum().item(), "clip": (s2 < s1).sum().item(), "n": len(idx),
+                    "refKl": (rk.sum().item() if ref_lp is not None else 0.0)}
 
-    def minibatch_seq(self, obs, acts, old_logp, adv, ret, ix, mask, hp, hv):
+    def minibatch_seq(self, obs, acts, old_logp, adv, ret, ix, mask, hp, hv, ref_lp=None):
         """minibatch() over pieces of matches. ix [B, L] decision indices (padding points
         at 0), mask [B, L] 1 on real decisions, hp/hv [B, H] the memory each piece starts from."""
         c = self.cfg
@@ -192,6 +224,10 @@ class Trainer:
         A = adv[flat]
         s1, s2 = ratio * A, torch.clamp(ratio, 1 - c["clip"], 1 + c["clip"]) * A
         pl = -torch.minimum(s1, s2)
+        rk = None
+        if ref_lp is not None:
+            rk = self.ref_term(logits.reshape(flat.numel(), -1), ref_lp[flat])
+            pl = pl + self.ref_kl * rk
         self.pi_opt.zero_grad(set_to_none=True)
         (((pl - c["entCoef"] * ent) * m).sum() / n).backward()
         nn.utils.clip_grad_norm_(self.pi.parameters(), c["maxGrad"])
@@ -205,7 +241,8 @@ class Trainer:
         self.vf_opt.step()
         with torch.no_grad():
             return {"pl": (pl * m).sum().item(), "vl": (vl * m).sum().item(), "ent": (ent * m).sum().item(),
-                    "kl": ((old_logp[flat] - logp) * m).sum().item(), "clip": ((s2 < s1) * m).sum().item(), "n": int(n.item())}
+                    "kl": ((old_logp[flat] - logp) * m).sum().item(), "clip": ((s2 < s1) * m).sum().item(), "n": int(n.item()),
+                    "refKl": (rk * m).sum().item() if rk is not None else 0.0}
 
     def seq_pass(self, obs, acts, old_logp, eps, fin, N):
         """Every match replayed from an empty memory with the current weights: values
@@ -279,12 +316,13 @@ class Trainer:
         adv_t = torch.from_numpy(nadv.astype(np.float32))
         ret_t = torch.from_numpy(ret.astype(np.float32))
         t_gae = time.time() - t0
+        ref_lp = self.ref_logps(obs, eps) if self.ref is not None else None
 
         # ── PPO epochs, full minibatches only, KL early stop after an epoch ──
         mb = c["mb"]
         u = {"pl": 0, "vl": 0, "ent": 0, "kl": 0, "clipFrac": 0, "epochs": 0}
         for ep in range(c["epochs"]):
-            s = {"pl": 0, "vl": 0, "ent": 0, "kl": 0, "clip": 0, "n": 0}
+            s = {"pl": 0, "vl": 0, "ent": 0, "kl": 0, "clip": 0, "n": 0, "refKl": 0}
             if seq:
                 ix, mask, hp, hv, _ = seq
                 C, cb = ix.shape[0], max(1, mb // ix.shape[1])
@@ -293,18 +331,18 @@ class Trainer:
                     bi = perm[a:a + cb]
                     if a and len(bi) < cb / 2:
                         break
-                    st = self.minibatch_seq(obs, acts, old_logp, adv_t, ret_t, ix[bi], mask[bi], hp[bi], hv[bi])
+                    st = self.minibatch_seq(obs, acts, old_logp, adv_t, ret_t, ix[bi], mask[bi], hp[bi], hv[bi], ref_lp)
                     for key in s:
                         s[key] += st[key]
             else:
                 perm = torch.randperm(N, generator=self.gen)
                 for a in range(0, N - mb + 1, mb):
-                    st = self.minibatch(obs, acts, old_logp, adv_t, ret_t, perm[a:a + mb])
+                    st = self.minibatch(obs, acts, old_logp, adv_t, ret_t, perm[a:a + mb], ref_lp)
                     for key in s:
                         s[key] += st[key]
             n = max(1, s["n"])
             u = {"pl": s["pl"] / n, "vl": s["vl"] / n, "ent": s["ent"] / n, "kl": s["kl"] / n,
-                 "clipFrac": s["clip"] / n, "epochs": ep + 1}
+                 "clipFrac": s["clip"] / n, "epochs": ep + 1, "refKl": s["refKl"] / n}
             if u["kl"] > c["targetKl"] * 1.5:
                 break
         if seq:

@@ -15,6 +15,9 @@
  *        [--habit=masher]    the target carries that habit (js/smb-brain.js HABITS) in both arms
  *        [--wipe=1]          clear the hunter's memory every N decisions (1 = it never remembers)
  *        [--no-mirror]       skip the mirror arm (only the hunter's raw win rate is needed)
+ *        [--sample]          the hunter samples its actions instead of playing its top choice (a clone of the user)
+ *        [--turnaway=9]      the hunter turns away from its opponent only after asking for N frames running
+ *        [--turndz=40]       ...and within N px of its opponent's x every turn counts as away
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -48,7 +51,7 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
     await new Promise(r => setTimeout(r, 2500));
     await page.evaluate(() => { try { backToHome(); } catch (e) {} });
     console.log(`Hunter iteration ${HUNTER.iter} vs target iteration ${TARGET.iter}${args.habit ? ' with habit ' + args.habit : ''}, ${EPS} matches per arm, seed ${SEED}, both top choice`);
-    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe) => {
+    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe, turnAway, turnDz, sample) => {
       const rnd = Math.random;
       const seeded = s => () => { s = (s + 0x6D2B79F5) >>> 0; let t = s;
         t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -60,7 +63,7 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
       const out = {};
       for (const [arm, w] of [['mirror', target], ['hunter', hunter]].filter(([a]) => arms.includes(a))) {
         Math.random = seeded(seed * 7919);
-        const r = Brain.rollout({ weights: w, hunt: target, maxFrames: 7200, opponents: [spec], episodes: eps, greedy: true, memWipe: arm === 'hunter' ? wipe : 0 });
+        const r = Brain.rollout({ weights: w, hunt: target, maxFrames: 7200, opponents: [spec], episodes: eps, greedy: !(sample && arm === 'hunter'), memWipe: arm === 'hunter' ? wipe : 0, turnAway: arm === 'hunter' ? turnAway : 0, turnDz });
         const a = { win: 0, k: 0, d: 0, fr: 0, stats: {} };
         for (const e of r.episodes) {
           a.win += e.win; a.k += e.oLost; a.d += e.bLost; a.fr += e.frames;
@@ -70,7 +73,7 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
       }
       Math.random = rnd;
       return out;
-    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0);
+    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0, parseInt(args.turnaway, 10) || 0, parseInt(args.turndz, 10) || 0, !!args.sample);
     const M = res.mirror, H = res.hunter;
     const se = Math.sqrt(0.25 / EPS) * 100;
     if (args.json) {

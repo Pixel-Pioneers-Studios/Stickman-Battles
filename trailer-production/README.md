@@ -13,6 +13,8 @@ created or changed. The scripts read the game, `tools/showcase/session.js`,
 | `short-1-finishers-1080x1920.mp4` | Short: "Every weapon has its own finisher" | 1080×1920, 60 fps | 22.2 s |
 | `short-2-boss-1080x1920.mp4` | Short: "Can you beat the Creator?" | 1080×1920, 60 fps | 13.2 s |
 | `short-3-weapons-1080x1920.mp4` | Short: "25 weapons — pick yours" | 1080×1920, 60 fps | 17.4 s |
+| `short-5-worlds-1080x1920.mp4` | Short: "24 worlds, one fighter" (10 non-spoiler story worlds, unnamed) | 1080×1920, 60 fps | 19.7 s |
+| `short-4-arenas-1080x1920.mp4` | Draft, not for upload: arena hazard kills (hazards don't read at Shorts size) | 1080×1920, 60 fps | 15.8 s |
 | `thumbnail-1280x720.jpg` | YouTube thumbnail (upload this one, under 2 MB) | 1280×720 | — |
 | `thumbnail-1920x1080.png` | Thumbnail master | 1920×1080 | — |
 
@@ -67,9 +69,11 @@ node capture.js land all          # 25 landscape shots  -> work/land/*.mov (+ .j
 node standoff.js hold             # Kael vs Sovereign standoff clips (also: close, charge) -> work/land/standoff*.mov
 node bearers.js                   # the 94 ghost bearers (story scene id 16)              -> work/land/bearers.mov
 node capture.js vert duel,duel2,boss,trueform,domain,moves,moves2,moves3,finKatana,finStaff,finHammer,finScythe,finGlass,finAnchor,finFists,finAxe,story2
+node capture.js vert swHome,swForest,swIce,swRuins,swNeutral,swWar,swFlux,swShadow,swTitan,swQuiet,swCoast   # story worlds short
+node capture.js vert hzVolcano,hzCity,hzCave,hzCyber   # arena hazard kills (free play; retakes until a hazard kill lands)
 node review.js windows land       # busiest windows, finisher spans and cast frames per shot
 node edit.js all                  # all five videos -> out/                                 ~12 min
-node edit.js main                 # or one of: main cut30 shortFinishers shortBoss shortWeapons
+node edit.js main                 # or one of: main cut30 shortFinishers shortBoss shortWeapons shortArenas shortWorlds
 node standoff.js                  # thumbnail: the standoff, bare-handed, with the logo
 node review.js sheet out/<file>.mp4 1 12   # contact sheet, one tile a second
 ```

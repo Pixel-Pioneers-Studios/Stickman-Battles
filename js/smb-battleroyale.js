@@ -560,10 +560,7 @@ function initBattleRoyale() {
     p1._brOnPlane = true;
   }
 
-  // Apply the skill tree here, not in a timer after startGame(). _startGameCore can be deferred, so a fixed delay would race it.
-  if (brStoryBearers && p1 && typeof _applySkillTreeToPlayer === 'function') {
-    _applySkillTreeToPlayer(p1);
-  }
+  // The story skill tree reaches p1 through _storyApplyFightStartBuffs at the end of _startGameCore.
 
   _brSpawnBots();
   _brSpawnWildlife();
@@ -1691,10 +1688,10 @@ function _brCreditElimination(attacker, target) {
   }
   target._brKillCounted = true;
   _brDropLoadout(target);
-  // Bots get no finisher, so they take its heal on the kill instead. A kill that already played a finisher paid it.
-  if (attacker && attacker._brBot && attacker !== target && attacker.health > 0 && !target._brFinKill &&
-      typeof FIN_HEAL !== 'undefined') {
-    attacker.health = Math.min(attacker.maxHealth, attacker.health + FIN_HEAL);
+  // Only the victim sees a finisher, so the killer takes its heal on the kill. A finisher kill paid it when it started.
+  if (attacker && attacker !== target && !attacker._brWildlife && !target._brFinKill &&
+      typeof _finPayHeal === 'function') {
+    _finPayHeal(attacker, !attacker.isAI && !attacker.isRemote);
   }
   if (!attacker || attacker.isAI || attacker.isBoss) return;
   brPlayerKills++;

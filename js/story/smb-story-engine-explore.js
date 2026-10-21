@@ -366,6 +366,16 @@ function _storyScaleEnemyUnit(unit, chapterId, opts = {}) {
     unit._storyDodgeChance  = 0.02;
   }
 
+  // Challenge/Evolution get no mercy, but the first chapters still open below the full curve:
+  // the player has no abilities yet. Harder than Normal's mercy, softer than the shifted scaling.
+  // Two steps like Normal's mercy: [chapters 0-2, chapters 3 to earlyTo-1].
+  if (!elite && diff && diff.earlyTo && origId < diff.earlyTo) {
+    const step = origId < 3 ? 0 : 1;
+    unit.maxHealth = Math.min(unit.maxHealth, diff.earlyHp[step]);
+    unit.health    = unit.maxHealth;
+    unit.dmgMult   = Math.min(unit.dmgMult, diff.earlyHit[step] / (wDmg > 0 ? wDmg : 12));
+  }
+
   if (diff) {
     unit.maxHealth          = Math.max(1, Math.round(unit.maxHealth * diff.hp));
     unit.health             = unit.maxHealth;
@@ -848,7 +858,6 @@ function _launchExplorationChapter(ch) {
   if (typeof escortArm === 'function') escortArm(ch.escortNPC ? ch : null);
   startGame();
   setTimeout(() => {
-    if (players[0]) _applySkillTreeToPlayer(players[0]);
     // Optional side objectives (smb-story-sidequests.js). Needs the arena and player.
     if (typeof storySidequestsArm === 'function') storySidequestsArm(ch);
     // Init special modes after players[] is populated

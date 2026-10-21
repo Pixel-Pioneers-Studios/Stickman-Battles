@@ -1831,7 +1831,9 @@
         var _len  = totalText.length;
         var hold  = Math.min(CIN_HOLD_MAX,
                     Math.max(_cinHold, 60 * (_len / CIN_CPS) - _len * (TYPEWRITE_MS / 1000) * 60));
-        if (_autoT >= hold) {
+        // A voiced line finishes before the scene moves on, unless the player is fast-forwarding.
+        var _voiceBusy = !_ffHeld && window.StoryVoice && StoryVoice.isSpeaking && StoryVoice.isSpeaking();
+        if (_autoT >= hold && !_voiceBusy) {
           _autoT = 0;
           _advance();
           // _advance can end the scene and null _ctx. We are inside _render, so bail out of this frame.
@@ -1990,7 +1992,7 @@
     _beatEnter(false);
   }
 
-  function _finish() { _cleanup(); if(_callback){var cb=_callback;_callback=null;cb();} }
+  function _finish() { _cleanup(); if(window.StoryVoice)StoryVoice.stop(); if(_callback){var cb=_callback;_callback=null;cb();} }
 
   // Pairs with gameLoop()'s _storySceneHold check. Held keys are dropped on both edges.
   function _holdBegin() {
@@ -2117,4 +2119,14 @@
   window._sceneDrawFigure = _drawFigure;
   // Test-only: lets the contact-sheet harness scrub the beat clock. The render loop overwrites _beatT every frame anyway.
   window._sceneSetBeatT = function (v) { _beatT = v; };
+  // Dev hook for the workbench scene viewer (tools/workbench/figures.js): read-only position in the running scene.
+  window._sceneDebugState = function () {
+    if (!_canvas) return null;
+    var b = _beats[_beatIdx];
+    return { beat: _beatIdx, beats: _beats.length, beatT: _beatT, t: _t,
+             staged: (_spec && _spec.beats) ? _spec.beats.length : 0,
+             offset: (_chapter && _chapter._sceneBeatOffset) || 0,
+             text: b ? b.lines.join(' ') : '', speaker: b ? b.speaker : null,
+             typed: _typedLen >= (b ? b.lines.join(' ').length : 0) };
+  };
 })();

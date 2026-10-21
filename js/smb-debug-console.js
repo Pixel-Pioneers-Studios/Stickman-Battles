@@ -916,6 +916,7 @@ function _consoleExec(raw) {
       trueform:      'trueform',
       sovereign:     'sovereignBeaten',
       absoluteaxiom: 'absoluteAxiomUnlocked',
+      fallengod:     'fallenGodBeaten',
       god:           'godDefeated',
       bossrush:      'bossRushUnlocked',
       megaknight:    'megaknight',

@@ -43,6 +43,10 @@ function _cheatUnlockAll() {
   const _aaCard = document.getElementById('modeAbsoluteAxiom');
   if (_aaCard) _aaCard.style.display = '';
 
+  if (typeof setAccountFlagWithRuntime === 'function') {
+    setAccountFlagWithRuntime(['unlocks', 'fallenGodBeaten'], true, function(v) { fallenGodBeaten = v; });
+  } else { fallenGodBeaten = true; }
+
   if (typeof ACHIEVEMENTS !== 'undefined') {
     ACHIEVEMENTS.forEach(a => {
       if (typeof unlockAchievement === 'function') unlockAchievement(a.id);
@@ -275,12 +279,18 @@ function applyCode(val) {
     if (aaCard) aaCard.style.display = '';
     if (typeof saveGame === 'function') saveGame();
     ok('ABSOLUTE AXIOM unlocked! Select it from the menu.');
+  } else if (code === 'THEWALLSHOLD') {
+    if (typeof setAccountFlagWithRuntime === 'function') {
+      setAccountFlagWithRuntime(['unlocks', 'fallenGodBeaten'], true, function(v) { fallenGodBeaten = v; });
+    } else { fallenGodBeaten = true; }
+    if (typeof saveGame === 'function') saveGame();
+    ok('The Fallen God will see you again. Find him in The Simulator → Refight.');
   } else if (code === 'UNLOCKALL') {
     _cheatUnlockAll();
     ok('Everything unlocked!');
   } else if (code === 'HELP' || code === 'CODES') {
     if (msgEl) {
-      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSKNIGHT · AXIOMSQUARED · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
+      msgEl.textContent = 'TRUEFORM · SOVEREIGN · CLASSKNIGHT · AXIOMSQUARED · THEWALLSHOLD · UNLOCKALL · GODMODE · FULLHEAL · KILLBOSS · SETHP:<n> · MAP:<arena> · WEAPON:<key> · CLASS:<key>';
       msgEl.style.color = '#aabbff'; msgEl.style.fontSize = '0.7rem';
     }
   } else {

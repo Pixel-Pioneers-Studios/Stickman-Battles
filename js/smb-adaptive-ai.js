@@ -609,17 +609,20 @@ class AdaptiveAI extends Fighter {
       const r = this._auraR, g = this._auraG, b = this._auraB;
 
       ctx.save();
-      const grd = ctx.createRadialGradient(
-        this.cx(), this.cy(), 4,
-        this.cx(), this.cy(), auraRadius
-      );
-      grd.addColorStop(0,   `rgba(${r},${g},${b},${Math.min(1, auraAlpha * 2.2).toFixed(2)})`);
-      grd.addColorStop(0.5, `rgba(${r},${g},${b},${auraAlpha.toFixed(2)})`);
-      grd.addColorStop(1,   `rgba(${r},${g},${b},0)`);
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(this.cx(), this.cy(), auraRadius, 0, Math.PI * 2);
-      ctx.fill();
+      // Sovereign gets the ring only: the filled orb hid his body and his wind-ups.
+      if (!this.isSovereignMK2) {
+        const grd = ctx.createRadialGradient(
+          this.cx(), this.cy(), 4,
+          this.cx(), this.cy(), auraRadius
+        );
+        grd.addColorStop(0,   `rgba(${r},${g},${b},${Math.min(1, auraAlpha * 2.2).toFixed(2)})`);
+        grd.addColorStop(0.5, `rgba(${r},${g},${b},${auraAlpha.toFixed(2)})`);
+        grd.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        ctx.arc(this.cx(), this.cy(), auraRadius, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Pulsing ring at higher intelligence
       if (this.intelligence > 0.55) {
@@ -648,8 +651,8 @@ class AdaptiveAI extends Fighter {
 
     super.draw();
 
-    // "ADAPTING" label
-    if (this.intelligence > 0.35 && this.health > 0) {
+    // "ADAPTING" label (not on Sovereign: he shows no overhead labels)
+    if (this.intelligence > 0.35 && this.health > 0 && !this.isSovereignMK2) {
       ctx.save();
       const r = this._auraR, g = this._auraG, b = this._auraB;
       const alpha = 0.35 + this.intelligence * 0.55;

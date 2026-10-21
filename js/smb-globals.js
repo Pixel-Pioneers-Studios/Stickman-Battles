@@ -1225,6 +1225,7 @@ let storyChapterCtx     = null;  // { origId, noAdaptive }: set at story fight l
 let storyOpponentColor  = null;  // hex color for the story opponent fighter (applied at spawn)
 let storyCharId         = null;  // named character ID for appearance overlay ('veran','herald', etc.)
 let storyBossType       = null;  // 'fallen_god' | null: overrides which Boss subclass is spawned
+let simBossType         = null;  // 'fallen_god' | null: Simulator refight's Boss subclass; cleared by selectMode
 let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
 let storyPhaseIndicator = null;  // { index, total, label, type }
 let storyGauntletState  = null;  // active chapter phase runtime
@@ -1363,6 +1364,7 @@ let storyOnline        = false; // set true after online story completion
 let godEncountered        = false; // set true after first God encounter
 let godDefeated           = false; // set true after God is defeated in Phase 2
 let absoluteAxiomUnlocked = false; // set true by cheat code AXIOMSQUARED
+let fallenGodBeaten       = false; // set true by beating the Fallen God (story ch80) or cheat code THEWALLSHOLD
 let playerCoins        = 0;     // coin balance; hydrated per account
 let unlockedCosmetics  = [];    // cosmetic IDs; hydrated per account
 

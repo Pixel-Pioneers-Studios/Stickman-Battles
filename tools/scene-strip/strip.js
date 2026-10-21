@@ -1,25 +1,27 @@
-// node strip.js <outdir> <id> [every=24] [maxFrames=2400]
+// node strip.js <outdir> <id> [every=24] [maxFrames=2400] [after]
+// 'after' plays the chapter's afterNarrative, staged at the narrative's beat-count offset like _playBranchAfterNarrative.
 const { launch } = require('/Users/aarushgupta/Developer/Personal/Stickman-Battles/tools/showcase/harness.js');
 const fs = require('fs');
 (async () => {
-  const out = process.argv[2], id = +process.argv[3], every = +(process.argv[4] || 24), maxF = +(process.argv[5] || 2400);
+  const out = process.argv[2], id = +process.argv[3], every = +(process.argv[4] || 24), maxF = +(process.argv[5] || 2400), after = process.argv[6] === 'after';
   const g = await launch({ width: 1280, height: 720, offline: true, port: 8100 + (id % 60) });
   await g.eval(() => { try { tutorialActive = false; backToMenu(); } catch (e) {} });
   await g.manual();
-  await g.eval(() => { performance.now = () => window.__t; });
-  const ok = await g.eval((id) => {
-    const ch = STORY_CHAPTER_REGISTRY.find(c => c.id === id);
-    const lines = ch.narrative || ch.lines || ch.text;
+  await g.eval(() => { performance.now = () => window.__t; try { settings.storyVoice = false; } catch (e) {} });
+  const ok = await g.eval((id, after) => {
+    let ch = STORY_CHAPTER_REGISTRY.find(c => c.id === id);
+    let lines = ch.narrative || ch.lines || ch.text;
+    if (after) { const off = window._storyBeatCount(lines); lines = ch.afterNarrative; ch = Object.assign({}, ch, { noFight: true, _sceneBeatOffset: off }); }
     window.__done = false;
     showNarrativeScene(lines, ch, () => { window.__done = true; }, { cinematic: true, holdLastBeat: true });
     window.__sheet = null; window.__thumbs = [];
     return !!lines;
-  }, id);
+  }, id, after);
   const COLS = 5, ROWS = 4, TW = 384, TH = 216;
   let n = 0, sheetIdx = 0, f = 0, lastSig = '', same = 0;
   const flush = async () => {
     const url = await g.eval(() => window.__sheet ? window.__sheet.toDataURL('image/jpeg', 0.85) : null);
-    if (url) fs.writeFileSync(`${out}/s${id}-${sheetIdx}.jpg`, Buffer.from(url.split(',')[1], 'base64'));
+    if (url) fs.writeFileSync(`${out}/s${id}${after ? 'a' : ''}-${sheetIdx}.jpg`, Buffer.from(url.split(',')[1], 'base64'));
     sheetIdx++; await g.eval(() => { window.__sheet = null; });
   };
   while (f <= maxF) {

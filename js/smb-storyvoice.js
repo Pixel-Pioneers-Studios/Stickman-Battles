@@ -1,29 +1,34 @@
-// StoryVoice: speaks story dialogue aloud via the Web Speech API. Only lines with a
-// speaker are voiced. Captions stay on screen regardless.
+// StoryVoice: speaks story dialogue aloud. Lines rendered by tools/voice/render.py play from
+// audio/voice/; anything else falls back to the Web Speech API. Captions stay on screen regardless.
 
 (function () {
   'use strict';
 
   const synth = (typeof window !== 'undefined') ? window.speechSynthesis : null;
 
-  // Per-speaker voices. voiceHint names match in order against system voice names.
+  // Fallback voices for lines with no recorded file. Pitch stays at 1: shifting it is what made voices crack.
+  // voiceHint names match in order against system voice names; the neural/premium voices come first.
+  const NATURAL = ['Natural', 'Neural', 'Premium', 'Enhanced', 'Google'];
   const PROFILES = {
-    GOD:   { pitch: 0.5,  rate: 0.85, voiceHint: ['Daniel', 'Ralph', 'Google UK English Male'] },
-    KAEL:  { pitch: 0.92, rate: 1.0,  voiceHint: ['Ralph', 'Fred', 'Rishi', 'Google US English'] },
-    YOU:   { pitch: 0.92, rate: 1.0,  voiceHint: ['Ralph', 'Fred', 'Rishi', 'Google US English'] },
-    GUIDE: { pitch: 1.08, rate: 0.96, voiceHint: ['Moira', 'Tessa', 'Karen', 'Samantha'] },
+    GOD:   { rate: 0.9,  voiceHint: [...NATURAL, 'Daniel'] },
+    KAEL:  { rate: 1.0,  voiceHint: [...NATURAL, 'Alex', 'Aaron'] },
+    YOU:   { rate: 1.0,  voiceHint: [...NATURAL, 'Alex', 'Aaron'] },
+    GUIDE: { rate: 1.0,  voiceHint: [...NATURAL, 'Serena', 'Kate', 'Samantha'] },
     // 'none' = narration, 'player' = you, 'npc' = other characters
-    none:   { pitch: 1.0,  rate: 0.96, voiceHint: ['Samantha', 'Tessa', 'Google US English'] },
-    player: { pitch: 0.92, rate: 1.0,  voiceHint: ['Ralph', 'Fred', 'Rishi', 'Google US English'] },
-    npc:    { pitch: 0.9,  rate: 0.98, voiceHint: ['Daniel', 'Ralph', 'Google UK English Male'] },
-    _default: { pitch: 1.0, rate: 1.0, voiceHint: ['Samantha', 'Google US English'] }
+    none:   { rate: 0.98, voiceHint: [...NATURAL, 'Samantha', 'Ava'] },
+    player: { rate: 1.0,  voiceHint: [...NATURAL, 'Alex', 'Aaron'] },
+    npc:    { rate: 0.98, voiceHint: [...NATURAL, 'Daniel', 'Alex'] },
+    _default: { rate: 1.0, voiceHint: [...NATURAL, 'Samantha'] }
   };
+  const BAD_VOICES = /\b(Fred|Ralph|Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Good News|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Junior|Kathy|Princess|Deranged|Hysterical)\b/i;
+  const VOICE_DIR = 'audio/voice/';
 
   let _voices = [];
   let _lastSub = null;   // last subtitle we reacted to
   let _rafId = 0;
   let _duckUntil = 0;    // music stays ducked until this time
   let _ducked = false;
+  let _audio = null;     // one element, reused: a recorded line replaces the previous one
 
   const DUCK_RELEASE_MS = 700; // stops gaps between lines from strobing the music
 
@@ -37,7 +42,7 @@
   }
 
   function _updateDuck() {
-    const speaking = !!synth && (synth.speaking || synth.pending);
+    const speaking = isSpeaking();
     const now = (typeof performance !== 'undefined') ? performance.now() : Date.now();
     if (speaking) _duckUntil = now + DUCK_RELEASE_MS;
     _setDuck(now < _duckUntil);
@@ -51,12 +56,47 @@
   function _resolveVoice(profile) {
     if (!_voices.length) _loadVoices();
     if (!_voices.length) return null;
+    const en = _voices.filter(v => /^en/i.test(v.lang) && !BAD_VOICES.test(v.name || ''));
     for (const hint of (profile.voiceHint || [])) {
       const h = hint.toLowerCase();
-      const v = _voices.find(v => v.name && v.name.toLowerCase().includes(h));
+      const v = en.find(v => v.name && v.name.toLowerCase().includes(h));
       if (v) return v;
     }
-    return _voices.find(v => /^en/i.test(v.lang)) || _voices[0] || null;
+    return en.find(v => v.default) || en[0] || _voices[0] || null;
+  }
+
+  // Must match key() in tools/voice/extract-lines.js.
+  function _key(speaker, text) {
+    const s = (speaker || 'none') + '|' + String(text).replace(/\s+/g, ' ').trim();
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+
+  function _voiceVolume() {
+    if (typeof SoundManager === 'undefined' || !SoundManager) return 1;
+    if (SoundManager.isMuted && SoundManager.isMuted()) return 0;
+    // SFX volume defaults to 0.35; the voice sits at full volume there and scales with the slider.
+    const v = SoundManager.getVolume ? SoundManager.getVolume() : 0.35;
+    return Math.max(0, Math.min(1, v / 0.35));
+  }
+
+  function _playRecorded(text, speaker) {
+    if (typeof STORY_VOICE_LINES === 'undefined' || typeof Audio === 'undefined') return false;
+    const k = _key(speaker, text);
+    if (!STORY_VOICE_LINES.has(k)) return false;
+    if (!_audio) _audio = new Audio();
+    _audio.pause();
+    _audio.src = VOICE_DIR + k + '.mp3';
+    _audio.volume = _voiceVolume();
+    const p = _audio.play();
+    if (p && p.catch) p.catch(() => {});
+    return true;
+  }
+
+  function isSpeaking() {
+    if (_audio && !_audio.paused && !_audio.ended) return true;
+    return !!synth && (synth.speaking || synth.pending);
   }
 
   function _enabled() {
@@ -64,16 +104,19 @@
   }
 
   function speak(text, speaker) {
-    if (!synth || !text || !_enabled()) return;
-    const profile = PROFILES[speaker] || PROFILES._default;
+    if (!text || !_enabled()) return;
     try {
-      synth.cancel();  // one line at a time
-      const u = new SpeechSynthesisUtterance(String(text));
-      const v = _resolveVoice(profile);
-      if (v) u.voice = v;
-      u.pitch = profile.pitch;
-      u.rate = profile.rate;
-      synth.speak(u);
+      if (synth) synth.cancel();  // one line at a time
+      if (!_playRecorded(text, speaker)) {
+        if (_audio) _audio.pause();
+        if (!synth) return;
+        const profile = PROFILES[speaker] || PROFILES._default;
+        const u = new SpeechSynthesisUtterance(String(text));
+        const v = _resolveVoice(profile);
+        if (v) u.voice = v;
+        u.rate = profile.rate;
+        synth.speak(u);
+      }
       _duckUntil = ((typeof performance !== 'undefined') ? performance.now() : Date.now()) + DUCK_RELEASE_MS;
       _setDuck(true);
     } catch (e) { /* speech is non-critical; never let it break a frame */ }
@@ -81,6 +124,7 @@
 
   function stop() {
     if (synth) { try { synth.cancel(); } catch (e) {} }
+    if (_audio) { try { _audio.pause(); } catch (e) {} }
     _duckUntil = 0;
     _setDuck(false);
   }
@@ -96,17 +140,19 @@
   }
 
   function start() {
-    if (!synth || _rafId) return;
-    _loadVoices();
-    if (typeof synth.addEventListener === 'function') synth.addEventListener('voiceschanged', _loadVoices);
-    else if ('onvoiceschanged' in synth) synth.onvoiceschanged = _loadVoices;
+    if (_rafId) return;
+    if (synth) {
+      _loadVoices();
+      if (typeof synth.addEventListener === 'function') synth.addEventListener('voiceschanged', _loadVoices);
+      else if ('onvoiceschanged' in synth) synth.onvoiceschanged = _loadVoices;
+    }
     const cb = document.getElementById('settingStoryVoice');
     if (cb && typeof settings !== 'undefined' && settings) cb.checked = settings.storyVoice !== false;
     _rafId = requestAnimationFrame(_tick);
   }
 
   window.StoryVoice = {
-    speak, stop, start, _resolveVoice, _loadVoices,
+    speak, stop, start, isSpeaking, _resolveVoice, _loadVoices, _key,
     get voices() { return _voices; }
   };
 

@@ -1649,7 +1649,7 @@ class Fighter {
               this._whipApplyBleed(tgt, _wCrack);
               if (_wCrack) {
                 tgt.stunTimer = Math.max(tgt.stunTimer || 0, 11);
-                tgt._whipSlow = Math.max(tgt._whipSlow || 0, 14);
+                tgt._whipSlow = Math.max(tgt._whipSlow || 0, 8);
                 spawnParticles(this._whipCrack.x, this._whipCrack.y, '#ffee99', 12);
                 screenShake = Math.max(screenShake, 9);
               }
@@ -2748,11 +2748,12 @@ class Fighter {
     return Math.round(dmg);
   }
 
-  // Whip bleed. Refreshes instead of stacking, so pokes can't multiply the DoT. A crack just adds ticks.
+  // Whip bleed. Cracks only (Oct 18 2026 nerf: body pokes bled too, and bleed was a fifth of a
+  // whip user's damage). Refreshes instead of stacking, so pokes can't multiply the DoT.
   _whipApplyBleed(tgt, crack) {
-    if (!tgt || tgt.health <= 0) return;
+    if (!tgt || tgt.health <= 0 || !crack) return;
     const w = this.weapon || {};
-    const ticks = crack ? ((w.bleedTicks || 3) + 2) : (w.bleedTicks || 3);
+    const ticks = w.bleedTicks || 3;
     const dmg   = w.bleedDmg || 2;
     const cur   = tgt._whipBleed;
     tgt._whipBleed = {

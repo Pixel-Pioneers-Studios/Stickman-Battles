@@ -880,7 +880,8 @@ function _launchChapter2FightImmediate(ch) {
   storyCurrentLevel = Math.min(8, Math.floor(id / 5) + 1);
 
   // Boss chapter: register director sequences that fire during the fight
-  if (ch.isBossFight && typeof directorOnce === 'function') {
+  // These beats are the Creator's voice. The Fallen God runs his own lines (smb-fallen-god.js).
+  if (ch.isBossFight && ch.bossType !== 'fallen_god' && typeof directorOnce === 'function') {
     setTimeout(() => {
       const _boss = players && players.find(p => p.isBoss);
       if (!_boss) return;
@@ -930,7 +931,6 @@ function _launchChapter2FightImmediate(ch) {
   }
 
   if (typeof startGame === 'function') startGame();
-  setTimeout(() => { if (players[0]) _applySkillTreeToPlayer(players[0]); }, 50);
 
   // World boss variant: patch the boss after players[] is populated
   if (ch.isWorldBoss) {
@@ -1025,7 +1025,6 @@ function _launchAssassinationChapter(ch) {
 
   if (typeof startGame === 'function') startGame();
   setTimeout(() => {
-    if (players[0]) _applySkillTreeToPlayer(players[0]);
     if (typeof initAssassinationMode === 'function') initAssassinationMode(ch);
   }, 80);
 }
@@ -1083,7 +1082,6 @@ function _launchGauntletChapter(ch) {
 
   if (typeof startGame === 'function') startGame();
   setTimeout(() => {
-    if (players[0]) _applySkillTreeToPlayer(players[0]);
     if (typeof initGauntletMode === 'function') initGauntletMode(ch);
   }, 80);
 }

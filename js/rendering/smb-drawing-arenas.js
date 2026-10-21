@@ -3169,7 +3169,7 @@ function checkDeaths() {
             p.invincible = 9999; // the Fight Ladder shows its own result card, not endGame
           } else if (typeof minigameOnPlayerOut === 'function' && minigameOnPlayerOut(p)) {
             // survival decides for itself: sit out, last standing, or wiped out
-          } else if (boss && boss.health < boss.maxHealth * 0.33 && !fakeDeath.triggered && gameMode === 'boss') {
+          } else if (boss && !boss.isFallenGod && boss.health < boss.maxHealth * 0.33 && !fakeDeath.triggered && gameMode === 'boss') {
             // Use Paradox revive if available, otherwise fall back to standard fake-death
             if (typeof triggerParadoxRevive === 'function') {
               triggerParadoxRevive(p);
@@ -3295,7 +3295,9 @@ function endGame() {
   const bossDefeated = isBossModeEnd && bossEntity && bossEntity.health <= 0;
   // In two-enemy story mode, multiple bots may still be alive: the winner is the surviving human
   // F7 possession flips the human's fighter to isAI=true while the human still owns the slot,
-  const _isHumanOwned = p => !!p && (!p.isAI || (typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === p));
+  // The brain (smb-brain.js) drives Sovereign with isAI=false. That body is not a human either.
+  const _brainDriven = p => !!p && typeof Brain !== 'undefined' && !!Brain.live && Brain.live.f === p;
+  const _isHumanOwned = p => !!p && !_brainDriven(p) && (!p.isAI || (typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === p));
   const _aliveHuman = alive.find(p => _isHumanOwned(p) && !p.isBoss);
   // God fight lives in minions[], so when every human is out, God (not a DRAW) took the match.
   const _godFoe = (gameMode === 'god' && Array.isArray(minions)) ? minions.find(m => m && m.isGod && m.health > 0) : null;
@@ -3339,12 +3341,12 @@ function endGame() {
   // Coin rewards
   let _adOfferCoins = 0;
   if (typeof awardCoins === 'function') {
-    const _humanPlayers = players.filter(p => !p.isAI && !p.isBoss);
+    const _humanPlayers = players.filter(p => !p.isAI && !p.isBoss && !_brainDriven(p));
     if (_humanPlayers.length > 0) {
       // Base: 5 coins per match played; bonus for winning or beating boss
       let _coins = 5;
       if (bossDefeated) _coins += 20;
-      else if (winner && !winner.isAI && !winner.isBoss) _coins += 10;
+      else if (winner && !winner.isAI && !winner.isBoss && !_brainDriven(winner)) _coins += 10;
       const _coinMult = (window.LiveOps && typeof LiveOps.getCoinMult === 'function') ? LiveOps.getCoinMult() : 1;
       const _rewardCoins = Math.round(_coins * _coinMult);
       _adOfferCoins = _rewardCoins;
@@ -3364,7 +3366,7 @@ function endGame() {
     }
   }
 
-  if (achievWinner && !achievWinner.isBoss && !achievWinner.isAI) {
+  if (achievWinner && !achievWinner.isBoss && !achievWinner.isAI && !_brainDriven(achievWinner)) {
     _achStats.totalWins++;
     _achStats.winStreak++;
     // First Blood: only when beating a hard AI bot
@@ -3395,6 +3397,9 @@ function endGame() {
       const _s2Card = document.getElementById('modeSovereign');
       if (_s2Card) _s2Card.style.display = '';
     }
+    // Sovereign Slayer: won the match he was in. Not while F7 has him playing the human's body.
+    if (players.some(p => p && p.isSovereignMK2) &&
+        !(typeof SovereignControl !== 'undefined' && SovereignControl.active)) unlockAchievement('sovereign_slayer');
     // KotH win
     if (gameMode === 'minigames' && minigameType === 'koth') unlockAchievement('koth_win');
     // PvP achievements: require both players dealt ≥40 damage (real fight condition)

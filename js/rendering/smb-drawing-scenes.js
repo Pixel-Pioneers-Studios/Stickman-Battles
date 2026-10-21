@@ -8,6 +8,7 @@ function startBossDeathScene(boss) {
     orbX: boss.cx(), orbY: boss.cy(),
     orbR: 0, orbVx: 0, orbVy: 0,
     camZoom: 1.0, camZoomTarget: 1.0,
+    fallenGod: !!boss.isFallenGod,
   };
   boss.invincible = 9999;
   screenShake     = 65;
@@ -20,6 +21,8 @@ function startBossDeathScene(boss) {
   bossSpikes  = [];
   const deathColors = boss.isTrueForm
     ? ['#000000','#111111','#222222','#ffffff','#cccccc','#888888','#444444']
+    : boss.isFallenGod
+    ? ['#ffcc44','#ffaa00','#fff2c0','#ffffff','#cc8800']
     : ['#cc00ee','#9900bb','#ff00ff','#000000','#ffffff','#6600aa','#ff88ff'];
   for (let _i = 0; _i < 100 && particles.length < MAX_PARTICLES; _i++) {
     const _a = Math.random() * Math.PI * 2;
@@ -31,7 +34,8 @@ function startBossDeathScene(boss) {
     _p.size = 2 + Math.random() * 8; _p.life = 80 + Math.random() * 100; _p.maxLife = 180;
     particles.push(_p);
   }
-  const deathLine = boss.isTrueForm ? '...form is a choice. I\'ll make another.' : 'This changes nothing.';
+  const deathLine = boss.isTrueForm ? '...form is a choice. I\'ll make another.'
+    : boss.isFallenGod ? 'The walls hold. So will you.' : 'This changes nothing.';
   showBossDialogue(deathLine, 360);
 }
 
@@ -41,6 +45,28 @@ function updateBossDeathScene() {
   sc.timer++;
   sc.camZoom = lerp(sc.camZoom || 1, sc.camZoomTarget || 1, 0.06);
   const boss = players.find(p => p.isBoss);
+
+  // Fallen God: not destroyed, satisfied. Gold light lifts off him, then the match ends.
+  // No orb or portal (that is the Creator escaping), and no Creator unlocks.
+  if (sc.fallenGod) {
+    sc.camZoomTarget = 1.35;
+    if (boss && sc.timer % 3 === 0) {
+      spawnParticles(boss.cx() + (Math.random()-0.5)*40, boss.y + Math.random()*boss.h,
+        Math.random() < 0.5 ? '#ffcc44' : '#fff2c0', 4);
+    }
+    if (sc.timer >= 200) {
+      bossDeathScene = null;
+      if (typeof setAccountFlagWithRuntime === 'function') {
+        setAccountFlagWithRuntime(['unlocks', 'fallenGodBeaten'], true, function(v) { fallenGodBeaten = v; });
+      } else {
+        fallenGodBeaten = true;
+      }
+      endGame();
+      return;
+    }
+    sc.camZoom = sc.camZoom + (sc.camZoomTarget - sc.camZoom) * 0.04;
+    return;
+  }
 
   if (sc.phase === 'shatter') {
     sc.camZoomTarget = 1.5;

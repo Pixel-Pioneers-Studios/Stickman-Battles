@@ -218,12 +218,17 @@ function triggerFinisher(attacker, target) {
   if (!attacker || !target) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode || window._pubHubActive) return false;
-  // Battle Royale: only finishers the local player is in. The world doesn't freeze. The two fighters step out of the match (invulnerable, bots ignore them).
+  // Battle Royale: only the victim watches. A kill the local player lands plays nothing (the heal is paid in
+  // _brCreditElimination). When the local player dies, a clone of the killer performs the finisher while the
+  // real killer is healed now and keeps fighting. The world doesn't freeze.
   const _world = gameMode === 'battleroyale';
+  let _realAttacker = null;
   if (_world) {
     if (activeWorldFinisher) return false;
     const _local = f => !f.isAI && !f.isRemote && players.indexOf(f) !== -1;
-    if (!_local(attacker) && !_local(target)) return false;
+    if (!_local(target) || _local(attacker)) return false;
+    _realAttacker = attacker;
+    attacker = _finMakeClone(attacker);
   }
 
   let def = null;
@@ -309,8 +314,9 @@ function triggerFinisher(attacker, target) {
     world: _world,
   };
   if (_world) {
+    _fin.realAttacker = _realAttacker;
     activeWorldFinisher = _fin;
-    _finCountAchievement(attacker);
+    _finPayHeal(_realAttacker, false);
     return true;
   }
   activeFinisher = _fin;
@@ -334,6 +340,36 @@ function _finCountAchievement(attacker) {
     unlockAchievement('first_finisher');
     if (_achStats.finisherCount >= 10) unlockAchievement('finisher_master');
   }
+}
+
+// Battle Royale stand-in for the killer: a copy that only the finisher moves and draws. It is in no list, so
+// nothing can hit or target it, and the real fighter's state is never touched.
+function _finMakeClone(src) {
+  const c = Object.assign(Object.create(Object.getPrototypeOf(src)), src);
+  // One level deeper for plain objects and arrays, so draw-time state the two bodies write doesn't alternate.
+  for (const k of Object.keys(c)) {
+    const v = c[k];
+    if (Array.isArray(v)) c[k] = v.slice();
+    else if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) c[k] = Object.assign({}, v);
+  }
+  c._finClone = true;
+  c._msScene = null; c._movePose = null;
+  c.attackTimer = 0; c.hurtTimer = 0; c.stunTimer = 0; c.ragdollTimer = 0; c.shielding = false;
+  c.target = null;
+  return c;
+}
+
+// The finisher kill heal. fx = show the number, particles and sound.
+function _finPayHeal(f, fx) {
+  if (!f || f.health <= 0 || f.isBoss) return;
+  const amt = Math.min(FIN_HEAL, (f.maxHealth || 0) - f.health);
+  if (amt <= 0) return;
+  f.health += amt;
+  if (!fx) return;
+  if (typeof damageTexts !== 'undefined' && typeof DamageText !== 'undefined')
+    damageTexts.push(new DamageText(f.cx(), f.y - 30, '+' + amt, '#44ff88'));
+  if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#44ff88', 14);
+  if (typeof SoundManager !== 'undefined' && SoundManager.superHeal) SoundManager.superHeal();
 }
 
 // World finishers leave the match clock alone. Defs drive slowMotion and hit-stop via CinCam.
@@ -413,7 +449,9 @@ function _finTickWorld(fin) {
   const { attacker, target, def, data } = fin;
   const gone = f => !f || (players.indexOf(f) === -1 && (typeof minions === 'undefined' || minions.indexOf(f) === -1));
   const keep = _finSaveTime();
-  if (gone(attacker) || gone(target) || !gameRunning) { _finEndWorld(fin, false); _finRestoreTime(keep); return; }
+  if ((!attacker._finClone && gone(attacker)) || gone(target) || !gameRunning) { _finEndWorld(fin, false); _finRestoreTime(keep); return; }
+  // The clone is in no list, so nothing else ticks its animation.
+  if (attacker._finClone) { attacker.animTimer = (attacker.animTimer || 0) + 1; attacker.updateState(); }
   target.invincible   = Math.max(target.invincible, 2);
   attacker.invincible = Math.max(attacker.invincible, 2);
   if (fin.timer === 1 && typeof CinFX !== 'undefined') {
@@ -444,22 +482,18 @@ function _finEndWorld(fin, completed) {
     target.health = 0; target.invincible = 0;
     return;
   }
-  if (attacker.health > 0) {
-    attacker.invincible = Math.max(attacker.invincible || 0, FIN_RECOVER_IFRAMES);
-    const _finHeal = attacker.isBoss ? 0 : Math.min(FIN_HEAL, (attacker.maxHealth || 0) - attacker.health);
-    if (_finHeal > 0) {
-      attacker.health += _finHeal;
-      if (typeof damageTexts !== 'undefined' && typeof DamageText !== 'undefined')
-        damageTexts.push(new DamageText(attacker.cx(), attacker.y - 30, '+' + _finHeal, '#44ff88'));
-      if (typeof spawnParticles === 'function') spawnParticles(attacker.cx(), attacker.cy(), '#44ff88', 14);
-      if (typeof SoundManager !== 'undefined' && SoundManager.superHeal) SoundManager.superHeal();
-    }
-  }
   target.health = 0;
   target.invincible = 0;
-// Killing blow ran through dealDamage at 1 HP, so the elimination wasn't credited. The heal is paid above.
+  // Killing blow ran through dealDamage at 1 HP, so the elimination wasn't credited. The real killer was healed at the start.
   target._brFinKill = true;
-  if (typeof _brCreditElimination === 'function') _brCreditElimination(attacker, target);
+  if (typeof _brCreditElimination === 'function') _brCreditElimination(fin.realAttacker || attacker, target);
+}
+
+// The clone is drawn with the fighters (world space), since it is in no list the loop draws.
+function drawWorldFinisherClone() {
+  if (typeof activeWorldFinisher === 'undefined' || !activeWorldFinisher) return;
+  const a = activeWorldFinisher.attacker;
+  if (a && a._finClone && a.health > 0) a.draw();
 }
 
 // DRAW (called in screen-space after drawAchievementPopups)

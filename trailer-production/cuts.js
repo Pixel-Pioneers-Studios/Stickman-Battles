@@ -225,4 +225,91 @@ function shortWeapons() {
     stingers: [{ k: 'stingImpact', at: E, g: 1.6 }, { k: 'explosion', at: E, g: 1.0 }] };
 }
 
-module.exports = { main, cut30, shortFinishers, shortBoss, shortWeapons };
+
+// "Every arena has its own way to kill you": one hazard kill per arena
+// (capture.js hz* shots). Each clip is 2 bars and the kill lands on the
+// second downbeat; the kill frame is read from the capture log, so a re-take
+// needs no re-timing here.
+function hzKill(shot) {
+  const fs = require('fs'), path = require('path');
+  const L = JSON.parse(fs.readFileSync(path.join(__dirname, 'work', 'vert', shot + '.json'), 'utf8')).log;
+  const k = L.findIndex(e => e && e.kill);
+  if (k < 0) throw new Error(shot + ': no kill in the capture, re-run capture.js vert ' + shot);
+  return k;
+}
+function shortArenas() {
+  // Space, forest (beast) and ice (yeti) never gave a clean hazard kill in
+  // capture: the victim died to a move, a fall or a finisher instead.
+  const CLIP = 192, LEAD = 96;
+  const list = [['hzCity', 'TRAFFIC'], ['hzVolcano', 'GEYSERS'], ['hzCave', 'STALACTITES'], ['hzCyber', 'LIVE RAILS']];
+  const segs = list.map(([shot]) => ({ shot, at: Math.max(0, hzKill(shot) - LEAD), len: CLIP, zoom: VZ }));
+  const E = list.length * CLIP;
+  segs.push({ shot: 'duel', at: 220, len: 180, zoom: VZ });
+  const overlays = [
+    { type: 'vignette', a: 0.3 },
+    slam(4, CLIP - 6, ['EVERY ARENA', 'CAN KILL YOU'], 0.2, 112, { bar: false }),
+    ...list.map(([, name], i) => tag(i * CLIP + 6, (i + 1) * CLIP - 4, name, 0.07, i === 0 ? 0.4 : 0.2, { size: 66 })),
+    ingame(E, true),
+    ...vEnd(E, 180),
+  ];
+  return { name: 'short-4-arenas-1080x1920', profile: 'vert', W: 1080, H: 1920, segs, overlays,
+    music: { file: BR, from: 8 * 1.6, fadeOut: 2.0, gain: 1.0, fadeIn: 0.15 },
+    stingers: [{ k: 'stingImpact', at: E, g: 1.6 }, { k: 'explosion', at: E, g: 1.0 }] };
+}
+
+// Story worlds, unnamed: one bar per non-spoiler world (capture.js sw* shots).
+// Shadow Realm is left out: it plays almost black. "24 WORLDS" is the story
+// map's world count (STORY_MAP_WORLDS, all with chapters); the rest stay hidden.
+function shortWorlds() {
+  const B = 100;
+  const list = [['swWar', 140], ['swForest', 60], ['swIce', 0], ['swRuins', 260], ['swNeutral', 290],
+    ['swFlux', 40], ['swQuiet', 90], ['swCoast', 200], ['swHome', 280], ['swTitan', 460]];
+  const segs = list.map(([shot, at]) => ({ shot, at, len: B, zoom: VZ }));
+  const E = list.length * B;
+  segs.push({ shot: 'duel', at: 220, len: 180, zoom: VZ });
+  const overlays = [
+    { type: 'vignette', a: 0.3 },
+    slam(4, 2 * B - 6, ['24 WORLDS', 'ONE FIGHTER'], 0.2, 112, { bar: false }),
+    slam(E - 2 * B + 6, E - 4, ['THIS IS ONLY', 'THE BEGINNING'], 0.2, 100, { bar: false, fill: 'logo' }),
+    ingame(E, true),
+    ...vEnd(E, 180),
+  ];
+  return { name: 'short-5-worlds-1080x1920', profile: 'vert', W: 1080, H: 1920, segs, overlays,
+    music: { file: BOSS, from: 16 * 240 / 144, fadeOut: 2.0, gain: 1.0, fadeIn: 0.2 },
+    stingers: [{ k: 'stingLow', at: 0, g: 1.2 }, { k: 'stingImpact', at: E, g: 1.6 }, { k: 'explosion', at: E, g: 1.0 }] };
+}
+
+// Finishers part 2 (capture.js f2* shots). Built from the Shorts analytics:
+// the first short held 24% of viewers, the ones that opened on a title card or
+// a dark/purple arena held 0-7%. So frame 0 is already an impact, every clip
+// starts on its finisher (read from the capture log), arenas are bright, and
+// the caption is a question that needs no context. One bar per clip.
+function finStart(shot) {
+  const fs = require('fs'), path = require('path');
+  const L = JSON.parse(fs.readFileSync(path.join(__dirname, 'work', 'vert', shot + '.json'), 'utf8')).log;
+  const k = L.findIndex(e => e && e.fin);
+  if (k < 0) throw new Error(shot + ': no finisher in the capture, re-run capture.js vert ' + shot);
+  return k;
+}
+function shortFinishers2() {
+  const B = 96;
+  // [shot, tag, frames before the finisher starts]: the flamethrower opens on its
+  // muzzle blast, a few frames before the finisher itself takes over.
+  const list = [['f2Flame', 'FLAMETHROWER', 6], ['f2Pan', 'FRYING PAN', 6], ['f2Axe', 'AXE', 6], ['f2Spear', 'SPEAR', 6],
+    ['f2Flail', 'FLAIL', 6], ['f2Whip', 'WHIP', 6], ['f2Bow', 'BOW', 6]];
+  const segs = list.map(([shot, , lead]) => ({ shot, at: finStart(shot) - lead, len: B, zoom: VZ }));
+  const E = list.length * B;
+  segs.push({ shot: 'duel', at: 220, len: 180, zoom: VZ });
+  const overlays = [
+    { type: 'vignette', a: 0.3 },
+    slam(0, 2 * B - 4, ['WHICH FINISHER', 'IS BEST?'], 0.17, 96, { bar: false }),
+    ...list.map(([, name], i) => tag(i * B + 2, (i + 1) * B - 2, name, 0.07, i < 2 ? 0.3 : 0.2, { size: 66 })),
+    ingame(E, true),
+    ...vEnd(E, 180),
+  ];
+  return { name: 'short-6-finishers2-1080x1920', profile: 'vert', W: 1080, H: 1920, segs, overlays,
+    music: { file: BR, from: 4 * 1.6, fadeOut: 2.0, gain: 1.0, fadeIn: 0 },
+    stingers: [{ k: 'stingImpact', at: E, g: 1.6 }, { k: 'explosion', at: E, g: 1.0 }] };
+}
+
+module.exports = { main, cut30, shortFinishers, shortBoss, shortWeapons, shortArenas, shortWorlds, shortFinishers2 };

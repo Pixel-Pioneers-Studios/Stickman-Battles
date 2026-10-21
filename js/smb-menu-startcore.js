@@ -89,6 +89,8 @@ function _startGameCore() {
   } else if (isBossMode) {
     // An authored story arena keeps the Creator boss rules via isBossArena. Other boss matches use 'creator'.
     currentArenaKey = (storyModeActive && selectedArena === '__storyarena__' && ARENAS.__storyarena__ && ARENAS.__storyarena__.isBossArena) ? '__storyarena__' : 'creator';
+    // The Fallen God fights in the open between dimensions, not inside the Creator's construct.
+    if (currentArenaKey === 'creator' && _isFallenGodFight() && ARENAS.space) currentArenaKey = 'space';
   } else if (isTrainingMode) {
     currentArenaKey = 'training';
   } else if (isTrueFormMode) {
@@ -330,7 +332,12 @@ function _startGameCore() {
   // Player 1  (W/A/D move · S=shield · Space=attack · Q=ability)
   const p1 = new Fighter(160, 300, c1, w1, { left:'a', right:'d', jump:'w', attack:' ', shield:'s', ability:'q', super:'e' }, p1IsBot, p1Diff);
   p1.playerNum = 1; p1.name = p1IsBot ? 'BOT1' : 'P1'; p1.lives = chosenLives;
-  const _p1SpawnPos = pickSafeSpawn('left') || { x: 160, y: 300 };
+  // Story worlds start at the world's left edge. pickSafeSpawn picks the highest ledge near a stale
+  // camera, which could drop the player most of the way to the exit. Compact arenas (defense) keep the old pick.
+  const _p1SpawnPos = (storyModeActive && currentArena && currentArena.isExploreArena &&
+    (currentArena.worldWidth || 0) > GAME_W * 1.5 && typeof pickSafeSpawnNear === 'function'
+    ? pickSafeSpawnNear((currentArena.mapLeft || 0) + 160, 'any') : null)
+    || pickSafeSpawn('left') || { x: 160, y: 300 };
   p1.spawnX = _p1SpawnPos.x; p1.spawnY = _p1SpawnPos.y; p1.x = _p1SpawnPos.x; p1.y = _p1SpawnPos.y - p1.h;
   p1.hat  = document.getElementById('p1Hat')?.value  || 'none';
   p1.cape = document.getElementById('p1Cape')?.value || 'none';
@@ -368,11 +375,11 @@ function _startGameCore() {
   if (isBossMode) {
     const _guestOnline = _onlinePeerPresent
       && typeof NetworkManager !== 'undefined' && !NetworkManager.isHost();
-    const boss = (storyBossType === 'fallen_god' && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
+    const boss = (_isFallenGodFight() && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
     // Online guests: mark boss as remote so loop skips its AI
     if (_guestOnline) { boss.isRemote = true; boss.isAI = false; }
   // True Creator: a much harder boss, needs the TRUEFORM code. Story has its own scaling below.
-    if (unlockedTrueBoss && !storyModeActive) {
+    if (unlockedTrueBoss && !storyModeActive && !boss.isFallenGod) {
       boss.health            = 4500;
       boss.maxHealth         = 4500;
       boss.attackCooldownMult = 0.28;
@@ -896,6 +903,8 @@ function _startGameCore() {
     }
   }
 
+  // Story upgrades, enemy scaling and Sovereign's mirror of the player (smb-story-engine-frame.js).
+  if (storyModeActive && typeof _storyApplyFightStartBuffs === 'function') _storyApplyFightStartBuffs();
   gameRunning = true;
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.startRecording();
   // Paradox companion: speak on boss start

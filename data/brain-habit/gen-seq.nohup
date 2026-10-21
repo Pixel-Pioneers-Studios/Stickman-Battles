@@ -1,0 +1,20 @@
+[Fri 22:33:59] base 15705 vs seq-train: {"hunterIter":15705,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"seq-train","wipe":0,"hunter":{"win":60.5,"taken":436,"lost":330,"habitFires":5115,"habitDealt":34674,"habitTaken":21411,"habitFiresLate":2117,"habitDealtLate":10820,"habitTakenLate":6853}}
+tools/brain/habitgen.sh: line 18: 62381 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Fri 22:36:55] base 15705 vs seq-test: {"hunterIter":15705,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"seq-test","wipe":0,"hunter":{"win":61,"taken":430,"lost":337,"habitFires":5517,"habitDealt":33193,"habitTaken":20365,"habitFiresLate":2434,"habitDealtLate":10944,"habitTakenLate":7121}}
+tools/brain/habitgen.sh: line 18: 62658 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Fri 22:36:55] generalist gen-seq: 6 h vs habits seq-train,none
+[Fri 22:38:33] generalist stopped (try 1, iter 15705 -> 15705): }
+[Sat 04:54:22] generalist stopped (try 2, iter 15705 -> 16192): [brain] stopped at iteration 16192; saved to data/brain-habit/gen-seq/
+[Sat 06:00:46] gen-seq vs seq-train wipe=0: {"hunterIter":16192,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"seq-train","wipe":0,"hunter":{"win":70,"taken":471,"lost":297,"habitFires":5764,"habitDealt":40307,"habitTaken":20748,"habitFiresLate":2447,"habitDealtLate":12169,"habitTakenLate":7035}}
+tools/brain/habitgen.sh: line 18: 90664 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Sat 06:01:58] gen-seq vs seq-train wipe=60: {"hunterIter":16192,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"seq-train","wipe":60,"hunter":{"win":67,"taken":459,"lost":303,"habitFires":5712,"habitDealt":40100,"habitTaken":19855,"habitFiresLate":2555,"habitDealtLate":13070,"habitTakenLate":7099}}
+tools/brain/habitgen.sh: line 18: 91476 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Sat 06:02:57] gen-seq vs seq-test wipe=0: {"hunterIter":16192,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"seq-test","wipe":0,"hunter":{"win":60.5,"taken":437,"lost":318,"habitFires":5321,"habitDealt":36292,"habitTaken":20221,"habitFiresLate":2116,"habitDealtLate":10314,"habitTakenLate":6971}}
+tools/brain/habitgen.sh: line 18: 91634 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Sat 06:04:00] gen-seq vs seq-test wipe=60: {"hunterIter":16192,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":"seq-test","wipe":60,"hunter":{"win":72,"taken":479,"lost":267,"habitFires":5315,"habitDealt":37932,"habitTaken":18930,"habitFiresLate":2239,"habitDealtLate":11898,"habitTakenLate":6026}}
+tools/brain/habitgen.sh: line 18: 91762 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Sat 06:04:59] gen-seq vs none wipe=0: {"hunterIter":16192,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":null,"wipe":0,"hunter":{"win":62,"taken":422,"lost":340,"habitFires":0,"habitDealt":0,"habitTaken":0,"habitFiresLate":0,"habitDealtLate":0,"habitTakenLate":0}}
+tools/brain/habitgen.sh: line 18: 91889 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Sat 06:05:57] gen-seq vs none wipe=60: {"hunterIter":16192,"targetIter":15705,"eps":200,"seed":1,"se":3.5355339059327378,"habit":null,"wipe":60,"hunter":{"win":61.5,"taken":433,"lost":333,"habitFires":0,"habitDealt":0,"habitTaken":0,"habitFiresLate":0,"habitDealtLate":0,"habitTakenLate":0}}
+tools/brain/habitgen.sh: line 18: 92015 Terminated: 15          ( sleep 600; kill $pid 2> /dev/null )
+[Sat 06:05:57] done

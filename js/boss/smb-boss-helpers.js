@@ -1,5 +1,5 @@
 // smb-boss-helpers.js
-// Boss and TrueForm helpers: debug API, TF arena reset, FallenGod, Axiom origin cutscene, depth-phase grid.
+// Boss and TrueForm helpers: debug API, TF arena reset, Axiom origin cutscene, depth-phase grid.
 // Depends on: smb-globals.js, smb-boss-effects.js, smb-boss-cinematics.js
 // Must load: AFTER smb-boss-effects.js, BEFORE smb-loop.js
 
@@ -168,36 +168,6 @@ function resetTFState() {
   if (typeof tfAbsorptionScene     !== 'undefined') tfAbsorptionScene     = null;
   const _cib = document.getElementById('ctrlInvertedBanner');
   if (_cib) _cib.style.display = 'none';
-}
-
-// FallenGod: Godfall arc boss, lore narrator after the epilogue.
-class FallenGod extends Boss {
-  constructor() {
-    super();
-    this.isFallenGod  = true;
-    this.name         = 'FALLEN GOD';
-    this.color        = '#ffaa00';
-    // 1.5x the story-scaled health. Multiplied after construction (see smb-menu.js patch).
-    this._healthMult  = 1.5;
-    // Slower beams: gravitas over speed
-    this.beamCooldown = 36;
-    this.minionCooldown = 24;
-    // Golden silhouette
-    this._fallenGodTint = true;
-  }
-
-  // Golden rim on top of the base Boss draw. Called as p.draw(), so no ctx parameter (it would shadow the canvas global).
-  draw() {
-    super.draw();
-    if (!this._fallenGodTint) return;
-    ctx.save();
-    ctx.globalAlpha = 0.18 + 0.08 * Math.sin(Date.now() / 400);
-    ctx.fillStyle   = '#ffcc44';
-    ctx.shadowColor = '#ffaa00';
-    ctx.shadowBlur  = 24;
-    ctx.fillRect(this.x - 4, this.y - 4, this.w + 8, this.h + 8);
-    ctx.restore();
-  }
 }
 
 // Axiom origin cutscene, played after the Fallen God falls. Full-screen overlay with its own RAF; calls onDoneCallback when done.

@@ -67,6 +67,10 @@ const HUNTERS = !args.hunters ? [] : String(args.hunters).split(',').flatMap(d =
 const HUNTER_DIRS = [...new Set(HUNTERS.map(h => h.dir))], SWITCH_SHARE = args['no-switch'] ? 0 : 0.5;
 const HUNT    = args.hunt ? (j => j.pi || j)(JSON.parse(fs.readFileSync(path.resolve(ROOT, args.hunt), 'utf8'))) : null;
 const HABITS  = args.habit ? String(args.habit).split(',') : [];
+// --ref=<checkpoint> --refkl=<beta> (needs --torch): the update also pays beta * KL(pi || ref), so the
+// net improves while staying near the reference's play. Made for a clone of the user
+// (tools/brain/clone_train.py): a hunter that wins without stopping to play like the user.
+const REF_JSON = args.ref ? (j => j.pi || j)(JSON.parse(fs.readFileSync(path.resolve(ROOT, args.ref), 'utf8'))) : null;
 const SNAPS   = path.join(DIR, 'snapshots');
 
 const CFG = {
@@ -75,6 +79,8 @@ const CFG = {
   seqLen: 128,                      // decisions per training piece with --gru (6.4 s of match)
   hidden: [128, 128],
   noveltyStart: 0.15, noveltyIters: 150,
+  refKl: parseFloat(args.refkl) || 0,
+  twitchPen: parseFloat(args.twitchpen) || 0,   // --twitchpen=<r>: reward paid per twitch turn
 };
 const STAGES = ['idle', 'easy', 'medium', 'hard', 'expert', 'league'];
 const RECYCLE = 150;
@@ -293,12 +299,14 @@ function withHunters(opps) {
     pi.addGru(Hg); vf.addGru(Hg);
     log(`added a ${Hg}-unit memory to both nets`);
   }
+  if (REF_JSON && !args.torch) { console.error('[brain] --ref needs --torch'); process.exit(1); }
   if (pi.gru && !args.torch) { console.error('[brain] this checkpoint has a memory (GRU); it only trains with --torch'); process.exit(1); }
   let gpool = null, piOpt = null, vfOpt = null, torch = null;
   if (args.torch) {
     const { TorchPPO } = require('./torch_client');
     torch = new TorchPPO(log);
-    const h = await torch.init(pi, vf, Object.assign({ HEADS }, CFG), THREADS, state.iter);
+    const h = await torch.init(pi, vf, Object.assign({ HEADS }, CFG), THREADS, state.iter, REF_JSON ? MLP.fromJSON(REF_JSON) : null);
+    if (REF_JSON) log(`reference policy loaded, refKl ${CFG.refKl}`);
     log(`update on PyTorch ${h.torch} (${h.device})`);
   } else {
     gpool = new GradPool(THREADS, pi, vf, Object.assign({ HEADS }, CFG));
@@ -322,7 +330,7 @@ function withHunters(opps) {
       try {
         if (state.iter > 0 && state.iter % RECYCLE === i % RECYCLE) throw new Error('recycle');
         return await w.page.evaluate(o => Brain.rollout(o),
-          { weights, steps: STEPS, novelty, maxFrames: 7200, opponents: withHunters(pickOpponents(state, pool, 40)), hunt: HUNT });
+          { weights, steps: STEPS, novelty, maxFrames: 7200, opponents: withHunters(pickOpponents(state, pool, 40)), hunt: HUNT, twitchPen: CFG.twitchPen });
       } catch (e) {
         if (e.message !== 'recycle') log(`worker ${w.id} failed (${e.message.slice(0, 80)}); relaunching`);
         await killBrowser(w.browser);
@@ -445,7 +453,7 @@ function withHunters(opps) {
     const perMin = k => (tot[k] / Math.max(1, tot.frames) * 3600).toFixed(1);
     const opps = Object.entries(byOpp).map(([k, b]) => `${k} ${b.w}/${b.n}`).join(' ');
     log(`it ${state.iter} [${stageName} ${(curWin * 100).toFixed(0)}%] R/ep ${entry.meanRewardPerEp.toFixed(2)} ent ${u.ent.toFixed(2)} kl ${u.kl.toFixed(3)} | ` +
-        (u.lpErr !== undefined ? `lpErr ${u.lpErr.toExponential(1)} ` : '') + `hit/swing ${(tot.swingHits / Math.max(1, tot.swings) * 100).toFixed(0)}% dj/min ${perMin('doubleJumps')} blk/min ${perMin('blocks')} abiHit ${tot.abilityHits} supHit ${tot.superHits} | ${opps} | roll ${(tRoll / 1000).toFixed(1)}s upd ${(tUpd / 1000).toFixed(1)}s`);
+        (u.lpErr !== undefined ? `lpErr ${u.lpErr.toExponential(1)} ` : '') + (u.refKl ? `refKl ${u.refKl.toFixed(3)} ` : '') + `turn/min ${perMin('turns')} twitch/min ${perMin('twitchTurns')} swing/min ${perMin('swings')} jump/min ${perMin('jumps')} hit/swing ${(tot.swingHits / Math.max(1, tot.swings) * 100).toFixed(0)}% dj/min ${perMin('doubleJumps')} blk/min ${perMin('blocks')} abiHit ${tot.abilityHits} supHit ${tot.superHits} | ${opps} | roll ${(tRoll / 1000).toFixed(1)}s upd ${(tUpd / 1000).toFixed(1)}s`);
     for (const w of workers) if (w.errors.length) { log(`worker ${w.id} page errors:`, w.errors.slice(0, 3)); w.errors.length = 0; }
   }
 

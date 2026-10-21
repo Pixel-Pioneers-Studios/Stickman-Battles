@@ -262,7 +262,8 @@ function gameLoop(timestamp) {
     }
 
     // Floor hazard state machine. Boss/TrueForm only, off during the TF opening.
-    const _bossFloorActive = gameMode === 'boss' || gameMode === 'trueform';
+    // The Creator's floor hazard is his construct's; the Fallen God's walls replace it.
+    const _bossFloorActive = (gameMode === 'boss' && !_isFallenGodFight()) || gameMode === 'trueform';
     if (_bossFloorActive && !gameFrozen && !(typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) bossFloorTimer--;
     if (_bossFloorActive && bossFloorTimer <= 0) {
       if (bossFloorState === 'normal') {
@@ -466,6 +467,9 @@ function gameLoop(timestamp) {
   const _anyAdminKit = typeof players !== 'undefined' && players.some(p => p._adminKit);
   const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit
     || (damnationActive && players.some(p => p.isBoss));
+  // A boss outside a boss arena (the Fallen God in space) still needs its death scene and stagger.
+  if (!hasBossActive && bossDeathScene) updateBossDeathScene();
+  if (!hasBossActive && _isFallenGodFight()) { updateBossPendingAttacks(); drawBossWarnings(); }
   if (hasBossActive) {
     for (const b of bossBeams) {
       if (b.phase === 'warning') {
@@ -843,6 +847,7 @@ function gameLoop(timestamp) {
       ctx.restore();
     }
   });
+  if (typeof drawWorldFinisherClone === 'function') drawWorldFinisherClone();
   if (typeof MoveScene !== 'undefined') MoveScene.draw();
   // Trials draw: reveal sweep, distortion band, cues, inversion tell. Above fighters so cues aren't hidden.
   // Inert unless a trial is armed (smb-trials.js).

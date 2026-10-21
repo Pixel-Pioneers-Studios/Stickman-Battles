@@ -192,7 +192,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"It knows what you will do before you do it," the Fourth Architect said.',
       '"It\'s been watching you since the beginning."',
       '',
-      '"Then I\'ll have to surprise it."',
+      '"Then I\'ll have to surprise it," you said.',
       '',
       '"That\'s the problem."',
       '"It\'s already accounted for that."',

@@ -41,6 +41,11 @@ cd "$ROOT"
 # portal, so it stays out and its loader is stripped below.
 cp index.html SMB.css favicon.svg live-config.json "$STAGE/"
 cp -R js fonts "$STAGE/"
+# Original music + SFX (see their READMEs). audio/voice is ~970 files, which
+# would break the CrazyGames 1500 and itch 1000 file caps; story narration
+# falls back to Web Speech on portals.
+mkdir -p "$STAGE/audio"
+cp -R audio/music audio/sfx "$STAGE/audio/"
 mkdir -p "$STAGE/images"
 # images/store holds portal cover art — uploaded through the dashboard, not shipped.
 find images -maxdepth 1 -type f -exec cp {} "$STAGE/images/" \;

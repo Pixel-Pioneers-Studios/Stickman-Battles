@@ -95,13 +95,16 @@ async function record(s, out, frames, opts = {}) {
         const sx = wx => canvas.width / 2 + (wx - camXCur) * k;
         const p1 = players[0];
         let fx = canvas.width / 2;
-        if (window.__focus) fx = sx(window.__focus());
+        // __focusScreen: a canvas x straight from the page (a staged scene that knows its real render transform).
+        if (window.__focusScreen) { const v = window.__focusScreen(); if (isFinite(v)) fx = v; }
+        else if (window.__focus) fx = sx(window.__focus());
         else if (p1) {
           fx = sx(p1.cx());
           const t = p1.target;
           if (t && t.health > 0 && Math.abs(sx(t.cx()) - fx) < cw * 0.75) fx = (fx + sx(t.cx())) / 2;
         }
         const want = fx - cw / 2;
+        if (window.__cropX != null && !isFinite(window.__cropX)) window.__cropX = null;
         window.__cropX = window.__cropX == null ? want : window.__cropX + (want - window.__cropX) * 0.07;
         const x0 = Math.max(0, Math.min(canvas.width - cw, Math.round(window.__cropX)));
         const oc = window.__cropCv || (window.__cropCv = document.createElement('canvas'));

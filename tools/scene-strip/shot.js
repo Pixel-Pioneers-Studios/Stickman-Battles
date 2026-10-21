@@ -6,7 +6,7 @@ const fs = require('fs');
   const g = await launch({ width: 1280, height: 720, offline: true, port: 8200 + (id % 60) });
   await g.eval(() => { try { tutorialActive = false; backToMenu(); } catch (e) {} });
   await g.manual();
-  await g.eval(() => { performance.now = () => window.__t; });
+  await g.eval(() => { performance.now = () => window.__t; try { settings.storyVoice = false; } catch (e) {} });
   await g.eval((id) => {
     const ch = STORY_CHAPTER_REGISTRY.find(c => c.id === id);
     showNarrativeScene(ch.narrative || ch.lines || ch.text, ch, () => {}, { cinematic: true, holdLastBeat: true });

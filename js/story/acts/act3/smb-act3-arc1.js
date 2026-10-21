@@ -81,7 +81,7 @@ STORY_CHAPTER_REGISTRY.push(
       '"It enslaved the rift entity. What would you call that?"',
       '',
       '"Architecture," the Third Architect said.',
-      '"A system that maintains dimensional stability through controlled fracture.',
+      '"A system that maintains dimensional stability through controlled fracture."',
       '"Brutal. But functional."',
       '"Without it, something worse fills the gap."',
       '',
@@ -191,8 +191,7 @@ STORY_CHAPTER_REGISTRY.push(
     id: 54, title: 'The Upload',
     world: '🌐 Neutral Dimension — Relay Node',
     narrative: [
-      '"The closure data needs to reach the dimensional relay before the Creator seals it,"',
-      'Veran said.',
+      '"The closure data needs to reach the dimensional relay before the Creator seals it," Veran said.',
       '"I can upload it in ninety seconds."',
       '"But it\'ll take everything I have to maintain the connection."',
       '"I\'ll be completely exposed."',

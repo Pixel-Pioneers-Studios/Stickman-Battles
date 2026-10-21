@@ -548,10 +548,7 @@ class SovereignMK2 extends AdaptiveAI {
         comboDepth: this._countRecent('dmg_taken', 40),
       };
     }
-
-    // Not when the dying body is a possessed player (F7): they did not kill Sovereign.
-    const _possessed = typeof SovereignControl !== 'undefined' && SovereignControl.active && SovereignControl._host === this;
-    if (!_possessed && typeof unlockAchievement === 'function') unlockAchievement('sovereign_slayer');
+    // Sovereign Slayer is paid for winning the match, not for one stock (endGame, smb-drawing-arenas.js).
   }
 
 
@@ -5775,7 +5772,7 @@ class SovereignMK2 extends AdaptiveAI {
     const G = +TUNE.killFloor || 0;
     const t = this.target;
     if (!(G > 0) || !t || this.isBoss) {
-      if (this._kfMult !== undefined) { this._kfMult = undefined; this.dmgMult = undefined; }
+      if (this._kfMult !== undefined) { this._kfMult = undefined; this.dmgMult = this._kfBase; }
       return;
     }
     // Stock baselines per match: first sight of this target, and the lives each
@@ -5800,7 +5797,8 @@ class SovereignMK2 extends AdaptiveAI {
     const goal = 1 + G * g;
     const cur = (this._kfMult === undefined) ? 1 : this._kfMult;
     this._kfMult = cur + Math.max(-0.01, Math.min(0.01, goal - cur));   // ~1% per frame
-    this.dmgMult = this._kfMult;
+    // _kfBase: story mirror of the player's damage boost (smb-story-engine-frame.js). Unset elsewhere.
+    this.dmgMult = (this._kfBase || 1) * this._kfMult;
   }
 
   // Once per match, ~1.5s in, against a human he has a record on: say the strongest thing the persisted
@@ -7693,21 +7691,13 @@ class SovereignMK2 extends AdaptiveAI {
       const rr = Math.round(255);
       const gg = Math.round(t2 * 60);
       const bb = Math.round(t2 * 60);
-      const grd = ctx.createRadialGradient(this.cx(), this.cy(), 8, this.cx(), this.cy(), r + 16);
-      grd.addColorStop(0,   `rgba(${rr},${gg},${bb},${(a * 2.5).toFixed(3)})`);
-      grd.addColorStop(0.5, `rgba(${rr},${gg},${bb},${a.toFixed(3)})`);
-      grd.addColorStop(1,   `rgba(${rr},${gg},${bb},0)`);
-      ctx.fillStyle = grd;
+      // Ring only, no fill and no full-screen tint (Oct 19 2026): the orb hid his body and wind-ups,
+      // and the red wash over the whole screen made fights unreadable.
+      ctx.strokeStyle = `rgba(${rr},${gg},${bb},${Math.min(0.8, a * 2.5).toFixed(3)})`;
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(this.cx(), this.cy(), r + 16, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const distA = 0.04 + 0.03 * (Math.sin(lp * 4.4) * 0.5 + 0.5);
-      ctx.fillStyle = `rgba(255,40,0,${distA.toFixed(3)})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.stroke();
       ctx.restore();
     }
 
@@ -7716,17 +7706,8 @@ class SovereignMK2 extends AdaptiveAI {
       const evo = this._evolutionStage;
       if (p > 0.08 || evo > 0) {
         const pulseR = 28 + evo * 8 + Math.sin(this._intimidationPulse) * (4 + p * 7);
-        const auraA  = 0.08 + p * 0.22 + evo * 0.03;
         ctx.save();
-        const aura = ctx.createRadialGradient(this.cx(), this.cy(), 8, this.cx(), this.cy(), pulseR + 22);
-        aura.addColorStop(0, `rgba(255,${Math.round(70 + p * 90)},${Math.round(20 + evo * 10)},${Math.min(0.95, auraA * 2.4).toFixed(3)})`);
-        aura.addColorStop(0.45, `rgba(255,70,20,${auraA.toFixed(3)})`);
-        aura.addColorStop(1, 'rgba(255,40,0,0)');
-        ctx.fillStyle = aura;
-        ctx.beginPath();
-        ctx.arc(this.cx(), this.cy(), pulseR + 22, 0, Math.PI * 2);
-        ctx.fill();
-
+        // Ring only (Oct 19 2026): the filled glow covered his body.
         ctx.strokeStyle = `rgba(255,170,60,${(0.10 + p * 0.28).toFixed(3)})`;
         ctx.lineWidth = 1.5 + evo * 0.2;
         ctx.beginPath();
@@ -7757,80 +7738,15 @@ class SovereignMK2 extends AdaptiveAI {
       if (this._anchorFlashTimer === 0) this._anchorTetherFrom = null;
     }
 
-    // Parent draw: aura, fighter body and the ADAPTING label.
+    // Parent draw: aura and fighter body (the ADAPTING label is skipped for him).
     super.draw();
 
-    if (this.health > 0 && this.target && this._intimidation > 0.34) {
-      const p = this._intimidation;
-      const tx = this.target.cx();
-      const ty = this.target.cy();
-      const tr = 22 + p * 16 + Math.sin(this._intimidationPulse * 1.8) * 4;
-      ctx.save();
-      ctx.strokeStyle = `rgba(255,110,40,${(0.12 + p * 0.26).toFixed(3)})`;
-      ctx.lineWidth = 1.2;
-      ctx.setLineDash([4, 5]);
-      ctx.beginPath();
-      ctx.moveTo(this.cx(), this.cy());
-      ctx.lineTo(tx, ty);
-      ctx.stroke();
-      ctx.setLineDash([]);
+    // The intimidation line and ring drawn on the target were removed Oct 19 2026: a ring on the
+    // player read as a status effect and added to the clutter.
 
-      ctx.strokeStyle = `rgba(255,180,90,${(0.18 + p * 0.30).toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(tx, ty, tr, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // Limiter break label.
-    if (this._limiterBroken && this.health > 0) {
-      ctx.save();
-      const flicker = 0.7 + 0.3 * Math.sin(this._limiterAuraPhase * 4.2);
-      ctx.font      = `bold ${8 + Math.round(this.intelligence * 2)}px Arial`;
-      ctx.textAlign = 'center';
-      const t2 = (Math.sin(this._limiterAuraPhase * 3) + 1) / 2;
-      const r2 = Math.round(255);
-      const g2 = Math.round(t2 * 55);
-      ctx.fillStyle = `rgba(${r2},${g2},0,${flicker.toFixed(2)})`;
-      ctx.fillText('◉ LIMITER BREAK', this.cx(), this.y - 14);
-      ctx.restore();
-    }
-
-    // Punish mode indicator
-    if (this._punishModeActive && this.health > 0) {
-      ctx.save();
-      const pa = 0.55 + 0.35 * Math.sin(frameCount * 0.28);
-      ctx.font      = 'bold 7px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = `rgba(255,40,0,${pa.toFixed(2)})`;
-      ctx.fillText('⚠ PUNISHING', this.cx(), this.y - (this._limiterBroken ? 24 : 14));
-      ctx.restore();
-    }
-
-    if (this.health > 0) {
-      ctx.save();
-      const stageAlpha = 0.28 + this._evolutionStage * 0.12 + this._evolutionPulse * 0.008;
-      ctx.font = 'bold 7px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = `rgba(255,210,120,${Math.min(0.95, stageAlpha).toFixed(2)})`;
-      ctx.fillText(`◆ ${SMK2_STAGE_NAMES[this._evolutionStage]}`, this.cx(), this.y - (this._limiterBroken ? 34 : 24));
-      if (this._intimidation > 0.36) {
-        ctx.fillStyle = `rgba(255,120,60,${(0.22 + this._intimidation * 0.52).toFixed(2)})`;
-        ctx.fillText(`PRESSURE ${(this._intimidation * 100).toFixed(0)}%`, this.cx(), this.y - (this._limiterBroken ? 44 : 34));
-      }
-      if (this._dominantHabit && this._dominantHabitScore >= 3.2) {
-        ctx.fillStyle = `rgba(255,210,140,${(0.18 + Math.min(0.55, this._dominantHabitScore * 0.08)).toFixed(2)})`;
-        ctx.fillText(`COUNTER ${this._dominantHabit.toUpperCase()}`, this.cx(), this.y - (this._limiterBroken ? 54 : 44));
-      }
-      // Pulsing bracket while herding the player to an edge.
-      if (this._cornerMode) {
-        const cpAlpha = 0.45 + 0.30 * Math.sin(frameCount * 0.22);
-        ctx.fillStyle = `rgba(255,140,0,${cpAlpha.toFixed(2)})`;
-        ctx.font = 'bold 7px Arial';
-        ctx.fillText('◀ CORNERING ▶', this.cx(), this.y - (this._limiterBroken ? 64 : 54));
-      }
-      ctx.restore();
-    }
+    // The overhead text labels (LIMITER BREAK, PUNISHING, stage, PRESSURE, COUNTER,
+    // CORNERING) were removed Oct 18 2026: they cluttered recorded footage; the
+    // same state is still in showSovereignPredictions() and the debug overlay.
   }
 }
 

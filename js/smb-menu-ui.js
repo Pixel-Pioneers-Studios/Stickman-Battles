@@ -5,6 +5,7 @@
 // Menu UI handlers
 function selectMode(mode) {
   const _prevMode = gameMode;
+  simBossType = null;
   // 'bot' is no longer a separate mode: merge into '2p' with bot toggles
   if (mode === 'bot') mode = '2p';
   if (mode === 'completerandom') {
@@ -211,6 +212,7 @@ function _applyRefightLocks() {
     'refight-trueform': typeof unlockedTrueBoss     !== 'undefined' ? !!unlockedTrueBoss     : false,
     'refight-sovereign':typeof sovereignBeaten      !== 'undefined' ? !!sovereignBeaten      : false,
     'modeAbsoluteAxiom': typeof absoluteAxiomUnlocked !== 'undefined' ? !!absoluteAxiomUnlocked : false,
+    'refight-fallengod': typeof fallenGodBeaten      !== 'undefined' ? !!fallenGodBeaten      : false,
   };
   var _allUnlocked = _locks['refight-creator'] && _locks['refight-trueform'] && _locks['refight-sovereign'];
 
@@ -236,6 +238,7 @@ function _setRefightCardLock(id, locked) {
     el.classList.remove('refight-locked');
     var _modeMap = {
       'refight-creator':  function() { startSimFight('boss'); },
+      'refight-fallengod':function() { startSimFight('boss'); simBossType = 'fallen_god'; },
       'refight-trueform': function() { startSimFight('trueform'); },
       'refight-sovereign':function() { startSimFight('sovereign'); },
       'modeAbsoluteAxiom': function() { startSimFight('absoluteaxiom'); },
