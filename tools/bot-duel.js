@@ -20,6 +20,9 @@
  *                          [--vs=bot]   another stock bot plays it (bot against bot)
  *                          --arena also takes any real arena key, e.g. colosseum
  *                          [--off=guard,recover]   switch BOT_TACTICS dials off for an A/B
+ *                          [--tune=0.2,10,70]   the bot's _btTune: skill, think, hesitate (as a ladder rung sets it)
+ *                          [--mehp=1.5]   the proxy's max HP multiplier (a ladder rung's p1HpMul)
+ *                          [--params=file.json]   proxy params instead of human-proxy-params-v4.json
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = path.resolve(__dirname, '..');
@@ -29,7 +32,8 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 const N = parseInt(args.n, 10) || 24, PORT = parseInt(args.port, 10) || 8104;
 const O = { diff: String(args.diff || 'expert'), bot: String(args.bot || 'ronin'), botw: String(args.botw || 'katana'),
   me: String(args.me || 'warrior'), mew: String(args.mew || 'sword'), arena: String(args.arena || 'ledge'),
-  vs: String(args.vs || 'proxy'), off: args.off ? String(args.off).split(',') : [] };
+  vs: String(args.vs || 'proxy'), off: args.off ? String(args.off).split(',') : [],
+  tune: args.tune ? (([skill, think, hesitate]) => ({ skill, think, hesitate }))(String(args.tune).split(',').map(Number)) : null };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
 (async () => {
@@ -56,9 +60,9 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
   const SIM = fs.readFileSync(path.join(ROOT, 'tools', 'class-balance.js'), 'utf8').match(/const SIM_SRC = `([\s\S]*?)\n`;/)[1];
   await page.addScriptTag({ content: SIM });
   await page.addScriptTag({ path: path.join(__dirname, 'human-proxy.js') });
-  const params = JSON.parse(fs.readFileSync(path.join(__dirname, 'human-proxy-params-v4.json'), 'utf8'));
+  const params = JSON.parse(fs.readFileSync(args.params ? path.resolve(String(args.params)) : path.join(__dirname, 'human-proxy-params-v4.json'), 'utf8'));
 
-  const r = await page.evaluate((N, O, params) => {
+  const r = await page.evaluate((N, O, params, args) => {
     const S = { n: 0, meWins: 0, botWins: 0, timeouts: 0, stocksMe: 0, stocksBot: 0, frames: 0, live: 0,
       shield: 0, reach: 0, idleReach: 0, air: 0, botHits: 0, botDmg: 0, meHits: 0, meDmg: 0, q: 0, e: 0,
       ring: 0, botDeaths: 0, gaps: [], tac: 0, errs: [] };
@@ -81,12 +85,13 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
         seen.add(this);
         if (this.color === '#00d4ff') {
           // The proxy plays this side: its own controller, and no bot tactics.
+          if (args.mehp) { this.maxHealth = Math.round(this.maxHealth * Number(args.mehp)); this.health = this.maxHealth; }
           me = this; pMe = this.health;
           if (O.vs === 'proxy') {
             this._botIQ = 0; this.updateAI = HumanProxy.controller(params);
             this.aiTickInterval = 1; this._noWhiffGuard = true;
           }
-        } else { bot = this; pBot = this.health; wasLock = false; gap = -1; }
+        } else { bot = this; pBot = this.health; wasLock = false; gap = -1; if (O.tune) this._btTune = O.tune; }
       }
       const out = up.apply(this, arguments);
       if (this === bot && me && bot.health > 0 && me.health > 0) {
@@ -127,11 +132,11 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
     }
     Fighter.prototype.update = up; Fighter.prototype.ability = ab; Fighter.prototype.useSuper = su;
     return S;
-  }, N, O, params);
+  }, N, O, params, args);
 
   const pc = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '-';
   const g = r.gaps.slice().sort((a, b) => a - b), med = g.length ? g[g.length >> 1] : 0;
-  console.log(`${O.diff} ${O.bot}/${O.botw} bot vs ${O.vs} ${O.me}/${O.mew}, ${r.n} matches on ${O.arena}` + (O.off.length ? '  [off: ' + O.off.join(',') + ']' : ''));
+  console.log(`${O.diff} ${O.bot}/${O.botw} bot vs ${O.vs} ${O.me}/${O.mew}, ${r.n} matches on ${O.arena}` + (O.off.length ? '  [off: ' + O.off.join(',') + ']' : '') + (O.tune ? '  [tune: ' + args.tune + ']' : '') + (args.mehp ? '  [mehp: ' + args.mehp + ']' : '') + (args.params ? '  [params: ' + path.basename(String(args.params)) + ']' : ''));
   console.log(`  proxy wins ${r.meWins}  bot wins ${r.botWins}  timeouts ${r.timeouts}   stocks taken: proxy ${r.stocksMe}, bot ${r.stocksBot}   avg ${(r.frames / r.n / 60).toFixed(0)}s`);
   console.log(`  tactics layer active ${pc(r.tac, r.live)} of bot frames`);
   console.log(`  bot guard up ${pc(r.shield, r.live)}   airborne ${pc(r.air, r.live)}   in reach ${pc(r.reach, r.live)}, of that free and idle ${pc(r.idleReach, r.reach)}`);

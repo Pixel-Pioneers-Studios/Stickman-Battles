@@ -346,7 +346,7 @@ const OwnerTools = (function() {
         <div class="row"><input id="_owCh" type="number" min="1" placeholder="Chapter # (1 = first)">${btn('Set story chapter', 'setCh')}</div>`) +
       sec('panels', 'Other panels', `
         <div class="row">${btn('Console', 'console')}${btn('Admin (F9)', 'admin')}${btn('Live ops (F10)', 'liveops')}</div>
-        <div class="lbl">Keys: \` toolbox · Shift+O console · F6 what's new · F7 Sovereign plays for you · F8 jump menu · F9 admin · F10 live ops</div>`);
+        <div class="lbl">Keys: \` toolbox · Ctrl+Shift+O then Ctrl+Shift+X console · F6 what's new · F7 Sovereign plays for you · F8 jump menu · F9 admin · F10 live ops</div>`);
   }
 
   function render() {

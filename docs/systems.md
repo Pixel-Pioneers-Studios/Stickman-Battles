@@ -253,7 +253,7 @@ Elements:
 
 ## 13. Debug System
 
-`smb-debug.js` — dev toolkit. Activated by F1 toggle or `debugmode` cheat.
+`smb-debug.js` — dev toolkit. Activated by F1 toggle or the console command `debugmenu` (console: Ctrl+Shift+O then Ctrl+Shift+X).
 
 - F2: slow-motion toggle
 - In-game console: `_consoleExec()` parses typed commands

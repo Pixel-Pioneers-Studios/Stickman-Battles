@@ -122,8 +122,8 @@ function updateTFNeutronStar() {
       spawnParticles(boss.cx(), boss.y + boss.h, '#ff4400', 12);
       for (const p of players) {
         if ((p.isTrueForm && !(ns.bossRef && ns.bossRef.isProxy)) || p.health <= 0) continue;
-        const dd = Math.abs(p.cx() - boss.cx());
-        if (dd < 140) {
+        // The SLAM circle is r 95 on the ground: no hit from far out or from a platform above.
+        if (_tfInReach(boss, p, 95)) {
           dealDamage(boss, p, 32, 24);
           p.vy = -16;
           spawnParticles(p.cx(), p.cy(), '#ffaa00', 10);
@@ -227,7 +227,7 @@ function updateTFGalaxySweep() {
   gs.speed = 0.008 + sweepProg * 0.048; // 0.008 → 0.056 rad/frame
   gs.angle += gs.speed;
 
-  const ARM_HALF = 0.42 + sweepProg * 0.06; // arms widen slightly at speed
+  const ARM_HALF = 0.22 + sweepProg * 0.05; // arms widen slightly at speed; matches drawTFGalaxySweep
   const ARM_LEN  = 290;
   const armAngles = [gs.angle, gs.angle + Math.PI];
 
@@ -281,47 +281,89 @@ function drawTFGalaxySweep() {
 
   const sweepProg = gs.timer / gs.maxTimer;
   const fade = gs.timer < 15 ? gs.timer / 15 : gs.timer > gs.maxTimer - 18 ? (gs.maxTimer - gs.timer) / 18 : 1;
-  const ARM_HALF_RAD = 0.42 + sweepProg * 0.06;
+  // Hit geometry is two straight wedges (updateTFGalaxySweep). Everything bright stays inside them;
+  // only the faint motion trails sit outside.
+  const ARM_HALF_RAD = 0.22 + sweepProg * 0.05;
   const ARM_LEN = 290;
   const armAngles = [gs.angle, gs.angle + Math.PI];
-  const armColors = [['#6600cc', '#dd44ff'], ['#330066', '#aa22ee']];
-
-  for (let ai = 0; ai < armAngles.length; ai++) {
-    const a = armAngles[ai];
-    const [fillCol, edgeCol] = armColors[ai];
-    ctx.globalAlpha = (0.30 + sweepProg * 0.22) * fade;
-    ctx.fillStyle = fillCol;
-    ctx.shadowColor = edgeCol; ctx.shadowBlur = 8 + sweepProg * 14;
-    ctx.beginPath();
-    ctx.moveTo(gs.cx, gs.cy);
-    ctx.arc(gs.cx, gs.cy, ARM_LEN, a - ARM_HALF_RAD, a + ARM_HALF_RAD);
-    ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = (0.75 + sweepProg * 0.20) * fade;
-    ctx.strokeStyle = edgeCol;
-    ctx.lineWidth = 2.5 + sweepProg * 2;
-    ctx.shadowBlur = 16 + sweepProg * 18;
-    ctx.beginPath();
-    ctx.moveTo(gs.cx, gs.cy);
-    ctx.lineTo(gs.cx + Math.cos(a) * ARM_LEN, gs.cy + Math.sin(a) * ARM_LEN);
-    ctx.stroke();
-    if (gs.timer % 5 === 0) {
-      ctx.globalAlpha = 0.55 * fade;
-      ctx.fillStyle = edgeCol;
-      ctx.beginPath();
-      const tipX = gs.cx + Math.cos(a) * (ARM_LEN * 0.8);
-      const tipY = gs.cy + Math.sin(a) * (ARM_LEN * 0.8);
-      ctx.arc(tipX, tipY, 4 + sweepProg * 4, 0, Math.PI * 2); ctx.fill();
+  if (!gs._stars) {
+    gs._stars = [];
+    for (let i = 0; i < 90; i++) {
+      const u = Math.random();
+      gs._stars.push({ arm: i % 2, r: 24 + Math.sqrt(u) * (ARM_LEN - 30), off: (Math.random() * 2 - 1) * 0.9,
+                       s: Math.random() < 0.15 ? 2.2 : 1.1, tw: Math.random() * 6, warm: Math.random() < 0.3 });
     }
   }
-  ctx.globalAlpha = (0.55 + sweepProg * 0.30) * fade;
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = '#cc44ff';
-  ctx.shadowBlur  = 22 + sweepProg * 22;
-  const starR = 10 + sweepProg * 8;
-  ctx.beginPath(); ctx.arc(gs.cx, gs.cy, starR, 0, Math.PI * 2); ctx.fill();
-  ctx.globalAlpha = (0.10 + sweepProg * 0.15) * fade;
-  ctx.strokeStyle = '#8800ff'; ctx.lineWidth = 1.5;
+  const wedge = (a, half, len) => {
+    ctx.beginPath(); ctx.moveTo(gs.cx, gs.cy);
+    ctx.arc(gs.cx, gs.cy, len, a - half, a + half); ctx.closePath();
+  };
+  // Motion trails behind each arm (the angle grows, so "behind" is smaller angles).
+  ctx.fillStyle = '#7a2cff';
+  for (const a of armAngles) {
+    for (let k = 1; k <= 3; k++) {
+      ctx.globalAlpha = (0.07 - k * 0.015) * fade * (0.5 + sweepProg);
+      wedge(a - k * (0.1 + gs.speed * 3), ARM_HALF_RAD, ARM_LEN * (1 - k * 0.04)); ctx.fill();
+    }
+  }
+  if (!gs._armGrad) {
+    const g = ctx.createRadialGradient(gs.cx, gs.cy, 0, gs.cx, gs.cy, ARM_LEN);
+    g.addColorStop(0,    'rgba(255,240,255,0.95)');
+    g.addColorStop(0.15, 'rgba(210,140,255,0.75)');
+    g.addColorStop(0.6,  'rgba(120,40,230,0.5)');
+    g.addColorStop(1,    'rgba(70,10,160,0.35)');
+    gs._armGrad = g;
+  }
+  for (let ai = 0; ai < armAngles.length; ai++) {
+    const a = armAngles[ai];
+    ctx.globalAlpha = (0.42 + sweepProg * 0.25) * fade;
+    ctx.fillStyle = gs._armGrad;
+    ctx.shadowColor = '#b050ff'; ctx.shadowBlur = 10 + sweepProg * 14;
+    wedge(a, ARM_HALF_RAD, ARM_LEN); ctx.fill();
+    ctx.shadowBlur = 0;
+    // Dust lane down the middle of the arm
+    ctx.globalAlpha = 0.35 * fade;
+    ctx.strokeStyle = '#1a0538'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    for (let r = 30; r <= ARM_LEN; r += 20) {
+      const da = Math.sin(r * 0.03 + gs.timer * 0.05) * ARM_HALF_RAD * 0.35;
+      const x = gs.cx + Math.cos(a + da) * r, y = gs.cy + Math.sin(a + da) * r;
+      if (r === 30) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    // Stars riding the arm
+    for (const st of gs._stars) {
+      if (st.arm !== ai) continue;
+      const sa = a + st.off * ARM_HALF_RAD;
+      ctx.globalAlpha = fade * (0.5 + 0.5 * Math.abs(Math.sin(gs.timer * 0.12 + st.tw)));
+      ctx.fillStyle = st.warm ? '#ffe2b8' : '#ffffff';
+      ctx.fillRect(gs.cx + Math.cos(sa) * st.r, gs.cy + Math.sin(sa) * st.r, st.s, st.s);
+    }
+    // Leading edge: the line that hits first
+    ctx.globalAlpha = (0.75 + sweepProg * 0.2) * fade;
+    ctx.strokeStyle = '#f0c8ff';
+    ctx.lineWidth = 2 + sweepProg * 2;
+    ctx.shadowColor = '#cc44ff'; ctx.shadowBlur = 14 + sweepProg * 16;
+    ctx.beginPath(); ctx.moveTo(gs.cx, gs.cy);
+    ctx.lineTo(gs.cx + Math.cos(a + ARM_HALF_RAD) * ARM_LEN, gs.cy + Math.sin(a + ARM_HALF_RAD) * ARM_LEN);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // Core: bulge glow and a tilted accretion disk turning with the arms.
+  const starR = 12 + sweepProg * 8;
+  ctx.globalAlpha = fade;
+  const cg = ctx.createRadialGradient(gs.cx, gs.cy, 0, gs.cx, gs.cy, starR * 3.2);
+  cg.addColorStop(0, 'rgba(255,250,235,1)'); cg.addColorStop(0.3, 'rgba(255,200,240,0.8)'); cg.addColorStop(1, 'rgba(150,60,255,0)');
+  ctx.fillStyle = cg;
+  ctx.beginPath(); ctx.arc(gs.cx, gs.cy, starR * 3.2, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,220,250,0.8)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.ellipse(gs.cx, gs.cy, starR * 2.2, starR * 0.6, gs.angle * 0.5, 0, Math.PI * 2); ctx.stroke();
+  // Reach ring: where the arms end
+  ctx.globalAlpha = (0.12 + sweepProg * 0.15) * fade;
+  ctx.strokeStyle = '#a050ff'; ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 8]);
   ctx.beginPath(); ctx.arc(gs.cx, gs.cy, ARM_LEN, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
   ctx.restore();
 }
 

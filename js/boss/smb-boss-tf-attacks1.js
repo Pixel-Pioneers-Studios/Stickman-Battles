@@ -2,6 +2,15 @@
 // Gravity wells, meteor crash, shadow clones, chain and grasp slams, dimension punch, shockwaves, boss pending attacks.
 // Depends on: smb-globals.js, smb-particles-core.js, smb-combat.js, smb-boss-tf-legacy.js. Loads before smb-boss-tf-attacks2.js.
 
+// A teleport can still land away from its target (no safe spot beside it), so a hit after a teleport,
+// or at a warned spot, only lands within reach of it: r px apart, feet within 70.
+function _tfInReach(a, p, r) {
+  if (!a || !p) return false;
+  const ax = typeof a.cx === 'function' ? a.cx() : a.x;
+  const ay = typeof a.cx === 'function' ? a.y + a.h : a.y;
+  return Math.abs(p.cx() - ax) < r + p.w / 2 && Math.abs((p.y + p.h) - ay) < 70;
+}
+
 function triggerPhaseTransition(entity, phase) {
   // Reset stagger so TrueForm doesn't inherit boss-phase stagger
   bossStaggerDmg = 0; bossStaggerDecay = 0;
@@ -260,8 +269,8 @@ function updateTFChainSlam() {
       const sdx = p.cx() - tf.cx();
       const sdy = (p.y + p.h * 0.5) - (tf.y + tf.h);
       const sdd = Math.hypot(sdx, sdy);
-      if (sdd < 300) {
-        p.vx = (sdx > 0 ? 1 : -1) * 20 * (1 - sdd / 300);
+      if (sdd < 150) {
+        p.vx = (sdx > 0 ? 1 : -1) * 20 * (1 - sdd / 150);
         p.vy = -14;
         dealDamage(tf, p, 14, 0);
       }
@@ -556,13 +565,7 @@ function drawTFShockwaves() {
     ctx.restore();
   }
 }
-function updateBossPendingAttacks() {
-  if (!gameRunning) return;
-  const boss = players.find(p => p.isBoss && !p.isTrueForm);
-
-  if (!boss || boss.health <= 0) return;
-
-  // Warnings tick here only outside TF phase. updateTFPendingAttacks handles them during TF.
+function _tickBossWarnings() {
   for (let i = bossWarnings.length - 1; i >= 0; i--) {
     bossWarnings[i].timer--;
     if (bossWarnings[i].timer <= 0) bossWarnings.splice(i, 1);
@@ -571,6 +574,18 @@ function updateBossPendingAttacks() {
     bossMetSafeZones[i].timer--;
     if (bossMetSafeZones[i].timer <= 0) bossMetSafeZones.splice(i, 1);
   }
+}
+function updateBossPendingAttacks() {
+  if (!gameRunning) return;
+  const boss = players.find(p => p.isBoss && !p.isTrueForm);
+  const tfAlive = players.some(p => p.isTrueForm && p.health > 0);
+
+  // Admin kits and the attack viewer leave telegraphs with no boss here to tick them.
+  if ((!boss || boss.health <= 0) && !tfAlive) _tickBossWarnings();
+  if (!boss || boss.health <= 0) return;
+
+  // Warnings tick here only outside TF phase. updateTFPendingAttacks handles them during TF.
+  _tickBossWarnings();
   if (bossDesperationFlash > 0) bossDesperationFlash--;
 
   const dmgThisFrame = (boss._prevHealth || boss.health) - boss.health;
@@ -589,7 +604,7 @@ function updateBossPendingAttacks() {
     bossStaggerDecay = 0;
     screenShake = Math.max(screenShake, 25);
     showBossDialogue(randChoice(boss.isFallenGod ? ['There it is.', 'Hm.', 'Good. Again.']
-      : ['...that landed.', 'Hm.', 'You hit harder than you look.', '...fine.']), 120);
+      : ['Hm.', 'You found a seam. I close it.', 'Remember that one. It was your last.', 'Good. Now it gets worse.']), 120);
     spawnParticles(boss.cx(), boss.cy(), '#ffffff', 22);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.4);
   }
@@ -598,7 +613,7 @@ function updateBossPendingAttacks() {
     boss.vx *= 0.85; // slow boss during stagger
     if (bossStaggerTimer === 0) {
       showBossDialogue(randChoice(boss.isFallenGod ? ['Now answer this.', 'Do not stop.']
-        : ['That cost you nothing. My turn costs more.', 'I allowed that.', 'Done being generous.']), 120);
+        : ['That cost you nothing. My turn costs more.', 'My turn.', 'Done being generous.']), 120);
     }
   }
 

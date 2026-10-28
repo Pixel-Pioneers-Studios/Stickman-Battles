@@ -540,6 +540,7 @@ const PubHub = (() => {
       hat: p.hat || 'none', cape: p.cape || 'none',
       ab: p.abilityCooldown || 0, su: p.superReady ? 1 : 0,
       n: p.name,
+      ms: typeof MoveSceneNet !== 'undefined' ? MoveSceneNet.pack(p) : undefined,
     };
   }
 
@@ -572,6 +573,7 @@ const PubHub = (() => {
     if (s.hat) f.hat = s.hat;
     if (s.cape) f.cape = s.cape;
     if (s.n) f.name = s.n;
+    if (typeof MoveSceneNet !== 'undefined') MoveSceneNet.applyRemote(f, s.ms);
   }
 
   // Two buffered packets either side of (now - INTERP_MS), position blended.
@@ -709,6 +711,7 @@ const PubHub = (() => {
     else if (typeof h.target === 'string' && _isAuth()) victim = _bots[h.target];
     if (!attacker || !victim || victim.health <= 0) return;
     const dmg = Number(h.dmg) || 0, kb = Number(h.kb) || 0;
+    if (typeof MoveSceneNet !== 'undefined') MoveSceneNet.inboundHit(attacker);
     _netInboundHit = { dmg, kb };
     try { dealDamage(attacker, victim, dmg, kb); }
     finally { _netInboundHit = null; }

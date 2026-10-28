@@ -131,11 +131,14 @@ const Brain = (() => {
   const OBS_DIM = OBS_BASE + 2 * OBS_KIT + OBS_CROWD + N_HIST;
   let _histOff = false;                          // ablation: read frozen at match start (tools/brain/adapt.js)
   let _huntWeights = null;                       // the frozen net a hunter run trains against (opts.hunt)
+  // Ablation (tools/brain/weaponread.js): the brain's view shows these fighters' weapons as unknown,
+  // i.e. reads them the way it would read a weapon it has never seen.
+  let _blankFor = null, _blankSet = null;
 
-  function _kitObs(o, i, f) {
+  function _kitObs(o, i, f, me) {
     for (let k = 0; k < OBS_KIT; k++) o[i + k] = 0;
     const w = KIT_WEAPONS.indexOf(f.weaponKey), c = KIT_CLASSES.indexOf(f.charClass || 'none');
-    if (w >= 0) o[i + w] = 1;
+    if (w >= 0 && !(me === _blankFor && _blankSet && _blankSet.has(f))) o[i + w] = 1;
     if (c >= 0) o[i + KIT_WEAPONS.length + c] = 1;
     return i + OBS_KIT;
   }
@@ -318,8 +321,8 @@ const Brain = (() => {
     o[i++] = prevAct[3] === 1 ? 1 : 0;
     o[i++] = prevAct[3] === 2 ? 1 : 0;
     o[i++] = prevAct[3] === 3 ? 1 : 0;
-    i = _kitObs(o, i, me);
-    i = _kitObs(o, i, opp);
+    i = _kitObs(o, i, me, me);
+    i = _kitObs(o, i, opp, me);
     i = _crowdObs(o, i, me, opp);
     i = _histObs(o, i, me, opp);
     for (let k = 0; k < o.length; k++) {
@@ -492,6 +495,13 @@ const Brain = (() => {
   function resolveKit(k) {
     if (k === 'random') return randomKit();
     if (k === 'randomClass') return randomKit(true);
+    // A random ranged weapon with a class that names it or names no weapon (tools/brain/ranged.sh).
+    if (k === 'rangedClass') {
+      const r = WEAPON_KEYS.filter(w => WEAPONS[w] && WEAPONS[w].type === 'ranged');
+      const w = r[Math.floor(Math.random() * r.length)];
+      const cls = KIT_CLASSES.filter(c => c !== 'none' && c !== 'adept' && CLASSES[c] && (!CLASSES[c].weapon || CLASSES[c].weapon === w));
+      return { w, c: cls[Math.floor(Math.random() * cls.length)] };
+    }
     if (!k) return { w: 'sword', c: 'none' };
     if (k.w === 'ranged') {
       const r = WEAPON_KEYS.filter(w => WEAPONS[w] && WEAPONS[w].type === 'ranged');
@@ -590,6 +600,7 @@ const Brain = (() => {
     let f;
     if (spec.type === 'self') {
       f = new Fighter(x, SPAWN_Y, '#44aaff', kit.w, controlsFor(slot), false);
+      f._autoConviction = true; // trained on the old rule: a banked Conviction fires on the next super
       f._brainNet = loadNet(spec.weights || _huntWeights);
       // spec.weightsList: nets take turns in one body every spec.every frames, so the right answer
       // depends on what it has been doing lately.
@@ -699,6 +710,7 @@ const Brain = (() => {
       const kit = resolveKit(spec.brainKit);
       const brain = new Fighter(bx, SPAWN_Y, '#ffcc00', kit.w, controlsFor(0), false);
       brain._teamId = BRAIN_TEAM;
+      brain._autoConviction = true; // trained on the old rule: a banked Conviction fires on the next super
       if (kit.c && kit.c !== 'none') applyClass(brain, kit.c);
       brain.name = 'BRAIN';
       // spec.count: opponents at once (2v1, 3v1). They share a team and all hunt the brain.
@@ -711,6 +723,9 @@ const Brain = (() => {
       }
       brain.lives = lives;
       brain.target = opps[0];
+      // opts.blankKit: 'me' | 'opp' | 'both' — eval only, see _blankFor.
+      _blankFor = opts.blankKit ? brain : null;
+      _blankSet = opts.blankKit ? new Set([...(opts.blankKit !== 'opp' ? [brain] : []), ...(opts.blankKit !== 'me' ? opps : [])]) : null;
       // opts.read: 'brain' | 'opp' | 'both' runs the in-match read (smb-brain-read.js). Eval only: it
       // bends keys after they are logged.
       const rd = opts.read && typeof BrainRead !== 'undefined' ? opts.read : null;
@@ -881,6 +896,7 @@ const Brain = (() => {
     players.length = 0;
     gameRunning = false;
     _histOff = false;
+    _blankFor = _blankSet = null;
     if (saved) SMK2Trainer.simEnv.restore();
     return {
       obsDim: OBS_DIM, n,
@@ -902,7 +918,7 @@ const Brain = (() => {
     release();
     fighter._bHist = null;
     _live = { f: fighter, net, opp: opponent, act: [1, 0, 0, 0], prev: [1, 0, 0, 0], obs: new Float32Array(OBS_DIM), t: 0, h: newState(net),
-              wasAI: fighter.isAI, controls: fighter.controls, turn: {}, play: null,
+              wasAI: fighter.isAI, controls: fighter.controls, turn: {}, play: null, navAct: [1, 0, 0, 0], navWas: false,
               read: typeof BrainRead !== 'undefined' ? Object.assign(BrainRead.create(), { live: true }) : null };
     fighter.isAI = false;
     fighter.controls = controlsFor(9);
@@ -919,20 +935,41 @@ const Brain = (() => {
     if (opp && L.read) BrainRead.frame(L.read, L.f, opp);
     // Sovereign runs at his opponent's speed, whatever class he counter-picked (jump is already shared).
     if (opp && L.f.isSovereignMK2) L.f.classSpeedMult = opp.classSpeedMult || 1;
-    if (L.t++ % REPEAT !== 0) return;
+    const decide = L.t++ % REPEAT === 0;
     if (!opp) return;
-    observe(L.f, opp, L.prev, L.obs);
-    sample(forward(L.net, L.obs, L.h), L.act, !!L.greedy);
-    if (L.read) BrainRead.adjust(L.read, L.f, opp, L.act);
-    if (L.play) turnAway(L.turn, L.act, L.t, L.play.turnAway, L.f, opp, L.play.turnDz);
-    applyKeys(L.f, L.act);
-    for (let k = 0; k < 4; k++) L.prev[k] = L.act[k];
+    if (decide) {
+      observe(L.f, opp, L.prev, L.obs);
+      sample(forward(L.net, L.obs, L.h), L.act, !!L.greedy);
+      if (L.read) BrainRead.adjust(L.read, L.f, opp, L.act);
+      if (L.play) turnAway(L.turn, L.act, L.t, L.play.turnAway, L.f, opp, L.play.turnDz);
+    }
+    // The net never sees terrain and trained only on The Circuit. Anywhere else, the bots' platform
+    // layer (btKeyNav, smb-bot-tactics.js) takes the legs to reach an opponent on another platform and
+    // to get back over a pit; the net keeps the buttons for a ranged kit (a melee swing only stalls a jump).
+    // Boss hazards come first and take the legs and buttons both: an escape with a swing's endlag in it
+    // leaves him standing in the hazard.
+    const haz = typeof btHazardNav === 'function' ? btHazardNav(L.f, L.act[0] - 1) : null;
+    const nav = (!haz || haz.nav) && _navOn && !(currentArena && currentArena.isSovereignArena) && typeof btKeyNav === 'function'
+      ? btKeyNav(L.f, opp) : null;
+    if (haz && !nav) {
+      L.navAct[0] = haz.move + 1;
+      L.navAct[1] = haz.fight ? L.act[1] : haz.jump ? 1 : 0;
+      L.navAct[2] = haz.fight ? L.act[2] : 0;
+      L.navAct[3] = haz.fight ? L.act[3] : 0;
+      applyKeys(L.f, L.navAct);
+    } else if (nav) {
+      const ranged = L.f.weapon && L.f.weapon.type === 'ranged';
+      L.navAct[0] = nav.move + 1; L.navAct[1] = nav.jump ? 1 : 0; L.navAct[2] = 0; L.navAct[3] = ranged ? L.act[3] : 0;
+      applyKeys(L.f, L.navAct);
+    } else if (decide || L.navWas) applyKeys(L.f, L.act);
+    L.navWas = !!(nav || haz);
+    if (decide) { const a = (nav || haz) ? L.navAct : L.act; for (let k = 0; k < 4; k++) L.prev[k] = a[k]; }
   }
   function release() {
     const L = _live;
     if (!L) return;
     _live = null;
-    if (L.f) { releaseAll(L.f); L.f.isAI = L.wasAI; L.f.controls = L.controls; }
+    if (L.f) { releaseAll(L.f); L.f.isAI = L.wasAI; L.f.controls = L.controls; L.f._btKey = null; }
   }
   // Loads the newest checkpoint the trainer wrote (dev server serves data/).
   function takeOver(fighter, opponent, url) {
@@ -941,10 +978,19 @@ const Brain = (() => {
       .then(j => possess(fighter, j.pi || j, opponent) ? (j.iter || 0) : -1);
   }
 
-  // Sovereign's body, the brain's hands. His counter-pick still chooses the kit,
-  // but only among kits the net has a one-hot for (nullblade is not one), and
+  // Sovereign's body, the brain's hands. His counter-pick still chooses the kit, and
   // he plays his top choice. If the checkpoint can't load he stays the cascade.
+  // A melee weapon the net has no one-hot for (his own nullblade) is kept: on 17628 the
+  // one-hot was worth ~0 and unseen melee played like known melee (tools/brain/weaponread.js).
+  // An unknown RANGED weapon is swapped for a known kit (shockrifle: 0%).
   let _sovCkpt = null;
+  // The navigator hand-off in tickLive. `brain nav off` (console) gives the net the legs everywhere.
+  let _navOn = true;
+  try { if (localStorage.getItem('smb_brain_nav') === '0') _navOn = false; } catch (e) {}
+  function setNav(on) {
+    _navOn = !!on;
+    try { localStorage.setItem('smb_brain_nav', on ? '1' : '0'); } catch (e) {}
+  }
   // Default ON everywhere Sovereign appears; `brain off` (console) selects the cascade.
   let _sovEnabled = true;
   try { if (localStorage.getItem('smb_brain_sov') === '0') _sovEnabled = false; } catch (e) {}
@@ -955,7 +1001,8 @@ const Brain = (() => {
   function driveSovereign(sov, opponent) {
     if (!_sovEnabled || !sov || !opponent) return Promise.resolve(-1);
     try { if (sov._ensureMatchLoadout) sov._ensureMatchLoadout(); } catch (e) {}
-    if (KIT_WEAPONS.indexOf(sov.weaponKey) < 0 && typeof SMK2_LOADOUTS !== 'undefined' && sov._applyLoadout) {
+    const unknownRanged = KIT_WEAPONS.indexOf(sov.weaponKey) < 0 && !(sov.weapon && sov.weapon.type === 'melee');
+    if (unknownRanged && typeof SMK2_LOADOUTS !== 'undefined' && sov._applyLoadout) {
       const known = SMK2_LOADOUTS.filter(l => KIT_WEAPONS.indexOf(l.wk) >= 0)
         .sort((a, b) => (b.prior || 0) - (a.prior || 0));
       if (known.length) sov._applyLoadout(known[0]);
@@ -972,7 +1019,8 @@ const Brain = (() => {
   }
 
   return { REPEAT, HEADS, N_LOGITS, OBS_DIM, OBS_BASE, STAT_KEYS, HABITS, randomKit, resolveKit, hostilesOf, controlsFor, loadNet, newState, forward, sample,
-           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign, setSovereignDrive,
+           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign, setSovereignDrive, setNav,
+           get nav() { return _navOn; },
            get sovereignDrive() { return _sovEnabled; },
            get live() { return _live; } };
 })();

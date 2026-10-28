@@ -187,18 +187,4 @@ function tfPortalTeleport(tf, target) {
   }, 350);
 }
 
-function tfSetSize(fighter, scale) {
-  if (!fighter) return;
-  // Restore original size first
-  if (tfSizeTargets.has(fighter)) {
-    const orig = tfSizeTargets.get(fighter);
-    fighter.w = orig.w; fighter.h = orig.h;
-  } else {
-    tfSizeTargets.set(fighter, { w: fighter.w, h: fighter.h });
-  }
-  fighter.w        = Math.round(fighter.w * scale);
-  fighter.h        = Math.round(fighter.h * scale);
-  fighter.tfDrawScale = scale;
-  fighter.drawScale   = scale;
-}
 

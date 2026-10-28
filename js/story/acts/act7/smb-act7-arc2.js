@@ -225,7 +225,7 @@ STORY_CHAPTER_REGISTRY.push(
     id: 162, title: 'The Fight with God',
     world: '🌅 God\'s Domain — The Center',
     preText: 'God. Not an enemy — a refusal ten thousand years old. Axiom fights beside you. Neither of you wins this alone. 1 life.',
-    isGodFight: true, godStoryHealth: 1400,
+    isGodFight: true, godStoryHealth: 20000,
     opponentName: 'God', aiDiff: 'expert', opponentColor: '#ffe8aa',
     allyDef: { name: 'Axiom', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', color: '#ffd27f', health: 300 },
     playerLives: 1,

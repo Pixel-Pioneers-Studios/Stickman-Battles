@@ -224,6 +224,12 @@ let tfFusionSwitchInterval = 300; // switch every 5 seconds
 // controlTimer: frames until the next ownership switch.
 let controlState = 'player'; // 'player' | 'paradox', only one is ever active
 let controlTimer = 0;        // counts down to the switch
+let controlDeferFrames = 0;  // frames a due switch has waited for the player to finish an action
+// A fixed rhythm the player can learn, with a warning ring before each handover (drawParadoxFusion).
+const FUSION_PLAYER_FRAMES  = 240;
+const FUSION_PARADOX_FRAMES = 150;
+const FUSION_WARN_FRAMES    = 60;
+const FUSION_DEFER_MAX      = 45;
 let tfFusionGlitchTimer = 0;
 let tfSwitchToParadoxFlash = 0; // counts 18→0: glow burst when paradox takes over
 let tfSwitchToPlayerFade   = 0; // counts 12→0: fade-out when player regains control
@@ -247,8 +253,7 @@ function updateFalseVictory() {
   if (t === 120) {
     tfFalseVictoryState.phase = 'reset';
     if (boss) {
-      boss.health    = 10000;
-      boss.maxHealth = 10000;
+      boss.health    = boss.maxHealth;
       boss.invincible = 90;
       boss._tfEndingPrimed = false; // allow Round 2's real ending to trigger at 10% HP
     }
@@ -267,7 +272,7 @@ function updateFalseVictory() {
     controlState = 'player';
     controlTimer = 0;
     if (typeof showBossDialogue === 'function') {
-      showBossDialogue('resetFightState();', 3000);
+      showBossDialogue('Again. From the beginning.', 3000);
     }
   }
   if (t >= 240) {
@@ -297,10 +302,10 @@ function drawFalseVictory() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = Math.min(1, (t - 60) / 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 24px monospace';
+    ctx.font = 'italic bold 24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('> shadow_clone.execute()', canvas.width / 2, canvas.height / 2 - 40);
-    ctx.fillText('> resetFightState();',     canvas.width / 2, canvas.height / 2);
+    ctx.fillText('That was a shadow.', canvas.width / 2, canvas.height / 2 - 40);
+    ctx.fillText('The fight begins again.', canvas.width / 2, canvas.height / 2);
     ctx.restore();
   }
 
@@ -356,6 +361,27 @@ function drawParadoxFusion(player) {
     ctx.strokeRect(player.x - 2, player.y - 2, player.w + 4, player.h + 4);
   }
   ctx.restore();
+
+  // Handover warning: a ring that empties over the last second, in the next controller's colour.
+  if (controlTimer > 0 && controlTimer <= FUSION_WARN_FRAMES) {
+    const left = controlTimer / FUSION_WARN_FRAMES;
+    const nextCol = paradoxControlling ? '#00ffff' : '#ff00cc';
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = nextCol;
+    ctx.shadowColor = nextCol;
+    ctx.shadowBlur  = 12;
+    ctx.lineWidth   = 3;
+    ctx.beginPath();
+    ctx.arc(player.cx(), player.cy(), 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * left);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = nextCol;
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(paradoxControlling ? 'YOU' : 'PARADOX', player.cx(), player.y - 30);
+    ctx.restore();
+  }
 
   if (tfFusionGlitchTimer > 0) {
     tfFusionGlitchTimer--;

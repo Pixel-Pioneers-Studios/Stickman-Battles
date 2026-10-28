@@ -17,6 +17,7 @@ const NetworkManager = (() => {
   const INTERP_DELAY = 130;
   const SEND_HZ = 20;
   let _sendTimer = 0;
+  let _bossHpTimer = 0;
   let _roomType = 'public';
   let _connected = false;
   let _slotCount = 1; // active player count including host
@@ -130,6 +131,7 @@ const NetworkManager = (() => {
         deviceId: identity.deviceId,
         peerId: identity.peerId,
         slot: _localSlot,
+        ver: typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : null,
       });
     } catch (e) {}
   }
@@ -367,6 +369,14 @@ const NetworkManager = (() => {
       }
 
       case 'clientHello': {
+        // Both sides must run the same build: a stale copy plays different weapons and rules.
+        const _hostVer = typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : null;
+        if (_isHost && _hostVer && msg.ver !== _hostVer) {
+          try { fromConn.send({ type: 'versionMismatch', host: _hostVer, guest: msg.ver || null }); } catch (e) {}
+          showToast('A player on a different copy of the game (' + (msg.ver ? 'v' + msg.ver : 'an older version') + ') could not join. Everyone needs v' + _hostVer + '.', 6000);
+          setTimeout(() => _closeSlot(fromSlot, null, 'version'), 400);
+          return;
+        }
         const merged = _setSlotMeta(fromSlot, {
           peerId: fromConn && fromConn.peer ? fromConn.peer : (_slotMeta[fromSlot] && _slotMeta[fromSlot].peerId) || null,
           accountId: msg.accountId || (_slotMeta[fromSlot] && _slotMeta[fromSlot].accountId) || null,
@@ -400,11 +410,17 @@ const NetworkManager = (() => {
         // Never trust client numbers. NaN poisons health math, and unclamped dmg/kb is a cheat.
         const _hDmg = Number(msg.dmg), _hKb = Number(msg.kb);
         if (!Number.isInteger(msg.targetSlot) || !Number.isFinite(_hDmg) || !Number.isFinite(_hKb)) return;
-        if (typeof dealDamage === 'function' && players[msg.targetSlot]) {
-          const attacker = players[msg.attackerSlot] || players[0];
+        // Mirrored minigame enemies are addressed by id: am (host's enemy hits a player), tm (a player hits one).
+        const _hTarget = msg.tm != null ? (_isHost && window.NetMG ? NetMG.byId(msg.tm) : null) : players[msg.targetSlot];
+        const _hAtt = msg.am != null ? (fromSlot === 0 && window.NetMG ? NetMG.byId(msg.am) : null) : players[msg.attackerSlot];
+        // Boss health comes from the host's bossHp snapshots on every other client.
+        const _skipBoss = _hTarget && _hTarget.isBoss && !_isHost;
+        if (typeof dealDamage === 'function' && _hTarget && !_skipBoss) {
+          const attacker = _hAtt || players[msg.attackerSlot] || players[0];
           const _cDmg = Math.max(0, Math.min(80, _hDmg)), _cKb = Math.max(0, Math.min(26, _hKb));
+          if (typeof MoveSceneNet !== 'undefined') MoveSceneNet.inboundHit(attacker);
           _netInboundHit = { dmg: _cDmg, kb: _cKb };
-          try { dealDamage(attacker, players[msg.targetSlot], _cDmg, _cKb); }
+          try { dealDamage(attacker, _hTarget, _cDmg, _cKb); }
           finally { _netInboundHit = null; }
         }
         if (_isHost) {
@@ -433,6 +449,13 @@ const NetworkManager = (() => {
         if (!_isHost && typeof msg.count === 'number') _slotCount = msg.count;
         _setStatus('Players: ' + msg.count + '/' + _maxPlayers);
         _renderLobbySettings();
+        break;
+
+      case 'versionMismatch':
+        _disconnectReason = 'version';
+        showToast('This room runs v' + msg.host + ' and you have ' +
+          (typeof GAME_VERSION !== 'undefined' ? 'v' + GAME_VERSION : 'another version') +
+          '. Both players need the same copy of the game. Get the newest one and try again.', 9000);
         break;
 
       case 'roomFull':
@@ -513,6 +536,12 @@ const NetworkManager = (() => {
       onlineAllowCustomWeapons = !!msg.allowCustomWeapons;
     }
     if (msg.chaosMode !== undefined && typeof chaosMode !== 'undefined') chaosMode = !!msg.chaosMode;
+    if (msg.survival && typeof survivalTeamMode !== 'undefined') {
+      survivalTeamMode     = !!msg.survival.team;
+      survivalFriendlyFire = !!msg.survival.ff;
+      survivalWaveGoal     = msg.survival.goal || survivalWaveGoal;
+      survivalInfinite     = !!msg.survival.inf;
+    }
     // Stamped last so nothing above can override it.
     gameMode = mode;
     if (typeof selectMode === 'function') selectMode(mode);
@@ -567,10 +596,19 @@ const NetworkManager = (() => {
       // Guest got the host's start signal. Sync settings, then launch.
       if (!_isHost) {
         _applyHostSettings(msg);
+        window._netMatchArena = msg.matchArena || null;
         window._onlineLaunchInProgress = true;
         try { if (typeof startGame === 'function') startGame(); }
         finally { window._onlineLaunchInProgress = false; }
       }
+    } else if (msg.event === 'bossHp') {
+      const _b = !_isHost && typeof players !== 'undefined' ? players[msg.i] : null;
+      if (_b && _b.isBoss && _b._netHpFollower && Number.isFinite(msg.hp)) {
+        if (Number.isFinite(msg.mh) && msg.mh > 0) _b.maxHealth = msg.mh;
+        _b.health = Math.max(0, Math.min(_b.maxHealth, msg.hp));
+      }
+    } else if (msg.event === 'mgWorld') {
+      if (!_isHost && window.NetMG && msg.w) NetMG.onSnapshot(msg.w);
     } else if (msg.event === 'playerLeft') {
       _handleOpponentLeft(msg.slot !== undefined ? msg.slot : undefined);
     } else if (msg.event === 'consoleCmd') {
@@ -691,7 +729,7 @@ const NetworkManager = (() => {
         _setStatus('Joining room...');
         const conn = _peer.connect(hostId, { reliable: true });
         _connections = [conn];
-        setTimeout(() => { if (_connections[0] === conn && !conn.open) showToast(_P2P_BLOCKED_MSG, 7000); }, 15000);
+        setTimeout(() => { if (_connections[0] === conn && !conn.open && _disconnectReason !== 'version') showToast(_P2P_BLOCKED_MSG, 7000); }, 15000);
 
         conn.on('open', () => {
           _log('Connected to host');
@@ -735,7 +773,7 @@ const NetworkManager = (() => {
         conn.on('close', () => {
           _connected = false;
           _setStatus('Disconnected');
-          if (_disconnectReason !== 'ban') _handleOpponentLeft(0); // host is always slot 0
+          if (_disconnectReason !== 'ban' && _disconnectReason !== 'version') _handleOpponentLeft(0); // host is always slot 0
         });
         conn.on('error', e => showToast('Connection error: ' + e));
       } else {
@@ -905,6 +943,8 @@ const NetworkManager = (() => {
       color: p.color, lives: p.lives,
       hat: p.hat || 'none', cape: p.cape || 'none',
       name: p.name || ('P' + (_localSlot + 1)),
+      ab: p.abilityCooldown || 0, su: p.superReady ? 1 : 0,
+      ms: typeof MoveSceneNet !== 'undefined' ? MoveSceneNet.pack(p) : undefined,
       slot: _localSlot, ts: Date.now()
     };
     const msg = { type: 'playerState', slot: _localSlot, state };
@@ -915,7 +955,7 @@ const NetworkManager = (() => {
     }
   }
 
-  function sendHit(attackerSlot, targetSlot, dmg, kb) {
+  function sendHit(attackerSlot, targetSlot, dmg, kb, extra) {
     // Support legacy 2-arg call: sendHit(dmg, kb)
     if (typeof targetSlot === 'undefined' || typeof dmg === 'undefined' || typeof kb === 'undefined') {
       // Legacy 2-player call: sendHit(dmg, kbDir)
@@ -925,7 +965,7 @@ const NetworkManager = (() => {
       else if (_connections[0] && _connections[0].open) { _connections[0].send(msg2); }
       return;
     }
-    const msg = { type: 'hitEvent', attackerSlot, targetSlot, dmg, kb };
+    const msg = Object.assign({ type: 'hitEvent', attackerSlot, targetSlot, dmg, kb }, extra || null);
     if (_isHost) { _broadcast(msg); }
     else if (_connections[0] && _connections[0].open) { _connections[0].send(msg); }
   }
@@ -1044,6 +1084,14 @@ const NetworkManager = (() => {
       sendState();
     }
     sendProjectiles();
+    if (window.NetMG) NetMG.hostTick();
+    if (_isHost && typeof gameRunning !== 'undefined' && gameRunning && typeof gameMode !== 'undefined' &&
+        gameMode === 'boss' && ++_bossHpTimer >= 20) {
+      _bossHpTimer = 0;
+      players.forEach((b, i) => {
+        if (b && b.isBoss) sendGameEvent('bossHp', { i, hp: Math.max(0, Math.round(b.health)), mh: b.maxHealth });
+      });
+    }
   }
 
   // Owner -> everyone: compact snapshot of my live projectiles (see NetProj). Sent on
@@ -1237,6 +1285,240 @@ const NetworkManager = (() => {
 // `window.NetworkManager` guards in other modules were always falsy.
 window.NetworkManager = NetworkManager;
 
+// Duel room minigames. The host simulates the minigame (wave enemies, the Nexus,
+// hill points, chaos modifiers, the sports ball) and streams it as 'mgWorld'.
+// Guests draw that and simulate none of it. A guest's hit on a mirrored enemy
+// goes to the host as a hitEvent with `tm`; the host's enemies hit guests with `am`.
+window.NetMG = (function () {
+  const SEND_EVERY = 3;
+  let _latest = null, _fresh = false, _timer = 0, _nextId = 1;
+  let _clears = 0, _clearsSeen = 0, _kick = 0, _kickSeen = 0, _endQueued = false;
+  let _applying = false;
+
+  function _live() {
+    return typeof onlineMode !== 'undefined' && onlineMode && NetworkManager.connected &&
+      NetworkManager.getSlotCount() > 1 && typeof gameMode !== 'undefined' && gameMode === 'minigames';
+  }
+  function host() { return _live() && NetworkManager.isHost(); }
+  function follower() { return _live() && !NetworkManager.isHost(); }
+  const _streamsEnemies = () => minigameType === 'survival' || minigameType === 'defense';
+
+  // Called from initMinigame() on every client.
+  function reset() {
+    _latest = null; _fresh = false; _timer = 0;
+    _clears = 0; _clearsSeen = 0; _kick = 0; _kickSeen = 0; _endQueued = false;
+  }
+
+  function _pack(f) {
+    return {
+      id: f._netMinionId, x: Math.round(f.x * 10) / 10, y: Math.round(f.y * 10) / 10,
+      vx: +(f.vx || 0).toFixed(2), vy: +(f.vy || 0).toFixed(2),
+      h: Math.round(f.health), mh: f.maxHealth, f: f.facing, og: f.onGround ? 1 : 0,
+      at: f.attackTimer || 0, ad: f.attackDuration || 12, hu: f.hurtTimer || 0, st: f.stunTimer || 0,
+      inv: f.invincible || 0, sh: f.shielding ? 1 : 0, w: f.weaponKey, col: f.color, n: f.name,
+      bw: f.w, bh: f.h, ds: f.drawScale || 1, pn: f.playerNum || 2, rush: f._defenseRusher ? 1 : 0,
+      ms: typeof MoveSceneNet !== 'undefined' ? MoveSceneNet.pack(f) : undefined,
+    };
+  }
+
+  function hostTick() {
+    if (!host() || typeof gameRunning === 'undefined' || !gameRunning) return;
+    if (++_timer < SEND_EVERY) return;
+    _timer = 0;
+    const w = { t: minigameType, cl: _clears, cm: [...currentChaosModifiers], cg: chaosGravityMult };
+    if (_streamsEnemies()) {
+      w.m = [];
+      // Wave enemies only: a Summoner's familiar is on the players' side.
+      for (const m of (minigameType === 'survival' ? survivalEnemies : defenseEnemies)) {
+        if (!m || m.health <= 0 || m._isFamiliar) continue;
+        if (m._netMinionId === undefined) m._netMinionId = _nextId++;
+        w.m.push(_pack(m));
+      }
+    }
+    if (minigameType === 'survival') { w.sw = survivalWave; w.sd = survivalWaveDelay; }
+    if (minigameType === 'defense') {
+      w.dw = defenseWave; w.dd = defenseWaveDelay; w.nh = defenseNexusHp; w.nm = defenseNexusMaxHp;
+    }
+    if (minigameType === 'koth') { w.kp = kothPoints.slice(); w.kx = kothZoneX; }
+    if (minigameType === 'sports' && typeof sportsBalls !== 'undefined') {
+      w.sp = {
+        balls: sportsBalls.map(b => ({
+          x: Math.round(b.x), y: Math.round(b.y), vx: +b.vx.toFixed(2), vy: +b.vy.toFixed(2),
+          r: b.r, hid: b.hidden ? 1 : 0, fire: b.fire || 0, ch: b.charged || 0, spin: +(b.spin || 0).toFixed(2),
+        })),
+        score: sportsScore.slice(), pause: sportsPause, kick: _kick, win: sportsWinnerIdx,
+        banner: sportsBanner ? { text: sportsBanner.text, sub: sportsBanner.sub, color: sportsBanner.color, t: sportsBanner.t } : null,
+      };
+    }
+    if (minigameResult) {
+      w.res = { text: minigameResult.text, color: minigameResult.color, sub: minigameResult.sub,
+                win: minigameResult.winner ? players.indexOf(minigameResult.winner) : -1 };
+    }
+    NetworkManager.sendGameEvent('mgWorld', { w });
+  }
+
+  function onSnapshot(w) { _latest = w; _fresh = true; }
+  function noteClear() { _clears++; }
+  function noteKickoff() { _kick++; }
+  function byId(id) {
+    return (typeof minions !== 'undefined' && minions.find(m => m && m._netMinionId === id)) || null;
+  }
+  function _local() { return players[NetworkManager.getLocalSlot()] || null; }
+
+  function _syncEnemies(list) {
+    const want = new Set(list.map(s => s.id));
+    for (let i = minions.length - 1; i >= 0; i--) {
+      const m = minions[i];
+      if (!m || m._netMinionId === undefined || want.has(m._netMinionId)) continue;
+      if (m.health > 0 && typeof spawnParticles === 'function') spawnParticles(m.cx(), m.cy(), m.color, 14);
+      m.health = 0;
+      minions.splice(i, 1);
+    }
+    const out = [];
+    for (const s of list) {
+      let m = byId(s.id);
+      if (!m) {
+        const W = typeof WEAPONS !== 'undefined' && WEAPONS[s.w] ? s.w : 'sword';
+        m = new Fighter(s.x, s.y, s.col || '#ff5530', W,
+          { left: null, right: null, jump: null, attack: null, ability: null, super: null }, false, 'easy');
+        m.isRemote = true; m.isAI = false;
+        m._netMinionId = s.id;
+        m._teamId = 'mg_enemy';
+        m.lives = 1;
+        minions.push(m);
+      }
+      m.x = s.x; m.y = s.y; m.vx = s.vx || 0; m.vy = s.vy || 0;
+      if (s.mh) m.maxHealth = s.mh;
+      m.health = s.h;
+      if (s.f) m.facing = s.f;
+      m.onGround = !!s.og;
+      m.state = s.at > 0 ? 'attacking' : (s.og ? 'idle' : 'jumping');
+      m.attackTimer = s.at || 0; m.attackDuration = s.ad || 12;
+      m.hurtTimer = s.hu || 0; m.stunTimer = s.st || 0;
+      m.invincible = s.inv || 0; m.shielding = !!s.sh;
+      if (s.w && s.w !== m.weaponKey && WEAPONS[s.w]) { m.weaponKey = s.w; m.weapon = WEAPONS[s.w]; }
+      if (s.col) m.color = s.col;
+      if (s.n) m.name = s.n;
+      if (s.bw) m.w = s.bw;
+      if (s.bh) m.h = s.bh;
+      m.drawScale = s.ds || 1;
+      m.playerNum = s.pn || 2;
+      m._defenseRusher = !!s.rush;
+      if (typeof MoveSceneNet !== 'undefined') MoveSceneNet.applyRemote(m, s.ms);
+      out.push(m);
+    }
+    return out;
+  }
+
+  function _syncChaos(ids) {
+    const want = new Set(ids || []);
+    let removed = false;
+    for (const id of [...currentChaosModifiers]) if (!want.has(id)) { currentChaosModifiers.delete(id); removed = true; }
+    if (removed) applyChaosModifiers();
+    for (const id of want) {
+      if (currentChaosModifiers.has(id)) continue;
+      currentChaosModifiers.add(id);
+      applyChaosModifiers(id);
+      const mod = CHAOS_MODS.find(m => m.id === id);
+      if (mod && minigameType === 'chaos') showChaosModNotification(mod);
+    }
+    updateChaosModIcons();
+  }
+
+  // Guest, every frame from updateMinigame(): show the host's minigame.
+  function follow() {
+    const w = _latest;
+    if (!w) return;
+    if (!_fresh) {
+      for (const m of minions) if (m && m._netMinionId !== undefined && m.isRemote) { m.x += m.vx || 0; m.y += m.vy || 0; }
+      return;
+    }
+    _fresh = false;
+    if (Array.isArray(w.m)) {
+      const list = _syncEnemies(w.m);
+      if (w.t === 'survival') survivalEnemies = list;
+      if (w.t === 'defense') defenseEnemies = list;
+    }
+    if (w.t === 'survival') { survivalWave = w.sw; survivalWaveDelay = w.sd; }
+    if (w.t === 'defense') {
+      defenseWave = w.dw; defenseWaveDelay = w.dd; defenseNexusHp = w.nh; defenseNexusMaxHp = w.nm;
+    }
+    if (w.t === 'koth' && Array.isArray(w.kp)) { kothPoints[0] = w.kp[0]; kothPoints[1] = w.kp[1]; kothZoneX = w.kx; }
+    _syncChaos(w.cm);
+    if (Number.isFinite(w.cg)) chaosGravityMult = w.cg;
+    // A cleared survival wave heals the living and, in team mode, brings the fallen back.
+    if (w.cl > _clearsSeen) {
+      _clearsSeen = w.cl;
+      const me = _local();
+      if (me && w.t === 'survival') {
+        if (me._mgDown) {
+          if (survivalTeamMode) {
+            me._mgDown = false; me.lives = 1;
+            me.respawn();
+            me.health = Math.ceil(me.maxHealth / 2);
+            damageTexts.push(new DamageText(me.cx(), me.y - 20, 'BACK IN!', '#44ff88'));
+          }
+        } else if (me.health > 0) me.health = Math.min(me.maxHealth, me.health + 25);
+      }
+    }
+    if (w.sp) _applySports(w.sp);
+    if (w.res && !minigameResult) {
+      _applying = true;
+      try { _minigameFinish(w.res.text, w.res.color, players[w.res.win] || null, 2500, w.res.sub); }
+      finally { _applying = false; }
+    }
+  }
+
+  function _applySports(sp) {
+    while (sportsBalls.length < sp.balls.length) sportsBalls.push(_sportsMakeBall(0, 0));
+    sportsBalls.length = sp.balls.length;
+    sp.balls.forEach((s, i) => {
+      const b = sportsBalls[i];
+      b.x += (s.x - b.x) * 0.45; b.y += (s.y - b.y) * 0.45;
+      b.vx = s.vx; b.vy = s.vy; b.r = s.r || b.r;
+      b.hidden = !!s.hid; b.fire = s.fire || 0; b.charged = s.ch || 0; b.spin = s.spin || 0;
+    });
+    sportsScore[0] = sp.score[0]; sportsScore[1] = sp.score[1];
+    sportsPause = sp.pause;
+    sportsWinnerIdx = sp.win;
+    if (sp.banner && (!sportsBanner || sportsBanner.text !== sp.banner.text || sportsBanner.sub !== sp.banner.sub)) {
+      sportsBanner = Object.assign({}, sp.banner);
+    }
+    if (sp.kick !== _kickSeen) {
+      _kickSeen = sp.kick;
+      // Kickoff after a point: put my own fighter back on my side.
+      const me = _local();
+      if (me) {
+        const left = me._sportsTeam === 0;
+        me.x = (left ? 170 : 730) - me.w / 2;
+        me.y = SPORTS_FLOOR_Y - me.h - 2;
+        me.vx = 0; me.vy = 0; me.facing = left ? 1 : -1;
+      }
+    }
+    if (sp.win >= 0 && !_endQueued) {
+      _endQueued = true;
+      setTimeout(() => { if (gameRunning && isSportsMode()) endGame(); }, 2000);
+    }
+  }
+
+  // Guest, every frame from updateSports(): move the ball between snapshots.
+  function sportsStep() {
+    if (sportsBanner && --sportsBanner.t <= 0) sportsBanner = null;
+    const g = (typeof SPORTS !== 'undefined' && SPORTS[sportsType]) ? SPORTS[sportsType].grav : 0.5;
+    for (const b of sportsBalls) {
+      if (b.hidden || sportsPause > 0) continue;
+      b.vy += g;
+      b.x += b.vx; b.y += b.vy;
+      if (b.y > SPORTS_FLOOR_Y - b.r) { b.y = SPORTS_FLOOR_Y - b.r; b.vy = 0; }
+    }
+  }
+
+  return {
+    host, follower, reset, hostTick, onSnapshot, follow, sportsStep, noteClear, noteKickoff, byId,
+    get applying() { return _applying; },
+  };
+})();
+
 // Standalone functions (called from HTML onclick).
 // Leaving the room from the menu. Full teardown, so no online state survives.
 function networkLeaveRoom() {
@@ -1286,9 +1568,19 @@ function networkStartGame() {
     NetworkManager.showToast('Not connected — click Connect first');
     return;
   }
+  // Only modes built for two human players run online. The rest are solo fights.
+  const _mode = typeof gameMode !== 'undefined' ? gameMode : '2p';
+  if (['2p', 'online', 'boss', 'minigames', 'training'].indexOf(_mode) === -1) {
+    NetworkManager.showToast('That mode is single-player. Online you can play 1v1, Boss Co-op, Minigames or Training.', 5000);
+    return;
+  }
   if (typeof cgSdk !== 'undefined') cgSdk.updateRoom(NetworkManager.room, false);
+  const _matchArena = typeof _onlineRollArena === 'function' ? _onlineRollArena() : null;
   // Broadcast current arena + mode so guests match
   NetworkManager.sendGameEvent('startGame', {
+    matchArena:   _matchArena,
+    survival:     typeof survivalTeamMode !== 'undefined'
+                  ? { team: survivalTeamMode, ff: survivalFriendlyFire, goal: survivalWaveGoal, inf: survivalInfinite } : null,
     arena:        typeof selectedArena  !== 'undefined' ? selectedArena  : 'random',
     mode:         typeof gameMode       !== 'undefined' ? gameMode       : '2p',
     lives:        typeof chosenLives    !== 'undefined' ? chosenLives    : 3,
@@ -1299,6 +1591,7 @@ function networkStartGame() {
   });
   // Small delay so the network message reaches guests before host starts
   setTimeout(() => {
+    window._netMatchArena = _matchArena;
     window._onlineLaunchInProgress = true;
     try { if (typeof startGame === 'function') startGame(); }
     finally { window._onlineLaunchInProgress = false; }

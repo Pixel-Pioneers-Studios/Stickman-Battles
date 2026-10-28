@@ -1,6 +1,6 @@
 'use strict';
 
-// storage.js — Persistent key-value store for the Stickman Battles server.
+// storage.js — Persistent key-value store for the Stickman Evolution server.
 //
 // Primary backend: SQLite via better-sqlite3 (synchronous API, no async needed).
 // Fallback:        In-memory Map — data survives the process lifetime only.

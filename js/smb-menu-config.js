@@ -325,13 +325,19 @@ function _getLoadingInfo() {
   if (ld) return { title: ld.cardTitle || `RUNG ${ld.rung + 1}`, subtitle: String(ld.name).toUpperCase(), scene: 'versus' };
   switch (gameMode) {
     case 'boss':
+      if (typeof _isFallenGodFight === 'function' && _isFallenGodFight())
+        return { title: 'FALLEN GOD', subtitle: 'HE BUILT THE WALLS. PROVE YOU CAN CROSS THEM', scene: 'boss' };
       return { title: 'BOSS FIGHT', subtitle: 'IT HAS BEEN WAITING', scene: 'boss' };
+    case 'sovereign':
+      return { title: 'SOVEREIGN', subtitle: 'IT HAS ALREADY STUDIED YOU', scene: 'versus' };
     case 'trueform':
       return { title: 'COSMIC AXIOM',  subtitle: 'THE RULES STOP APPLYING', scene: 'trueform' };
     case 'story':
       return { title: 'STORY MODE', subtitle: 'THE 95TH BEARER', scene: 'story' };
     case 'battleroyale':
       return { title: 'BATTLE ROYALE', subtitle: '94 BEARERS. ONE SURVIVOR', scene: 'battleroyale' };
+    case 'endless':
+      return { title: 'ENDLESS', subtitle: 'CLEAR THE BLOCK. TAKE THE TELEPORTER', scene: 'battleroyale' };
     case 'minigames':
       return { title: minigameType === 'sports' && typeof SPORTS !== 'undefined' && SPORTS[sportsType]
                         ? SPORTS[sportsType].name : (mgNames[minigameType] || 'MINIGAME'),

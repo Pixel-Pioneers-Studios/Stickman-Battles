@@ -1,5 +1,5 @@
 'use strict';
-// smb-debug-console.js: in-game developer console (_consoleExec). Unlock: type GAMECONSOLE.
+// smb-debug-console.js: in-game developer console (_consoleExec). Open: Ctrl+Shift+O then Ctrl+Shift+X (smb-debug-overlay.js).
 // Load after smb-debug-overlay.js, before smb-debug-jump.js.
 
 let _consoleOpen      = false;
@@ -46,13 +46,13 @@ function _consoleApplyAdminTheme(role) {
   if (isDev) {
     if (ov)       { ov.style.borderTopColor = '#ff9900'; ov.style.borderTopWidth = '2px'; }
     if (titleBar) { titleBar.style.background = 'rgba(40,20,0,0.97)'; titleBar.style.borderBottomColor = '#cc6600'; }
-    if (title)    { title.style.color = '#ffcc44'; title.textContent = '\u26A0 Stickman Clash  — Dev Console'; }
+    if (title)    { title.style.color = '#ffcc44'; title.textContent = '\u26A0 Stickman Evolution — Dev Console'; }
     if (badge)    { badge.style.display = ''; badge.textContent = 'DEV'; badge.style.background = 'rgba(255,150,0,0.25)'; badge.style.border = '1px solid rgba(255,150,0,0.55)'; badge.style.color = '#ffcc44'; }
   } else {
     // admin (not dev)
     if (ov)       { ov.style.borderTopColor = '#ff8800'; ov.style.borderTopWidth = '2px'; }
     if (titleBar) { titleBar.style.background = 'rgba(35,15,0,0.97)'; titleBar.style.borderBottomColor = '#994400'; }
-    if (title)    { title.style.color = '#ffaa44'; title.textContent = '\u{1F6E1} Stickman Clash  — Admin Console'; }
+    if (title)    { title.style.color = '#ffaa44'; title.textContent = '\u{1F6E1} Stickman Evolution — Admin Console'; }
     if (badge)    { badge.style.display = ''; badge.textContent = 'ADMIN'; badge.style.background = 'rgba(255,120,0,0.2)'; badge.style.border = '1px solid rgba(255,120,0,0.5)'; badge.style.color = '#ffaa44'; }
   }
 }
@@ -64,7 +64,7 @@ function _consoleApplyModeratorTheme() {
   const badge    = document.getElementById('gameConsoleRoleBadge');
   if (ov)       { ov.style.borderTopColor = '#00ccaa'; ov.style.borderTopWidth = '2px'; }
   if (titleBar) { titleBar.style.background = 'rgba(0,25,20,0.97)'; titleBar.style.borderBottomColor = '#008866'; }
-  if (title)    { title.style.color = '#44ffcc'; title.textContent = '\u{1F6E1} Stickman Clash  — Mod Console'; }
+  if (title)    { title.style.color = '#44ffcc'; title.textContent = '\u{1F6E1} Stickman Evolution — Mod Console'; }
   if (badge)    { badge.style.display = ''; badge.textContent = 'MOD'; badge.style.background = 'rgba(0,200,150,0.2)'; badge.style.border = '1px solid rgba(0,200,150,0.5)'; badge.style.color = '#44ffcc'; }
 }
 
@@ -75,7 +75,7 @@ function _consoleResetTheme() {
   const badge    = document.getElementById('gameConsoleRoleBadge');
   if (ov)       { ov.style.borderTopColor = '#3366ff'; ov.style.borderTopWidth = '2px'; }
   if (titleBar) { titleBar.style.background = 'rgba(20,30,80,0.95)'; titleBar.style.borderBottomColor = '#3366ff'; }
-  if (title)    { title.style.color = '#88aaff'; title.textContent = '\u25B6 Stickman Clash Console'; }
+  if (title)    { title.style.color = '#88aaff'; title.textContent = '\u25B6 Stickman Evolution Console'; }
   if (badge)    { badge.style.display = 'none'; badge.textContent = ''; }
 }
 
@@ -125,7 +125,7 @@ function openGameConsole() {
     _consolePrint('Admin-only: ban  tempban  banpeer  banip  unban  banlist  kick  bancheck  setaccountrole  notify', '#ffdd88');
     _consolePrint('Dev-only:   spawn  godmode  eval  unlockall  setchapter  startboss  gravity  noclip  setspeed  reload', '#ffbb66');
   } else {
-    _consolePrint('Stickman Clash Console \u2014 type HELP for commands.', '#88bbff');
+    _consolePrint('Stickman Evolution Console \u2014 type HELP for commands.', '#88bbff');
   }
 
   if (inp) {
@@ -164,8 +164,9 @@ function gameConsoleRun() {
   if (!consoleUnlocked) {
     if (raw === _CONSOLE_PASS) {
       consoleUnlocked = true;
+      inp.type = 'text';   // masked only while it holds the password
       _consoleOk('Password accepted. Console unlocked.');
-      _consolePrint('Stickman Clash Console — type HELP for commands.', '#88bbff');
+      _consolePrint('Stickman Evolution Console — type HELP for commands.', '#88bbff');
     } else {
       _consoleErr('Incorrect password. Console locked.');
     }
@@ -416,7 +417,7 @@ function _consoleExec(raw) {
     _consolePrint('  lives:        ' + p.lives);
     _consolePrint('  superMeter:   ' + (p.superMeter || 0).toFixed(1) + ' / ' + (p.superMeterMax || 100));
     _consolePrint('  superReady:   ' + !!p.superReady);
-    _consolePrint('  superCount:   ' + (p._domainSuperCount || 0) + ' landed (next super is Conviction at 4)');
+    _consolePrint('  superCount:   ' + (p._domainSuperCount || 0) + ' landed (Conviction banked at 4, hold super to fire)');
     _consolePrint('  abilityCd:    ' + (p.abilityCooldown || 0));
     _consolePrint('  attackTimer:  ' + (p.attackTimer || 0));
     _consolePrint('  isAI:         ' + !!p.isAI);
@@ -1059,6 +1060,12 @@ function _consoleExec(raw) {
   if (cmd === 'SOV STATS' || cmd === 'SOVEREIGN STATS') { if (typeof showSovereignStats === 'function') showSovereignStats(!adaptiveAIDebug); return; }
   if (cmd === 'SOV PREDICT' || cmd === 'SOVEREIGN PREDICT') { if (typeof showSovereignPredictions === 'function') showSovereignPredictions(); return; }
   if (cmd === 'SOV RESET' || cmd === 'SOVEREIGN RESET') { if (typeof resetSovereignMK2 === 'function') resetSovereignMK2(); return; }
+  if (cmd === 'BRAIN NAV ON' || cmd === 'BRAIN NAV OFF') {
+    if (typeof Brain === 'undefined' || !Brain.setNav) { _consoleErr('Brain not loaded.'); return; }
+    Brain.setNav(cmd === 'BRAIN NAV ON');
+    _consolePrint(Brain.nav ? 'Brain navigator ON: the bots\' pathfinding moves the brain across gaps (off The Circuit).' : 'Brain navigator OFF: the net moves on its own everywhere.', '#44ff88');
+    return;
+  }
   if (cmd === 'BRAIN' || cmd === 'BRAIN ON' || cmd === 'BRAIN OFF') {
     if (typeof Brain === 'undefined') { _consoleErr('Brain not loaded.'); return; }
     if (cmd === 'BRAIN OFF') { Brain.release(); if (Brain.setSovereignDrive) Brain.setSovereignDrive(false); _consolePrint('Brain released P2; Sovereign uses the cascade (BRAIN ON to restore).', '#44ff88'); return; }
@@ -1372,7 +1379,7 @@ function _consoleExec(raw) {
   }
 
   if (cmd === 'VERSION') {
-    _consolePrint('Stickman Clash (Stickman Battles)', '#88bbff');
+    _consolePrint('Stickman Evolution: The 95th', '#88bbff');
     _consolePrint('Build: ' + (typeof GAME_VERSION !== 'undefined' ? GAME_VERSION : 'dev'), '#88bbff');
     _consolePrint('Mode: ' + (typeof gameMode !== 'undefined' ? gameMode || 'menu' : 'unknown'), '#88bbff');
     _consolePrint('Arena: ' + (typeof currentArenaKey !== 'undefined' ? currentArenaKey || '—' : '—'), '#88bbff');
@@ -1875,8 +1882,8 @@ function _consoleExec(raw) {
     ['unlock', 'unlock trueform|megaknight', [['trueform', 'megaknight']]], ['unlockall', 'unlock everything', []],
     ['unlockallskills', 'unlock all items', []], ['setchapter', 'setchapter <id> (0-based)', []],
     ['startmatch', 'start a match', [['p1vsbot', '2p', 'boss', 'trueform', 'training', 'adaptive', 'sovereign']]],
-    ['startboss', 'start a boss fight', [['boss', 'trueform']]], ['studio', 'recording stage', []], ['debug', 'debug overlay', [ON]],
-    ['brain', 'trained brain plays P2', [['on', 'off']]], ['read', 'brain read layer', [ON]], ['sov stats', 'Sovereign stats', []],
+    ['startboss', 'start a boss fight', [['boss', 'trueform']]], ['studio', 'recording stage', []], ['debug', 'debug overlay', [ON]], ['debugmenu', 'open the debug menu', []],
+    ['brain', 'trained brain plays P2', [['on', 'off', 'nav on', 'nav off']]], ['read', 'brain read layer', [ON]], ['sov stats', 'Sovereign stats', []],
     ['sov predict', 'Sovereign predictions', []], ['sov reset', 'reset Sovereign', []], ['tf adapt', 'TrueForm adaptation', []],
     ['tf profile', 'TrueForm player profile', []], ['camtrace', 'camera trace', [['arm', 'start', 'stop', 'mark', 'report']]],
     ['maps analyze', 'analyze all maps', []], ['map analyze', 'analyze one map', [A]], ['pf', 'pathfinding debug', []],
@@ -1906,6 +1913,11 @@ function _consoleExec(raw) {
     if (s.includes(';') && c0 !== 'macro') { _chain(s); return true; }
 
     switch (c0) {
+      case 'debugmenu':
+        if (typeof openDebugMenu !== 'function') { _consoleErr('Debug menu not loaded.'); return true; }
+        closeGameConsole();
+        openDebugMenu();
+        return true;
       case 'help': {
         if (a1) return false;
         _origExec(raw);
@@ -2195,6 +2207,7 @@ function _consoleExec(raw) {
     const sel = box.children[_acIdx]; if (sel) sel.scrollIntoView({ block: 'nearest' });
   }
   function _acUpdate() {
+    if (!consoleUnlocked) { _acItems = []; _acRender(); return; }   // no suggestions off a password
     const inp = document.getElementById('gameConsoleInput'); if (!inp) return;
     if (inp.selectionStart !== inp.value.length) { _acItems = []; _acRender(); return; }
     let r = null; try { r = _suggest(inp.value); } catch (e) {}
@@ -2239,6 +2252,9 @@ function _consoleExec(raw) {
     _origOpen.apply(this, arguments);
     _acWire();
     const inp = document.getElementById('gameConsoleInput');
-    if (inp) inp.placeholder = 'type a command… Tab completes · HELP for list · =expr runs JavaScript';
+    if (!inp) return;
+    // While locked the box takes the password, so it is masked like any password field.
+    inp.type = consoleUnlocked ? 'text' : 'password';
+    inp.placeholder = consoleUnlocked ? 'type a command… Tab completes · HELP for list · =expr runs JavaScript' : 'password';
   };
 })();

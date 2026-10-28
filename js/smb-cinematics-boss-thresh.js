@@ -300,7 +300,7 @@ function _makeBossDesp10Cinematic(boss) {
                            color: '#ff4400', count: 3, maxR: 450, dur: 100 } }
       },
       { at: 1.0, dialogue: 'You\'re still here.',        dialogueDur: 160 },
-      { at: 1.85, dialogue: 'Most things break. You don\'t.', dialogueDur: 200 },
+      { at: 1.85, dialogue: 'Most things break. You will.', dialogueDur: 200 },
       { at: 1.9,
         fx: { flash: { color: '#ff8800', alpha: 0.40, dur: 10 }, screenShake: 32 }
       },

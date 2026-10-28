@@ -104,7 +104,7 @@ function spawnImpact(x, y, power, opts) {
   if (!pl) {
     let best = null, bestD = 30;
     for (const p of currentArena.platforms) {
-      if (p.isFloorDisabled) continue;
+      if (p.isFloorDisabled || p.ramp || p.noDraw) continue;   // slopes and undrawn BR structure parts take no decals
       if (x < p.x - 6 || x > p.x + p.w + 6) continue;
       const d = Math.abs(y - p.y);
       if (d < bestD) { bestD = d; best = p; }

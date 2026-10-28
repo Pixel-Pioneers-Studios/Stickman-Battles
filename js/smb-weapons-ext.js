@@ -38,6 +38,7 @@ function _wxFrame() { return typeof frameCount !== 'undefined' ? frameCount : 0;
 function _wxSolidAt(x, y) {
   for (const pl of _wxPlatforms()) {
     if (pl.passUnder || pl.isHidden) continue;
+    if (pl.ramp) { if (rampHolds(pl, x, y)) return pl; continue; }
     if (x > pl.x && x < pl.x + pl.w && y > pl.y && y < pl.y + pl.h) return pl;
   }
   return null;
@@ -49,7 +50,8 @@ function _wxLand(o, r) {
   for (const pl of _wxPlatforms()) {
     if (pl.isHidden) continue;
     if (o.x < pl.x - 1 || o.x > pl.x + pl.w + 1) continue;
-    if (o.py + r <= pl.y + 2 && o.y + r >= pl.y) { o.y = pl.y - r; return pl; }
+    const top = pl.ramp ? rampTopAt(pl, Math.max(pl.x, Math.min(pl.x + pl.w, o.x))) : pl.y;
+    if (o.py + r <= top + 2 && o.y + r >= top) { o.y = top - r; return pl; }
   }
   return null;
 }
@@ -301,7 +303,7 @@ function _wxUpdateBombs(user) {
       bm.vy += bm.giga ? 0.45 : 0.38;
       bm.x += bm.vx; bm.y += bm.vy;
       const wall = _wxSolidAt(bm.x, bm.y);
-      if (wall && !(bm.py + bm.r <= wall.y + 2)) {
+      if (wall && !(bm.py + bm.r <= (wall.ramp ? rampTopAt(wall, bm.x) : wall.y) + 2)) {
         if (bm.sticky) { bm.onSurface = true; }
         else { bm.x -= bm.vx; bm.vx = -bm.vx * 0.45; }
       }
@@ -514,7 +516,7 @@ function wxFragmentOverdrive(user) {
   // (dealDamage). Overdrive deals no damage, so it pays both on cast.
   if (user._superCountPending) {
     user._superCountPending = false;
-    user._domainSuperCount = (user._domainSuperCount || 0) + 1;
+    user._domainSuperCount = Math.min(CONVICTION_CHARGES, (user._domainSuperCount || 0) + 1);
   }
   const heal = Math.min(user._superHealPending || 0, user.maxHealth - user.health);
   user._superHealPending = 0;
@@ -1464,6 +1466,7 @@ function _wxAnchorShape(s) {
 
 // In-hand art. Local frame: hand at the origin, weapon along +x, already mirrored.
 function wxDrawWeaponArt(f, k, attacking) {
+  if (k === 'cataclysm') { if (typeof cxDrawWeaponArt === 'function') cxDrawWeaponArt(f, attacking); return; }
   const ctx = _weaponArtCtx();
   const fc = _wxFrame();
   if (k === 'bomb') {

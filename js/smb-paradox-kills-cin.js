@@ -326,10 +326,9 @@ function _makeTFKillsParadoxCinematic(tf) {
       // Absorption checks this flag, so set it here.
       paradoxDeathComplete = true;
 
-      // TF starts the main fight at 9000 HP.
+      // TF starts the main fight at 90% HP.
       if (tf) {
-        tf.health           = 9000;
-        tf.maxHealth        = Math.max(tf.maxHealth, 9000);
+        tf.health           = Math.round(tf.maxHealth * 0.9);
         tf.postSpecialPause = 4;
       }
 

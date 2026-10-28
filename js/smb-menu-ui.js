@@ -5,7 +5,8 @@
 // Menu UI handlers
 function selectMode(mode) {
   const _prevMode = gameMode;
-  simBossType = null;
+  // Re-selecting 'boss' (1P/2P toggle, bot toggle) keeps the refight's boss; startSimFight sets it.
+  if (mode !== 'boss') simBossType = null;
   // 'bot' is no longer a separate mode: merge into '2p' with bot toggles
   if (mode === 'bot') mode = '2p';
   if (mode === 'completerandom') {
@@ -71,13 +72,13 @@ function selectMode(mode) {
     if (_sportsOpts) _sportsOpts.style.display = minigameType === 'sports' ? 'flex' : 'none';
   }
   // P2 panel title/hint
-  document.getElementById('p2Title').textContent = isTrueForm ? 'COSMIC AXIOM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? 'CREATOR' : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
+  document.getElementById('p2Title').textContent = isTrueForm ? 'COSMIC AXIOM' : mode === 'god' ? 'GOD' : mode === 'absoluteaxiom' ? 'ABSOLUTE AXIOM' : isAdaptive ? 'NEURAL AI' : (isBoss && !isBoss2p) ? (simBossType === 'fallen_god' ? 'FALLEN GOD' : 'CREATOR') : (isBoss2p ? 'Player 2' : (isTraining ? 'TRAINING' : (p2IsBot ? 'BOT' : 'Player 2')));
   const _p2Hint = document.getElementById('p2Hint');
   if (_p2Hint) _p2Hint.textContent = isTrueForm ? 'Secret Final Boss' : isAdaptive ? 'Learns your playstyle' : (isBoss && !isBoss2p) ? 'Boss — AI Controlled' : (isBoss2p ? '← → ↑ · Enter · . · /' : (isTraining ? 'Practice mode' : (p2IsBot ? 'AI Controlled' : '← → ↑ · Enter · . · / · ↓')));
   document.getElementById('p1DifficultyRow').style.display = p1IsBot ? 'flex' : 'none';
   document.getElementById('p2DifficultyRow').style.display = p2IsBot ? 'flex' : 'none';
   // Hide P2 config rows in boss 1P, training, trueform, adaptive, battle royale
-  const isBattleRoyale = mode === 'battleroyale';
+  const isBattleRoyale = mode === 'battleroyale' || mode === 'endless';
   const isEscort       = mode === 'escort';
   const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive || isBattleRoyale || isEscort;
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
@@ -154,6 +155,7 @@ function _enterConfigView(mode) {
       '2p': '1v1', 'boss': 'Boss Fight', 'trueform': 'Cosmic Axiom',
       'training': 'Training', 'minigames': 'Minigames', 'online': 'Online',
       'battleroyale': 'Battle Royale',
+      'endless': 'Endless',
       'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI',
     };
     modeLabel.textContent = _names[mode] || mode.toUpperCase();
@@ -213,6 +215,7 @@ function _applyRefightLocks() {
     'refight-sovereign':typeof sovereignBeaten      !== 'undefined' ? !!sovereignBeaten      : false,
     'modeAbsoluteAxiom': typeof absoluteAxiomUnlocked !== 'undefined' ? !!absoluteAxiomUnlocked : false,
     'refight-fallengod': typeof fallenGodBeaten      !== 'undefined' ? !!fallenGodBeaten      : false,
+    'refight-god':       typeof godDefeated          !== 'undefined' ? !!godDefeated          : false,
   };
   var _allUnlocked = _locks['refight-creator'] && _locks['refight-trueform'] && _locks['refight-sovereign'];
 
@@ -238,9 +241,10 @@ function _setRefightCardLock(id, locked) {
     el.classList.remove('refight-locked');
     var _modeMap = {
       'refight-creator':  function() { startSimFight('boss'); },
-      'refight-fallengod':function() { startSimFight('boss'); simBossType = 'fallen_god'; },
+      'refight-fallengod':function() { startSimFight('boss', 'fallen_god'); },
       'refight-trueform': function() { startSimFight('trueform'); },
       'refight-sovereign':function() { startSimFight('sovereign'); },
+      'refight-god':      function() { startSimFight('god'); },
       'modeAbsoluteAxiom': function() { startSimFight('absoluteaxiom'); },
       'refight-gauntlet': function() { startSimGauntlet(); },
     };
@@ -278,10 +282,11 @@ function openCutsceneViewer() {
 let _bossRushGauntlet = [];  // ['boss','trueform','sovereign'] when gauntlet active
 let _bossRushIdx = -1;
 
-function startSimFight(mode) {
+function startSimFight(mode, bossType) {
   _bossRushGauntlet = [];
   _bossRushIdx = -1;
   _hideAllSimPanels();
+  simBossType = bossType || null;
   selectMode(mode);
 }
 
@@ -289,6 +294,7 @@ function startSimGauntlet() {
   _bossRushGauntlet = ['boss', 'trueform', 'sovereign'];
   _bossRushIdx = 0;
   _hideAllSimPanels();
+  simBossType = null;
   selectMode('boss');
   if (typeof startGame === 'function') startGame();
 }

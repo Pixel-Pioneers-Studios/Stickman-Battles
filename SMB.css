@@ -1,5 +1,5 @@
 /* ============================================================
-   STICKMAN CLASH — Full Theme
+   STICKMAN EVOLUTION — Full Theme
    ============================================================ */
 
 /* Self-hosted display/UI typefaces (latin subset). Kept local because the
@@ -1385,6 +1385,8 @@ body.depth-phase-active {
   box-shadow: 0 0 6px rgba(255,200,60,0.7);
   animation: superPulse 0.5s ease-in-out infinite;
 }
+/* Banked Conviction with a full bar: the SUPER label reads "HOLD E". A tap stays a normal super. */
+.super-label.conv-hint { color: #ffd700; text-shadow: 0 0 4px rgba(255,200,60,0.7); white-space: nowrap; }
 
 @keyframes superPulse {
   0%, 100% { opacity: 1; }
@@ -5613,7 +5615,7 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
 
 .hub-tiles {
   width: 100%; max-width: 940px; margin: 14px auto 0;
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 11px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 11px;
 }
 @media (max-width: 760px) { .hub-tiles { grid-template-columns: repeat(2, 1fr); } }
 .hub-tile {

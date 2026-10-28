@@ -149,15 +149,17 @@ const FIN_TF_PHASE_SHIFT = {
   }
 };
 
-// Creator finisher 3: Code Deletion
-const FIN_CR_CODE_DELETION = {
-  name: 'CODE DELETION',
-  accentColor: 'rgba(0,200,100,1)',
+// Creator finisher 3: the Unmaking. The ground under the target cracks open and it drops through.
+const FIN_CR_UNMAKING = {
+  name: 'THE UNMAKING',
+  accentColor: 'rgba(190,120,255,1)',
   duration: 140,
   impact: 25,
   setup(att, tgt, data) {
     data.ax0=att.x; data.ay0=att.y; data.tx0=tgt.x; data.ty0=tgt.y;
-    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.codeAlpha=0;
+    data.dir=att.x<tgt.x?1:-1; data.bars=0; data.codeAlpha=0; data.riftOpen=0;
+    data.floorY=data.ty0+tgt.h;
+    data.cracks=[]; for(let i=0;i<7;i++) data.cracks.push({a:(i/7)*Math.PI*2+Math.random()*0.4, len:34+Math.random()*40});
     data.fallY=data.ty0+280;
     data.dialogue=_FIN_DIALOGUE.creator[Math.floor(Math.random()*_FIN_DIALOGUE.creator.length)];
     data.tl=_makeTimeline([
@@ -166,11 +168,11 @@ const FIN_CR_CODE_DELETION = {
       {frame:25, fn(){
         att.x=data.tx0-data.dir*30;att.y=data.ay0;
         att.vx=0;att.vy=0;CinCam.shake(12);
-        spawnParticles(tgt.cx(),tgt.cy(),'#00cc66',18);
+        spawnParticles(tgt.cx(),tgt.cy(),'#b878ff',18);
       }},
       {frame:45, fn(){data.codeAlpha=1;CinCam.slowMo(0.1);CinCam.zoomTo(1.5);CinCam.focusMidpoint(att,tgt);CinCam.shake(8);}},
       {frame:68, fn(){CinCam.slowMo(1.0);CinCam.focusOn(tgt);}},
-      {frame:115, fn(){CinCam.shake(38);spawnParticles(tgt.cx(),data.fallY,'#00cc66',40);spawnParticles(tgt.cx(),data.fallY,'#ffffff',15);CinCam.zoomTo(1.3);}},
+      {frame:115, fn(){CinCam.shake(38);spawnParticles(tgt.cx(),data.floorY,'#b878ff',40);spawnParticles(tgt.cx(),data.floorY,'#ffffff',15);CinCam.zoomTo(1.3);}},
       {frame:125, fn(){CinCam.restore();}},
       {frame:132, fn(){data.bars=0;}},
     ]);
@@ -180,6 +182,8 @@ const FIN_CR_CODE_DELETION = {
     if(timer<10) data.bars=timer/10;
     if(timer>132) data.bars=Math.max(0,(140-timer)/8);
     if(data.codeAlpha>0) data.codeAlpha=Math.max(0,data.codeAlpha-0.016);
+    if(timer>=45&&timer<115) data.riftOpen=Math.min(1,data.riftOpen+0.06);
+    else if(timer>=115) data.riftOpen=Math.max(0,data.riftOpen-0.05);
     if(timer<=25){att.x=data.ax0;att.y=data.ay0;tgt.x=data.tx0;tgt.y=data.ty0;}
     else if(timer<=68){tgt.x=data.tx0;tgt.y=data.ty0;att.x=data.tx0-data.dir*30;}
     else if(timer<=115){
@@ -202,24 +206,43 @@ const FIN_CR_CODE_DELETION = {
     if(timer<70){
       const a=Math.min(1,timer/22);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
-      ctx.shadowColor='#00cc66';ctx.shadowBlur=38*a;
+      ctx.shadowColor='#b878ff';ctx.shadowBlur=38*a;
       const grd=ctx.createRadialGradient(att.cx(),att.cy(),6,att.cx(),att.cy(),65);
-      grd.addColorStop(0,`rgba(0,180,80,${a*0.3})`);
-      grd.addColorStop(1,'rgba(0,180,80,0)');
+      grd.addColorStop(0,`rgba(170,100,255,${a*0.3})`);
+      grd.addColorStop(1,'rgba(170,100,255,0)');
       ctx.fillStyle=grd;ctx.beginPath();ctx.arc(att.cx(),att.cy(),65,0,Math.PI*2);ctx.fill();
       ctx.restore();
     }
-    if(data.codeAlpha>0){
-      ctx.save();ctx.setTransform(1,0,0,1,0,0);
-      ctx.font=`${Math.floor(9*canvas.width/GAME_W)}px monospace`;
-      ctx.fillStyle=`rgba(0,200,80,${data.codeAlpha*0.5})`;
-      for(let i=0;i<20;i++){
-        ctx.fillText(Math.random()<0.5?'0':'1',Math.random()*canvas.width,Math.random()*canvas.height);
+    if(data.riftOpen>0){
+      // Cracks run out from under the target; the rift between them is a hole in the world.
+      const rx=data.tx0+tgt.w/2, ry=data.floorY, ro=data.riftOpen;
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.fillStyle=`rgba(8,0,20,${ro*0.95})`;
+      ctx.beginPath();ctx.ellipse(rx,ry,(tgt.w*0.9+14)*ro,9*ro,0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(225,200,255,${ro})`;ctx.lineWidth=2;
+      ctx.shadowColor='#b878ff';ctx.shadowBlur=18;
+      ctx.stroke();
+      ctx.lineWidth=1.6;
+      for(const c of data.cracks){
+        const l=c.len*ro;
+        ctx.beginPath();ctx.moveTo(rx,ry);
+        ctx.lineTo(rx+Math.cos(c.a)*l*0.55,ry+Math.sin(c.a)*l*0.12);
+        ctx.lineTo(rx+Math.cos(c.a+0.2)*l,ry+Math.sin(c.a+0.2)*l*0.22);
+        ctx.stroke();
       }
       ctx.restore();
     }
-    if(timer>=68&&timer<=76) _finFlash(ctx,(76-timer)/8*0.72,0,200,100);
+    if(data.codeAlpha>0){
+      ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
+      ctx.strokeStyle=`rgba(210,170,255,${data.codeAlpha*0.6})`;ctx.lineWidth=1.4;
+      for(let i=0;i<14;i++){
+        const sx=data.tx0+tgt.w/2+(Math.random()-0.5)*220, sy=data.ty0+(Math.random()-0.6)*160, sl=6+Math.random()*12;
+        ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(sx+sl*0.6,sy+sl);ctx.lineTo(sx+sl*0.2,sy+sl*1.4);ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if(timer>=68&&timer<=76) _finFlash(ctx,(76-timer)/8*0.35,150,90,230);
     if(timer>30&&timer<125) _finSubtitle(ctx,`"${data.dialogue}"`,t);
-    _finTitle(ctx,'CODE DELETION',t,'rgba(0,200,100,1)');
+    _finTitle(ctx,'THE UNMAKING',t,'rgba(190,120,255,1)');
   }
 };

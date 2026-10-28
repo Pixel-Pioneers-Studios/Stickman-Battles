@@ -6,7 +6,7 @@
 
 // Attack test sandbox (smb-attacktest.js).
 // Attack viewer: preview any attack as a visual effect without spawning bosses.
-//   In the console (GAMECONSOLE), run: atk help
+//   In the console (Ctrl+Shift+O then Ctrl+Shift+X), run: atk help
 // Admin kits: give a player boss or NPC attacks on Q (ability) and E (super).
 //   atk class creator|trueform|yeti|beast [p1|p2], or atk class off.
 // To add an attack, add an ATK_REGISTRY entry { label, desc, fn(ctx, target, opts) }.
@@ -42,6 +42,7 @@ function _atkMakeProxy(isTF, x, y) {
     health: 9999,
     maxHealth: isTF ? 5000 : 3000,
     invincible: 99999,
+    weapon: { damage: 0, kb: 0 }, cooldown: 1,
     // Cooldown buckets — all zeroed so _doSpecial can fire immediately
     _gravityCd:0,_warpCd:0,_holeCd:0,_floorCd:0,_invertCd:0,_sizeCd:0,_portalCd:0,
     _graspCd:0,_slashCd:0,_wellCd:0,_meteorCd:0,_cloneCd:0,_chainCd:0,
@@ -125,6 +126,7 @@ function _atkMakePlayerCtx(player, isTF) {
     get vy()      { return player.vy; },
     set vy(v)     { player.vy = v; },
     get facing()  { return player.facing; },
+    set facing(v) { player.facing = v; },
     get onGround(){ return player.onGround; },
     get w()       { return player.w; },
     get h()       { return player.h; },
@@ -136,6 +138,7 @@ function _atkMakePlayerCtx(player, isTF) {
     isProxy: true,
     health: 9999, maxHealth: isTF ? 5000 : 3000,
     invincible: 99999,
+    weapon: { damage: 0, kb: 0 }, cooldown: 1,
     // All cooldowns zeroed so _doSpecial fires immediately
     _gravityCd:0,_warpCd:0,_holeCd:0,_floorCd:0,_invertCd:0,_sizeCd:0,_portalCd:0,
     _graspCd:0,_slashCd:0,_wellCd:0,_meteorCd:0,_cloneCd:0,_chainCd:0,
@@ -226,6 +229,26 @@ function _atkSetGuiFirer(player) {
   setTimeout(() => { if (player) player._guiAttackImmune = false; }, 20000);
 }
 
+// Contexts with a delayed TrueForm move still to land. No TrueForm is in the match to tick them,
+// so updateTFPendingAttacks ticks these instead.
+let _atkPendingCtxs = [];
+const _ATK_PENDING_KEYS = ['_pendingSlash', '_pendingTeleportCombo', '_pendingGravityCrush',
+  '_pendingCollapseStrike', '_pendingShockwave'];
+
+function _atkTrackPendingCtx(ctx) {
+  if (!ctx || _atkPendingCtxs.includes(ctx)) return;
+  if (_ATK_PENDING_KEYS.some(k => ctx[k])) _atkPendingCtxs.push(ctx);
+}
+
+function _atkTickPendingCtxs() {
+  if (!_atkPendingCtxs.length) return;
+  for (const c of _atkPendingCtxs.slice()) {
+    try { _tickTFPendingMoves(c); }
+    catch (err) { _ATK_PENDING_KEYS.forEach(k => { c[k] = null; }); console.warn('[ATK] pending move threw:', err); }
+  }
+  _atkPendingCtxs = _atkPendingCtxs.filter(c => _ATK_PENDING_KEYS.some(k => c[k]));
+}
+
 function _atkDeal(attacker, target, dmg, kb) {
   if (_atkSafeMode) return;
   if (typeof dealDamage === 'function')
@@ -258,6 +281,9 @@ function _atkResetEffects() {
   if (typeof tfGravityInverted  !== 'undefined') tfGravityInverted  = false;
   if (typeof tfControlsInverted !== 'undefined') tfControlsInverted = false;
   if (typeof tfSizeTargets      !== 'undefined') tfSizeTargets.clear();
+  if (typeof tfRealityOverride  !== 'undefined') tfRealityOverride  = null;
+  if (typeof tfAttackRetryQueue !== 'undefined') tfAttackRetryQueue = [];
+  _atkPendingCtxs = [];
   _consoleOk('[ATK] All active attack effects cleared.');
 }
 

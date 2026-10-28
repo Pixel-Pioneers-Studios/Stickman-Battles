@@ -815,3 +815,383 @@ for (const [k, c] of Object.entries({
   colosseum: '#836738', clouds: '#82cbe9', mushroom: '#260339', haunted: '#050408',
   neonGrid: '#000000', mirror: '#050a15', desert: '#e5a240',
 })) if (ARENA_HD[k] && !ARENA_HD[k].skyTop) ARENA_HD[k].skyTop = c;
+
+// CREATOR: the edge of his workshop. A half-made world rises behind the stage, cracked and
+// missing a wedge; construction rings turn around it; shards of unmade ground drift up.
+// The static layers are baked once (no per-frame gradients); cracks brighten with his phase.
+const _HD_CR = {
+  X0: -500, Y0: -500, W: 1900, H: 1200, S: 1.4,
+  planet: { x: 450, y: 330, r: 340 },
+  shards: _hdItems(1301, 34, R => ({ x: R() * 1200, y: R() * 700, vx: 0.04 + R() * 0.06, vy: -(0.18 + R() * 0.3), s: 2 + R() * 4, ph: R() * 6, w: R() < 0.3 })),
+  mist: _hdItems(1302, 8, R => ({ x: R() * 1500, y: 456 + R() * 12, rx: 150 + R() * 120, ry: 18, vx: 0.08, a: 0.22, ph: R() * 6 })),
+  rocks: _hdItems(1303, 9, R => ({ x: -120 + R() * 1140, y: 40 + R() * 300, r: 6 + R() * 16, ph: R() * 6 })),
+};
+function _hdCrBake() {
+  if (_HD_CR.base) return;
+  const C = _HD_CR, mk = () => { const c = document.createElement('canvas'); c.width = Math.round(C.W * C.S); c.height = Math.round(C.H * C.S); const o = c.getContext('2d'); o.scale(C.S, C.S); o.translate(-C.X0, -C.Y0); return [c, o]; };
+  const R = _hdRand(1300);
+  const P = C.planet;
+  // Base: sky, nebulae, stars, the unfinished world.
+  const [base, o] = mk();
+  let g = o.createLinearGradient(0, C.Y0, 0, C.Y0 + C.H);
+  g.addColorStop(0, '#050010'); g.addColorStop(0.45, '#12042a'); g.addColorStop(0.75, '#1c0636'); g.addColorStop(1, '#0a0016');
+  o.fillStyle = g; o.fillRect(C.X0, C.Y0, C.W, C.H);
+  for (const n of [[160, 120, 360, '120,40,220', 0.22], [760, 60, 320, '200,50,200', 0.16], [450, 420, 520, '90,30,190', 0.2], [-200, 300, 300, '70,40,200', 0.14], [1150, 260, 320, '160,40,220', 0.14]]) {
+    const rg = o.createRadialGradient(n[0], n[1], 0, n[0], n[1], n[2]);
+    rg.addColorStop(0, 'rgba(' + n[3] + ',' + n[4] + ')'); rg.addColorStop(1, 'rgba(' + n[3] + ',0)');
+    o.fillStyle = rg; o.fillRect(n[0] - n[2], n[1] - n[2], n[2] * 2, n[2] * 2);
+  }
+  for (let i = 0; i < 300; i++) {
+    const x = C.X0 + R() * C.W, y = C.Y0 + R() * C.H * 0.8, s = R();
+    o.fillStyle = s > 0.9 ? 'rgba(235,215,255,0.9)' : 'rgba(200,180,255,' + (0.25 + s * 0.45) + ')';
+    o.fillRect(x, y, s > 0.93 ? 2 : 1.1, s > 0.93 ? 2 : 1.1);
+  }
+  // The world: lit from the upper left, with a wedge cut out of its lower right.
+  const cut = [0.15 * Math.PI, 0.42 * Math.PI];
+  o.save();
+  o.beginPath();
+  o.arc(P.x, P.y, P.r, cut[1], cut[0] + Math.PI * 2);
+  // Jagged edge of the missing wedge
+  const jag = [];
+  for (let k = 0; k <= 7; k++) { const t = k / 7, a = cut[0] + (cut[1] - cut[0]) * t; jag.push([P.x + Math.cos(a) * P.r * (0.32 + R() * 0.22), P.y + Math.sin(a) * P.r * (0.32 + R() * 0.22)]); }
+  o.lineTo(P.x + Math.cos(cut[0]) * P.r, P.y + Math.sin(cut[0]) * P.r);
+  for (const p of jag) o.lineTo(p[0], p[1]);
+  o.closePath();
+  o.save(); o.clip();
+  g = o.createRadialGradient(P.x - P.r * 0.45, P.y - P.r * 0.5, P.r * 0.1, P.x, P.y, P.r * 1.05);
+  g.addColorStop(0, '#24104a'); g.addColorStop(0.5, '#130828'); g.addColorStop(1, '#080316');
+  o.fillStyle = g; o.fillRect(P.x - P.r, P.y - P.r, P.r * 2, P.r * 2);
+  // Unfinished surface: a few landmass plates, and the bare armature where none were laid.
+  o.fillStyle = 'rgba(80,46,130,0.2)';
+  for (let k = 0; k < 9; k++) {
+    const a = R() * Math.PI * 2, d = R() * P.r * 0.8, cx = P.x + Math.cos(a) * d, cy = P.y + Math.sin(a) * d, rr = 30 + R() * 70;
+    o.beginPath();
+    for (let j = 0; j < 9; j++) { const b = j / 9 * Math.PI * 2, q = rr * (0.6 + R() * 0.5); o.lineTo(cx + Math.cos(b) * q, cy + Math.sin(b) * q * 0.7); }
+    o.closePath(); o.fill();
+  }
+  o.strokeStyle = 'rgba(190,150,255,0.08)'; o.lineWidth = 1.2;
+  for (let k = 1; k < 6; k++) { o.beginPath(); o.ellipse(P.x, P.y, P.r * Math.sin(k / 6 * Math.PI), P.r, 0, 0, Math.PI * 2); o.stroke(); }
+  for (let k = 1; k < 6; k++) { const yy = P.y - P.r + k / 6 * P.r * 2, hw = Math.sqrt(Math.max(0, P.r * P.r - (yy - P.y) * (yy - P.y))); o.beginPath(); o.moveTo(P.x - hw, yy); o.lineTo(P.x + hw, yy); o.stroke(); }
+  // Night side
+  g = o.createLinearGradient(P.x - P.r * 0.4, P.y - P.r * 0.4, P.x + P.r, P.y + P.r);
+  g.addColorStop(0, 'rgba(5,0,16,0)'); g.addColorStop(1, 'rgba(5,0,16,0.75)');
+  o.fillStyle = g; o.fillRect(P.x - P.r, P.y - P.r, P.r * 2, P.r * 2);
+  o.restore();
+  // Rim light on the lit limb
+  o.strokeStyle = 'rgba(225,200,255,0.4)'; o.lineWidth = 3;
+  o.shadowColor = '#b878ff'; o.shadowBlur = 24;
+  o.beginPath(); o.arc(P.x, P.y, P.r - 1, Math.PI * 0.9, Math.PI * 1.65); o.stroke();
+  o.restore();
+  // Chunks broken off the wedge, drifting near it.
+  for (let k = 0; k < 7; k++) {
+    const a = cut[0] + (cut[1] - cut[0]) * R(), d = P.r * (0.75 + R() * 0.5), cx = P.x + Math.cos(a) * d, cy = P.y + Math.sin(a) * d, rr = 8 + R() * 20;
+    o.fillStyle = '#1a0a34'; o.strokeStyle = 'rgba(200,160,255,0.5)'; o.lineWidth = 1.2;
+    o.beginPath(); for (let j = 0; j < 6; j++) { const b = j / 6 * Math.PI * 2 + R() * 0.4, q = rr * (0.6 + R() * 0.5); o.lineTo(cx + Math.cos(b) * q, cy + Math.sin(b) * q); } o.closePath(); o.fill(); o.stroke();
+  }
+  C.base = base;
+  // Cracks: drawn additively each frame at a phase-driven alpha.
+  const [cr, q] = mk();
+  q.lineJoin = 'round'; q.lineCap = 'round';
+  const crack = (x, y, a, len, w, depth) => {
+    q.lineWidth = w; q.beginPath(); q.moveTo(x, y);
+    let cx = x, cy = y;
+    const steps = 5 + Math.floor(R() * 4);
+    for (let s = 0; s < steps; s++) { a += (R() - 0.5) * 0.9; cx += Math.cos(a) * len / steps; cy += Math.sin(a) * len / steps; q.lineTo(cx, cy); if (depth > 0 && R() < 0.3) crack(cx, cy, a + (R() < 0.5 ? 0.8 : -0.8), len * 0.45, w * 0.6, depth - 1); }
+    q.stroke();
+  };
+  q.strokeStyle = 'rgba(225,195,255,0.95)'; q.shadowColor = '#c080ff'; q.shadowBlur = 10;
+  // Across the world, radiating from the wedge.
+  const wx = P.x + Math.cos((cut[0] + cut[1]) / 2) * P.r * 0.4, wy = P.y + Math.sin((cut[0] + cut[1]) / 2) * P.r * 0.4;
+  for (let k = 0; k < 9; k++) crack(wx, wy, Math.PI + (k / 9 - 0.5) * 2.6, 180 + R() * 160, 2.2, 2);
+  // And through the sky.
+  for (let k = 0; k < 6; k++) crack(C.X0 + 150 + R() * (C.W - 300), C.Y0 + 380 + R() * 250, Math.PI * 0.5 + (R() - 0.5) * 0.8, 160 + R() * 140, 1.6, 1);
+  C.cracks = cr;
+}
+ARENA_HD.creator = { material: 'fracture', skyTop: '#050010',
+  back() {
+    if (typeof document === 'undefined') return;
+    _hdCrBake();
+    const C = _HD_CR, f = frameCount;
+    const boss = players.find(p => p && p.isBoss && !p.isTrueForm && !p.isFallenGod);
+    const ph = boss && boss.health > 0 && typeof boss.getPhase === 'function' ? boss.getPhase() : 1;
+    const px = _hdCamOff() * 0.06;
+    ctx.drawImage(C.base, C.X0 + px, C.Y0, C.W, C.H);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const pulse = 0.5 + 0.5 * Math.sin(f * (0.02 + ph * 0.012));
+    ctx.globalAlpha = [0, 0.16, 0.38, 0.65][ph] + pulse * 0.15;
+    ctx.drawImage(C.cracks, C.X0 + px, C.Y0, C.W, C.H);
+    if (ph >= 3) { ctx.globalAlpha = 1; _hdGlow(C.planet.x + px + 90, C.planet.y + 120, 260, 200, '255,60,200', 0.12 + pulse * 0.08, true); }
+    ctx.globalAlpha = 1;
+    // Construction rings: tilted ellipses, beads riding them.
+    const P = C.planet;
+    for (const [rx, ry, tilt, sp, col] of [[P.r * 1.45, P.r * 0.28, -0.22, 0.0025, '200,160,255'], [P.r * 1.2, P.r * 0.18, 0.15, -0.004, '255,140,230']]) {
+      ctx.strokeStyle = 'rgba(' + col + ',0.22)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.ellipse(P.x + px, P.y - 40, rx, ry, tilt, Math.PI, Math.PI * 2); ctx.stroke();
+      for (let k = 0; k < 5; k++) {
+        const a = Math.PI + ((f * sp + k / 5) % 1 + 1) % 1 * Math.PI;
+        const ex = Math.cos(a) * rx, ey = Math.sin(a) * ry;
+        _hdGlow(P.x + px + ex * Math.cos(tilt) - ey * Math.sin(tilt), P.y - 40 + ex * Math.sin(tilt) + ey * Math.cos(tilt), 7, 7, col, 0.7);
+      }
+    }
+    ctx.restore();
+    // Drifting rocks, slow parallax
+    for (const r of C.rocks) {
+      const x = r.x + _hdCamOff() * 0.1, y = r.y + Math.sin(f * 0.01 + r.ph) * 6;
+      ctx.fillStyle = '#160828'; ctx.strokeStyle = 'rgba(190,150,255,0.45)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.ellipse(x, y, r.r, r.r * 0.7, r.ph, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x, y, r.r, r.r * 0.7, r.ph, Math.PI * 1.0, Math.PI * 1.6); ctx.stroke();
+    }
+  },
+  front() {
+    const f = frameCount;
+    _hdFog(_HD_CR.mist, '150,80,230', 1500);
+    _hdMotes(_HD_CR.shards, 1200, 700, (s, x, y) => {
+      ctx.translate(x + Math.sin(f * 0.02 + s.ph) * 8, y);
+      ctx.rotate(f * 0.015 + s.ph);
+      ctx.fillStyle = s.w ? 'rgba(235,220,255,0.75)' : 'rgba(150,90,230,0.7)';
+      ctx.beginPath(); ctx.moveTo(0, -s.s); ctx.lineTo(s.s * 0.6, s.s * 0.7); ctx.lineTo(-s.s * 0.5, s.s * 0.4); ctx.closePath(); ctx.fill();
+    });
+  } };
+
+Object.assign(_HD_MATERIALS, {
+  // Obsidian with violet veins; floating slabs shed shards underneath.
+  fracture(pl) {
+    _dressUnder(pl, 'rgba(14,4,26,0.85)', 'rgba(6,0,14,1)', 0.3);
+    const p = 0.55 + 0.45 * Math.sin(frameCount * 0.04 + pl.x * 0.013);
+    _dressCracks(pl, 'rgba(200,140,255,' + (0.45 + p * 0.35) + ')', 1.4, true);
+    _dressTopLight(pl, 'rgba(230,200,255,0.45)', 1.6);
+    if (!pl.isFloor) {
+      _dressHang(pl, 26, 5, 14, 'rgba(40,18,70,0.95)', 3);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      _hdGlow(pl.x + pl.w / 2, pl.y + pl.h + 6, pl.w * 0.5, 12, '170,90,255', 0.16 * p, true);
+      ctx.restore();
+    }
+  },
+});
+
+// VOID (the Cosmic Axiom's arena): the First Laws as a night sky. A far spiral galaxy, bright
+// stars joined into constellations, drifting dust. Kept dim so the white platforms stay the
+// brightest thing on screen. The galaxy wakes as the Axiom loses health.
+const _HD_VOID = {
+  X0: -600, Y0: -500, W: 2100, H: 1200, S: 1.3,
+  dust: _hdItems(1401, 50, R => ({ x: R() * 1200, y: R() * 700, vx: 0.05 + R() * 0.05, vy: -0.03, r: 0.6 + R() * 1.1, ph: R() * 6 })),
+};
+function _hdVoidBake() {
+  if (_HD_VOID.base) return;
+  const C = _HD_VOID, R = _hdRand(1400);
+  const cv = document.createElement('canvas'); cv.width = Math.round(C.W * C.S); cv.height = Math.round(C.H * C.S);
+  const o = cv.getContext('2d'); o.scale(C.S, C.S); o.translate(-C.X0, -C.Y0);
+  for (let i = 0; i < 420; i++) {
+    const x = C.X0 + R() * C.W, y = C.Y0 + R() * C.H, s = R();
+    o.fillStyle = 'rgba(' + (s > 0.8 ? '255,236,210' : '210,215,255') + ',' + (0.12 + s * 0.35) + ')';
+    o.fillRect(x, y, s > 0.96 ? 1.8 : 1, s > 0.96 ? 1.8 : 1);
+  }
+  // Constellations: a few chains of bright stars with thin joining lines.
+  for (let c = 0; c < 7; c++) {
+    let x = C.X0 + 200 + R() * (C.W - 400), y = C.Y0 + 300 + R() * 520;
+    const pts = [[x, y]];
+    for (let k = 0; k < 3 + Math.floor(R() * 3); k++) { x += (R() - 0.5) * 140; y += (R() - 0.5) * 90; pts.push([x, y]); }
+    o.strokeStyle = 'rgba(170,180,255,0.14)'; o.lineWidth = 0.8;
+    o.beginPath(); pts.forEach((p, i) => i ? o.lineTo(p[0], p[1]) : o.moveTo(p[0], p[1])); o.stroke();
+    for (const p of pts) {
+      const g = o.createRadialGradient(p[0], p[1], 0, p[0], p[1], 6);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(160,170,255,0)');
+      o.fillStyle = g; o.fillRect(p[0] - 6, p[1] - 6, 12, 12);
+    }
+  }
+  C.base = cv;
+  // Spiral galaxy, its own small canvas so it can turn and brighten.
+  const gc = document.createElement('canvas'); gc.width = gc.height = 520;
+  const q = gc.getContext('2d'); q.translate(260, 260);
+  const core = q.createRadialGradient(0, 0, 0, 0, 0, 90);
+  core.addColorStop(0, 'rgba(255,240,225,0.9)'); core.addColorStop(0.3, 'rgba(200,160,255,0.35)'); core.addColorStop(1, 'rgba(80,40,180,0)');
+  q.fillStyle = core; q.fillRect(-90, -90, 180, 180);
+  for (let i = 0; i < 2600; i++) {
+    const arm = i % 2, t = Math.pow(R(), 0.7) * 4.2, a = t * 1.15 + arm * Math.PI + (R() - 0.5) * 0.5;
+    const r = 18 + t * 55, x = Math.cos(a) * r, y = Math.sin(a) * r;
+    q.fillStyle = 'rgba(' + (R() < 0.3 ? '255,220,200' : '190,190,255') + ',' + (0.25 + (1 - t / 4.2) * 0.5) * R() + ')';
+    q.fillRect(x, y, 1.2, 1.2);
+  }
+  C.galaxy = gc;
+}
+ARENA_HD.void = { material: 'law',
+  back() {
+    if (typeof document === 'undefined') return;
+    _hdVoidBake();
+    const C = _HD_VOID, f = frameCount;
+    const tf = players.find(p => p && p.isTrueForm);
+    const wake = tf && tf.health > 0 ? 1 - tf.health / tf.maxHealth : 0;
+    ctx.drawImage(C.base, C.X0 + _hdCamOff() * 0.04, C.Y0, C.W, C.H);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.4 + wake * 0.4;
+    ctx.translate(450 + _hdCamOff() * 0.08, 250);
+    ctx.scale(1.35, 0.55);
+    ctx.rotate(f * 0.0006 + 0.4);
+    ctx.drawImage(C.galaxy, -260, -260);
+    ctx.restore();
+  },
+  front() {
+    const f = frameCount;
+    ctx.globalCompositeOperation = 'lighter';
+    _hdMotes(_HD_VOID.dust, 1200, 700, (d, x, y) => { ctx.globalAlpha = 0.25 + 0.3 * Math.sin(f * 0.04 + d.ph); ctx.fillStyle = '#c8d0ff'; ctx.fillRect(x, y, d.r, d.r); });
+    ctx.globalAlpha = 1;
+  } };
+
+Object.assign(_HD_MATERIALS, {
+  // Starlit slab: a few fixed stars inside the body, a soft glow under floating ones.
+  law(pl) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(pl.x, pl.y, pl.w, pl.h); ctx.clip();
+    for (let i = 0; i < Math.max(2, pl.w / 18); i++) {
+      const x = pl.x + 3 + _platNoise(pl.x + i * 11.3, pl.y) * (pl.w - 6), y = pl.y + 3 + _platNoise(i * 5.7, pl.x) * (pl.h - 6);
+      ctx.globalAlpha = 0.35 + 0.35 * Math.sin(frameCount * 0.03 + x);
+      ctx.fillStyle = '#dfe4ff'; ctx.fillRect(x, y, 1.2, 1.2);
+    }
+    ctx.restore();
+    if (!pl.isFloor) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; _hdGlow(pl.x + pl.w / 2, pl.y + pl.h + 4, pl.w * 0.5, 10, '150,150,255', 0.1, true); ctx.restore(); }
+  },
+});
+
+// SOVEREIGN (The Circuit): the inside of the machine that studies you. A far wall of circuit
+// traces with pulses running along them, server stacks at the sides, and his reticle hanging
+// over the stage, turned toward the player. Kept dark so the decks and the floor voids read.
+const _HD_SOV = {
+  X0: -600, Y0: -500, W: 2100, H: 1200, S: 1.3,
+  sparks: _hdItems(1501, 36, R => ({ x: R() * 1200, y: R() * 700, vx: (R() - 0.5) * 0.08, vy: -(0.15 + R() * 0.3), s: 0.8 + R() * 1.4, ph: R() * 6 })),
+  haze: _hdItems(1502, 7, R => ({ x: R() * 1500, y: 452 + R() * 10, rx: 160 + R() * 110, ry: 16, vx: 0.06, a: 0.2, ph: R() * 6 })),
+};
+function _hdSovBake() {
+  if (_HD_SOV.base) return;
+  const C = _HD_SOV, R = _hdRand(1500);
+  const cv = document.createElement('canvas'); cv.width = Math.round(C.W * C.S); cv.height = Math.round(C.H * C.S);
+  const o = cv.getContext('2d'); o.scale(C.S, C.S); o.translate(-C.X0, -C.Y0);
+  let g = o.createLinearGradient(0, C.Y0, 0, C.Y0 + C.H);
+  g.addColorStop(0, '#030005'); g.addColorStop(0.55, '#0c0109'); g.addColorStop(0.78, '#1a0308'); g.addColorStop(1, '#050002');
+  o.fillStyle = g; o.fillRect(C.X0, C.Y0, C.W, C.H);
+  // Traces: right-angle runs with 45-degree bends, ending in pads. Kept for the pulses.
+  const traces = [];
+  o.lineCap = 'round'; o.lineJoin = 'round';
+  for (let i = 0; i < 70; i++) {
+    let x = C.X0 + R() * C.W, y = C.Y0 + 260 + R() * 680;
+    const pts = [[x, y]];
+    let dir = Math.floor(R() * 4);
+    for (let k = 0; k < 3 + Math.floor(R() * 4); k++) {
+      const len = 30 + R() * 110;
+      const dx = [1, 0, -1, 0][dir], dy = [0, 1, 0, -1][dir];
+      if (R() < 0.5 && k > 0) { const s = R() < 0.5 ? 1 : -1; x += (dx || s) * 18; y += (dy || s) * 18; pts.push([x, y]); }
+      x += dx * len; y += dy * len; pts.push([x, y]);
+      dir = (dir + (R() < 0.5 ? 1 : 3)) % 4;
+    }
+    traces.push(pts);
+    o.strokeStyle = 'rgba(150,20,24,' + (0.12 + R() * 0.12) + ')'; o.lineWidth = 1 + R() * 1.2;
+    o.beginPath(); pts.forEach((p, j) => j ? o.lineTo(p[0], p[1]) : o.moveTo(p[0], p[1])); o.stroke();
+    o.fillStyle = 'rgba(200,40,30,0.35)';
+    for (const p of [pts[0], pts[pts.length - 1]]) { o.beginPath(); o.arc(p[0], p[1], 2.4, 0, Math.PI * 2); o.fill(); }
+  }
+  // Chips: dark blocks with pin rows, sitting on the traces.
+  for (let i = 0; i < 16; i++) {
+    const x = C.X0 + R() * C.W, y = C.Y0 + 300 + R() * 600, w = 40 + R() * 70, h = 26 + R() * 40;
+    o.fillStyle = '#0a0207'; o.fillRect(x, y, w, h);
+    o.strokeStyle = 'rgba(170,30,30,0.3)'; o.lineWidth = 1; o.strokeRect(x, y, w, h);
+    o.fillStyle = 'rgba(170,30,30,0.28)';
+    for (let px = x + 5; px < x + w - 3; px += 7) { o.fillRect(px, y - 4, 2, 4); o.fillRect(px, y + h, 2, 4); }
+  }
+  // Server stacks flanking the stage, with status lights.
+  for (const sx of [-520, -330, -150, 1050, 1230, 1410]) {
+    const top = 30 + R() * 90, w = 110;
+    o.fillStyle = '#07010a'; o.fillRect(sx, top, w, 460 - top);
+    o.strokeStyle = 'rgba(120,14,20,0.4)'; o.strokeRect(sx, top, w, 460 - top);
+    for (let y = top + 14; y < 450; y += 22) {
+      o.fillStyle = 'rgba(90,10,16,0.35)'; o.fillRect(sx + 8, y, w - 16, 2);
+      if (R() < 0.6) { o.fillStyle = R() < 0.25 ? 'rgba(255,170,120,0.8)' : 'rgba(255,50,30,0.6)'; o.fillRect(sx + w - 18, y - 5, 3, 3); }
+    }
+  }
+  // Floor-line haze
+  g = o.createLinearGradient(0, 330, 0, 470);
+  g.addColorStop(0, 'rgba(120,10,10,0)'); g.addColorStop(1, 'rgba(120,10,10,0.22)');
+  o.fillStyle = g; o.fillRect(C.X0, 330, C.W, 140);
+  C.base = cv;
+  C.traces = traces.filter(t => t.length > 2).map(pts => {
+    let L = 0; const seg = [];
+    for (let j = 1; j < pts.length; j++) { const d = Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]); seg.push(d); L += d; }
+    return { pts, seg, L, sp: 0.6 + R() * 0.9, ph: R() * 1000 };
+  });
+}
+function _hdSovPointOn(tr, d) {
+  for (let j = 0; j < tr.seg.length; j++) {
+    if (d <= tr.seg[j]) { const a = tr.pts[j], b = tr.pts[j + 1], k = d / tr.seg[j]; return [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k]; }
+    d -= tr.seg[j];
+  }
+  return tr.pts[tr.pts.length - 1];
+}
+ARENA_HD.sovereign = { material: 'circuit', skyTop: '#030005',
+  back() {
+    if (typeof document === 'undefined') return;
+    _hdSovBake();
+    const C = _HD_SOV, f = frameCount, px = _hdCamOff() * 0.05;
+    ctx.drawImage(C.base, C.X0 + px, C.Y0, C.W, C.H);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < C.traces.length; i += 2) {
+      const tr = C.traces[i], d = (f * tr.sp + tr.ph) % (tr.L + 200);
+      if (d > tr.L) continue;
+      const p = _hdSovPointOn(tr, d);
+      _hdGlow(p[0] + px, p[1], 9, 9, '255,70,40', 0.55);
+    }
+    // The reticle: four arcs and an inner ring (his domain's mark), the centre leaning toward the player.
+    const sov = players.find(p => p && p.isSovereignMK2 && p.health > 0);
+    const foe = players.find(p => p && !p.isSovereignMK2 && p.health > 0 && !p.isMinion);
+    const ex = 450 + _hdCamOff() * 0.12, ey = 150;
+    const lx = foe ? Math.max(-26, Math.min(26, (foe.cx() - 450) * 0.06)) : 0;
+    const ly = foe ? Math.max(-12, Math.min(16, (foe.cy() - 300) * 0.05)) : 0;
+    const hot = sov ? 1 - sov.health / sov.maxHealth : 0;
+    ctx.strokeStyle = 'rgba(255,60,40,' + (0.16 + hot * 0.12) + ')';
+    ctx.lineWidth = 3;
+    const spin = f * 0.003;
+    for (let q = 0; q < 4; q++) {
+      const a = spin + q * Math.PI / 2 + Math.PI / 4;
+      ctx.beginPath(); ctx.arc(ex, ey, 120, a - 0.5, a + 0.5); ctx.stroke();
+    }
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(ex, ey, 98, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,90,60,' + (0.28 + hot * 0.2) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ex + lx, ey + ly, 34, 0, Math.PI * 2); ctx.stroke();
+    _hdGlow(ex + lx, ey + ly, 26, 26, '255,60,30', 0.35 + hot * 0.25 + 0.08 * Math.sin(f * 0.05));
+    ctx.fillStyle = 'rgba(255,200,170,' + (0.5 + hot * 0.3) + ')';
+    ctx.fillRect(ex + lx - 1.5, ey + ly - 9, 3, 18);
+    ctx.restore();
+  },
+  front() {
+    const f = frameCount;
+    _hdFog(_HD_SOV.haze, '170,20,20', 1500);
+    ctx.globalCompositeOperation = 'lighter';
+    _hdMotes(_HD_SOV.sparks, 1200, 700, (s, x, y) => { ctx.globalAlpha = 0.3 + 0.35 * Math.sin(f * 0.06 + s.ph); ctx.fillStyle = '#ff6040'; ctx.fillRect(x, y, s.s, s.s); });
+    ctx.globalAlpha = 1;
+  } };
+
+Object.assign(_HD_MATERIALS, {
+  // Machined plate: etched red traces in the body, a hot top edge, a glow under floating decks.
+  circuit(pl) {
+    _dressUnder(pl, 'rgba(20,2,8,0.8)', 'rgba(6,0,3,1)', 0.35);
+    ctx.save();
+    ctx.beginPath(); ctx.rect(pl.x, pl.y, pl.w, pl.h); ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(200,30,24,0.32)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    const n = Math.max(2, Math.floor(pl.w / 34));
+    for (let i = 0; i < n; i++) {
+      const x = pl.x + 6 + _platNoise(pl.x + i * 9.1, pl.y) * (pl.w - 12);
+      const y = pl.y + 4 + _platNoise(i * 3.3, pl.x) * Math.max(2, pl.h - 8);
+      const len = 14 + _platNoise(x, y) * 30;
+      ctx.moveTo(x, y); ctx.lineTo(x + len, y);
+      if (pl.h > 20) ctx.lineTo(x + len + 6, y + 6);
+    }
+    ctx.stroke();
+    ctx.restore();
+    _dressTopLight(pl, 'rgba(255,80,50,0.35)', 1.6);
+    if (!pl.isFloor) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; _hdGlow(pl.x + pl.w / 2, pl.y + pl.h + 4, pl.w * 0.5, 10, '255,40,20', 0.14, true); ctx.restore(); }
+  },
+});

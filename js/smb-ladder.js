@@ -6,17 +6,20 @@
 // Depends on: smb-globals.js, smb-menu-ui.js, smb-menu-spawn.js.
 // Ticked by smb-loop-core.js (updateLadder). smb-menu-startcore.js reads window._ladderNext.
 
+// `tac` is the opponent's _btTune (smb-bot-tactics.js). The per-frame tactics
+// layer is what makes a bot punish and land its Q/E, and against it newcomers
+// won 0 of 16 headless duels, so it stays off until rung 9 (tools/bot-duel.js).
 const LADDER_RUNGS = [
   { name: 'Sparring Partner', weapon: 'sword',  cls: 'none',      diff: 'easy',   arena: 'colosseum', lives: 2 },
   { name: 'Street Brawler',   weapon: 'combat', cls: 'pugilist',  diff: 'easy',   arena: 'city',      lives: 2 },
-  { name: 'Spearhand',        weapon: 'spear',  cls: 'warrior',   diff: 'medium', arena: 'grass',     lives: 2 },
-  { name: 'Axe Raider',       weapon: 'axe',    cls: 'kratos',    diff: 'medium', arena: 'forest',    lives: 2 },
-  { name: 'Shadow Blade',     weapon: 'sword',  cls: 'ninja',     diff: 'medium', arena: 'clouds',    lives: 3 },
-  { name: 'Hammerfall',       weapon: 'hammer', cls: 'thor',      diff: 'hard',   arena: 'ruins',     lives: 3 },
-  { name: 'The Reaper',       weapon: 'scythe', cls: 'reaper',    diff: 'hard',   arena: 'colosseum', lives: 3 },
-  { name: 'Wandering Ronin',  weapon: 'katana', cls: 'ronin',     diff: 'hard',   arena: 'city',      lives: 3 },
-  { name: 'Berserker',        weapon: 'axe',    cls: 'berserker', diff: 'expert', arena: 'ruins',     lives: 3 },
-  { name: 'Champion',         weapon: 'katana', cls: 'ronin',     diff: 'expert', arena: 'colosseum', lives: 3 },
+  { name: 'Spearhand',        weapon: 'spear',  cls: 'warrior',   diff: 'medium', arena: 'grass',     lives: 2, tac: { skill: 0 } },
+  { name: 'Shadow Blade',     weapon: 'sword',  cls: 'ninja',     diff: 'medium', arena: 'clouds',    lives: 2, tac: { skill: 0 } },
+  { name: 'Axe Raider',       weapon: 'axe',    cls: 'kratos',    diff: 'medium', arena: 'forest',    lives: 3, tac: { skill: 0 } },
+  { name: 'Hammerfall',       weapon: 'hammer', cls: 'thor',      diff: 'medium', arena: 'ruins',     lives: 3, tac: { skill: 0 } },
+  { name: 'Wandering Ronin',  weapon: 'katana', cls: 'ronin',     diff: 'hard',   arena: 'city',      lives: 3, tac: { skill: 0 } },
+  { name: 'The Reaper',       weapon: 'scythe', cls: 'reaper',    diff: 'hard',   arena: 'colosseum', lives: 3, tac: { skill: 0 } },
+  { name: 'Berserker',        weapon: 'axe',    cls: 'berserker', diff: 'hard',   arena: 'ruins',     lives: 3, tac: { skill: 0.2, think: 10, hesitate: 70 } },
+  { name: 'Champion',         weapon: 'katana', cls: 'ronin',     diff: 'expert', arena: 'colosseum', lives: 3, tac: { skill: 0.7, think: 3, hesitate: 14 } },
 ];
 const LADDER_DIFF_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard', expert: 'Expert' };
 
@@ -57,6 +60,24 @@ function _setLadderProgress(n) {
 }
 
 function ladderReward(rung) { return 10 + rung * 5; }
+
+// Each loss in a row on a rung starts the next try with more health, so a stuck
+// player always gets through. A win clears it.
+const LADDER_ASSIST_STEP = 0.15, LADDER_ASSIST_MAX = 0.6;
+
+function _ladderLosses(rung) {
+  try {
+    const o = JSON.parse(localStorage.getItem('smb_ladderLoss') || 'null');
+    return o && o.rung === rung ? (o.n | 0) : 0;
+  } catch (e) { return 0; }
+}
+
+function _setLadderLosses(rung, n) {
+  try { localStorage.setItem('smb_ladderLoss', JSON.stringify({ rung, n })); } catch (e) {}
+}
+
+/** Extra max health (0 to LADDER_ASSIST_MAX) the player starts this rung with. */
+function ladderAssist(rung) { return Math.min(LADDER_ASSIST_MAX, _ladderLosses(rung) * LADDER_ASSIST_STEP); }
 
 function _ladderWeaponName(key) {
   const w = (typeof WEAPONS !== 'undefined') ? WEAPONS[key] : null;
@@ -99,7 +120,8 @@ function startLadderRung(rung, opts) {
   _ladderWon    = false;
   _ladderFirstRun = !!(opts && opts.firstRun);
 
-  window._ladderNext = Object.assign({ rung, firstRun: !!(opts && opts.firstRun) }, def);
+  const assist = (opts && opts.def) ? 0 : ladderAssist(rung);
+  window._ladderNext = Object.assign({ rung, firstRun: !!(opts && opts.firstRun) }, def, assist ? { p1HpMul: 1 + assist } : null);
   if (typeof startGame === 'function') startGame();
 }
 
@@ -174,6 +196,7 @@ function _ladderFinish() {
   const coins = weekly ? weekly.coins : (won ? ladderReward(rung) : 3);
   if (typeof awardCoins === 'function') awardCoins(coins);
   if (won && !weekly) _setLadderProgress(rung + 1);
+  if (!weekly) _setLadderLosses(rung, won ? 0 : _ladderLosses(rung) + 1);
   if (typeof saveGame === 'function') saveGame();
   if (typeof AdManager !== 'undefined') AdManager.interstitial();
 
@@ -212,7 +235,8 @@ function _showLadderResult(won, rung, coins, weekly) {
   if (nx) {
     nx.textContent = won && last
       ? 'You beat the whole ladder. The Champion will take a rematch any time.'
-      : `${won ? 'Next' : 'Try again'}: Rung ${nextRung + 1}, ${next.name} (${LADDER_DIFF_LABEL[next.diff] || next.diff}, ${_ladderWeaponName(next.weapon)})`;
+      : `${won ? 'Next' : 'Try again'}: Rung ${nextRung + 1}, ${next.name} (${LADDER_DIFF_LABEL[next.diff] || next.diff}, ${_ladderWeaponName(next.weapon)})` +
+        (won ? '' : `. You start with +${Math.round(ladderAssist(rung) * 100)}% health.`);
   }
   if (go) {
     go.textContent = won ? (last ? 'Rematch' : 'Next Fight') : 'Retry';

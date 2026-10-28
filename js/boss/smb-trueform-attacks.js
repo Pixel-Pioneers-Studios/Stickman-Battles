@@ -215,7 +215,7 @@ TrueForm.prototype._doSpecial = function(move, target) {
         if (t) {
           bossWarnings.push({ type: 'cross', x: t.cx(), y: t.cy(), r: 55,
             color: '#cc00ff', timer: 24, maxTimer: 24, label: 'SIZE SHIFT' });
-          const scales = [0.4, 0.55, 0.7, 1.0, 1.25, 1.5];
+          const scales = [0.6, 0.75, 1.2, 1.3];
           tfSetSize(t, scales[Math.floor(Math.random() * scales.length)]);
         }
         if (Math.random() < 0.45) {

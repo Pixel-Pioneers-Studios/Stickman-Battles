@@ -2718,7 +2718,7 @@ const DomainManager = (() => {
       case 'shield': {
         // Reflective dome: nearby enemy projectiles get reversed for 3 seconds
         fighter._convictionReflectDome = 180; // frames
-        fighter.invincible = Math.max(fighter.invincible || 0, 180);
+        fighter._superArmorUntil = Math.max(fighter._superArmorUntil || 0, frameCount + 180);
         spawnParticles(cx, cy, '#ffffaa', 35);
         spawnParticles(cx, cy - 20, '#ffffff', 15);
         break;
@@ -2826,7 +2826,7 @@ const DomainManager = (() => {
       case 'flail': {
         // Spin mode: fighter deals contact damage while spinning for 2.5 seconds
         fighter._convictionFlailSpin = 150; // frames of spin
-        fighter.invincible = Math.max(fighter.invincible || 0, 150);
+        fighter._superArmorUntil = Math.max(fighter._superArmorUntil || 0, frameCount + 150);
         spawnParticles(cx, cy, '#cc8844', 26);
         break;
       }
@@ -3113,7 +3113,7 @@ const DomainManager = (() => {
       case 'flail': {
         if (!fighter._convictionFlailSpin || fighter._convictionFlailSpin <= 0) {
           fighter._convictionFlailSpin = 60;
-          fighter.invincible = Math.max(fighter.invincible || 0, 60);
+          fighter._superArmorUntil = Math.max(fighter._superArmorUntil || 0, frameCount + 60);
           spawnParticles(cx, cy, '#cc8844', 16);
         }
         break;

@@ -88,8 +88,12 @@ function tfPortalTeleport(tf, target) {
   }, 350);
 }
 
+// Resize about the feet, for TF_SIZE_FRAMES. A permanent shift (it used to last until death) could
+// leave a player too big to play.
+const TF_SIZE_FRAMES = 480;
 function tfSetSize(fighter, scale) {
   if (!fighter) return;
+  const feet = fighter.y + fighter.h;
   if (tfSizeTargets.has(fighter)) {
     const orig = tfSizeTargets.get(fighter);
     fighter.w = orig.w; fighter.h = orig.h;
@@ -98,8 +102,22 @@ function tfSetSize(fighter, scale) {
   }
   fighter.w        = Math.round(fighter.w * scale);
   fighter.h        = Math.round(fighter.h * scale);
+  fighter.y        = feet - fighter.h;
   fighter.tfDrawScale = scale;
   fighter.drawScale   = scale;
+  fighter._tfSizeTimer = TF_SIZE_FRAMES;
+}
+
+function tfRestoreSize(fighter) {
+  if (!fighter || !tfSizeTargets.has(fighter)) return;
+  const orig = tfSizeTargets.get(fighter);
+  const feet = fighter.y + fighter.h;
+  fighter.w = orig.w; fighter.h = orig.h;
+  fighter.y = feet - fighter.h;
+  tfSizeTargets.delete(fighter);
+  fighter.tfDrawScale = 1;
+  fighter.drawScale   = 1;
+  fighter._tfSizeTimer = 0;
 }
 
 function resetTFState() {

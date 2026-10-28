@@ -64,10 +64,12 @@ function _atkGetSummonCtx(isTF) {
   return firer ? _atkMakePlayerCtx(firer, isTF) : _atkMakeProxy(isTF);
 }
 
-function _atkSummon(label) {
+// onlyClass picks the bucket when a label exists in more than one (ground_slam).
+function _atkSummon(label, onlyClass) {
   if (!label) { _consoleErr('Usage: atk summon <label>'); return; }
   if (!gameRunning) { _consoleErr('Start a game first.'); return; }
   for (const [classKey, bucket] of Object.entries(ATK_REGISTRY)) {
+    if (onlyClass && classKey !== onlyClass) continue;
     const entry = bucket.find(a => a.label === label);
     if (!entry) continue;
     const isTF     = classKey === 'trueform';
@@ -180,6 +182,8 @@ function _atkInstallKeyHandler() {
     if (typeof players === 'undefined') return;
     const equipped = players.filter(p => !p.isBoss && p._adminKit);
     if (equipped.length === 0) { _atkRemoveKeyHandler(); return; }
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
 
     // Only intercept digit keys and only when the kit is active
     const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key) - 1

@@ -37,13 +37,13 @@ const AA_KILL_LINES = [
 
 const AA_PHASE2_LINES = [
   'You\'ve reached what Axiom couldn\'t. It won\'t matter.',
-  'Interesting. You\'re pushing past the boundary.',
+  'Boundary reached. I redraw it.',
   'I\'ll stop calculating and start finishing.',
 ];
 
 const AA_PHASE3_LINES = [
-  'Impossible. And yet.',
-  'You\'ve broken every model I have. So I discard them.',
+  'Possible. Irrelevant.',
+  'Models are for things I need to predict. I\'m done predicting.',
   'This is where the absolute begins.',
   'No more limits. This is everything I am.',
 ];
@@ -51,9 +51,9 @@ const AA_PHASE3_LINES = [
 const AA_CHECKPOINT_LINES = {
   800000: 'You\'re consistent. Consistency isn\'t enough.',
   600000: 'You\'ve lasted longer than all of them.',
-  400000: 'Stop. Look at what you\'re doing. It\'s remarkable. It still won\'t work.',
-  200000: 'You\'ve broken a pattern I thought was absolute. Adapt.',
-  100000: 'I don\'t have a model for this. That hasn\'t happened before.',
+  400000: 'Look at what you\'re doing. Every bit of it leads here.',
+  200000: 'One pattern broke. I write the next one.',
+  100000: 'No model for you. I don\'t need one to end you.',
 };
 
 const AA_ATTACK_WARN_LINES = [

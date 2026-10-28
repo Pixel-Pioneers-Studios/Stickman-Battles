@@ -203,7 +203,8 @@ function pickOpponents(state, pool, count) {
   // The brain always holds a random kit WITH a class: until iteration ~1960 it
   // had one in only ~40% of matches, so class passives and every domain were
   // mostly out of reach (0 domains in 49M decisions).
-  const brainKit = 'randomClass';
+  // --brainkit=rangedClass: always that kit (js/smb-brain.js resolveKit), e.g. a ranged specialist.
+  const brainKit = args.brainkit || 'randomClass';
   // 'none' in the --habit list is the plain target, so a habit is never a safe assumption.
   if (HUNT) return Array.from({ length: count }, () => {
     const habit = HABITS.length ? HABITS[Math.floor(Math.random() * HABITS.length)] : undefined;

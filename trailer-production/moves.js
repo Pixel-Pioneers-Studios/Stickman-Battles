@@ -66,7 +66,7 @@ function helpersInstall() {
     noTraffic() {
       if (typeof forestBeastCooldown !== 'undefined') forestBeastCooldown = 99999;
       if (typeof yetiCooldown !== 'undefined') yetiCooldown = 99999;
-      if (typeof mapPerkState !== 'undefined') { if (mapPerkState.cityCars) mapPerkState.cityCars.length = 0; if (mapPerkState.cars) mapPerkState.cars.length = 0; }
+      if (typeof mapPerkState !== 'undefined' && !window.__keepCars) { if (mapPerkState.cityCars) mapPerkState.cityCars.length = 0; if (mapPerkState.cars) mapPerkState.cars.length = 0; }
     },
     // Lay a fighter on a surface at x, standing.
     place(p, x, y, facing) { p.x = x - p.w / 2; p.y = y - p.h; p.vx = 0; p.vy = 0; p.onGround = true; if (facing) p.facing = facing; },
@@ -107,6 +107,50 @@ function helpersInstall() {
       ctx.restore();
     },
     ease(u) { u = Math.max(0, Math.min(1, u)); return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; },
+    // A fighter who has been losing, made readable on a phone (conviction.js pattern). The game's own tier-3
+    // wounds are on (black eye, scratches, drip), but they're 1-2px; on top of them: blood running from the
+    // scalp down the face (follows the posed head), a stain on the torso, a growing pool and drops on the floor.
+    bleed(p, floorY) {
+      p._damageAccumThisLife = 140; p._degradeVisual = 140; p._lastHealthSeen = p.health;
+      const B = p.__bleed = { t: 0, floorY, pool: 0 };
+      const d0 = p.draw.bind(p);
+      p.draw = function () {
+        d0();
+        if (!p.__bleed || p.health <= 0) return;
+        B.t++;
+        p._damageAccumThisLife = Math.max(p._damageAccumThisLife || 0, 140);
+        let hx = p.cx() + (p.facing || 1) * 2, hy = p.y + 8, R = 7, fc = p.facing || 1, chest = { x: p.cx(), y: p.y + 24 };
+        const rec = p._cinPerf;
+        if (rec && typeof CinRig !== 'undefined') {
+          const pose = rec.track.sample(rec.frame);
+          pose.x = p.cx(); pose.y = p.y + p.h; pose.facing = fc;
+          pose.scale = (pose.scale || 1) * 0.9 * (p.drawScale || 1); pose.headScale = (pose.headScale || 1) * 0.77;
+          const J = CinRig.joints(pose); hx = J.head.x; hy = J.head.y; R = J.headR;
+          if (J.neck && J.hip) chest = { x: (J.neck.x * 2 + J.hip.x) / 3, y: (J.neck.y * 2 + J.hip.y) / 3 };
+        }
+        ctx.save(); ctx.lineCap = 'round';
+        // Scalp to chin, two runs.
+        const x0 = hx + fc * R * 0.3, y0 = hy - R * 0.6, len = R * 2.6;
+        ctx.strokeStyle = 'rgba(170,0,10,0.95)'; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(x0 + fc * R * 0.3, y0 + len * 0.5, x0 + fc * R * 0.15, y0 + len); ctx.stroke();
+        ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(x0 - fc * R * 0.35, y0 + R * 0.2); ctx.quadraticCurveTo(x0 - fc * R * 0.2, y0 + len * 0.6, x0 - fc * R * 0.3, y0 + len * 0.85); ctx.stroke();
+        // Torso stain.
+        ctx.fillStyle = 'rgba(160,0,10,0.75)';
+        ctx.beginPath(); ctx.ellipse(chest.x + fc * 2, chest.y, 3.2, 5, 0.3, 0, Math.PI * 2); ctx.fill();
+        // Pool under him, growing.
+        B.pool = Math.min(1, B.pool + 0.008);
+        if (B.floorY && p.onGround !== false) {
+          ctx.fillStyle = 'rgba(120,0,8,0.85)';
+          ctx.beginPath(); ctx.ellipse(p.cx() + fc * 4, B.floorY - 0.5, 4 + B.pool * 12, 1.2 + B.pool * 1.6, 0, 0, Math.PI * 2); ctx.fill();
+        }
+        // Drops off the chin.
+        const ph = B.t % 34;
+        if (ph < 20) { ctx.fillStyle = '#c80810'; ctx.beginPath(); ctx.arc(x0 + fc * R * 0.15, y0 + len + ph * ph * 0.09, 1.5, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      };
+    },
+    unbleed(p) { p.__bleed = null; },
   };
   // The i-frame bubble (a pale blue ellipse) is noise in a staged scene: finishers set i-frames
   // every frame, so hide it at the source. The real value still protects while no finisher runs.
@@ -536,6 +580,817 @@ SCENES.katana = {
     const foeMid = () => foes.reduce((a, f) => a + f.cx(), 0) / foes.length;
     // Him from the first frame, the three running in from the edge; after the draw, him and red (the finisher's victim).
     window.__focusScreen = () => H.focus(D.phase === 'wait' ? Math.min(p1.cx() + 45, mid()) : D.phase === 'draw' ? (p1.cx() + foeMid()) / 2 : (p1.cx() + players[1].cx()) / 2);
+  },
+};
+
+// EDGE — a story, not a trick. Varek's axe knocks Kael off the ledge into the Ruins pit. Varek walks
+// to the lip and looks down to watch him fall. Shadow Step (the game's own katana E) puts Kael on the
+// ledge behind him, and its cuts end it: the game's own THOUSAND STEPS move finisher.
+SCENES.edge = {
+  arena: 'ruins', frames: 900,
+  match: { p1: 'katana', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'warrior', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    // Ruins: floors 0-260, 320-580, 640-900 at y 440. The pit is 580..640.
+    const mid = currentArena.platforms.filter(pl => pl.isFloor).sort((a, b) => Math.abs(a.x + a.w / 2 - 450) - Math.abs(b.x + b.w / 2 - 450))[0];
+    D.lipX = mid.x + mid.w; D.floorY = mid.y; D.pitX = D.lipX + 30;
+    H.place(p1, D.lipX - 26, D.floorY, -1);
+    H.place(p2, D.lipX - 92, D.floorY, 1);
+    p1.health = p1.maxHealth * 0.4;
+    p2.health = p2.maxHealth;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    H.snap((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.3);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const P = Math.PI;
+    switch (D.phase) {
+      case 'start': H.go('swing'); break;
+      case 'swing': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.3);
+        p1.facing = -1;
+        if (D.t === 6) { p2.facing = 1; p2.cooldown = 0; p2.attack(p1); D.log.axe = D.f; }
+        if (p1.health < p1.maxHealth * 0.4 - 0.5 || D.t > 60) {
+          // The hit landed (the game's own: blood, hit-stop, sound). Off the edge with it.
+          p1.vx = 7; p1.vy = -5; p1.onGround = false; p1.stunTimer = 0; p1.ragdollTimer = 0;
+          slowMotion = 0.4;
+          if (settings.screenShake) screenShake = Math.max(screenShake, 14);
+          D.log.hit = D.f;
+          H.go('fall');
+        }
+        break;
+      }
+      case 'fall': {
+        // Over the lip and down into the dark; the camera goes with him.
+        if (p1.cx() >= D.pitX) { p1.vx = 0; p1.x = D.pitX - p1.w / 2; }
+        if (p1.vy > 2.2) p1.vy = 2.2;     // a slow, hanging fall
+        // Never out of the bottom of the frame (or past deathY) before the step.
+        if (p1.cy() > D.floorY + 120) { p1.y = D.floorY + 120 - p1.h / 2; p1.vy = 0; }
+        p1.facing = -1;
+        CinCam.setFocus(D.lipX - 10, Math.min(p1.cy(), D.floorY + 60) - 20, 2.0);
+        if (D.t > 14 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.02);
+        // Varek walks to the lip and leans over to watch.
+        const stop = D.lipX - 16;
+        if (D.t > 20 && !D.looking) {
+          p2.facing = 1;
+          if (p2.cx() < stop) p2.vx = 2.6;
+          else {
+            p2.vx = 0; D.looking = true; D.log.look = D.f;
+            H.pose(p2, [{ at: 0, pose: 'stand' }, { at: 0.35, ease: 'outQuad', hold: 600,
+              pose: { from: 'stand', torso: 0.62, headTilt: 0.95, rArm: P * 0.42, rFore: P * 0.30, hipDrop: 6 } }]);
+          }
+        }
+        if (D.looking && D.t - (D.log.look - D.log.fall) > 75 && p1.cy() > D.floorY + 40) {
+          // Last life, last HP: the step's cuts end it and the game plays THOUSAND STEPS.
+          p2.lives = 1; p2.health = 20; p2.invincible = 0; p2.shielding = false;
+          H.unpose(p2);
+          H.press(p1, 'e', p2);
+          D.log.step = D.f;
+          H.go('step');
+        }
+        break;
+      }
+      case 'step': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, D.floorY - 40, 2.2);
+        if (activeFinisher && !D.log.fin) D.log.fin = D.f;
+        if (D.log.fin && D.f - D.log.fin > 200) H.go('after');
+        break;
+      }
+      case 'after': break;
+    }
+    // The Ruins drop pickups; a floating 'D' orb in every frame.
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    // Nobody dies to the pit before the step, and Varek holds until the cuts.
+    if (D.phase === 'swing' || D.phase === 'fall') { p1.lives = 3; p2.lives = 3; if (p2.health < p2.maxHealth * 0.5) p2.health = p2.maxHealth; }
+    p2.cooldown = Math.max(p2.cooldown, D.phase === 'swing' && D.t < 6 ? 0 : 2);
+    p1.cooldown = Math.max(p1.cooldown, 2);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(D.phase === 'fall' ? (D.lipX - 20 + (p2.cx() - (D.lipX - 20)) * 0.3) : (p1.cx() + p2.cx()) / 2);
+  },
+};
+
+// GUARD — a story. Varek turtles behind his shield and every one of Kael's spear thrusts bounces off.
+// Then Lance Charge (the game's own spear E): a Q/E move shatters a held guard (msGuardBreakClaim),
+// carries him on the point, and the game's own LAST CHARGE move finisher ends it.
+SCENES.guard = {
+  arena: 'colosseum', frames: 900,
+  match: { p1: 'spear', p1Class: 'none', p1Color: '#00d4ff', p2: 'shield', p2Class: 'warrior', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    H.place(p1, 318, fl.y, 1);
+    H.place(p2, 446, fl.y, -1);
+    p1.health = p1.maxHealth * 0.5;
+    p2.health = p2.maxHealth;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    H.snap((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.4);
+    D.blocks = 0;
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    // Varek holds the guard from the first frame (one raise, so it is never a fresh-raise parry).
+    if (D.phase !== 'after') { keysDown.add(p2.controls.shield); p2.facing = -1; }
+    switch (D.phase) {
+      case 'start': H.go('pokes'); break;
+      case 'pokes': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.4);
+        p1.facing = 1;
+        // Keep the pool topped up: three blocks, no overflow break, nothing gets through.
+        if (p2.shielding) { p2.shieldHP = Math.max(p2.shieldHP || 0, 50); p2.shieldBroken = false; }
+        const at = [26, 62, 98];
+        if (at.includes(D.t)) {
+          // Step in a little each time, the way you do when nothing works.
+          p1.x += 6; p1.cooldown = 0; p1.attackEndlag = 0; p1.attack(p2);
+          D.log['poke' + (++D.blocks)] = D.f;
+        }
+        // The thrust meets the shield face: a spark big enough to read on a phone.
+        if (at.some(a => D.t === a + 6)) {
+          const sx = p2.cx() - 22, sy = p2.cy() - 6;
+          spawnParticles(sx, sy, '#ffffff', 14); spawnParticles(sx, sy, '#ffd23f', 10);
+          if (typeof CinFX !== 'undefined' && CinFX.shockwave) CinFX.shockwave(sx, sy, '#ffffff', { count: 1, maxR: 34, lw: 3, dur: 12 });
+          if (settings.screenShake) screenShake = Math.max(screenShake, 6);
+        }
+        if (D.t === 140) {
+          // Last life, last HP: the charge breaks the guard and the game plays LAST CHARGE.
+          p2.lives = 1; p2.health = 20;
+          p2.shieldHP = 50;   // a full guard: only the Q/E break gets through it
+          H.press(p1, 'e', p2);
+          D.log.charge = D.f;
+          H.go('charge');
+        }
+        break;
+      }
+      case 'charge': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.2);
+        if (p2.shieldBroken && !D.log.broke) {
+          D.log.broke = D.f;
+          // The guard goes: shards in the shield's own blue and gold.
+          const sx = p2.cx() - 18, sy = p2.cy() - 8;
+          spawnParticles(sx, sy, '#2f63d8', 26); spawnParticles(sx, sy, '#f2c94c', 18); spawnParticles(sx, sy, '#ffffff', 12);
+          if (typeof CinFX !== 'undefined' && CinFX.shockwave) CinFX.shockwave(sx, sy, '#ffffff', { count: 2, maxR: 110, lw: 5, dur: 22 });
+          if (settings.screenShake) screenShake = Math.max(screenShake, 18);
+        }
+        if (activeFinisher && !D.log.fin) { D.log.fin = D.f; keysDown.delete(p2.controls.shield); }
+        if (D.log.fin && D.f - D.log.fin > 220) H.go('after');
+        if (!D.log.fin && D.t > 300) H.go('after');
+        break;
+      }
+      case 'after': keysDown.delete(p2.controls.shield); break;
+    }
+    if (D.phase === 'pokes') { p1.lives = 3; p2.lives = 3; if (p2.health < p2.maxHealth * 0.6) p2.health = p2.maxHealth; }
+    p2.cooldown = Math.max(p2.cooldown, 2);
+    if (D.phase !== 'pokes') p1.cooldown = Math.max(p1.cooldown, 2);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus((p1.cx() + p2.cx()) / 2);
+  },
+};
+
+// PAN — a story. Kael walks into an axe fight holding a frying pan. Varek laughs at it, then puts the
+// axe into him. Kael gets up and Grand Slam (the game's own frying pan E) bonks him, winds up like a
+// golfer and drives him into the sky: the game's own HOLE IN ONE move finisher, ending on the twinkle.
+SCENES.pan = {
+  arena: 'colosseum', frames: 640,
+  match: { p1: 'fryingpan', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'warrior', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    H.place(p1, 380, fl.y, 1);
+    H.place(p2, 452, fl.y, -1);
+    p1.health = p1.maxHealth * 0.6;
+    p2.health = p2.maxHealth;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    H.snap((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.4);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const P = Math.PI;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    switch (D.phase) {
+      case 'start': H.go('laugh'); break;
+      case 'laugh': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.4);
+        p1.facing = 1; p2.facing = -1;
+        if (D.t === 16) {
+          // Head thrown back, rocking: the laugh. A hand pointed at the pan on the first beat.
+          const back = { from: 'stand', torso: -0.45, headTilt: -0.8, rArm: -P * 0.30, rFore: -P * 0.10, hipDrop: 2 };
+          const rock = { from: 'stand', torso: -0.22, headTilt: -0.45, rArm: -P * 0.22, rFore: -P * 0.05, hipDrop: 1 };
+          const beats = [{ at: 0, pose: 'stand' }];
+          for (let i = 0; i < 6; i++) beats.push({ at: 0.06 + i * 0.07, ease: 'inOutQuad', hold: 0, pose: i % 2 ? rock : back });
+          beats.push({ at: 0.5, ease: 'inOutQuad', hold: 600, pose: 'stand' });
+          H.pose(p2, beats);
+          D.log.laugh = D.f;
+        }
+        if (D.t === 86) { H.unpose(p2); H.go('swing'); }
+        break;
+      }
+      case 'swing': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.4);
+        p1.facing = 1;
+        if (D.t === 4) { p2.facing = -1; p2.cooldown = 0; p2.attack(p1); D.log.axe = D.f; }
+        if (p1.health < p1.maxHealth * 0.6 - 0.5 || D.t > 60) {
+          // The game's own hit landed; a short stagger back, not out of the scene.
+          p1.vx = -3.2; p1.vy = -3.5; p1.onGround = false; p1.stunTimer = 0; p1.ragdollTimer = 0;
+          slowMotion = 0.45;
+          if (settings.screenShake) screenShake = Math.max(screenShake, 12);
+          D.log.hit = D.f;
+          H.go('up');
+        }
+        break;
+      }
+      case 'up': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.3);
+        if (slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.025);
+        p1.facing = 1; p2.facing = -1;
+        if (D.t === 20) {
+          // Back on his feet: the head comes up, the pan comes up.
+          H.pose(p1, [{ at: 0, pose: 'stand' }, { at: 0.12, ease: 'outQuad', hold: 600,
+            pose: { from: 'stand', torso: 0.35, headTilt: 0.5, hipDrop: 8 } }, { at: 0.45, ease: 'inOutQuad', hold: 600, pose: 'stand' }]);
+          D.log.rise = D.f;
+        }
+        // Walk back in to the slam's reach.
+        if (D.t > 48 && p2.cx() - p1.cx() > 58) p1.vx = 2.8; else if (D.t > 48) p1.vx = 0;
+        if (D.t > 48 && p2.cx() - p1.cx() <= 58 && p1.onGround) {
+          H.unpose(p1);
+          // Last life, last HP: the slam's swing kills and the game plays HOLE IN ONE.
+          p2.lives = 1; p2.health = 20; p2.invincible = 0; p2.shielding = false;
+          H.press(p1, 'e', p2);
+          D.log.slam = D.f;
+          H.go('slam');
+        }
+        if (D.t > 160) H.go('after');
+        break;
+      }
+      case 'slam': {
+        if (!activeFinisher) CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.3);
+        if (activeFinisher && !D.log.fin) D.log.fin = D.f;
+        if (D.log.fin && D.f - D.log.fin > 150) H.go('after');
+        if (!D.log.fin && D.t > 260) H.go('after');
+        break;
+      }
+      case 'after': break;
+    }
+    if (D.phase === 'laugh' || D.phase === 'swing' || D.phase === 'up') { p1.lives = 3; p2.lives = 3; if (p2.health < p2.maxHealth * 0.5) p2.health = p2.maxHealth; }
+    p2.cooldown = Math.max(p2.cooldown, D.phase === 'swing' && D.t < 4 ? 0 : 2);
+    if (D.phase !== 'slam') p1.cooldown = Math.max(p1.cooldown, 2);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus((p1.cx() + p2.cx()) / 2);
+  },
+};
+
+// ARENA — a story. Varek has Kael on his knees, one swing from the win, axe overhead. The city's own
+// traffic (a real city car, sent on cue; its hit is the game's) takes him out of the swing and throws
+// him back at Kael, who gets up bare-handed: Combo Strike, the game's own HUNDRED FISTS move finisher.
+SCENES.arena = {
+  arena: 'city', frames: 720,
+  match: { p1: 'combat', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'warrior', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    window.__keepCars = true;
+    mapPerkState.cityCars = []; mapPerkState.carSpawnCd = 99999;
+    const fl = H.floor();
+    D.floorY = fl.y;
+    // A step of room between them, so Kael's lowered head is never at Varek's waist.
+    H.place(p1, 392, fl.y, 1);
+    H.place(p2, 470, fl.y, -1);
+    p1.health = p1.maxHealth * 0.15;
+    p2.health = p2.maxHealth;
+    H.bleed(p1, fl.y);
+    // Down on one knee, leaning over, still. (No rhythmic motion: a bobbing head at his waist reads wrong.)
+    H.pose(p1, [{ at: 0, pose: 'slump', hold: 600 }]);
+    H.snap((p1.cx() + p2.cx()) / 2, p1.cy() - 14, 2.4);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    mapPerkState.carSpawnCd = 99999;
+    switch (D.phase) {
+      case 'start': H.go('loom'); break;
+      case 'loom': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 14, 2.4);
+        p1.facing = 1; p2.facing = -1;
+        if (D.t === 20) {
+          // The axe goes up for the last swing.
+          H.pose(p2, [{ at: 0, pose: 'stand' }, { at: 0.35, ease: 'outQuad', hold: 600, pose: 'windup' }]);
+          D.log.windup = D.f;
+        }
+        if (D.t === 70) {
+          // A real city car, from behind him, on the lane he's standing in.
+          mapPerkState.cityCars.push({ x: p2.cx() + 330, y: 438, w: 55, h: 22, vx: -6.5, color: '#cc8800', warned: false, hit: new Set([p1]) });
+          D.log.car = D.f;
+        }
+        if (D.log.car && p2.health < p2.maxHealth - 0.5) {
+          // The car's hit landed (the game's dealDamage). Throw him back toward Kael, high, slow.
+          H.unpose(p2);
+          p2.vx = -3.2; p2.vy = -9; p2.onGround = false; p2.stunTimer = 40;
+          slowMotion = 0.4;
+          D.log.hit = D.f;
+          H.go('thrown');
+        }
+        if (D.t > 200) H.go('after');
+        break;
+      }
+      case 'thrown': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, Math.min(p1.cy(), p2.cy()) - 10, 2.2);
+        if (slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.02);
+        if (D.t === 18) { H.unpose(p1); H.pose(p1, [{ at: 0, pose: 'kneel' }, { at: 0.25, ease: 'outQuad', hold: 600, pose: 'stand' }]); D.log.rise = D.f; }
+        if (D.t > 34 && p2.onGround) {
+          H.unpose(p1);
+          p1.facing = p2.cx() > p1.cx() ? 1 : -1;
+          // Last life, last HP: the combo's hits kill and the game plays HUNDRED FISTS.
+          p2.lives = 1; p2.health = 20; p2.invincible = 0; p2.shielding = false; p2.stunTimer = 0;
+          H.press(p1, 'e', p2);
+          D.log.strike = D.f;
+          H.go('strike');
+        }
+        if (D.t > 160) H.go('after');
+        break;
+      }
+      case 'strike': {
+        if (!activeFinisher) CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.3);
+        if (activeFinisher && !D.log.fin) D.log.fin = D.f;
+        if (D.log.fin && D.f - D.log.fin > 200) H.go('after');
+        if (!D.log.fin && D.t > 260) H.go('after');
+        break;
+      }
+      case 'after': break;
+    }
+    if (D.phase === 'loom' || D.phase === 'thrown') { p1.lives = 3; p2.lives = 3; if (p2.health < p2.maxHealth * 0.5) p2.health = p2.maxHealth * 0.8; p1.health = Math.max(p1.health, 5); }
+    p2.cooldown = Math.max(p2.cooldown, 2);
+    if (D.phase !== 'strike') p1.cooldown = Math.max(p1.cooldown, 2);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus((p1.cx() + p2.cx()) / 2);
+  },
+};
+
+// DODGE — a story. Kael is backed against nothing, and Varek's hammer is already coming down. He jumps
+// it: over the hammer, over Varek, slowed so you can see it (the jump is scripted, the hammer's swing and
+// its miss are the game's). He lands behind him and Soul Reap (the game's own scythe E) hooks him back:
+// the game's own HARVEST move finisher.
+SCENES.dodge = {
+  arena: 'colosseum', frames: 720,
+  match: { p1: 'scythe', p1Class: 'none', p1Color: '#00d4ff', p2: 'hammer', p2Class: 'warrior', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    H.place(p1, 400, fl.y, 1);
+    H.place(p2, 452, fl.y, -1);
+    p1.health = p1.maxHealth * 0.2;
+    p2.health = p2.maxHealth;
+    H.bleed(p1, fl.y);
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    H.snap((p1.cx() + p2.cx()) / 2, p1.cy() - 14, 2.4);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    switch (D.phase) {
+      case 'start': H.go('raise'); break;
+      case 'raise': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 14, 2.4);
+        p1.facing = 1; p2.facing = -1;
+        if (D.t === 30) {
+          // The game's own hammer swing, at point blank.
+          p2.cooldown = 0; p2.attack(p1); D.log.swing = D.f;
+          p1.invincible = 120;   // staged: the dodge must not be decided by the swing's first frames
+        }
+        if (D.t === 32) {
+          // Up and over him on a scripted arc (invulnerable while airborne: staged), in slow motion.
+          D.from = { x: p1.cx(), y: p1.y + p1.h }; D.to = { x: p2.cx() + 70, y: D.floorY };
+          p1.invincible = 120; D.log.jump = D.f;
+          H.go('over');
+        }
+        break;
+      }
+      case 'over': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, D.floorY - 60, 2.3);
+        p2.facing = -1;
+        const N = 70, u = H.ease(Math.min(1, D.t / N));
+        const q = H.arc(D.from, D.to, 95, u);
+        p1.x = q.x - p1.w / 2; p1.y = q.y - p1.h; p1.vx = 0; p1.vy = 0; p1.onGround = false;
+        p1.facing = q.x < p2.cx() ? 1 : -1;
+        slowMotion = D.t < 50 ? 0.3 : Math.min(1, slowMotion + 0.05);
+        if (D.t === 10) {
+          // The hammer hits the floor where he was.
+          const gx = D.from.x + 6, gy = D.floorY - 2;
+          spawnParticles(gx, gy, '#ffffff', 16); spawnParticles(gx, gy, '#c8a060', 18);
+          if (typeof CinFX !== 'undefined' && CinFX.shockwave) CinFX.shockwave(gx, gy, '#ffffff', { count: 1, maxR: 60, lw: 4, dur: 16 });
+          if (settings.screenShake) screenShake = Math.max(screenShake, 12);
+          D.log.miss = D.f;
+        }
+        if (D.t >= N) {
+          H.place(p1, D.to.x, D.floorY, -1); p1.invincible = 0; D.log.land = D.f;
+          H.go('reap');
+        }
+        break;
+      }
+      case 'reap': {
+        CinCam.setFocus((p1.cx() + p2.cx()) / 2, p1.cy() - 10, 2.3);
+        slowMotion = Math.min(1, slowMotion + 0.05);
+        if (D.t === 10) {
+          p2.facing = -1;   // still looking the wrong way
+          p2.lives = 1; p2.health = 20; p2.invincible = 0; p2.shielding = false;
+          H.press(p1, 'e', p2);
+          D.log.reap = D.f;
+        }
+        if (activeFinisher && !D.log.fin) D.log.fin = D.f;
+        if (D.log.fin && D.f - D.log.fin > 200) H.go('after');
+        if (!D.log.fin && D.t > 280) H.go('after');
+        break;
+      }
+      case 'after': break;
+    }
+    if (D.phase === 'raise' || D.phase === 'over') { p1.lives = 3; p2.lives = 3; if (p2.health < p2.maxHealth * 0.5) p2.health = p2.maxHealth; p1.health = Math.max(p1.health, 5); }
+    p2.cooldown = Math.max(p2.cooldown, D.phase === 'raise' && D.t === 30 ? 0 : 2);
+    if (D.phase !== 'reap') p1.cooldown = Math.max(p1.cooldown, 2);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus((p1.cx() + p2.cx()) / 2);
+  },
+};
+
+// AXESLAM — an authored fight in the game's own bodies (the user's idea, Oct 24): axe and katana locked; the
+// lock blows them apart; Kael charges; Varek slams the ground and a rock eruption launches Kael; Varek leaps
+// over him and spikes him into a crater; dust, and a glint inside it (PART 2?). Not a game move: every pose is
+// keyed here (CinPerf tracks on the real fighters, their real weapon art), positions and effects are authored.
+SCENES.axeslam = {
+  arena: 'forest', frames: 350,
+  match: { p1: 'katana', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'none', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor(); D.G = fl.y;
+    const P = Math.PI;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    // Poses (CinPerf: absolute radians, facing-right space; the rig mirrors). r* is the weapon arm.
+    const clash = { rArm: -P * 0.18, rFore: -P * 0.25, lArm: -P * 0.16, lFore: -P * 0.26, rArmLen: 1.15,
+      rLeg: P * 0.24, rShin: P * 0.46, lLeg: P * 0.78, lShin: P * 0.74, torso: 0.32, hipDrop: 8, headTilt: 0.12 };
+    // CinRig limb angles are world angles (only the torso lean flips with facing), so Varek's poses, which face left,
+    // are the right-facing poses mirrored: theta -> PI - theta.
+    const M = q => { const o = { ...q }; for (const k of ['rArm', 'rFore', 'lArm', 'lFore', 'rLeg', 'rShin', 'lLeg', 'lShin']) if (o[k] !== undefined) o[k] = P - o[k]; if (o.headTilt) o.headTilt = -o.headTilt; return o; };
+    const clashV = M({ ...clash, torso: 0.36 });
+    const blown = { rArm: P * 1.05, rFore: P * 1.15, lArm: P * 0.80, lFore: P * 0.92, rLeg: P * 0.40, rShin: P * 0.52,
+      lLeg: P * 0.70, lShin: P * 0.60, torso: -0.40, headTilt: -0.30, hipDrop: 4 };
+    const skid = { rArm: P * 0.20, rFore: -P * 0.10, lArm: P * 0.95, lFore: P * 1.05, rLeg: P * 0.20, rShin: P * 0.40,
+      lLeg: P * 0.80, lShin: P * 0.85, torso: 0.45, hipDrop: 16, headTilt: 0.15 };
+    const runA = { rArm: P * 0.85, rFore: P * 0.95, rArmLen: 1.1, lArm: P * 0.25, lFore: -P * 0.10, rLeg: P * 0.10, rShin: P * 0.42,
+      lLeg: P * 0.86, lShin: P * 1.05, torso: 0.50, hipDrop: 4, headTilt: 0.10 };
+    const runB = { ...runA, rLeg: P * 0.80, rShin: P * 1.00, lLeg: P * 0.16, lShin: P * 0.46, hipDrop: 0 };
+    const axeUp = { rArm: -P * 0.40, rFore: -P * 0.62, lArm: -P * 0.45, lFore: -P * 0.66, rArmLen: 1.2, lArmLen: 1.2,
+      rLeg: P * 0.30, rShin: P * 0.48, lLeg: P * 0.72, lShin: P * 0.62, torso: -0.30, headTilt: -0.15, hipDrop: 4, sy: 1.06 };
+    const axeDown = { rArm: P * 0.22, rFore: P * 0.30, lArm: P * 0.18, lFore: P * 0.28, rArmLen: 1.2, lArmLen: 1.15,
+      rLeg: P * 0.20, rShin: P * 0.50, lLeg: P * 0.80, lShin: P * 0.66, torso: 0.62, hipDrop: 14, sx: 1.05 };
+    const tumble = { rArm: P * 1.20, rFore: P * 1.45, lArm: P * 1.05, lFore: P * 1.30, rLeg: P * 0.62, rShin: P * 0.95,
+      lLeg: P * 0.40, lShin: P * 0.20, torso: -0.35, headTilt: -0.30 };
+    const tuck = { rArm: -P * 0.45, rFore: -P * 0.70, lArm: -P * 0.40, lFore: -P * 0.60, rArmLen: 1.2, lArmLen: 1.2,
+      rLeg: P * 0.05, rShin: P * 0.70, lLeg: P * 0.20, lShin: P * 0.85, torso: -0.20, hipDrop: -8 };
+    const spike = { rArm: P * 0.35, rFore: P * 0.45, lArm: P * 0.30, lFore: P * 0.42, rArmLen: 1.25, lArmLen: 1.2,
+      rLeg: P * 0.30, rShin: P * 0.60, lLeg: P * 0.70, lShin: P * 0.55, torso: 0.70, hipDrop: -4 };
+    // Varek's spike from above and to Kael's right: the axe has to come down-left onto him.
+    const spikeV = { ...spike, rArm: P * 0.62, rFore: P * 0.74 };
+    const crumpled = { rArm: P * 0.95, rFore: P * 1.05, lArm: P * 0.70, lFore: P * 0.85, rLeg: P * 0.10, rShin: P * 0.30,
+      lLeg: P * 0.25, lShin: P * 0.10, torso: 1.20, hipDrop: 30, headTilt: 0.6 };
+    const landK = { rArm: P * 0.40, rFore: P * 0.55, lArm: P * 0.55, lFore: P * 0.60, rLeg: P * 0.10, rShin: P * 0.55,
+      lLeg: P * 0.85, lShin: P * 0.70, torso: 0.40, hipDrop: 20 };
+    const tower = { rArm: P * 0.70, rFore: P * 0.62, lArm: P * 0.40, lFore: P * 0.50, rLeg: P * 0.62, rShin: P * 0.60,
+      lLeg: P * 0.38, lShin: P * 0.42, torso: 0.18, headTilt: 0.30, hipDrop: 2, sx: 1.05 };
+    // Standing over the crater with the axe raised at him, not resting its head in the ground.
+    const towerV = { ...tower, rArm: P * 0.30, rFore: -P * 0.12 };
+    // Kael's whole performance (seconds). The run is two keys cycling.
+    const kb = [{ at: 0, pose: clash }, { at: 0.62, pose: clash, hold: 0 }, { at: 0.70, pose: blown, ease: 'outQuad' },
+      { at: 0.95, pose: skid, ease: 'outQuad' }, { at: 1.25, pose: skid }];
+    let t = 1.33; for (let i = 0; i < 6; i++, t += 0.11) kb.push({ at: t, pose: i % 2 ? runB : runA, ease: 'linear' });
+    kb.push({ at: 2.12, pose: tumble, ease: 'outQuad' }, { at: 2.75, pose: tumble, rot: 0 }, { at: 3.05, pose: tumble },
+      { at: 3.18, pose: crumpled, ease: 'outQuad' }, { at: 7, pose: crumpled });
+    // Varek's.
+    // Mirrored while he faces left; over the top of Kael (2.92-3.30) he faces right.
+    const vb = [{ at: 0, pose: clashV }, { at: 0.62, pose: clashV }, { at: 0.70, pose: M(blown), ease: 'outQuad' },
+      { at: 0.95, pose: M(skid), ease: 'outQuad' }, { at: 1.30, pose: M(skid) }, { at: 1.62, pose: M(axeUp), ease: 'outQuad' },
+      { at: 1.95, pose: M(axeUp) }, { at: 2.03, pose: M(axeDown), ease: 'inQuad' }, { at: 2.45, pose: M(axeDown) },
+      { at: 2.62, pose: M(tuck), ease: 'outQuad' }, { at: 2.92, pose: axeUp, ease: 'inOutQuad' }, { at: 3.04, pose: spikeV, ease: 'inQuad' },
+      { at: 3.30, pose: spikeV }, { at: 3.42, pose: M(landK), ease: 'outQuad' }, { at: 3.80, pose: M(landK) },
+      { at: 4.30, pose: M(towerV), ease: 'inOutQuad' }, { at: 7, pose: M(towerV) }];
+    H.pose(p1, kb); H.pose(p2, vb);
+    // Positions (seconds -> [x, height above floor]); eased between keys.
+    D.kPos = [[0, 430, 0], [0.62, 434, 0], [0.70, 420, 24], [0.95, 392, 0], [1.30, 390, 0], [2.10, 470, 0],
+      [2.20, 470, 10], [2.75, 472, 430], [3.04, 472, 440], [3.18, 474, 0], [7, 474, 0]];
+    D.vPos = [[0, 530, 0], [0.62, 526, 0], [0.70, 548, 24], [0.95, 576, 0], [1.30, 590, 0], [1.95, 590, 0], [2.45, 590, 0],
+      [2.62, 556, 200], [2.92, 520, 560], [3.04, 492, 500], [3.30, 488, 60], [3.42, 540, 0], [7, 540, 0]];
+    D.ease = u => u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    D.at = (keys, s) => {
+      let i = 0; while (i < keys.length - 1 && keys[i + 1][0] <= s) i++;
+      const a = keys[i], b = keys[Math.min(i + 1, keys.length - 1)];
+      if (a === b) return [a[1], a[2]];
+      const u = D.ease(Math.max(0, Math.min(1, (s - a[0]) / (b[0] - a[0]))));
+      return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+    };
+    p1.facing = 1; p2.facing = -1;
+    p1.health = p1.maxHealth; p2.health = p2.maxHealth;
+    D.spikes = []; D.crater = null; D.dust = [];
+    // Rock eruption + crater + dust + glint, drawn in world space under/over the fighters.
+    const d2 = p2.draw.bind(p2);
+    p2.draw = function () {
+      const G = D.G;
+      ctx.save();
+      for (const sp of D.spikes) {
+        const age = D.f - sp.f; if (age < 0) continue;
+        const h = sp.h * Math.min(1, age / 4) * (age > 30 ? Math.max(0, 1 - (age - 30) / 20) : 1);
+        if (h <= 0) continue;
+        ctx.fillStyle = '#3b2f2a'; ctx.strokeStyle = '#6a5446'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(sp.x - sp.w, G); ctx.lineTo(sp.x - sp.w * 0.2, G - h); ctx.lineTo(sp.x + sp.w * 0.3, G - h * 0.8); ctx.lineTo(sp.x + sp.w, G); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      if (D.crater) {
+        const c = D.crater, k = Math.min(1, (D.f - c.f) / 6);
+        ctx.fillStyle = '#1a1310'; ctx.beginPath(); ctx.ellipse(c.x, G + 2, 70 * k, 14 * k, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#7a5a40'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(c.x, G + 2, 70 * k, 14 * k, 0, Math.PI, 0); ctx.stroke();
+        ctx.fillStyle = '#4a3a30';
+        for (let i = 0; i < 6; i++) { const a = -Math.PI * (0.1 + i * 0.16); ctx.beginPath(); ctx.moveTo(c.x + Math.cos(a) * 66 * k, G); ctx.lineTo(c.x + Math.cos(a) * 82 * k, G - 18 * k * (1 + (i % 2))); ctx.lineTo(c.x + Math.cos(a) * 92 * k, G); ctx.fill(); }
+      }
+      ctx.restore();
+      d2();
+      ctx.save();
+      for (const d of D.dust) {
+        const age = D.f - d.f; if (age < 0 || age > d.life) continue;
+        const k = age / d.life;
+        ctx.globalAlpha = (1 - k) * d.a; ctx.fillStyle = d.c;
+        ctx.beginPath(); ctx.arc(d.x + d.vx * age, d.y - d.vy * age, d.r * (0.6 + k * 1.6), 0, Math.PI * 2); ctx.fill();
+      }
+      if (D.glint && D.f >= D.glint) {
+        const a = D.f - D.glint, k = Math.min(1, a / 6) * (a > 40 ? Math.max(0, 1 - (a - 40) / 30) : 1), r = 14 + Math.sin(Math.min(1, a / 10) * Math.PI) * 40;
+        const gx = D.crater.x - 6, gy = D.G - 18;
+        ctx.globalAlpha = k; ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#7fe8ff'; ctx.shadowBlur = 36;
+        ctx.beginPath(); for (let i = 0; i < 8; i++) { const an = i * Math.PI / 4, rr = i % 2 ? r * 0.18 : r; ctx[i ? 'lineTo' : 'moveTo'](gx + Math.cos(an) * rr, gy + Math.sin(an) * rr); } ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    };
+    D.place = s => {
+      const G = D.G, kp = D.at(D.kPos, s), vp = D.at(D.vPos, s);
+      p1.x = kp[0] - p1.w / 2; p1.y = G - kp[1] - p1.h; p1.vx = p1.vy = 0; p1.onGround = kp[1] < 1;
+      p2.x = vp[0] - p2.w / 2; p2.y = G - vp[1] - p2.h; p2.vx = p2.vy = 0; p2.onGround = vp[1] < 1;
+    };
+    // Where each blade is drawn (world space), so the choreography can make them meet: butt end a, far end b.
+    D.blade = {}; window.__bladeDebug = canvas.width < 2000;
+    const dw = Fighter.prototype.drawWeapon;
+    for (const f of [p1, p2]) f.drawWeapon = function (hx, hy, ang, atk, key, sc) {
+      const k = key || this.weaponKey, spr = WEAPON_SPRITES[k], swg = WEAPON_SWINGS[k];
+      const ct = (swg && swg.carry && swg.carry.tilt) || 0, a = ang + (this.facing < 0 ? -ct : ct);
+      if (spr) {
+        const s0 = -spr.len * spr.anchor * sc, s1 = spr.len * (1 - spr.anchor) * sc;
+        D.blade[this === p1 ? 'k' : 'v'] = { a: [hx + Math.cos(a) * s0, hy + Math.sin(a) * s0], b: [hx + Math.cos(a) * s1, hy + Math.sin(a) * s1], h: [hx, hy], ang: +ang.toFixed(3), ct, fc: this.facing };
+      }
+      const r = dw.apply(this, arguments);
+      if (window.__bladeDebug && D.blade[this === p1 ? 'k' : 'v']) {
+        const B = D.blade[this === p1 ? 'k' : 'v'], c = _weaponArtCtx();
+        c.save(); c.lineWidth = 2; c.strokeStyle = '#ff00ff'; c.beginPath(); c.moveTo(B.a[0], B.a[1]); c.lineTo(B.b[0], B.b[1]); c.stroke();
+        c.fillStyle = '#00ff00'; c.beginPath(); c.arc(B.b[0], B.b[1], 4, 0, 7); c.fill(); c.restore();
+      }
+      return r;
+    };
+    D.cross = () => {
+      const k = D.blade.k, v = D.blade.v; if (!k || !v) return null;
+      const [x1, y1] = k.a, [x2, y2] = k.b, [x3, y3] = v.a, [x4, y4] = v.b;
+      const d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4); if (!d) return null;
+      const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / d, u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / d;
+      return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [x1 + t * (x2 - x1), y1 + t * (y2 - y1)] : null;
+    };
+    D.place(0);
+    H.snap(480, D.G - 140, 2.3);
+    window.__focusScreen = () => H.focus(480);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const s = D.f / 60, G = D.G;
+    if (D.f % 3 === 0 && D.blade.k && D.blade.v) (D.log.blades || (D.log.blades = [])).push([D.f, Math.round(p1.cx()), Math.round(p1.cy()), Math.round(p2.cx()), Math.round(p2.cy()), G, D.blade.k, D.blade.v].map(v => typeof v === 'number' ? v : { a: v.a.map(Math.round), b: v.b.map(Math.round), h: v.h.map(Math.round), ang: v.ang, ct: v.ct, fc: v.fc }));
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    // Bodies go exactly where the director says (no physics, no AI, no attacks).
+    D.place(s);
+    p1.facing = 1; p2.facing = s > 2.92 && s < 3.30 ? 1 : -1;   // over the top of him, Varek turns to strike down
+    for (const p of [p1, p2]) { p.cooldown = 99; p.abilityCooldown = 99; p.health = p.maxHealth; p.invincible = 0; p.superMeter = 0; }
+    const hit = (x, y, n, col, big) => {
+      spawnParticles(x, y, col || '#ffe9a0', n); spawnParticles(x, y, '#ffffff', Math.round(n / 2));
+      if (big && CinFX.shockwave) CinFX.shockwave(x, y, '#ffffff', { count: 2, maxR: big, lw: 6, dur: 20 });
+    };
+    const once = (k, at) => { if (D.f === Math.round(at * 60)) { D.log[k] = D.f; return true; } return false; };
+    // 1. The lock: sparks and a grind, until it gives.
+    const X = D.cross(); if (X) D.lockAt = X;
+    const L = D.lockAt || [480, G - 168];
+    if (s < 0.62 && D.f % 5 === 0) { hit(L[0], L[1], 6, '#ffd27a'); if (settings.screenShake) screenShake = Math.max(screenShake, 3); }
+    if (once('burst', 0.66)) { hit(L[0], L[1], 30, '#ffffff', 60); screenShake = 16; slowMotion = 0.5;
+      for (let i = 0; i < 10; i++) D.dust.push({ f: D.f, x: 480 + (i - 5) * 18, y: G - 6, vx: (i - 5) * 1.6, vy: 0.4, r: 14, life: 40, a: 0.5, c: '#b8a48a' }); }
+    if (s > 0.9 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.05);
+    if (s > 0.7 && s < 1.0 && D.f % 3 === 0) { D.dust.push({ f: D.f, x: p1.cx(), y: G - 4, vx: 0.5, vy: 0.3, r: 10, life: 30, a: 0.5, c: '#b8a48a' }); D.dust.push({ f: D.f, x: p2.cx(), y: G - 4, vx: -0.5, vy: 0.3, r: 10, life: 30, a: 0.5, c: '#b8a48a' }); }
+    // 3. Kael's run: dust kicks.
+    if (s > 1.33 && s < 2.1 && D.f % 6 === 0) D.dust.push({ f: D.f, x: p1.cx() - 10, y: G - 4, vx: -1.2, vy: 0.4, r: 9, life: 24, a: 0.45, c: '#b8a48a' });
+    // 4. The slam: the ground answers, a line of rock spikes racing from the axe to Kael, the last one throws him.
+    if (once('slam', 2.03)) { D.slamX = D.blade.v ? Math.max(D.blade.v.b[0], p1.cx() + 24) : 530; hit(D.slamX, G - 6, 26, '#ffb070', 0); screenShake = 18; }
+    for (let i = 0; i < 6; i++) if (D.f === Math.round((2.05 + i * 0.03) * 60)) {
+      const x0 = D.slamX || 530, x = x0 + (p1.cx() + 4 - x0) * i / 5; D.spikes.push({ f: D.f, x, w: 18 + i * 4, h: 40 + i * 22 });
+      spawnParticles(x, G - 10, '#8a7058', 8);
+    }
+    if (once('launch', 2.20)) { hit(470, G - 30, 24, '#d8c0a0', 0); screenShake = 14; slowMotion = 0.6; }
+    if (s > 2.4 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.03);
+    // 5. Varek over him: the spike. An impact (the game's own hit sound path is not used: this isn't a game hit).
+    if (once('spike', 3.04)) { const B = D.blade.v ? D.blade.v.b : [472, G - 440]; D.log.spikeGap = [Math.round(B[0] - p1.cx()), Math.round(B[1] - p1.cy())]; hit((B[0] + p1.cx()) / 2, (B[1] + p1.cy()) / 2, 34, '#ffe9a0', 0); screenShake = 24; slowMotion = 0.35; D.log.impactFrame = D.f; }
+    if (s > 3.12 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.06);
+    if (once('crater', 3.18)) {
+      D.crater = { f: D.f, x: 474 }; screenShake = 28; hit(474, G - 10, 40, '#d8c0a0', 0);
+      for (let i = 0; i < 26; i++) D.dust.push({ f: D.f + (i % 4), x: 474 + (i - 13) * 7, y: G - 6, vx: (i - 13) * 0.45, vy: 0.4 + (i % 5) * 0.18, r: 9 + (i % 3) * 4, life: 70 + (i % 5) * 12, a: 0.55, c: i % 2 ? '#a89478' : '#7a6a58' });
+    }
+    if (once('landV', 3.42)) { hit(540, G - 4, 12, '#d8c0a0'); screenShake = 8; }
+    // 6. The dust settling, and something in it.
+    if (once('glintAt', 4.3)) D.glint = D.f;
+    // Camera: tight on the lock, out for the burst, follow the run, up with the launch, down with the spike.
+    const cam = s < 0.62 ? [480, G - 140, 2.3] : s < 1.3 ? [480, G - 130, 0.95] : s < 2.1 ? [(p1.cx() + p2.cx()) / 2, G - 130, 0.95]
+      : s < 3.4 ? [(p1.cx() + p2.cx()) / 2, Math.min(G - 130, (p1.cy() + p2.cy()) / 2 - 20), 1.3] : [505, G - 110, 1.9];
+    // The launch and the drop move faster than the camera eases: lock it to the bodies there.
+    if (s >= 2.2 && s < 3.4) H.snap(cam[0], cam[1], cam[2]); else CinCam.setFocus(cam[0], cam[1], cam[2]);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(cam[0]);
+  },
+};
+
+// BEAST — Part 2 of axeslam. Kael lies in the crater, Varek over him. The forest beast leaps over Kael
+// into Varek, turns on Kael and pounces; Iaijutsu cuts it down, Kael takes its form (the BR creature-form
+// code), and because he holds a katana the beast carries it in its jaws. Three toss-slashes throw Varek.
+// The form grant, the slashes and their damage are the game's own; the beast's leaps and Varek's body
+// are placed by keyframes (the beast here is an actor, never updated by the game).
+SCENES.beast = {
+  arena: 'forest', frames: 330,
+  match: { p1: 'katana', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'none', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor(); D.G = fl.y;
+    const P = Math.PI;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    const M = q => { const o = { ...q }; for (const k of ['rArm', 'rFore', 'lArm', 'lFore', 'rLeg', 'rShin', 'lLeg', 'lShin']) if (o[k] !== undefined) o[k] = P - o[k]; if (o.headTilt) o.headTilt = -o.headTilt; return o; };
+    const crumpled = { rArm: P * 0.95, rFore: P * 1.05, lArm: P * 0.70, lFore: P * 0.85, rLeg: P * 0.10, rShin: P * 0.30,
+      lLeg: P * 0.25, lShin: P * 0.10, torso: 1.20, hipDrop: 30, headTilt: 0.6 };
+    const landK = { rArm: P * 0.40, rFore: P * 0.55, lArm: P * 0.55, lFore: P * 0.60, rLeg: P * 0.10, rShin: P * 0.55,
+      lLeg: P * 0.85, lShin: P * 0.70, torso: 0.40, hipDrop: 20 };
+    const tower = { rArm: P * 0.70, rFore: P * 0.62, lArm: P * 0.40, lFore: P * 0.50, rLeg: P * 0.62, rShin: P * 0.60,
+      lLeg: P * 0.38, lShin: P * 0.42, torso: 0.18, headTilt: 0.30, hipDrop: 2, sx: 1.05 };
+    const towerV = { ...tower, rArm: P * 0.30, rFore: -P * 0.12 };
+    const blown = { rArm: P * 1.05, rFore: P * 1.15, lArm: P * 0.80, lFore: P * 0.92, rLeg: P * 0.40, rShin: P * 0.52,
+      lLeg: P * 0.70, lShin: P * 0.60, torso: -0.40, headTilt: -0.30, hipDrop: 4 };
+    const skid = { rArm: P * 0.20, rFore: -P * 0.10, lArm: P * 0.95, lFore: P * 1.05, rLeg: P * 0.20, rShin: P * 0.40,
+      lLeg: P * 0.80, lShin: P * 0.85, torso: 0.45, hipDrop: 16, headTilt: 0.15 };
+    const runA = { rArm: P * 0.85, rFore: P * 0.95, rArmLen: 1.1, lArm: P * 0.25, lFore: -P * 0.10, rLeg: P * 0.10, rShin: P * 0.42,
+      lLeg: P * 0.86, lShin: P * 1.05, torso: 0.50, hipDrop: 4, headTilt: 0.10 };
+    const runB = { ...runA, rLeg: P * 0.80, rShin: P * 1.00, lLeg: P * 0.16, lShin: P * 0.46, hipDrop: 0 };
+    const axeUp = { rArm: -P * 0.40, rFore: -P * 0.62, lArm: -P * 0.45, lFore: -P * 0.66, rArmLen: 1.2, lArmLen: 1.2,
+      rLeg: P * 0.30, rShin: P * 0.48, lLeg: P * 0.72, lShin: P * 0.62, torso: -0.30, headTilt: -0.15, hipDrop: 4, sy: 1.06 };
+    const tumble = { rArm: P * 1.20, rFore: P * 1.45, lArm: P * 1.05, lFore: P * 1.30, rLeg: P * 0.62, rShin: P * 0.95,
+      lLeg: P * 0.40, lShin: P * 0.20, torso: -0.35, headTilt: -0.30 };
+    H.pose(p1, [{ at: 0, pose: crumpled }, { at: 0.80, pose: crumpled }, { at: 0.98, pose: landK, ease: 'outQuad' }, { at: 5, pose: landK }]);
+    // Varek faces left the whole scene (mirrored poses).
+    const vb = [{ at: 0, pose: M(towerV) }, { at: 0.40, pose: M(towerV) }, { at: 0.48, pose: M(blown), ease: 'outQuad' },
+      { at: 0.80, pose: M(skid), ease: 'outQuad' }, { at: 2.30, pose: M(skid) }];
+    let t = 2.40; for (let i = 0; i < 4; i++, t += 0.11) vb.push({ at: t, pose: i % 2 ? M(runB) : M(runA), ease: 'linear' });
+    vb.push({ at: 2.90, pose: M(axeUp), ease: 'outQuad' }, { at: 3.40, pose: M(axeUp) }, { at: 3.48, pose: M(tumble), ease: 'outQuad' }, { at: 3.92, pose: M(tumble) },
+      { at: 4.05, pose: M(crumpled), ease: 'outQuad' }, { at: 7, pose: M(crumpled) });
+    H.pose(p2, vb);
+    D.ease = u => u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+    D.at = (keys, s) => {
+      let i = 0; while (i < keys.length - 1 && keys[i + 1][0] <= s) i++;
+      const a = keys[i], b = keys[Math.min(i + 1, keys.length - 1)];
+      if (a === b) return [a[1], a[2]];
+      const u = D.ease(Math.max(0, Math.min(1, (s - a[0]) / (b[0] - a[0]))));
+      return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u];
+    };
+    // Positions (seconds -> [x, height above floor]).
+    D.vPos = [[0, 540, 0], [0.42, 540, 0], [0.50, 590, 30], [0.80, 720, 0], [2.30, 726, 0], [2.90, 672, 0], [3.05, 676, 0], [3.25, 680, 0], [3.40, 684, 0], [3.62, 730, 100], [3.95, 772, 0], [7, 774, 0]];
+    D.bPos = [[0, 392, 150], [0.20, 450, 200], [0.42, 528, 60], [0.56, 566, 0], [1.02, 566, 0], [1.10, 540, 70], [1.20, 516, 40], [1.40, 500, 0]];
+    D.G0 = D.G;
+    H.place(p1, 474, D.G, 1);
+    p1.health = p1.maxHealth * 0.35; p2.health = p2.maxHealth;
+    // The beast: a real ForestBeast body and draw, moved by the director only.
+    const bst = D.beast = new ForestBeast(330, D.G - 62);
+    bst.facing = 1; bst.health = 9999; bst.maxHealth = 300; bst.animTimer = 0;
+    D.crater = { x: 474 }; D.dust = []; D.stream = [];
+    const d2 = p2.draw.bind(p2);
+    p2.draw = function () {
+      const G = D.G;
+      ctx.save();
+      ctx.fillStyle = '#1a1310'; ctx.beginPath(); ctx.ellipse(474, G + 2, 70, 14, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#7a5a40'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(474, G + 2, 70, 14, 0, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = '#4a3a30';
+      for (let i = 0; i < 6; i++) { const a = -Math.PI * (0.1 + i * 0.16); ctx.beginPath(); ctx.moveTo(474 + Math.cos(a) * 66, G); ctx.lineTo(474 + Math.cos(a) * 82, G - 18 * (1 + (i % 2))); ctx.lineTo(474 + Math.cos(a) * 92, G); ctx.fill(); }
+      ctx.restore();
+      d2();
+      // Beast, alive or dissolving (its own draw skips a dead body, so it draws at 1 hp while it fades).
+      if (D.bDraw !== false) {
+        const fade = D.dieAt ? Math.max(0, 1 - (D.f - D.dieAt) / 26) : 1;
+        if (fade > 0) {
+          const hp = bst.health; if (hp <= 0) bst.health = 1;
+          ctx.save(); ctx.globalAlpha = fade;
+          if (D.dieAt) { ctx.translate(bst.cx(), bst.cy()); ctx.rotate(Math.min(1, (D.f - D.dieAt) / 20) * 0.9); ctx.translate(-bst.cx(), -bst.cy()); }
+          bst._brForm = true;   // its draw skips the nameplate for form bodies
+          try { bst.draw(); } catch (e) {}
+          bst._brForm = null;
+          ctx.restore();
+          bst.health = hp;
+        }
+      }
+      ctx.save();
+      for (const d of D.dust) {
+        const age = D.f - d.f; if (age < 0 || age > d.life) continue;
+        const k = age / d.life;
+        ctx.globalAlpha = (1 - k) * d.a; ctx.fillStyle = d.c;
+        ctx.beginPath(); ctx.arc(d.x + d.vx * age, d.y - d.vy * age, d.r * (0.6 + k * 1.6), 0, Math.PI * 2); ctx.fill();
+      }
+      // Energy pulled from the beast's body into Kael.
+      for (const e of D.stream) {
+        const age = D.f - e.f; if (age < 0 || age > e.life) continue;
+        const u = D.ease(age / e.life), tx = p1.cx(), ty = p1.cy();
+        const x = e.x + (tx - e.x) * u + Math.sin(u * Math.PI) * e.bend, y = e.y + (ty - e.y) * u - Math.sin(u * Math.PI) * 30;
+        ctx.globalAlpha = 0.9 * (1 - u * 0.5); ctx.fillStyle = e.c; ctx.shadowColor = '#7dff6a'; ctx.shadowBlur = 12;
+        ctx.beginPath(); ctx.arc(x, y, e.r * (1 - u * 0.4), 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    };
+    D.place = s => {
+      const G = D.G;
+      if (!D.vFree) { const vp = D.at(D.vPos, s); p2.x = vp[0] - p2.w / 2; p2.y = G - vp[1] - p2.h; p2.vx = p2.vy = 0; p2.onGround = vp[1] < 1; }
+      if (!D.dieAt) {
+        const bp = D.at(D.bPos, s), px = bst.cx();
+        bst.x = bp[0] - bst.w / 2; bst.y = G - bp[1] - bst.h; bst.onGround = bp[1] < 1;
+        bst.vx = (bst.cx() - px); bst.animTimer++;
+      } else { bst.vx = 0; bst.x += D.bvx; D.bvx *= 0.9; }
+    };
+    D.place(0);
+    H.snap(450, D.G - 120, 1.7);
+    window.__focusScreen = () => H.focus(450);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], p2 = players[1], bst = D.beast;
+    const s = D.f / 60, G = D.G;
+    if (typeof mapItems !== 'undefined') mapItems.length = 0;
+    D.place(s);
+    if (typeof brUpdateForms === 'function') brUpdateForms();
+    if (!p1._brForm) p1.facing = 1;
+    if (!D.vFree) p2.facing = -1;
+    p2.cooldown = 99; p2.abilityCooldown = 99; p2.superMeter = 0;
+    if (!p1._brForm) { p1.cooldown = 99; p1.abilityCooldown = 99; }
+    p1.superMeter = 0;
+    p1.health = Math.max(p1.health, 30); p2.health = Math.max(p2.health, 40);
+    const hit = (x, y, n, col, big) => {
+      spawnParticles(x, y, col || '#ffe9a0', n); spawnParticles(x, y, '#ffffff', Math.round(n / 2));
+      if (big && CinFX.shockwave) CinFX.shockwave(x, y, '#ffffff', { count: 2, maxR: big, lw: 6, dur: 20 });
+    };
+    const once = (k, at) => { if (D.f === Math.round(at * 60)) { D.log[k] = D.f; return true; } return false; };
+    // 1. The beast over Kael and into Varek.
+    if (s < 0.42 && D.f % 4 === 0) spawnParticles(bst.cx(), bst.cy(), '#2f8a3a', 2);
+    if (once('ram', 0.42)) { dealDamage(bst, p2, 10, 0); hit(p2.cx() - 10, p2.cy(), 24, '#ffd080', 50); screenShake = 16; slowMotion = 0.5; }
+    if (s > 0.6 && s < 0.9 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.05);
+    if (once('land', 0.56)) { for (let i = 0; i < 8; i++) D.dust.push({ f: D.f, x: 566 + (i - 4) * 12, y: G - 4, vx: (i - 4) * 0.8, vy: 0.3, r: 10, life: 30, a: 0.5, c: '#b8a48a' }); screenShake = 8; }
+    // 2. It turns on Kael, crouches, and pounces.
+    if (s >= 0.56 && !D.dieAt) bst.facing = -1;
+    bst._slamPhase = s > 0.72 && s < 1.02 ? 'windup' : 'none';
+    // 3. Iaijutsu cuts it down mid-air.
+    if (once('cut', 1.12)) {
+      H.unpose(p1); H.place(p1, 474, G, 1);
+      p1.cooldown = 0; p1.abilityCooldown = 0;
+      H.press(p1, 'q', bst);
+    }
+    // The Iaijutsu scene cuts at whoever the move targets (Varek), so the beast is cut where Kael's dash
+    // passes through it. It has the health to survive the hit, so no kill finisher takes over the take.
+    if (!D.dieAt && D.log.cut && p1.cx() >= bst.cx() - 6) {
+      dealDamage(p1, bst, 28, 0);
+      D.log.beastCut = D.f; bst.health = 0;
+      D.dieAt = D.f; D.bvx = -5; slowMotion = 0.3; screenShake = 22;
+      hit(bst.cx(), bst.cy(), 30, '#c8ffc0', 70);
+    }
+    if (D.dieAt && !D.landed && bst.y + bst.h < G) bst.y = Math.min(G - bst.h, bst.y + 3);
+    if (s > 1.3 && s < 1.5 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.04);
+    if (D.dieAt && D.f > D.dieAt + 4 && D.f < D.dieAt + 40 && D.f % 2 === 0) {
+      for (let i = 0; i < 3; i++) D.stream.push({ f: D.f, x: bst.cx() + (Math.random() - 0.5) * 40, y: bst.cy() + (Math.random() - 0.5) * 30,
+        life: 22 + (i * 4), r: 3 + Math.random() * 3, bend: (Math.random() - 0.5) * 50, c: i % 2 ? '#b8ff9a' : '#3ddc84' });
+    }
+    // 4. He takes its form, katana and all.
+    if (once('grant', 1.95)) {
+      D.log.msAtGrant = p1._msScene ? p1._msScene.key : null;
+      brGrantForm(p1, 'beast');
+      D.log.form = p1._brForm ? { blade: p1._brForm.blade, reach: p1._brForm.reach, label: p1._brForm.label } : null;
+      hit(p1.cx(), p1.cy(), 40, '#7dff6a', 90); screenShake = 20; slowMotion = 0.5;
+      for (let i = 0; i < 16; i++) D.dust.push({ f: D.f, x: 474 + (i - 8) * 9, y: G - 6, vx: (i - 8) * 0.7, vy: 0.5, r: 12, life: 50, a: 0.5, c: '#a89478' });
+    }
+    if (s > 2.1 && s < 2.4 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.04);
+    if (p1._brForm) p1.facing = 1;
+    // 5. Varek comes back; three toss-slashes, the third throws him.
+    const strike = k => { if (!p1._brForm) return; p1.cooldown = 0; p1.attackEndlag = 0; p1.attack(p2); D.log['hit' + k] = p1.weaponHit; };
+    if (once('s1', 2.95)) { strike(1); screenShake = 8; }
+    if (once('s2', 3.15)) { strike(2); screenShake = 10; }
+    if (once('thud', 3.95)) { hit(772, G - 6, 16, '#d8c0a0'); screenShake = 12; for (let i = 0; i < 8; i++) D.dust.push({ f: D.f, x: 772 + (i - 4) * 10, y: G - 4, vx: (i - 4) * 0.6, vy: 0.3, r: 10, life: 36, a: 0.5, c: '#b8a48a' }); }
+    if (once('s3', 3.40)) {
+      strike(3);
+      hit(p2.cx(), p2.cy(), 34, '#ffe6b0', 80); screenShake = 24; slowMotion = 0.35;
+    }
+    if (s > 3.55 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.04);
+    const cam = s < 0.5 ? [460, G - 120, 1.7] : s < 1.05 ? [540, G - 110, 1.8] : s < 1.6 ? [550, G - 90, 2.0]
+      : s < 2.6 ? [590, G - 80, 2.4] : s < 3.45 ? [640, G - 95, 2.0] : [(p2.cx() + 624) / 2, G - 100, 1.6];
+    if (s >= 1.1 && s < 1.2) H.snap(cam[0], cam[1], cam[2]); else CinCam.setFocus(cam[0], cam[1], cam[2]);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(cam[0]);
   },
 };
 

@@ -100,7 +100,7 @@ const BURST_RADIUS  = 110;  // px from the burster's centre
 const BURST_KB_X    = 13;   // horizontal push on everyone hostile in range
 const BURST_KB_Y    = 6;
 const BURST_IFRAMES = 8;    // just enough that the swing already in flight misses
-const SUPER_IFRAMES = 45;   // opening of a super; super armor covers the rest of the move
+const SUPER_IFRAMES = 8;    // a swing already in flight misses; super armor covers the rest. Longer let E dodge supers
 const BURST_CONFIRM_WINDOW = 24; // second super press must land within this many frames
 
 // 'crescent' fills the area the blade sweeps. 'line' is the thin blade-tip streak.
@@ -573,6 +573,7 @@ class Fighter {
   }
 
   update() {
+    if (this._tfSizeTimer > 0 && --this._tfSizeTimer === 0 && typeof tfRestoreSize === 'function') tfRestoreSize(this);
     // Remote player in online mode: skip local physics (state driven by network).
     // Public Server puppets (_pubRemote) are network-driven without onlineMode.
     if (this.isRemote && (onlineMode || this._pubRemote)) {
@@ -2228,6 +2229,40 @@ class Fighter {
     }
   }
 
+  // Sloped one-way surface: { ramp: true, x, w, yL, yR } (y/h are its bounding box). The surface height is read
+  // at the fighter's centre. Like passUnder it is land-only: a rising fighter passes through. Walking uphill the
+  // feet sink a few px under the rising surface each frame and are lifted back on; walking downhill a fighter that
+  // was grounded last frame is held to the surface instead of skipping down it in small falls.
+  _checkRamp(pl) {
+    const cx = this.cx();
+    if (cx < pl.x || cx > pl.x + pl.w) return;
+    const sy   = pl.yL + (pl.yR - pl.yL) * ((cx - pl.x) / pl.w);
+    const feet = this.y + this.h;
+    const prev = (this._passPrevBottom !== undefined) ? this._passPrevBottom : feet;
+    const STEP = 18;
+    const crossed  = this.vy >= 0 && prev <= sy + STEP && feet >= sy - 1;
+    const downhill = this.vy >= 0 && this._prevOnGround && feet < sy && feet >= sy - STEP && this.vy < 8;
+    if (!crossed && !downhill) {
+      // Feet inside the rock: knocked into the slope faster than the step catches, or rising into its face.
+      // Back out onto the surface and drop the part of the motion that points into it.
+      if (feet <= sy || feet > Math.max(pl.yL, pl.yR) + 2) return;
+      this.y = sy - this.h;
+      const len = Math.hypot(pl.w, pl.yR - pl.yL);
+      const nx = (pl.yR - pl.yL) / len, ny = -pl.w / len;   // outward normal (up and away from the rock)
+      const vn = this.vx * nx + this.vy * ny;
+      if (vn < 0) { this.vx -= vn * nx; this.vy -= vn * ny; }
+      if (this.vy >= 0) { this.vy = 0; this.onGround = true; this.canDoubleJump = false; }
+      return;
+    }
+    const landVy = this.vy;
+    this.y = sy - this.h;
+    this.vy = 0;
+    this.onGround = true;
+    this.canDoubleJump = false;
+    if (this.isAI) this._pfDoubleJumpPending = false;
+    if (settings.landingDust && landVy > 4) spawnParticles(cx, sy, 'rgba(200,200,200,0.9)', Math.min(14, Math.floor(landVy * 1.2)));
+  }
+
   _spawnFamiliar() {
     if (!gameRunning || typeof Minion === 'undefined') return;
     // Hard cap of one: any earlier familiar is retired before a new one appears.
@@ -2271,6 +2306,7 @@ class Fighter {
 
   checkPlatform(pl) {
     if (pl.isFloorDisabled) return;
+    if (pl.ramp) { this._checkRamp(pl); return; }
     if (this.x + this.w <= pl.x || this.x >= pl.x + pl.w ||
         this.y + this.h <= pl.y || this.y >= pl.y + pl.h) return;
 
@@ -2778,6 +2814,9 @@ class Fighter {
   attack(target) {
     if (isCinematic) return; // no new attacks during cinematics or finishers
     if (this.backstageHiding) return;
+    // Combo Strike runs outside a move scene when Surge Strike fires it, so nothing else locks swings out of it.
+    // The aim-window kick press is routed in smb-input.js before attack() is called.
+    if (this._comboSuper) return;
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.cooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // enforced swing recovery window
@@ -3046,6 +3085,7 @@ class Fighter {
     if (isCinematic) return; // no abilities during cinematics or finishers
     if (this.backstageHiding) return;
     if (this._storyNoAbility) return; // story progression, ability not yet unlocked
+    if (this._comboSuper) return;     // no Q inside a Surge Strike Combo Strike (see attack())
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
     if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
@@ -3166,7 +3206,7 @@ class Fighter {
     // Pays like a super minus damage: one domain charge (not in your own domain) and a smaller heal.
     const _inOwnDomain = typeof DomainManager !== 'undefined'
       && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(this);
-    if (!_inOwnDomain) this._domainSuperCount = (this._domainSuperCount || 0) + 1;
+    if (!_inOwnDomain) this._domainSuperCount = Math.min(CONVICTION_CHARGES, (this._domainSuperCount || 0) + 1);
     const _heal = Math.min(BURST_HEAL, this.maxHealth - this.health);
     if (_heal > 0) {
       this.health += _heal;
@@ -3191,28 +3231,44 @@ class Fighter {
     if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
   }
 
+  // True when a banked Conviction could fire right now instead of this fighter's normal super.
+  convictionBanked() {
+    if ((this._domainSuperCount || 0) < CONVICTION_CHARGES) return false;
+    if (typeof DomainManager === 'undefined' || typeof DOMAIN_DEFS === 'undefined') return false;
+    if (typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(this)) return false;
+    // Battle Royale and the Sports Arena never expand a domain. It freezes the field and rewrites the arena,
+    // which doesn't fit a 12000px world or a court the goals are measured against. The counter keeps ticking.
+    if ((typeof brActive !== 'undefined' && brActive) ||
+        (typeof isSportsMode === 'function' && isSportsMode())) return false;
+    const _domKey = DomainManager.domainKeyOf ? DomainManager.domainKeyOf(this) : this.charClass;
+    return !!(_domKey && _domKey !== 'none' && DOMAIN_DEFS[_domKey]);
+  }
+
+  // Players choose: a tapped E is a normal super and keeps the bank, a held E fires it (smb-input.js).
+  // Sovereign picks his own moment. Other bots and the training brain (_autoConviction) still spend it
+  // on the first super after it banks.
+  _wantsConviction(target) {
+    if (typeof SovereignMK2 !== 'undefined' && this instanceof SovereignMK2)
+      return typeof this._sovWantsConviction !== 'function' || this._sovWantsConviction(target);
+    if (this.isAI || this._autoConviction) return true;
+    return !!this._convictionHeld;
+  }
+
   activateSuper(target) {
     // Supers out-rank abilities and swings in a clash, see _clashTier().
     this._attackKindTier   = CLASH_TIER_SUPER;
     this._resetBasicChainForMove();
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
-    // Conviction: after 4 landed supers, the next super is a domain. Supers spent inside your own domain don't count.
+    // Conviction: 4 landed supers bank one. Supers spent inside your own domain don't count.
     const _inOwnDomain = typeof DomainManager !== 'undefined'
       && typeof DomainManager.ownsDomain === 'function' && DomainManager.ownsDomain(this);
     const _nowF = (typeof frameCount !== 'undefined' ? frameCount : 0);
     this._superCountPending = !_inOwnDomain;
     // Mega Jump lands late, so its fallback window is longer.
     this._superHealUntil = _nowF + (this.charClass === 'megaknight' ? 180 : SUPER_HEAL_WINDOW);
-    const _domKey = (typeof DomainManager !== 'undefined' && DomainManager.domainKeyOf)
-      ? DomainManager.domainKeyOf(this) : this.charClass;
-    // Battle Royale and the Sports Arena never expand a domain. It freezes the field and rewrites the arena,
-    // which doesn't fit a 12000px world or a court the goals are measured against. The counter keeps ticking.
-    const _brNoDomain = (typeof brActive !== 'undefined' && brActive) ||
-                        (typeof isSportsMode === 'function' && isSportsMode());
-    if (!_brNoDomain && !_inOwnDomain && (this._domainSuperCount || 0) >= 4
-        && _domKey && _domKey !== 'none'
-        && typeof DomainManager !== 'undefined'
-        && typeof DOMAIN_DEFS !== 'undefined' && DOMAIN_DEFS[_domKey]) {
+    const _picked = this.convictionBanked() && this._wantsConviction(target);
+    this._convictionHeld = false;
+    if (_picked) {
       this._domainSuperCount = 0;
       this._superCountPending = false; // the expansion itself earns nothing
       this._superHealPending  = 0;
@@ -4701,6 +4757,8 @@ class Fighter {
 
     // BR travel: a nav-locked bot has a destination, not an opponent. _brNavStep owns movement until BR clears the lock.
     if (this._brNavLock && typeof _brNavStep === 'function') { _brNavStep(this); return; }
+    // Endless: enemies hold their ground until the player comes near, and the mini-boss plants for its slam (smb-endless.js).
+    if ((this._endlessIdle || this._endSlamT > 0) && typeof endlessIdleAI === 'function' && endlessIdleAI(this)) return;
 
     if (this._isInvalidAITarget(this.target)) this._acquireAITarget();
 
@@ -5263,9 +5321,13 @@ class Fighter {
     if (this.drawScale && this.drawScale !== 1) {
       const pivX = this.cx();
       const pivY = this.y + this.h;   // feet = ground level
+      // A size shift scales the hitbox too, but the body is still drawn from its original height,
+      // so map the drawn feet (not the scaled box's) onto the ground. Otherwise a 1.5x player floats.
+      const _sz = typeof tfSizeTargets !== 'undefined' && tfSizeTargets.get(this);
+      const srcY = _sz ? this.y + _sz.h : pivY;
       ctx.translate(pivX, pivY);
       ctx.scale(this.drawScale, this.drawScale);
-      ctx.translate(-pivX, -pivY);
+      ctx.translate(-pivX, -srcY);
     }
 
     // No blink during a finisher. Its huge invincible timer is only a freeze lock.
@@ -5481,6 +5543,8 @@ class Fighter {
 
     // ACCESSORIES (hat, cape)
     drawAccessory(this, cx, headCY, shoulderY, hipY, f, headR);
+    // Boss signature look, painted behind the body (smb-boss.js)
+    if (this._drawSignature) this._drawSignature(cx, headCY, shoulderY, hipY, f, headR);
     // STORY CHARACTER UNIQUE LOOK
     if (this.storyCharId && typeof drawStoryCharacterOverlay === 'function') {
       drawStoryCharacterOverlay(this, cx, headCY, shoulderY, hipY, f, headR);

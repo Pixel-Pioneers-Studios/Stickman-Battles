@@ -62,10 +62,17 @@ function brGrantForm(f, kind) {
   f.w = def.w; f.h = def.h;
   f.x = cx - def.w / 2; f.y = feet - def.h;
 
+  // Hybrid: a beast taken with a melee weapon carries it in its jaws for longer reach.
+  const blade = (kind === 'beast' && f.weapon && f.weapon.type === 'melee' &&
+                 f.weaponKey && f.weaponKey !== 'gauntlet' && f.weaponKey !== 'combat' &&
+                 WEAPONS[f.weaponKey]) ? f.weaponKey : null;
+  const reach = blade ? Math.max(def.range, Math.min(76, Math.round((WEAPONS[blade].range || 0) * 0.7))) : def.range;
+  const label = blade ? def.label + ' + ' + String(WEAPONS[blade].name || blade).toUpperCase() : def.label;
+
   // Stand-in weapon so bot AI range checks read something real.
   // noSwingHitbox: damage comes only from the form's own moves.
   f.weapon = Object.assign({}, WEAPONS[def.weaponBase], {
-    name: def.label + ' FORM', type: 'melee', range: def.range, cooldown: def.cooldown,
+    name: label + ' FORM', type: 'melee', range: reach, cooldown: def.cooldown,
     abilityCooldown: def.abilityCd, noSwingHitbox: true, endlag: 0,
   });
   f.weaponKey      = def.weaponBase;
@@ -80,7 +87,7 @@ function brGrantForm(f, kind) {
   f.cooldown       = 0;
   f.abilityCooldown = 0;
 
-  f._brForm = { kind, def, hp: def.hp, maxHp: def.hp, saved, broken: false,
+  f._brForm = { kind, def, hp: def.hp, maxHp: def.hp, saved, broken: false, blade, reach, label,
                 slamPhase: 'none', slamTimer: 0, leaping: false, airborne: false, leapT: 0,
                 rakeN: 0, rakeAt: -99, frenzy: 0, healPool: 0, swipe: 0 };
   f._slamPhase    = 'none';
@@ -103,7 +110,7 @@ function brGrantForm(f, kind) {
     spawnParticles(f.cx(), f.y + f.h, '#ffffff', 10);
   }
   if (typeof DamageText !== 'undefined')
-    damageTexts.push(new DamageText(f.cx(), f.y - 30, def.label + ' FORM!', def.color));
+    damageTexts.push(new DamageText(f.cx(), f.y - 30, label + ' FORM!', def.color));
   if (_brFormIsLocal(f)) {
     if (settings.screenShake) screenShake = Math.max(screenShake, 10);
     if (typeof SoundManager !== 'undefined' && SoundManager.heavyHit) SoundManager.heavyHit();
@@ -210,7 +217,12 @@ function _brFormAttack(target) {
     fm.rakeAt = fc;
     const heavy = fm.rakeN % 3 === 0;
     this.cooldown = Math.round(def.cooldown * (fm.frenzy > 0 ? 0.6 : 1));
-    this.weaponHit = _brFormStrike(this, def.range, 46, heavy ? 14 : 9, heavy ? 11 : 6, heavy ? -6 : 0);
+    // With a blade every rake is a head-toss slash at the blade's reach; the third cuts harder.
+    this.weaponHit = _brFormStrike(this, fm.reach, 46,
+                                   heavy ? (fm.blade ? 16 : 14) : 9, heavy ? (fm.blade ? 12 : 11) : 6, heavy ? -6 : 0);
+    fm.toss = fm.blade ? (heavy ? 14 : 10) : 0;
+    fm.tossMax = fm.toss;
+    fm.tossHeavy = heavy;
     this.attackEndlag = heavy ? 10 : 3;
     if (settings.particles && typeof spawnParticlesDir === 'function')
       spawnParticlesDir(this.cx() + this.facing * 26, this.cy(), heavy ? '#ffd080' : '#f0e0c0', heavy ? 8 : 4, this.facing, 0, 0.5);
@@ -310,6 +322,7 @@ function brUpdateForms() {
 
 function _brFormTick(f, fm) {
   if (fm.swipe > 0) fm.swipe--;
+  if (fm.toss > 0) fm.toss--;
 
   if (fm.slamPhase === 'windup') {
     f.vx = 0;
@@ -358,8 +371,61 @@ function _brFormDraw() {
   const fm = this._brForm;
   if (!fm) return Fighter.prototype.draw.call(this);
   if (fm.kind === 'beast') this._slamPhase = fm.slamPhase === 'windup' ? 'windup' : 'none';
+  // An aura in the fighter's own colour, so a form still reads as who is inside it.
+  if (this.health > 0 && this.color) {
+    const ax = this.cx(), ay = this.y + this.h * 0.55, ar = this.w * 1.7;
+    const g = ctx.createRadialGradient(ax, ay, ar * 0.2, ax, ay, ar);
+    g.addColorStop(0, this.color + '55');
+    g.addColorStop(1, this.color + '00');
+    ctx.save();
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(ax, ay, ar, ar * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
   fm.def.proto().draw.call(this);
-  if (fm.swipe > 0 && this.health > 0) _brFormDrawSwipe(this, fm);
+  if (fm.blade && this.health > 0) _brFormDrawJawBlade(this, fm);
+  else if (fm.swipe > 0 && this.health > 0) _brFormDrawSwipe(this, fm);
+}
+
+// The carried weapon sits crosswise in the beast's jaws. The head position mirrors ForestBeast.draw.
+function _brFormDrawJawBlade(f, fm) {
+  const fc = f.facing, air = !f.onGround, windup = fm.slamPhase === 'windup';
+  const bodyX = f.cx() + (air ? fc * 5 : 0);
+  const bodyY = f.y + f.h * 0.56 + (windup ? 7 : 0);
+  const rx = f.w * 0.98, ry = f.h * 0.27;
+  const headX = bodyX + fc * rx * 0.92;
+  const headY = bodyY - ry * (windup ? 0.28 : 0.55) + (air ? -4 : 0);
+  const gx = headX + fc * 3, gy = headY + 5;
+
+  // Toss: whip up and back, then cut down through the front. Angles are facing-right; mirrored as PI - a.
+  const p = fm.toss > 0 ? 1 - fm.toss / fm.tossMax : 1;
+  let a = -0.35;
+  if (fm.toss > 0) {
+    const top = fm.tossHeavy ? -1.9 : -1.4, end = fm.tossHeavy ? 0.75 : 0.5;
+    a = p < 0.25 ? -0.35 + (top + 0.35) * (p / 0.25) : top + (end - top) * ((p - 0.25) / 0.75);
+  }
+  const ang = fc > 0 ? a : Math.PI - a;
+  const atk = fm.toss > 0;
+
+  ctx.save();
+  if (f.invincible > 0 && Math.floor(f.invincible / 5) % 2 === 1) ctx.globalAlpha = 0.35;
+  if (atk && p > 0.25) {
+    const top = fm.tossHeavy ? -1.9 : -1.4;
+    const a0 = fc > 0 ? top : Math.PI - top, a1 = ang;
+    ctx.strokeStyle = fm.tossHeavy ? '#ffe6b0' : '#f4f2ff';
+    ctx.lineCap = 'round';
+    ctx.globalAlpha *= 0.7 * (1 - p * 0.6);
+    ctx.lineWidth = fm.tossHeavy ? 5 : 3;
+    ctx.beginPath();
+    ctx.arc(gx, gy, fm.reach * 0.82, Math.min(a0, a1), Math.max(a0, a1));
+    ctx.stroke();
+    ctx.globalAlpha /= 0.7 * (1 - p * 0.6);
+  }
+  const savedTip = f._weaponTip;
+  try { f.drawWeapon(gx, gy, ang, atk, fm.blade, 1.15); }
+  catch (e) { /* cosmetic only */ }
+  f._weaponTip = savedTip;
+  ctx.restore();
 }
 
 // Creature bodies have no swing pose, so the strike is drawn as its trail:
@@ -439,7 +505,7 @@ function brDrawFormHUD() {
   ctx.fillRect(x, y, w, 38);
   ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left';
   ctx.fillStyle = def.color;
-  ctx.fillText(def.label + ' FORM' + (fm.frenzy > 0 ? '  — FRENZY' : ''), x + 8, y + 14);
+  ctx.fillText((fm.label || def.label) + ' FORM' + (fm.frenzy > 0 ? '  — FRENZY' : ''), x + 8, y + 14);
   ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff';
   ctx.fillText(Math.ceil(fm.hp) + ' / ' + fm.maxHp, x + w - 8, y + 14);
   ctx.fillStyle = 'rgba(255,255,255,0.15)';

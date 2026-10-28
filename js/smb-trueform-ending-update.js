@@ -131,7 +131,7 @@ function updateTFEnding() {
   }
 
   else if (sc.phase === 'launch') {
-    const totalDur = 300;
+    const totalDur = 200;
     sc.launchT = Math.min(1, t / totalDur);
     const eased = sc.launchT * sc.launchT * (3 - 2 * sc.launchT);
     const pos = _tfeSpline(sc.launchPts, eased);
@@ -163,19 +163,21 @@ function updateTFEnding() {
 
     _tfeCamFocus(pos.x, pos.y, 1.45);
 
+    // The rift-sealing Code Realm used to follow here: a walk-to-five-circles chore that stopped the
+    // climax cold. The launch now ends with the fall back into the arena.
     if (t >= totalDur) {
-      sc.phase = 'coderealm';
+      sc.phase = 'return';
       sc.timer = 0;
-      sc.hero.backstageHiding = true;
-      sc.boss.backstageHiding = true;  // hide TF so it doesn't attack in background
-      sc.hero.invincible = 999999;  // full immunity for entire coderealm phase
-      sc.crHeroX  = GAME_W / 2;
-      sc.crHeroY  = GAME_H * 0.52;
-      sc.crHeroVY = 0;
-      sc.nodesCorrupted = 0;
-      _tfeInitRain();
-      _tfeCamFocus(GAME_W / 2, GAME_H / 2, 1.0);
-      CinFX.flash('#000000', 1.0, 18);
+      sc.returnY  = -80;
+      sc.returnVY = 3;
+      sc.hero.invincible = 999999;
+      sc.boss.backstageHiding = true;
+      const floor = currentArena && currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
+      const floorY = floor ? floor.y : GAME_H - 30;
+      sc.hero.x = GAME_W / 2 - sc.hero.w / 2;
+      sc.hero.y = floorY - sc.hero.h;
+      _tfeCamFocus(GAME_W / 2, GAME_H / 2, 1.1);
+      CinFX.flash('#000000', 1.0, 16);
     }
   }
 
@@ -518,13 +520,11 @@ function updateTFEnding() {
   }
 }
 
-// Resume after the intro dimension-punch cinematic. TrueForm appears to die, then the shadow clone
-// resets the fight (triggerFalseVictory).
+// Resume after the round-1 punch sequence: round 2 starts, the player fused with Paradox.
 function _tfeResumeAfterIntro(sc) {
   // Advance state machine to backstage, from here normal death/ending logic is allowed
   if (typeof tfCinematicState !== 'undefined') tfCinematicState = 'backstage';
 
-  // Restore boss visually (shadow clone will resurrect it via triggerFalseVictory)
   if (sc.boss) {
     sc.boss.backstageHiding = false;
     sc.boss.vx = 0;
@@ -544,26 +544,26 @@ function _tfeResumeAfterIntro(sc) {
     sc.hero.vy = 0;
   }
 
-  // Shadow clone saves TrueForm: trigger fight reset sequence.
-  // triggerFalseVictory shows the clone, resets boss to 10000 HP, and
-  // activates Paradox fusion so player keeps Paradox's power for round 2.
-  if (typeof triggerFalseVictory === 'function' &&
-      typeof tfFalseVictoryFired !== 'undefined' && !tfFalseVictoryFired) {
-    if (sc.boss) {
-      sc.boss.health     = 51;   // keep alive; false victory will restore to 10000
-      sc.boss.invincible = 9999;
-    }
-    triggerFalseVictory(sc.boss);
-  } else {
-    // Fallback: resume fight directly if false victory unavailable or already fired
-    if (sc.boss) sc.boss.invincible = 90;
-    if (typeof tfFinalStateActive !== 'undefined') tfFinalStateActive = true;
-    if (typeof tfParadoxFused !== 'undefined') {
-      tfParadoxFused      = true;
-      tfFusionControlMode = 'player';
-      if (typeof controlState !== 'undefined') controlState = 'player';
-      if (typeof controlTimer !== 'undefined') controlTimer = 0;
-    }
+  // Round 2 is a short fused finale from 30% HP. It used to be a second 10000-HP fight behind a
+  // fake death (triggerFalseVictory, now unused here).
+  if (typeof tfFalseVictoryFired !== 'undefined') tfFalseVictoryFired = true;
+  if (sc.boss) {
+    sc.boss.health     = Math.round(sc.boss.maxHealth * 0.30);
+    sc.boss.invincible = 90;
+    sc.boss._tfEndingPrimed = false;  // round 2's real ending fires at 10% HP
+    // Round 1's checkpoints never replay in round 2, whatever order HP fell in.
+    if (sc.boss._cinematicFired) for (const k of ['entry', '50', 'paradox1000']) sc.boss._cinematicFired.add(k);
+  }
+  if (typeof tfFinalStateActive !== 'undefined') tfFinalStateActive = true;
+  // The absorption left the world frozen; the false victory used to release it at its own end.
+  gameFrozen  = false;
+  isCinematic = false;
+  if (typeof clearCombatLock === 'function') clearCombatLock('cinematic');
+  if (typeof tfParadoxFused !== 'undefined') {
+    tfParadoxFused      = true;
+    tfFusionControlMode = 'player';
+    if (typeof controlState !== 'undefined') controlState = 'player';
+    if (typeof controlTimer !== 'undefined') controlTimer = 0;
   }
 
   screenShake = Math.max(screenShake, 35);
@@ -577,8 +577,6 @@ function _tfeResumeAfterIntro(sc) {
   screenShake = Math.max(screenShake, 20);
   spawnParticles(GAME_W * 0.5, GAME_H * 0.5, '#aa66ff', 28);
   spawnParticles(GAME_W * 0.5, GAME_H * 0.5, '#000000', 18);
-  if (typeof showBossDialogue === 'function')
-    showBossDialogue('You broke my world. I\'ll break yours.', 220);
 
   gameRunning = true;
 // No requestAnimationFrame here: the main loop already drives updateTFEnding, and queuing

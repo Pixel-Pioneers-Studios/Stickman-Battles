@@ -42,6 +42,7 @@ function resetParadoxState() {
   tfFusionGlitchTimer = 0;
   controlState = 'player';
   controlTimer = 0;
+  controlDeferFrames = 0;
   tfSwitchToParadoxFlash = 0;
   tfSwitchToPlayerFade   = 0;
   tfFinalStateActive  = false;

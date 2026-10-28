@@ -371,6 +371,18 @@ function updateCamera() {
     return;
   }
 
+  // Endless: follow P1 through the block, pulled back a little so a full building fits.
+  if (gameMode === 'endless' && players[0]) {
+    const ep = players[0];
+    camXTarget = ep.cx() + ep.facing * 40;
+    camYTarget = ep.cy() + _hudShift - 120;
+    camZoomTarget = 0.92;
+    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+    camXCur    += (camXTarget - camXCur) * lerp.pos;
+    camYCur    += (camYTarget - camYCur) * lerp.pos;
+    return;
+  }
+
   if (activePlayers.length > 0) {
     // Exploration: track P1 at a steady zoom.
     if (gameMode === 'exploration' && players[0] && players[0].health > 0) {

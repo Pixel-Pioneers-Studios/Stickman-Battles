@@ -323,6 +323,11 @@ function drawVoidArena() {
 
 function drawSovereignArena() {
   const t = (frameCount || 0);
+  // ARENA_HD.sovereign paints the room; this screen-box overlay would sit on top of it.
+  if (typeof _hdOn === 'function' && _hdOn()) {
+    if (typeof CircuitPlate !== 'undefined') CircuitPlate.draw();
+    return;
+  }
 
   // Scan line sweeps top to bottom every ~8 s
   const scanY = ((t * 0.35) % (GAME_H + 40)) - 20;
@@ -3318,7 +3323,7 @@ function endGame() {
   const _sportsWin = gameMode === 'minigames' && minigameType === 'sports' && typeof sportsWinnerIdx !== 'undefined' && sportsWinnerIdx >= 0
     ? players[sportsWinnerIdx] || null : null;
   // Survival / Nexus Defense / KotH decide their own outcome (smb-minigames.js)
-  const _mgRes = gameMode === 'minigames' && typeof minigameResult !== 'undefined' ? minigameResult : null;
+  const _mgRes = (gameMode === 'minigames' || gameMode === 'endless') && typeof minigameResult !== 'undefined' ? minigameResult : null;
   const winner = bossDefeated                              ? null   // human win: handled in bossDefeated block
                : _mgRes                                    ? _mgRes.winner
                : _kothWin                                  ? _kothWin
@@ -3510,7 +3515,8 @@ function endGame() {
 
   // Rematch countdown: only for standard PvP / vs-bot matches (not story, boss, online, boss-rush)
   const _isRematchable = !storyModeActive && !onlineMode &&
-    gameMode !== 'boss' && gameMode !== 'trueform' && gameMode !== 'multiverse' &&
+    gameMode !== 'boss' && gameMode !== 'trueform' && gameMode !== 'god' && gameMode !== 'absoluteaxiom' &&
+    gameMode !== 'sovereign' && gameMode !== 'multiverse' &&
     !(gameMode === 'minigames' && minigameType === 'koth');
   if (_isRematchable) _startRematchCountdown();
 }
@@ -3890,10 +3896,20 @@ function updateHUD() {
         && !(storyModeActive && p._storyNoSuper);
       _hudSet(domEl, 'display', hasDomain ? '' : 'none');
       if (hasDomain) {
-        const c = Math.min(4, p._domainSuperCount || 0);
+        const c = Math.min(CONVICTION_CHARGES, p._domainSuperCount || 0);
         const pips = domEl.children;
         for (let i = 0; i < pips.length; i++) pips[i].classList.toggle('on', i < c);
-        domEl.classList.toggle('armed', c >= 4);
+        domEl.classList.toggle('armed', c >= CONVICTION_CHARGES);
+        // Banked and a full bar: players see that holding E is what fires it (Fighter._wantsConviction).
+        // The SUPER label reads "HOLD E" while it does.
+        const holdHint = c >= CONVICTION_CHARGES && p.superReady && !p.isAI && p.controls && p.controls.super
+          ? 'HOLD ' + String(p.controls.super).toUpperCase() : '';
+        const lbl = domEl.parentElement && domEl.parentElement.querySelector('.super-label');
+        if (lbl && lbl.dataset.hint !== holdHint) {
+          lbl.dataset.hint = holdHint;
+          lbl.textContent = holdHint || 'SUPER';
+          lbl.classList.toggle('conv-hint', !!holdHint);
+        }
       }
     }
     const cdTrack = cdEl && cdEl.parentElement;
@@ -3986,6 +4002,8 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     // Trial of Sense: a floating nameplate over an invisible body is a marker,
     // and a marker is the wallhack the reveal sweep exists to not be.
     if (ent._trialInvisible && ent.health > 0) continue;
+    // Battle Royale: someone inside a building is hidden from a viewer outside it, plate included.
+    if (typeof brHiddenInStructure === 'function' && brHiddenInStructure(ent)) continue;
     const sx = canvas.width / 2 + (ent.cx() - camX) * scX;
     const syRaw = canvas.height / 2 + ((ent.y - 22) - camY) * scY;
     const sy = Math.max(hudFloor, syRaw);

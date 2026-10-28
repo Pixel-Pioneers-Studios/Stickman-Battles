@@ -20,8 +20,10 @@ let _tfOpeningDialogueFired = new Set(); // which scripted lines have been shown
 let _paradoxVx             = 0;    // smoothed horizontal velocity for Paradox movement
 let _tfOpeningHeroReactDelay = 0;  // frames hero has been in back-off zone (reaction delay)
 let _tfOpeningFreeFrames   = 0;    // countdown: player controls active during this many frames
-let _tfOpeningTFStartHealth = 0;   // TF HP at fight start: used to pin exact 1000 damage
-const TF_OPENING_DAMAGE_THRESHOLD = 1000;
+let _tfOpeningTFStartHealth = 0;   // TF HP at fight start: used to pin the exact opening damage
+// 10% of his starting HP (1000 of the standalone 10000), so story's scaled HP keeps the same share.
+const TF_OPENING_DAMAGE_FRAC = 0.10;
+function _tfOpeningDamageThreshold() { return Math.round((_tfOpeningTFStartHealth || 10000) * TF_OPENING_DAMAGE_FRAC); }
 
 // Absorption state: after Paradox dies and enters the player.
 let _tfAbsorptionState = null; // { timer, boss, hero }
@@ -70,13 +72,15 @@ const _PARADOX_REVIVE_LINES = [
   "Try again."
 ];
 
-// Visual entity: no physics, no combat.
+// Visual entity: no physics, no combat. Drawn as a posed CinRig figure at fighter size.
+// Cinematics may set `pose` (a partial CIN_POSE, or a CIN_PERF_POSES name) and push world-space
+// effects onto `fx`: { type: 'rift'|'slash'|'beam'|'ring', ..., life, max }.
 class Paradox {
   constructor(x, y) {
     this.x        = x;
     this.y        = y;
-    this.w        = 18;
-    this.h        = 50;
+    this.w        = 34;
+    this.h        = 84;
     this.alpha    = 0;      // fades in on spawn
     this.facing   = 1;      // +1 right, -1 left
     this.vy       = 0;
@@ -85,6 +89,10 @@ class Paradox {
     this._glitchX = 0;
     this._glitchTick = 0;
     this.attackAnim  = 0;   // 0-1 punch animation progress
+    this.pose     = null;
+    this.expr     = 'intense';
+    this.noGravity = false;
+    this.fx       = [];
   }
 
   cx() { return this.x + this.w / 2; }
@@ -98,18 +106,21 @@ class Paradox {
     this._glitchTick--;
     if (this._glitchTick <= 0) {
       this._glitchTick = 4 + Math.floor(Math.random() * 12);
-      this._glitchX    = (Math.random() < 0.28) ? (Math.random() - 0.5) * 14 : 0;
+      this._glitchX    = (Math.random() < 0.28) ? (Math.random() - 0.5) * 10 : 0;
     }
 
-    this.vy += 0.55;
-    this.y  += this.vy;
-    const floor = GAME_H - 72;
-    if (this.y + this.h > floor) { this.y = floor - this.h; this.vy = 0; }
+    if (!this.noGravity) {
+      this.vy += 0.55;
+      this.y  += this.vy;
+      const fl = currentArena && currentArena.platforms && currentArena.platforms.find(p => p.isFloor && !p.isFloorDisabled);
+      const floor = fl ? fl.y : GAME_H - 72;
+      if (this.y + this.h > floor) { this.y = floor - this.h; this.vy = 0; }
+    }
 
     if (settings.particles && Math.random() < 0.22 && this.alpha > 0.25 && particles.length < MAX_PARTICLES) {
       const _p = _getParticle();
-      _p.x     = this.cx() + (Math.random() - 0.5) * 14;
-      _p.y     = this.cy() + (Math.random() - 0.5) * 22;
+      _p.x     = this.cx() + (Math.random() - 0.5) * 18;
+      _p.y     = this.cy() + (Math.random() - 0.5) * 40;
       _p.vx    = (Math.random() - 0.5) * 1.4;
       _p.vy    = -0.8 - Math.random() * 1.8;
       _p.color = Math.random() < 0.55 ? '#00ffff' : '#ffffff';
@@ -120,6 +131,8 @@ class Paradox {
     }
 
     if (this.attackAnim > 0) this.attackAnim = Math.max(0, this.attackAnim - 0.07);
+    for (const e of this.fx) e.life--;
+    this.fx = this.fx.filter(e => e.life > 0);
   }
 
   punch(dir) {
@@ -127,70 +140,84 @@ class Paradox {
     if (dir !== undefined) this.facing = dir;
   }
 
-  draw() {
-    if (this.alpha <= 0) return;
-    const flickAlpha = this.alpha * (0.6 + Math.sin(this._flicker * 0.75) * 0.4);
-    const gx = this.x + this._glitchX;
-    const hx = gx + this.w / 2;
+  _currentPose() {
+    const L = typeof CIN_PERF_POSES !== 'undefined' ? CIN_PERF_POSES : null;
+    if (this.pose) return typeof this.pose === 'string' ? (L && L[this.pose]) || {} : this.pose;
+    if (!L) return {};
+    if (this.attackAnim > 0 && typeof cinLerpPose === 'function') return cinLerpPose(L.guard, L.thrust, Math.min(1, this.attackAnim * 1.6));
+    if (this._launchVx !== undefined) return L.flail;
+    if (Math.abs(this.vy) > 2) return L.lookUp;
+    return L.guard;
+  }
 
-    ctx.save();
-    ctx.globalAlpha = Math.max(0, flickAlpha);
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur  = 22 * this.alpha;
-
-    ctx.fillStyle   = '#000000';
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth   = 1.8;
-    ctx.beginPath();
-    ctx.arc(hx, this.y + 8, 7, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle   = '#ffffff';
-    ctx.shadowColor = '#ffffff';
-    ctx.shadowBlur  = 6;
-    ctx.beginPath();
-    ctx.arc(hx + this.facing * 2.5, this.y + 7.5, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.shadowColor = '#00ffff';
-    ctx.shadowBlur  = 14 * this.alpha;
-    ctx.fillStyle   = '#000000';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth   = 1.6;
-    ctx.beginPath();
-    ctx.rect(hx - 7, this.y + 16, 14, 18);
-    ctx.fill();
-    ctx.stroke();
-
-    const armExt = this.attackAnim * 10 * this.facing;
-    ctx.strokeStyle = '#00ffff';
-    ctx.lineWidth   = 2;
-    ctx.beginPath();
-    ctx.moveTo(hx, this.y + 18);
-    ctx.lineTo(hx - this.facing * 11, this.y + 25);
-    ctx.moveTo(hx, this.y + 18);
-    ctx.lineTo(hx + this.facing * 13 + armExt, this.y + 24 - this.attackAnim * 4);
-    ctx.stroke();
-
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth   = 1.8;
-    ctx.beginPath();
-    ctx.moveTo(hx - 4, this.y + 34);
-    ctx.lineTo(hx - 6, this.y + this.h);
-    ctx.moveTo(hx + 4, this.y + 34);
-    ctx.lineTo(hx + 7, this.y + this.h);
-    ctx.stroke();
-
-    if (this._flicker % 8 < 3) {
-      ctx.globalAlpha *= 0.38;
-      ctx.fillStyle = '#00ffff';
-      for (let i = 0; i < 4; i++) {
-        const scanY = this.y + Math.random() * this.h;
-        ctx.fillRect(gx - 2, scanY, this.w + 4, 1.2);
+  _drawFx() {
+    for (const e of this.fx) {
+      const k = e.life / e.max;
+      ctx.save();
+      ctx.lineCap = 'round';
+      if (e.type === 'rift') {
+        // A vertical tear in the air, opening then sealing.
+        const open = Math.sin(Math.min(1, (1 - k) * 1.4) * Math.PI * 0.5) * (k < 0.25 ? k / 0.25 : 1);
+        const hw = 3 + open * (e.w || 14);
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = `rgba(0,255,255,${0.1 * open})`;
+        ctx.beginPath(); ctx.ellipse(e.x, e.y, hw * 2.0, e.h * 0.56, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = '#000000';
+        ctx.strokeStyle = `rgba(200,255,255,${open})`; ctx.lineWidth = 2;
+        ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.moveTo(e.x, e.y - e.h / 2);
+        ctx.quadraticCurveTo(e.x + hw, e.y, e.x, e.y + e.h / 2);
+        ctx.quadraticCurveTo(e.x - hw, e.y, e.x, e.y - e.h / 2);
+        ctx.fill(); ctx.stroke();
+      } else if (e.type === 'slash') {
+        // A thin bright crescent between two points, fading from the tail.
+        ctx.globalAlpha = k;
+        ctx.strokeStyle = e.color || '#e0ffff';
+        ctx.shadowColor = e.glow || '#00ffff'; ctx.shadowBlur = 16;
+        ctx.lineWidth = (e.lw || 5) * (0.4 + k * 0.6);
+        const mx = (e.x0 + e.x1) / 2 + (e.bend || 0) * -(e.y1 - e.y0) * 0.3;
+        const my = (e.y0 + e.y1) / 2 + (e.bend || 0) * (e.x1 - e.x0) * 0.3;
+        ctx.beginPath(); ctx.moveTo(e.x0, e.y0); ctx.quadraticCurveTo(mx, my, e.x1, e.y1); ctx.stroke();
+      } else if (e.type === 'beam') {
+        // Straight burst from x0,y0 through x1,y1: a white core in a gold sheath.
+        const a = Math.min(1, k * 2.2);
+        const ang = Math.atan2(e.y1 - e.y0, e.x1 - e.x0), len = Math.hypot(e.x1 - e.x0, e.y1 - e.y0);
+        ctx.translate(e.x0, e.y0); ctx.rotate(ang);
+        ctx.globalCompositeOperation = 'lighter';
+        const g = ctx.createLinearGradient(0, -e.r, 0, e.r);
+        g.addColorStop(0, 'rgba(255,190,60,0)'); g.addColorStop(0.5, `rgba(255,220,120,${0.85 * a})`); g.addColorStop(1, 'rgba(255,190,60,0)');
+        ctx.fillStyle = g; ctx.fillRect(0, -e.r, len, e.r * 2);
+        ctx.fillStyle = `rgba(255,255,245,${a})`; ctx.fillRect(0, -e.r * 0.22, len, e.r * 0.44);
+      } else if (e.type === 'ring') {
+        ctx.globalAlpha = k;
+        ctx.strokeStyle = e.color || '#00ffff'; ctx.lineWidth = 3 * k + 1;
+        ctx.shadowColor = e.color || '#00ffff'; ctx.shadowBlur = 14;
+        ctx.beginPath(); ctx.ellipse(e.x, e.y, (1 - k) * e.r, (1 - k) * e.r * (e.flat || 1), 0, 0, Math.PI * 2); ctx.stroke();
       }
+      ctx.restore();
     }
+  }
 
+  draw() {
+    this._drawFx();
+    if (this.alpha <= 0 || typeof CinRig === 'undefined') return;
+    // Unstable, not a strobe: a gentle shimmer plus the occasional sideways glitch.
+    const shimmer = 0.85 + Math.sin(this._flicker * 0.33) * 0.15;
+    const pose = Object.assign({}, this._currentPose());
+    pose.x = this.cx() + this._glitchX;
+    pose.y = this.y + this.h;
+    pose.facing = this.facing;
+    pose.scale = 0.9 * (pose.scale || 1);
+    pose.headScale = (pose.headScale || 1) * 0.77;
+    ctx.save();
+    CinRig.draw(ctx, pose, '#00ffff', { width: 5.2, alpha: this.alpha * shimmer, glow: '#00ffff', glowBlur: 14, expr: this.expr, outline: 1.3 });
+    if (this._glitchX !== 0) {
+      // Offset copy on a glitch frame
+      pose.x += this._glitchX * 1.6;
+      CinRig.draw(ctx, pose, '#00ffff', { width: 5.2, alpha: this.alpha * 0.25, face: false });
+    }
     ctx.restore();
   }
 }

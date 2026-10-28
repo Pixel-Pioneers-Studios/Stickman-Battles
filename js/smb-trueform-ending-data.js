@@ -235,5 +235,32 @@ function startTFEnding(boss, isIntro) {
   }
   hero.backstageHiding = false;
   screenShake = 20;
+  // Round 1's end goes straight to the punch: the player has just taken Paradox's power, so a
+  // "your attacks do nothing" preamble contradicts the scene.
+  if (tfEndingScene.isIntro) tfEndingScene.phase = 'punch';
+  else if (typeof _makeTFFinaleCinematic === 'function') {
+    // The staged finale (smb-axiom-finale-cin.js) owns everything up to the powers screen.
+    tfEndingScene.phase = 'film';
+    startCinematic(_makeTFFinaleCinematic(boss, hero));
+  } else _tfeEnterFinisher(tfEndingScene);
+}
+
+// Stage the finishing-blow phase: both fighters on the floor, a clear gap between them.
+function _tfeEnterFinisher(sc) {
+  const floor = currentArena && currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
+  const floorY = floor ? floor.y : GAME_H - 30;
+  sc.phase = 'finisher';
+  sc.timer = 0;
+  sc.hero.backstageHiding = false;
+  sc.hero.x = GAME_W / 2 - sc.hero.w / 2;
+  sc.hero.y = floorY - sc.hero.h;
+  sc.hero.vx = 0; sc.hero.vy = 0;
+  sc.boss.backstageHiding = false;
+  sc.boss.x = GAME_W / 2 - sc.boss.w / 2 - 120;
+  sc.boss.y = floorY - sc.boss.h;
+  sc.finisherBossX = sc.boss.cx();
+  sc.finisherBossY = sc.boss.cy();
+  sc.finisherPrompt = 1;
+  if (typeof _tfeCamFocus === 'function') _tfeCamFocus(GAME_W / 2, floorY - 60, 1.3);
 }
 

@@ -1,7 +1,7 @@
 'use strict';
 // smb-debug-overlay.js: debug HUD, sanity checks, debug menu panel.
 // Depends on smb-globals.js, smb-state.js. Must load before smb-debug-console.js.
-// F1 hitboxes, F2 collision boxes, F3 physics. Type "debugmode" anywhere to enable.
+// F1 hitboxes, F2 collision boxes, F3 physics. Console command `debugmenu` opens the menu.
 
 let _dbgFpsFrames  = 0;
 let _dbgFpsTimer   = 0;
@@ -94,7 +94,7 @@ function renderDebugOverlay(ctx) {
   ctx.fillStyle = showPhysicsInfo    ? '#ffcc00' : '#887744';
   ctx.fillText(`F3 Physics ${f3}`, 175, _dbgTop + 86);
   ctx.fillStyle = '#aaa';
-  ctx.fillText(`type "debugmode" for menu`, 10, _dbgTop + 102);
+  ctx.fillText(`console: debugmenu`, 10, _dbgTop + 102);
 
   // Per-player state labels (screen-space)
   if (typeof canvas !== 'undefined' && currentArena) {
@@ -323,17 +323,22 @@ document.addEventListener('keydown', e => {
     _dbgJumpMenuOpen();
     return;
   }
-  // Shift+O: toggle game console
-  if (e.key === 'O' && e.shiftKey) { e.preventDefault(); if (_consoleOpen) closeGameConsole(); else openGameConsole(); return; }
-  // Escape closes game console if open (when console input is NOT focused)
-  if (e.key === 'Escape' && _consoleOpen) { closeGameConsole(); return; }
-  // Track "debugmode" secret buffer
-  if (e.key && e.key.length === 1) {
-    _debugKeyBuf = (_debugKeyBuf + e.key.toLowerCase()).slice(-12);
-    if (_debugKeyBuf.endsWith('debugmode')) {
-      _debugKeyBuf = '';
-      openDebugMenu();
+  // Game console: Ctrl+Shift+O, then Ctrl+Shift+X within 1.5 s. Matched on e.code, so keyboard layouts and macOS
+  // don't change it. Both are claimed: Ctrl+Shift+O alone would open Chrome's bookmark manager.
+  // (Not Ctrl+Shift+C: that opens DevTools' element picker, which a page can't cancel.)
+  if (e.ctrlKey && e.shiftKey && !e.altKey && !e.metaKey && (e.code === 'KeyO' || e.code === 'KeyX')) {
+    e.preventDefault();
+    const _now = performance.now();
+    if (e.code === 'KeyO') { _consoleChordAt = _now; return; }
+    // The player build strips the console script (build-school.sh), so everything it owns is typeof-guarded.
+    if (_now - _consoleChordAt < 1500 && typeof openGameConsole === 'function') {
+      _consoleChordAt = -Infinity;
+      if (typeof _consoleOpen !== 'undefined' && _consoleOpen) closeGameConsole(); else openGameConsole();
     }
+    return;
   }
+  // Escape closes game console if open (when console input is NOT focused)
+  if (e.key === 'Escape' && typeof _consoleOpen !== 'undefined' && _consoleOpen) { closeGameConsole(); return; }
+  // The debug menu used to open by typing "debugmode" anywhere. It is now the console command `debugmenu`.
 });
 

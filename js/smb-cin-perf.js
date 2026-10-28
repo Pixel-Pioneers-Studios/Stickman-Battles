@@ -96,6 +96,7 @@ const CinPerf = {
       glow: o.glow !== undefined ? o.glow : true,   // domain entry glows; cutscene beats do not
       exprs: o.exprs || null,                       // [{at(frames), expr}] authored faces
       bound: !!o.bound,                             // dies with the running cinematic
+      noWeapon: !!o.noWeapon,                       // draw the figure bare-handed
       t0: o.t0 || 0,
     };
     rec.track = o.track || CinPerf._buildTrack(rec);
@@ -166,7 +167,7 @@ const CinPerf = {
       catch (e) { /* cosmetic only */ }
       f.cape = _cape;
     }
-    if (f.weaponKey && f.weaponKey !== 'gauntlet' && typeof f.drawWeapon === 'function') {
+    if (!rec.noWeapon && f.weaponKey && f.weaponKey !== 'gauntlet' && typeof f.drawWeapon === 'function') {
       ctx.save();
       try { f.drawWeapon(J.rHand.x, J.rHand.y, pose.rFore, false, null, 1.5 * pose.scale); }
       catch (e) { /* a cinematic must never take the frame down */ }

@@ -34,11 +34,76 @@ const SERVER_CONFIG = {
 
 const CHANGELOG = [
   {
+    version: '4.7.2',
+    title: 'NO FREE DODGES',
+    date: '2026-10-27',
+    flavor: 'Abilities and supers still can\'t be interrupted, but they no longer make you untouchable.',
+    isLatest: true,
+    changes: [
+      { cat: 'Balance', text: 'Abilities and supers no longer make you invincible once they connect. You still can\'t be knocked out of them, but every hit on you lands. Katana\'s Shadow Step and Iaijutsu could pass through whole supers' },
+      { cat: 'Balance', text: 'Starting a super gives a short moment of protection instead of three quarters of a second, so pressing super is no longer a way to dodge the other player\'s super' },
+      { cat: 'Balance', text: 'Conviction: the Flail spin and the Shield dome no longer make you invincible. You can\'t be knocked back while they last, but you take damage' },
+      { cat: 'Network', text: 'Online lobbies, friends and cloud saves work from the GitHub Pages copies of the game' },
+    ],
+  },
+  {
+    version: '4.7.1',
+    title: 'SAME FIGHT, BOTH SCREENS',
+    date: '2026-10-23',
+    flavor: 'Online play now runs the game you know: the same weapons, the same map, and the same match on both screens.',
+    isLatest: false,
+    changes: [
+      { cat: 'Network',  text: 'Abilities and supers online are the real moves, not the old versions. The axe dash, every grab and every launch play on both screens, and a held player can still break out with a full super meter' },
+      { cat: 'Fix',      text: 'Online: both players now get the same arena when the map is set to Random' },
+      { cat: 'Fix',      text: 'Online Boss Co-op: the boss moves and fights on both screens, shares one health bar, and nobody turns into the boss' },
+      { cat: 'Fix',      text: 'Online Minigames: the host runs the waves, the Nexus, the hill timer, the chaos modifiers and the ball, so both players are in the same game' },
+      { cat: 'Network',  text: 'Both players need the same version to join a room. An older copy is told to get the newest one' },
+      { cat: 'Network',  text: 'Cosmic Axiom is no longer offered in online rooms. It is a solo fight', spoilerLevel: 2 },
+    ],
+  },
+  {
+    version: '4.7.0',
+    title: 'BREAK THROUGH',
+    date: '2026-10-21',
+    flavor: 'A new look from the home screen to every arena, a real voice for the story, abilities that crack a guard, and a Battle Royale city with buildings you can walk into.',
+    isLatest: false,
+    changes: [
+      { cat: 'Mode',     text: 'Battle Royale: The City has an office building you can walk into. Its walls are solid, you enter through street-level doorways, climb floor by floor or take the fire escape, and cross the roof. The front wall fades while you are inside, and slamming someone into a wall shatters the windows' },
+      { cat: 'Mode',     text: 'Battle Royale: the City skyline towers take damage from big hits and collapse. In the Volcano, every kill made with lava builds heat, and after three the volcano erupts, throwing lava bombs and widening the pools' },
+      { cat: 'Mode',     text: 'Battle Royale finishers play only when you are the one being finished. When you score a kill you heal at once and keep fighting, and a bot that finishes you is back in the fight straight away' },
+
+      { cat: 'Combat',   text: 'Abilities and supers (Q and E) break a held guard and land as a full hit. A parry still beats them. Basic swings are still blocked, so holding shield is no longer a wall nobody can get through' },
+      { cat: 'Combat',   text: 'Hitboxes follow the drawn weapon: scythe, axe, hammer and frying pan heads hit where you see them, and the whip crack lands on the target instead of above their head' },
+      { cat: 'Combat',   text: 'A melee swing cuts through ordinary bullets, arrows and stones that pass close to the blade' },
+      { cat: 'Balance',  text: 'Ranged damage lowered: Gun 12 to 14, Slingshot 17 to 20, Bow 16 to 21, Boomerang 13 to 16. Crossbow fires slower. Hammer 24 (was 26), Hammer and Frying Pan supers weaker, Frying Pan slower, Giga Bomb goes off sooner and when someone walks into it' },
+      { cat: 'Balance',  text: 'Scythe basic hits heal you for 10% of the damage. The class description promised it for months and it never worked' },
+      { cat: 'Balance',  text: 'Whip: only the crack makes the target bleed, for 3 ticks, and its slow is shorter' },
+
+      { cat: 'Visual',   text: 'New look for the menus: the home screen has a painted moonlit backdrop, and the story hub, mode setup, store, settings, achievements, Fight Ladder, HUD and pause screen are restyled to match' },
+      { cat: 'Visual',   text: 'All 19 arenas are repainted in high detail with skies, distant scenery, weather and textured platforms. Zooming out no longer shows the edge of the painted area. Performance Mode turns the extra detail off on slow computers' },
+      { cat: 'Story',    text: 'The story is narrated by recorded voices for the narrator, Kael and the other characters, replacing the robotic browser voice' },
+      { cat: 'Story',    text: 'Story cutscenes are acted by fighters in the game\'s own look, and every chapter now has its own map' },
+      { cat: 'Story',    text: 'Story upgrades you buy now actually apply in fights. Before this, upgrades never reached your fighter' },
+      { cat: 'Story',    text: 'Levels start at the left edge of the map instead of a ledge near the exit, escape levels respawn you ahead of the collapsing wall, and getting caught in a stealth level seals the exit until the alarm guards are dealt with' },
+      { cat: 'Mode',     text: 'Minigames: Survival can be lost (3 lives), Chaos Match ends, Dodgeball bots stop freezing behind their shields, and Nexus Defense is much harder and takes a second player' },
+      { cat: 'UI',       text: 'Player 2 keys: attack is ; (semicolon), ability O, super U' },
+
+      { cat: 'AI',       text: 'The Sovereign\'s network was retrained, moves at your speed, and shows his power as rings instead of a red glow that covered him and the screen', spoilerLevel: 3 },
+
+      { cat: 'Fix',      text: 'Online: on networks that block peer-to-peer (most schools), the two-player duel room no longer fails with an error. It tells you to use Play With Friends, which works there. The online library now ships with the game instead of loading from the internet' },
+      { cat: 'Fix',      text: 'Whip bleed and other damage-over-time no longer stops you mid-jump, which made it impossible to jump up through platforms' },
+      { cat: 'Fix',      text: 'Throwing the axe and then using Rising Cleave before it came back left you without a visible weapon until you died' },
+      { cat: 'Fix',      text: 'Supers no longer refill your super meter with their own delayed damage' },
+      { cat: 'Fix',      text: 'Leaving a match no longer counts as a kill in the next one, and the random God encounter is gone', spoilerLevel: 2 },
+      { cat: 'Fix',      text: 'CrazyGames: a new player arriving by invite link goes to the lobby instead of the tutorial. On phones, the emote bar and chat no longer cover the touch controls' },
+    ],
+  },
+  {
     version: '4.6.0',
     title: 'PLAY WITH FRIENDS',
     date: '2026-10-10',
     flavor: 'Private lobbies you open with a link, a weekly gauntlet to race your friends through, bots that finally fight back, and a rebalanced, redrawn and re-recorded arsenal.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Network', text: 'Play with friends: opening a private lobby drops you into a waiting room, and friends who use your link or code arrive in it. Stand on a game\'s pad to pick it; the host starts the round, and if the host leaves another player takes over' },
       { cat: 'Network', text: 'New lobby rounds: Basketball, Loadout Scramble (a new weapon and class every life, first to 10 KOs), Infection, King of the Hill and co-op Horde Defense. Rounds end on a podium and pay coins' },
@@ -65,7 +130,7 @@ const CHANGELOG = [
       { cat: 'Class',    text: 'Reaper\'s perk is now Second Wind: at 35% health, once per life, heal 32% of your maximum. The old revive waited for 8% health and was skipped by the killing blow almost half the time' },
       { cat: 'Class',    text: 'Class weapon affinity applies to melee weapons as well as ranged ones' },
       { cat: 'Combat',   text: 'A hit outside a combo string only stuns on a counter-hit or when it deals 25 damage or more. It used to be a dice roll' },
-      { cat: 'Combat',   text: 'Landing an ability or super clears SWITCH IT UP, so you can swing again after it. One that misses does not' },
+      { cat: 'Combat',   text: 'Landing an ability or super, or a parry, clears SWITCH IT UP, so you can swing again after it. A move that misses does not' },
       { cat: 'Combat',   text: 'A guard-break locks your shield until its cooldown ends. You could raise it again straight away' },
 
       { cat: 'Visual',   text: 'Twenty-three weapons are redrawn in the style of the Axe and Scythe: inked outlines, one strong colour each, wrapped grips and shaped pommels. Reach is unchanged' },
@@ -1051,6 +1116,9 @@ const AI_TICK_INTERVAL = 15;
 const COMBO_SUPER_REACH      = 78;   // px: dash must close to this to connect
 const COMBO_SUPER_AIM_RATE   = 0.052; // rad/frame while a direction key is held
 const COMBO_SUPER_AIM_FRAMES = 110;  // auto-fire if the player never commits
+// Conviction bank: landed supers fill it, it never holds more than one Conviction. Players fire it by holding E.
+const CONVICTION_CHARGES     = 4;    // landed supers to bank one Conviction
+const CONVICTION_HOLD_FRAMES = 20;   // E held this long fires the banked Conviction; a shorter tap is a normal super
 let currentArena    = null;    // the arena data object
 let currentArenaKey = 'grass';
 
@@ -1198,7 +1266,7 @@ let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-const GAME_VERSION = '4.6.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.7.2';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 let debugMode          = false;
@@ -1206,7 +1274,7 @@ let timeScale          = 1.0;
 let showHitboxes       = false;  // F1: fighter hitboxes + weapon tips
 let showCollisionBoxes = false;  // F2: platform collision geometry
 let showPhysicsInfo    = false;  // F3: velocity vectors + onGround/vy labels
-let _debugKeyBuf       = '';     // rolling key buffer for "debugmode" cheat
+let _consoleChordAt    = -Infinity;   // time of the console shortcut's first half (Ctrl+Shift+O)
 
 let playerPowerLevel    = 1.0;   // hidden: grows +0.02 per chapter cleared; applied to player damage in story
 let storyModeActive      = false; // true while a story level is in progress
@@ -1225,7 +1293,7 @@ let storyChapterCtx     = null;  // { origId, noAdaptive }: set at story fight l
 let storyOpponentColor  = null;  // hex color for the story opponent fighter (applied at spawn)
 let storyCharId         = null;  // named character ID for appearance overlay ('veran','herald', etc.)
 let storyBossType       = null;  // 'fallen_god' | null: overrides which Boss subclass is spawned
-let simBossType         = null;  // 'fallen_god' | null: Simulator refight's Boss subclass; cleared by selectMode
+let simBossType         = null;  // 'fallen_god' | null: Simulator refight's Boss subclass; cleared when selectMode leaves 'boss'
 let storyAbilityState   = {};    // per-fight state for unlocked story abilities (medkit used, last stand triggered, etc.)
 let storyPhaseIndicator = null;  // { index, total, label, type }
 let storyGauntletState  = null;  // active chapter phase runtime
@@ -1292,6 +1360,8 @@ let cinematicLetterboxTarget = 0;   // target letterbox amount (lerped toward)
 let _camPrevFocusX      = 450;    // previous cinematic focus target X (for spring feel)
 let _camPrevFocusY      = 260;    // previous cinematic focus target Y (for spring feel)
 let _camOvershootX      = 0;      // decaying cinematic camera overshoot X
+// Cinematic camera state, kept across frames while cinematicCamOverride holds (null = not active)
+let _cinCamZoom = null, _cinCamX = 0, _cinCamY = 0;
 let _camOvershootY      = 0;      // decaying cinematic camera overshoot Y
 let cinSpeedLines       = [];     // radial/directional speed line burst effects
 let cinMotionTrails     = [];     // [{entity, positions:[{x,y}], color, maxLen}]

@@ -386,7 +386,7 @@ const ReplaySystem = (() => {
       console.warn('[Replay] Watch read failed:', e);
       return;
     }
-    if (!replay.smb_replay) { _viewerError('Not a valid Stickman Battles replay.'); return; }
+    if (!replay.smb_replay) { _viewerError('Not a valid Stickman Evolution replay.'); return; }
     if (replay.version !== GAME_VERSION) {
       _viewerError(`Version mismatch — replay is v${replay.version}, this game is v${GAME_VERSION}.`);
       return;
@@ -490,7 +490,7 @@ const ReplaySystem = (() => {
       catch (err) { _viewerError('File is not valid JSON.'); return; }
 
       if (!data.smb_replay) {
-        _viewerError('Not a Stickman Battles replay file.');
+        _viewerError('Not a Stickman Evolution replay file.');
         return;
       }
       if (data.version !== GAME_VERSION) {

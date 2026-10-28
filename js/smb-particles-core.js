@@ -276,7 +276,8 @@ class Projectile {
       // A lob passes through platforms on the way up and only lands on the way down.
       if (this._burstOnLand && this.vy < 0) break;
       if (this._burstOnLand && pl.y < this._landY && !pl.isFloor) continue;
-      if (this.x > pl.x && this.x < pl.x+pl.w && this.y > pl.y && this.y < pl.y+pl.h) {
+      if (pl.ramp ? rampHolds(pl, this.x, this.y)
+                  : (this.x > pl.x && this.x < pl.x+pl.w && this.y > pl.y && this.y < pl.y+pl.h)) {
         this.active = false;
         spawnParticles(this.x, this.y, this.color, 4);
         if (typeof worldReactProjectile === 'function') worldReactProjectile(this, pl);

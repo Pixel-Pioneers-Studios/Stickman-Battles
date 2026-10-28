@@ -1054,7 +1054,7 @@ function downloadSave() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
     a.href     = url;
-    a.download = 'stickman-clash-save.json';
+    a.download = 'stickman-evolution-save.json';
     a.click();
     URL.revokeObjectURL(url);
     _showSaveToast('✓ Save downloaded!');

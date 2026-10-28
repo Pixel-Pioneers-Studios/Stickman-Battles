@@ -1,6 +1,6 @@
 'use strict';
 // smb-debug-jump.js: F8 developer jump menu (story, cinematic, arena and boss fast-travel).
-// Load after smb-debug-console.js. Only active when debugMode is on (F1/F2/F3 or type 'debugmode').
+// Load after smb-debug-console.js. Only active when debugMode is on (F1/F2/F3, or the console command debugmenu).
 
 
 function _dbgJumpMenuClose() {
@@ -1001,7 +1001,13 @@ function _cinViewerOpen() {
     'c:megaknight':    'Knight -- Final Judgment',
     'b:sky_exec':      '[Boss] Sky Execution',
     'b:darkness':      '[Boss] Darkness Falls',
-    'b:cr_code_del':   '[Boss] Code Deletion',
+    'b:cr_code_del':   '[Boss] The Unmaking',
+    'b:fg_verdict':    '[Fallen God] Final Verdict',
+    'b:fg_wall':       '[Fallen God] The Wall Holds',
+    'b:fg_fall':       '[Fallen God] The Fall',
+    'b:sov_reckoning': '[Sovereign] Void Reckoning',
+    'b:sov_foresight': '[Sovereign] Foresight',
+    'b:sov_dismantle': '[Sovereign] Dismantle',
     'b:hero':          "[Player] Hero's Triumph",
     'b:void_slam':     '[TF] Void Slam',
     'b:reality_break': '[TF] Reality Break',
@@ -1041,7 +1047,13 @@ function _cinViewerOpen() {
       const bMap = {
         'sky_exec':      { def: typeof FIN_SKY_EXECUTION       !== 'undefined' ? FIN_SKY_EXECUTION       : null, att: boss,  tgt: p0  },
         'darkness':      { def: typeof FIN_DARKNESS_FALLS      !== 'undefined' ? FIN_DARKNESS_FALLS      : null, att: boss,  tgt: p0  },
-        'cr_code_del':   { def: typeof FIN_CR_CODE_DELETION    !== 'undefined' ? FIN_CR_CODE_DELETION    : null, att: boss,  tgt: p0  },
+        'cr_code_del':   { def: typeof FIN_CR_UNMAKING         !== 'undefined' ? FIN_CR_UNMAKING         : null, att: boss,  tgt: p0  },
+        'fg_verdict':    { def: typeof FIN_FG_VERDICT          !== 'undefined' ? FIN_FG_VERDICT          : null, att: boss,  tgt: p0  },
+        'fg_wall':       { def: typeof FIN_FG_WALL_HOLDS       !== 'undefined' ? FIN_FG_WALL_HOLDS       : null, att: boss,  tgt: p0  },
+        'fg_fall':       { def: typeof FIN_FG_THE_FALL         !== 'undefined' ? FIN_FG_THE_FALL         : null, att: boss,  tgt: p0  },
+        'sov_reckoning': { def: typeof CLASS_FINISHERS         !== 'undefined' ? CLASS_FINISHERS.nullblade : null, att: p1, tgt: p0  },
+        'sov_foresight': { def: typeof FIN_SOV_FORESIGHT       !== 'undefined' ? FIN_SOV_FORESIGHT       : null, att: p1,    tgt: p0  },
+        'sov_dismantle': { def: typeof FIN_SOV_DISMANTLE       !== 'undefined' ? FIN_SOV_DISMANTLE       : null, att: p1,    tgt: p0  },
         'hero':          { def: typeof FIN_HEROS_TRIUMPH       !== 'undefined' ? FIN_HEROS_TRIUMPH       : null, att: p0,    tgt: boss },
         'void_slam':     { def: typeof FIN_VOID_SLAM           !== 'undefined' ? FIN_VOID_SLAM           : null, att: tf,    tgt: p0  },
         'reality_break': { def: typeof FIN_REALITY_BREAK       !== 'undefined' ? FIN_REALITY_BREAK       : null, att: tf,    tgt: p0  },
@@ -1064,7 +1076,7 @@ function _cinViewerOpen() {
 
     // Auto-launch VS/boss/TF if game isn't running
     const [type] = v.split(':');
-    const needsBoss = type === 'b' && (v.includes('sky_exec') || v.includes('darkness') || v.includes('cr_code_del') || v.includes('hero'));
+    const needsBoss = type === 'b' && (v.includes('sky_exec') || v.includes('darkness') || v.includes('cr_code_del') || v.includes('fg_') || v.includes('hero'));
     const needsTF   = type === 'b' && (v.includes('void_slam') || v.includes('reality_break') || v.includes('tf_'));
     const needsYeti = type === 'b' && v.includes('yeti_');
     const needsBeast= type === 'b' && v.includes('beast_');

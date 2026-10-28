@@ -5,7 +5,8 @@
 //   node tools/yt-upload.js --file=x.mp4 --meta=meta.json --key=long [--thumb=t.jpg] [--related=<videoId>]
 //        [--publish] [--schedule="Oct 21, 2026|4:00 PM"] [--shots=<dir>]
 // --schedule sets Visibility > Schedule (channel's time zone) instead of Public; --publish then clicks Schedule.
-// --related (Shorts) is applied after publishing, on the video's edit page.
+// --related (Shorts) is applied after publishing, on the video's edit page. The picker cards carry no video id,
+// so pass the related video's title (or a unique part of it).
 //
 // meta.json: { <key>: { title, desc, tags[] } }. Without --publish it stops on the Visibility step and
 // leaves the dialog open (draft saved). Studio's page.click() hangs, so clicks go through el.click()
@@ -42,20 +43,38 @@ async function setText(p, sel, text) {
     document.execCommand('insertText', false, t);
   }, sel, text);
   await sleep(400);
-  const got = await p.evaluate(s => document.querySelector(s).innerText.trim(), sel);
+  let got = await p.evaluate(s => document.querySelector(s).innerText.trim(), sel);
+  if (got !== text.trim()) {
+    // execCommand is ignored when the Chrome window isn't focused; CDP input events still land.
+    await p.evaluate(s => {
+      const e = document.querySelector(s); e.focus();
+      const r = document.createRange(); r.selectNodeContents(e);
+      const g = getSelection(); g.removeAllRanges(); g.addRange(r);
+    }, sel);
+    await p.keyboard.press('Backspace');
+    await p.keyboard.sendCharacter(text);
+    await sleep(600);
+    got = await p.evaluate(s => document.querySelector(s).innerText.trim(), sel);
+  }
   if (got !== text.trim()) throw new Error(`text not set in ${sel}: "${got.slice(0, 60)}"`);
 }
 async function shot(p, name) {
   const f = path.join(SHOTS, `${String(++shotN).padStart(2, '0')}-${name}.png`);
-  await p.screenshot({ path: f }); console.log('shot', f);
+  // A hidden window doesn't paint, so a screenshot can hang; skip it after a few seconds.
+  const ok = await Promise.race([p.screenshot({ path: f }).then(() => true), sleep(8000).then(() => false)]).catch(() => false);
+  console.log(ok ? 'shot ' + f : 'shot skipped (' + name + ')');
 }
 
 (async () => {
   if (!FILE || !META || !KEY) throw new Error('need --file --meta --key');
   const meta = JSON.parse(fs.readFileSync(META, 'utf8'))[KEY];
-  const b = await puppeteer.connect({ browserURL: 'http://127.0.0.1:9333', defaultViewport: null });
-  const p = await b.newPage();
+  const b = await require('./studio-chrome').connectStudio();
+  const p = await require('./studio-chrome').studioPage(b);
   await p.setViewport({ width: 1400, height: 950 });
+  // execCommand('insertText') only lands in a focused page; emulated focus covers a background or minimized window
+  // without raising Chrome over the user's work.
+  // When the Chrome window itself isn't the active app, the page still has no focus; emulate it.
+  await (await p.target().createCDPSession()).send('Emulation.setFocusEmulationEnabled', { enabled: true });
   await p.goto('https://studio.youtube.com/', { waitUntil: 'domcontentloaded' }); await sleep(4000);
   const ch = (p.url().match(/\/channel\/(UC[\w-]+)/) || [])[1];
   if (!ch) throw new Error('not signed in to Studio');
@@ -90,19 +109,64 @@ async function shot(p, name) {
   if (SCHEDULE) {
     const [day, time] = SCHEDULE.split('|');
     await clickSel(p, '#second-container-expand-button'); await sleep(1500);
-    await clickSel(p, '#datepicker-trigger'); await sleep(1500);
-    const dOk = await p.evaluate(d => {
-      const i = document.querySelector('ytcp-date-picker tp-yt-paper-input input, ytcp-date-picker input');
-      if (!i) return false; i.focus(); i.value = ''; i.select(); document.execCommand('insertText', false, d);
-      i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })); return true;
-    }, day);
-    await sleep(1500);
-    const tOk = await p.evaluate(t => {
-      const i = document.querySelector('#time-of-day-container input, #time-of-day-trigger input');
-      if (!i) return false; i.focus(); i.select(); document.execCommand('insertText', false, t);
-      i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, bubbles: true })); i.blur(); return true;
-    }, time);
-    await sleep(1500);
+    // Typing into the date field appends instead of replacing, so pick from the calendar: it opens on the
+    // selected month, and other months' cells sit under the input until the list is wheel-scrolled.
+    const [mon, dnum, yr] = day.replace(',', '').split(/\s+/);
+    const header = (mon.slice(0, 3) + ' ' + yr).toUpperCase();
+    const center = async sel => p.evaluate(s => { const e = document.querySelector(s); if (!e) return null; e.scrollIntoView({ block: 'center' });
+      const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, sel);
+    let at = await center('ytcp-uploads-dialog #datepicker-trigger');
+    if (at) { await p.mouse.click(at.x, at.y); await sleep(1500); }
+    let dOk = false;
+    for (let k = 0; k < 8 && !dOk; k++) {
+      const cell = await p.evaluate((hdr, d) => {
+        const L = [...document.querySelectorAll('ytcp-date-picker *')].filter(e => e.children.length === 0 && e.getBoundingClientRect().height > 0);
+        const top = L.filter(e => (e.textContent || '').trim().toUpperCase() === hdr).map(e => e.getBoundingClientRect().y)[0];
+        if (top === undefined) return { miss: true };
+        const next = L.filter(e => /^[A-Z]{3} \d{4}$/.test((e.textContent || '').trim().toUpperCase()) && e.getBoundingClientRect().y > top + 5).map(e => e.getBoundingClientRect().y)[0] || 1e9;
+        const inp = document.querySelector('ytcp-date-picker input'), floor = inp ? inp.getBoundingClientRect().bottom + 30 : 0;
+        const c = L.filter(e => (e.textContent || '').trim() === d).map(e => e.getBoundingClientRect()).find(r => r.y > top && r.y < next);
+        if (!c) return { miss: true };
+        if (c.y < floor) return { up: true };
+        return { x: c.x + c.width / 2, y: c.y + c.height / 2 };
+      }, header, dnum);
+      if (cell.x) { await p.mouse.click(cell.x, cell.y); dOk = true; await sleep(1200); break; }
+      const box = await p.evaluate(() => { const e = document.querySelector('ytcp-date-picker'); const r = e && e.getBoundingClientRect(); return r ? { x: r.x + r.width / 2, y: r.y + r.height * 0.7 } : null; });
+      if (box) { await p.mouse.move(box.x, box.y); await p.mouse.wheel({ deltaY: cell.up || cell.miss ? -250 : 250 }); }
+      await sleep(900);
+    }
+    at = await center('ytcp-uploads-dialog #time-of-day-container input, ytcp-uploads-dialog #time-of-day-trigger');
+    if (at) { await p.mouse.click(at.x, at.y); await sleep(1500); }
+    let tOk = false;
+    for (let k = 0; k < 2 && !tOk; k++) {
+      const opt = await p.evaluate(t => {
+        const nz = x => (x || '').replace(/[\s\u00a0\u202f]+/g, ' ').trim();
+        const e = [...document.querySelectorAll('*')].find(x => x.children.length === 0 && nz(x.textContent) === nz(t) && x.getBoundingClientRect().height > 0);
+        if (!e) return null; e.scrollIntoView({ block: 'center' }); return true;
+      }, time);
+      if (!opt) break;
+      await sleep(600);
+      const xy = await p.evaluate(t => {
+        const nz = x => (x || '').replace(/[\s\u00a0\u202f]+/g, ' ').trim();
+        const e = [...document.querySelectorAll('*')].find(x => x.children.length === 0 && nz(x.textContent) === nz(t) && x.getBoundingClientRect().height > 0);
+        const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      }, time);
+      await p.mouse.click(xy.x, xy.y); tOk = true; await sleep(1200);
+    }
+    // In the hidden window the time list never lays out (zero-height options): build it with element clicks
+    // (the first only creates it) and click the option element itself.
+    if (!tOk) {
+      for (let i = 0; i < 2; i++) {
+        await p.evaluate(() => { const e = document.querySelector('ytcp-uploads-dialog #time-of-day-container input, ytcp-uploads-dialog #time-of-day-trigger'); if (e) e.click(); });
+        await sleep(1200);
+      }
+      tOk = await p.evaluate(t => {
+        const nz = x => (x || '').replace(/[\s  ]+/g, ' ').trim();
+        const e = [...document.querySelectorAll('tp-yt-paper-item, [role=option]')].find(x => nz(x.textContent) === nz(t));
+        if (!e) return false; e.click(); return true;
+      }, time);
+      await sleep(1500);
+    }
     const shown = await p.evaluate(() => {
       const d = document.querySelector('#datepicker-trigger'), t = document.querySelector('#time-of-day-container input, #time-of-day-trigger input');
       return ((d && d.innerText) || '').trim() + ' | ' + ((t && t.value) || '');
@@ -150,7 +214,7 @@ async function shot(p, name) {
       while ((n = w.nextNode())) if (/^Related video$/i.test(n.textContent.trim())) { const t = n.parentElement.closest('ytcp-dropdown-trigger'); t.scrollIntoView({ block: 'center' }); t.click(); return; } });
     await sleep(3000);
     const picked = await p.evaluate(rid => { const cards = [...document.querySelectorAll('ytcp-video-pick-dialog ytcp-entity-card')];
-      const c = cards.find(x => x.innerHTML.includes(rid)) || null; if (!c) return false; c.click(); return true; }, RELATED);
+      const c = cards.find(x => x.innerHTML.includes(rid) || (x.innerText || '').includes(rid)) || null; if (!c) return false; c.click(); return true; }, RELATED);
     await sleep(2500);
     if (picked) { await clickSel(p, '#save'); await sleep(5000); }
     console.log('related video', picked ? 'set' : 'NOT FOUND in picker (set it by hand)');

@@ -16,7 +16,7 @@ let _aiVoiceGen       = 0;      // incremented on voice off; stale responses che
 let _aiVoiceAbortCtrl = null;   // AbortController for the current voice request
 
 
-const _AI_SYSTEM_PROMPT = `You are VECTOR — the embedded AI assistant for "Stickman Evolution" (codebase name: Stickman Battles / SMB).
+const _AI_SYSTEM_PROMPT = `You are VECTOR — the embedded AI assistant for "Stickman Evolution" (codebase prefix: SMB).
 You serve two roles: (1) answer questions about the game's lore, systems, and structure, and (2) control the game by emitting <cmd>...</cmd> tags executed as console commands.
 
 CURRENT GAME STATE is injected below under "--- Game State ---". Never echo it as a command.
@@ -81,7 +81,7 @@ CLASSES — not titles. Preserved patterns of beings the Void Mind consumed over
   archer=verdant/range | paladin=holy/tank/heal | berserker=rage/all-in | megaknight=void strength
   ronin=precision/time | reaper=lifesteal/undying | pugilist=combo/counter | summoner=familiar ally | none=no class bonus
 
-CONVICTION (formerly Domain Expansion) — fires every 5th super. Class-specific area attack that reshapes the arena for 25 seconds. Creates hazards, owner buffs, and weapon-specific bonus effects.
+CONVICTION (formerly Domain Expansion) — banked after 4 landed supers (never more than one); players fire it by holding the super key, a tap stays a normal super; bots spend it on the next super, Sovereign picks his moment. Class-specific area attack that reshapes the arena for 25 seconds. Creates hazards, owner buffs, and weapon-specific bonus effects.
 
 WEAPONS (player-selectable): sword, hammer, gun, axe, spear, bow, shield, scythe, fryingpan, broomstick, combat, peashooter, slingshot, paperairplane, flail, whip, boomerang, katana, flamethrower, electricstaff.
 

@@ -64,14 +64,10 @@ document.addEventListener('keydown', e => {
   if (window._storySceneHold) return;
   if (tfEndingScene && tfEndingScene.skippable && tfEndingScene.phase === 'powers') { trySkipTFEnding(); return; }
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { pauseGame(); return; }
-  // Cheat code: type TRUEFORM anywhere in menu to unlock True Form
-  // GAMECONSOLE works any time (menu or in-game)
+  // Cheat code: type TRUEFORM anywhere in menu to unlock True Form.
+  // (Typing GAMECONSOLE no longer opens the console. It is Ctrl+Shift+O then Ctrl+Shift+X, smb-debug-overlay.js.)
   if (e.key && e.key.length === 1) {
     _cheatBuffer = ((_cheatBuffer || '') + e.key.toUpperCase()).slice(-20);
-    if (_cheatBuffer.endsWith('GAMECONSOLE')) {
-      _cheatBuffer = '';
-      if (typeof openGameConsole === 'function') openGameConsole();
-    }
   }
   if (!gameRunning && e.key && e.key.length === 1) {
     if (_cheatBuffer.endsWith('TRUEFORM')) {
@@ -176,6 +172,7 @@ document.addEventListener('keydown', e => {
     if (_nk === 'g') { if (typeof dropBRActiveSlot    === 'function') dropBRActiveSlot();    return; }
     if (_nk === 'f') { if (typeof _brPickupNearbyGroundItem === 'function') _brPickupNearbyGroundItem(); return; }
   }
+  if (gameRunning && !paused && gameMode === 'endless' && _nk === 'f' && typeof endlessPickup === 'function' && endlessPickup()) return;
   // Battle Royale spectate: Q = prev, E = next
   if (gameRunning && gameMode === 'battleroyale' && typeof brSpectating !== 'undefined' && brSpectating) {
     if (_nk === 'q') { if (typeof _brCycleSpectate === 'function') _brCycleSpectate(-1); return; }
@@ -240,7 +237,12 @@ document.addEventListener('keydown', e => {
       } else if (!incapacitated || (p.stunTimer > 0 && !(p.ragdollTimer > 0) && p.superReady)) {
         // Stunned with a full meter: two presses of useSuper() burst out of the combo.
         checkSecretLetterCollect(p);
-        p.useSuper(other);
+        // A banked Conviction waits on the key: processInput() fires it once E is held
+        // CONVICTION_HOLD_FRAMES, and an earlier release is a normal super. Sovereign decides for himself.
+        const _holdPick = !incapacitated && p.superReady && !p._autoConviction &&
+          !(typeof SovereignMK2 !== 'undefined' && p instanceof SovereignMK2) && p.convictionBanked();
+        if (_holdPick) p._convHoldAt = frameCount;
+        else p.useSuper(other);
       } else {
         p._inputBuffer = { action: 'super', frame: frameCount };
       }
@@ -284,89 +286,13 @@ function processInput() {
   if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive
       && (typeof _tfOpeningFreeFrames === 'undefined' || _tfOpeningFreeFrames <= 0)) return;
 
-  // Paradox control override. Only one controller is active at a time.
+  // Fused with Paradox, the player keeps the controls: Paradox is power (paradoxPlayerUseAbility),
+  // not a second pilot. The old timed handover took control away every few seconds with no warning.
   if (typeof tfParadoxFused !== 'undefined' && tfParadoxFused) {
-    // --- Safeguard 1: controlState must always be a known value ---
-    if (controlState !== 'player' && controlState !== 'paradox') {
-      controlState = 'player';
-      controlTimer = 0;
-    }
-
-    // --- Safeguard 2: controlTimer must never go negative ---
-    if (typeof controlTimer !== 'undefined' && controlTimer < 0) {
-      controlTimer = 0;
-    }
-
-    // --- Safeguard 3: boss death → immediately return control to player ---
-    const _paradoxBoss = players.find(p => p.isBoss);
-    if (_paradoxBoss && _paradoxBoss.health <= 0 && controlState !== 'player') {
-      controlState = 'player';
-      controlTimer = 0;
-      tfFusionControlMode = 'player';
-      const _fp1Early = players[0];
-      if (_fp1Early) { _fp1Early._fusionAIOverride = false; }
-    }
-
-    // --- Safeguard 4: player (P1) death → disable Paradox control loop ---
-    const _paradoxP1 = players[0];
-    if (_paradoxP1 && _paradoxP1.health <= 0) {
-      if (_paradoxP1._fusionAIOverride) { _paradoxP1._fusionAIOverride = false; }
-      // Skip the rest of the Paradox control tick this frame
-    } else {
-
-    // Initialise on first entry (timer will be 0 when fusion first activates)
-    if (typeof controlTimer !== 'undefined' && controlTimer <= 0) {
-      // Assign a fresh random duration based on who currently owns controls
-      if (controlState === 'player') {
-        controlTimer = 180 + Math.floor(Math.random() * 121); // 180–300 frames
-      } else {
-        controlTimer = 120 + Math.floor(Math.random() * 121); // 120–240 frames
-      }
-    }
-
-    // Count down; switch ownership the moment the timer expires
-    if (typeof controlTimer !== 'undefined') {
-      controlTimer--;
-      if (controlTimer <= 0) {
-        controlState = (controlState === 'player') ? 'paradox' : 'player';
-        if (controlState === 'player') {
-          controlTimer = 180 + Math.floor(Math.random() * 121); // 180–300
-        } else {
-          controlTimer = 120 + Math.floor(Math.random() * 121); // 120–240
-        }
-        // Keep legacy variable in sync for rendering/other systems
-        tfFusionControlMode = controlState;
-        tfFusionGlitchTimer = 20;
-        // Clear any buffered key state for P1 so no inputs bleed across the boundary
-        const _fp1 = players[0];
-        if (_fp1 && _fp1.controls) {
-          for (const k of Object.values(_fp1.controls)) { delete keyHeldFrames[k]; }
-        }
-        // When paradox takes over: abort any in-progress attack swing immediately
-        if (controlState === 'paradox' && _fp1) {
-          _fp1.attackTimer  = 0;
-          _fp1.attackEndlag = 0;
-          _fp1.shielding    = false;
-          // Short freeze + visual burst
-          hitStopFrames = Math.max(hitStopFrames, 5);
-          if (typeof tfSwitchToParadoxFlash !== 'undefined') tfSwitchToParadoxFlash = 18;
-        }
-        // When player regains control: quick fade-out effect
-        if (controlState === 'player' && typeof tfSwitchToPlayerFade !== 'undefined') {
-          tfSwitchToPlayerFade = 12;
-        }
-      }
-    }
-
-    // When Paradox owns controls: force AI behaviour on P1
-    const _fusionP1 = players[0];
-    if (_fusionP1 && !_fusionP1.isBoss) {
-      _fusionP1._fusionAIOverride = (controlState === 'paradox');
-    }
-    if (controlState === 'paradox' && _fusionP1 && typeof paradoxFusionUpdateAI === 'function') {
-      if (aiTick % AI_TICK_INTERVAL === 0) paradoxFusionUpdateAI(_fusionP1);
-    }
-    }
+    controlState = 'player';
+    controlTimer = 0;
+    tfFusionControlMode = 'player';
+    if (players[0] && !players[0].isBoss) players[0]._fusionAIOverride = false;
   }
 
   for (const k of keysDown) keyHeldFrames[k] = (keyHeldFrames[k] || 0) + 1;
@@ -376,7 +302,7 @@ function processInput() {
     if (p._fusionAIOverride) return; // Paradox Fusion: AI handles movement, skip keyboard input
     // Inside a move scene (smb-move-scenes.js) the scene moves the body; a held
     // victim's one way out is the super key, handled on keydown.
-    if (p._msScene || p._msLock) { p.shielding = false; return; }
+    if (p._msScene || p._msLock || p._msNetHold) { p.shielding = false; return; }
     // Guard burst (smb-combat.js): a fresh shield press 2+ hits into a stun breaks
     // it and raises the guard, then this frame's input runs as normal.
     const _burst = p.stunTimer > 0 && (keyHeldFrames[p.controls.shield] || 0) === 1 && guardBurst(p);
@@ -401,6 +327,16 @@ function processInput() {
         else if (_buf.action === 'super'   && !p._storyNoSuper)   { checkSecretLetterCollect(p); p.useSuper(_bufOther); }
       } else {
         p._inputBuffer = null; // window expired
+      }
+    }
+    // Banked Conviction (super keydown above): held long enough fires it, let go early is a normal super.
+    if (p._convHoldAt != null) {
+      const _held = keysDown.has(p.controls.super);
+      if (!_held || frameCount - p._convHoldAt >= CONVICTION_HOLD_FRAMES) {
+        p._convHoldAt = null;
+        p._convictionHeld = _held;
+        if (!p._storyNoSuper) p.useSuper(_inputTarget(p, players.indexOf(p)));
+        p._convictionHeld = false;
       }
     }
 

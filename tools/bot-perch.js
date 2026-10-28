@@ -20,6 +20,9 @@
  *                           [--trace]       print each trip
  *                           [--watch=2]     dump the bot's path on trips it never finished
  *                           [--ai]          the stand-in counts as a bot, not a person
+ *                           [--brain[=ckpt]] the chaser is the neural brain (data/brain/latest.json), driven
+ *                                           through keys like the shipped Sovereign
+ *                           [--nonav]       with --brain: no pathfinding hand-off (Brain.setNav(false))
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = path.resolve(__dirname, '..');
@@ -29,7 +32,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 const N = parseInt(args.n, 10) || 6, PORT = parseInt(args.port, 10) || 8105;
 const O = { diff: String(args.diff || 'expert'), bot: String(args.bot || 'ronin'), botw: String(args.botw || 'katana'),
   arena: String(args.arena || 'colosseum'), cap: parseInt(args.cap, 10) || 600,
-  watch: !!args.watch, ai: !!args.ai,
+  watch: !!args.watch, ai: !!args.ai, nonav: !!args.nonav,
   off: args.off ? String(args.off).split(',') : [] };
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
@@ -54,11 +57,13 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
   await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'load', timeout: 60000 });
   await new Promise(r => setTimeout(r, 2500));
   await page.evaluate(() => { try { if (typeof backToHome === 'function') backToHome(); } catch (e) {} });
+  const CK = args.brain ? JSON.parse(fs.readFileSync(path.join(ROOT, args.brain === true ? 'data/brain/latest.json' : String(args.brain)), 'utf8')) : null;
   const SIM = fs.readFileSync(path.join(ROOT, 'tools', 'class-balance.js'), 'utf8').match(/const SIM_SRC = `([\s\S]*?)\n`;/)[1];
   await page.addScriptTag({ content: SIM });
 
-  const r = await page.evaluate((N, O) => {
-    const S = { trips: [], apart: 0, still: 0, tac: 0, live: 0, botFalls: 0, errs: [] };
+  const r = await page.evaluate((N, O, CK) => {
+    const S = { trips: [], apart: 0, still: 0, tac: 0, live: 0, botFalls: 0, navFrames: 0, errs: [] };
+    if (CK) Brain.setNav(!O.nonav);
     for (const k of O.off) BOT_TACTICS[k] = false;
     const seen = new WeakSet();
     let me = null, bot = null, spots = [], si = 0, t0 = 0, from = null, fr = 0, rnd = null, pBotY = 0, cur = [];
@@ -75,6 +80,11 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
         if (this.color === '#00d4ff') { me = this; this._botIQ = 0; this.updateAI = function () {}; this.isAI = !!O.ai; }   // bots chase a person differently
         else bot = this;
         if (me && bot) {
+          // The brain plays through keys, which only processInput reads; the sim never calls it.
+          if (CK) {
+            if (!me.controls) me.controls = Brain.controlsFor(8);   // no key is ever held on it
+            Brain.possess(bot, CK.pi || CK, me); Brain.live.greedy = true; Brain.live.play = CK.play || null;
+          }
           // Every platform is a perch; a wide one is two.
           spots = [];
           for (const pl of currentArena.platforms) {
@@ -94,6 +104,10 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
           me.x = me._spot.x - me.w / 2; me.y = me._spot.y - me.h; me.vx = 0; me.vy = 0;
         }
       }
+      if (CK && this === bot && me && me._spot) {
+        Brain.tickLive(); processInput();
+        if (bot._btKey && bot._btKey.on) S.navFrames++;
+      }
       const out = up.apply(this, arguments);
       if (this === bot && me && me._spot) {
         fr++; S.live++;
@@ -107,7 +121,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
         // A move scene can drag the stand-in to the bot; that is not an arrival.
         const home = Math.abs(me.cx() - me._spot.x) <= 30 && Math.abs(me.y + me.h - me._spot.y) <= 30;
         if (O.watch && fr % 10 === 0) cur.push([fr - t0, Math.round(bot.cx()), Math.round(bot.y + bot.h), +bot.vx.toFixed(1), +bot.vy.toFixed(1), bot.onGround ? 'G' : 'a',
-          (bot._aiClimbSteer ? 'steer ' : '') + (bot._aiHop ? 'hop ' : '') + (bot._wanderTimer > 0 ? 'wander ' : '') + (bot._btNavFc >= frameCount - 1 ? (bot._btJump ? 'fly ' : 'nav ') : '') + ' ' + (bot._aiState || bot.aiState || '')].join(' '));
+          (bot._aiClimbSteer ? 'steer ' : '') + (bot._aiHop ? 'hop ' : '') + (bot._wanderTimer > 0 ? 'wander ' : '') + (bot._btNavFc >= frameCount - 1 ? (bot._btJump ? 'fly ' : 'nav ') : '') + ' ' + (bot._aiState || bot.aiState || '') + (bot._btKey && bot._btKey.on ? ' KNAV' : '')].join(' '));
         const done = home && dy <= 45 && dx <= 110 && bot.onGround;
         if (done || fr - t0 >= O.cap) {
           const rise = from.botFeet - me._spot.y;
@@ -126,10 +140,12 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
       if (m.err && S.errs.length < 3) S.errs.push(m.err);
     }
     Fighter.prototype.update = up;
+    if (CK) Brain.release();
     return S;
-  }, N, O);
+  }, N, O, CK);
 
   const pc = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '-';
+  if (CK) console.log(`BRAIN chaser (iter ${CK.iter || '?'}), navigator ${O.nonav ? 'OFF' : 'ON'}: on ${pc(r.navFrames, r.live)} of frames`);
   console.log(`${O.diff} ${O.bot}/${O.botw} bot chasing a perched stand-in on ${O.arena}, ${N} runs of 2 min` + (O.off.length ? '  [off: ' + O.off.join(',') + ']' : ''));
   for (const kind of ['up', 'down', 'level']) {
     const t = r.trips.filter(x => x.kind === kind), ok = t.filter(x => x.ok).map(x => x.f).sort((a, b) => a - b);

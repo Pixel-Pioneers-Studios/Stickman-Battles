@@ -224,7 +224,9 @@ let _qtePending = null;
  */
 function updateQTE() {
   if (!QTE_STATE) {
-    _checkQTETriggers();
+    // No HP auto-trigger: the Cosmic Axiom fight starts its one QTE itself, at the end of the
+    // 50% cinematic. The auto-trigger fired seven sequences a fight and could start inside a cinematic.
+    if (_qtePending) _tickQTEPending();
     return false;
   }
   _qteTimeline++;

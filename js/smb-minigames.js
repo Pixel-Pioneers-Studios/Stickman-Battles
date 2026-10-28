@@ -218,6 +218,7 @@ function updateChaosModIcons() {
 }
 
 function initMinigame() {
+  if (typeof NetMG !== 'undefined') NetMG.reset();
   players.forEach(function(p) {
     if (!p.isBoss) {
       delete p.attackCooldownMult;
@@ -366,6 +367,8 @@ function _releaseDefenseRusher(fromLeft, brute) {
 // Ends the minigame once, with its own banner. winner null = the players lost.
 function _minigameFinish(text, color, winner, delay, sub) {
   if (minigameResult) return;
+  // Online guests end when the host's minigame does (NetMG).
+  if (typeof NetMG !== 'undefined' && NetMG.follower() && !NetMG.applying) return;
   minigameResult = { text: text, color: color, winner: winner || null, sub: sub || '' };
   setTimeout(function() { if (gameRunning && gameMode === 'minigames') endGame(); }, delay || 2500);
 }
@@ -387,7 +390,9 @@ function minigameOnPlayerOut(p) {
 }
 
 function updateMinigame() {
-  if (!gameRunning || minigameResult) return;
+  if (!gameRunning) return;
+  if (typeof NetMG !== 'undefined' && NetMG.follower()) { NetMG.follow(); return; }
+  if (minigameResult) return;
   const livePlayers = players.filter(p => !p.isBoss && (p.health > 0 || p.invincible > 0));
   if (!livePlayers.length) return;
 
@@ -426,6 +431,7 @@ function updateMinigame() {
         } else if (p.health > 0) p.health = Math.min(p.maxHealth, p.health + 25);
       });
       survivalWaveDelay = 210;
+      if (typeof NetMG !== 'undefined') NetMG.noteClear();
 
       const waveGoal = survivalInfinite ? Infinity : survivalWaveGoal;
       if (survivalWave >= waveGoal) {
@@ -440,6 +446,16 @@ function updateMinigame() {
           return;
         }
         survivalWave = 0; // infinite: keep going
+      }
+    }
+    // Online host: a remote player going out happens on their client, so the host
+    // re-checks who is still standing every frame.
+    if (typeof NetMG !== 'undefined' && NetMG.host() && !minigameResult) {
+      const standing = players.filter(q => !q.isBoss && !q._mgDown && q.lives > 0);
+      if (!standing.length) {
+        _minigameFinish('WIPED OUT', '#ff4444', null, 1800, 'Reached wave ' + survivalWave);
+      } else if (survivalFriendlyFire && standing.length === 1 && players.filter(q => !q.isBoss).length > 1) {
+        _minigameFinish(`${standing[0].name} WINS!`, standing[0].color, standing[0], 2000);
       }
     }
   } else if (minigameType === 'koth') {

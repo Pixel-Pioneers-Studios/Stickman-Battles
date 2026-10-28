@@ -92,7 +92,7 @@ function _atkOpenGUI() {
       card.addEventListener('mouseleave', () => { card.style.background = 'rgba(40,0,80,0.55)'; });
       card.addEventListener('click', () => {
         _syncOpts();
-        _atkSummon(entry.label);
+        _atkSummon(entry.label, key);
       });
       listDiv.appendChild(card);
     });
@@ -103,6 +103,15 @@ function _atkOpenGUI() {
   ov.querySelector('#atkCloseBtn').addEventListener('click', () => ov.remove());
   document.getElementById('atkGUIReset').addEventListener('click', () => _atkResetEffects());
   document.getElementById('atkGUIDemoAll').addEventListener('click', () => { _syncOpts(); _atkAll(activeKey); });
+
+  // The game ignores every key while an input has focus, so hand focus back after each click.
+  // Button focus is dropped too, or Space would re-fire the last attack.
+  ov.addEventListener('click', e => {
+    if (e.target.matches('button, input[type=checkbox]')) e.target.blur();
+  });
+  ov.addEventListener('change', e => {
+    if (e.target.matches('input, select')) e.target.blur();
+  });
 
   ov.querySelectorAll('.atkKitBtn').forEach(btn => {
     btn.addEventListener('click', () => {

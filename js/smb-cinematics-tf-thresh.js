@@ -58,7 +58,7 @@ function _makeTFEntryCinematic(tf) {
                            y: () => tf ? tf.cy() : GAME_H/2,
                            color: '#000000', count: 4, maxR: 360, dur: 82 } }
       },
-      { at: 1.05, dialogue: 'You pushed past the limit I set.', dialogueDur: 180 },
+      { at: 1.05, dialogue: 'The limit I set is gone. So is your margin.', dialogueDur: 180 },
       { at: 1.7,
         fx: { shockwave: { x: GAME_W / 2, y: GAME_H / 2,
                            color: '#888888', count: 3, maxR: 560, dur: 130 },

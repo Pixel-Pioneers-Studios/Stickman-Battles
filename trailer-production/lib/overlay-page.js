@@ -57,8 +57,9 @@ function overlayPage() {
     slam(ctx, it, f, W, H) {
       if (f < it.from || f >= it.to) return;
       const t = f - it.from, left = it.to - f;
-      const a = clamp01(t / 3) * clamp01(left / 5);
-      const sc = 1 + 0.55 * (1 - ease(t / 8)) - 0.03 * (1 - clamp01(left / 5));
+      // steady: no fade or pop, for a counter that changes value many times a second.
+      const a = it.steady ? 1 : clamp01(t / 3) * clamp01(left / 5);
+      const sc = it.steady ? 1 + 0.12 * (1 - clamp01(t / 4)) : 1 + 0.55 * (1 - ease(t / 8)) - 0.03 * (1 - clamp01(left / 5));
       const x = W * (it.x === undefined ? 0.5 : it.x), y = H * it.y, size = it.size || 120;
       ctx.save(); ctx.globalAlpha = a;
       if (it.band !== false) band(ctx, W, y + (it.sub ? size * 0.3 : 0), size * (it.sub ? 1.7 : 1.3), 0.6);

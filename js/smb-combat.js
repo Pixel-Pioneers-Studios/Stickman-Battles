@@ -8,6 +8,13 @@ function lerp(a, b, t)   { return a + (b - a) * t; }
 function clamp(v, mn, mx){ return Math.max(mn, Math.min(mx, v)); }
 function dist(a, b)      { return Math.hypot(a.cx() - b.cx(), (a.y + a.h/2) - (b.y + b.h/2)); }
 
+// Slopes ({ ramp: true, x, w, yL, yR }, the BR volcano) are solid rock from the surface down to their base.
+// Their y/h is only a 1px sliver, so rect tests miss them: point tests go through these.
+function rampTopAt(pl, x) { return pl.yL + (pl.yR - pl.yL) * ((x - pl.x) / pl.w); }
+function rampHolds(pl, x, y) {
+  return x > pl.x && x < pl.x + pl.w && y > rampTopAt(pl, x) && y < Math.max(pl.yL, pl.yR);
+}
+
 // Entity culling uses world bounds. GAME_W is the viewport and only fits 900px arenas.
 // Mirrors the fighter clamp in Fighter.update().
 function worldLeftBound() {
@@ -280,7 +287,6 @@ const KRATOS_RAGE_PER = 0.01;
 // Spawn, super and finisher invincibility are never bypassed.
 function _hitIframesLetThrough(attacker, target) {
   if (!attacker || target._hitIframeBy !== attacker || typeof frameCount === 'undefined') return false;
-  if (target._msScene && target._msScene.landed) return false; // move scene performers are invulnerable once they connect
   if (attacker._attackStartFrame == null || attacker._attackStartFrame === target._hitIframeAct) return false;
   return target.invincible <= (target._hitIframeUntil || 0) - frameCount + 1;
 }
@@ -297,6 +303,9 @@ const SHIELD_POOL_MAX    = 50;   // ~3 sword/axe/hammer hits
 const SHIELD_REGEN       = 0.35; // per frame while down (empty to full in ~2.4 s)
 const SHIELD_REGEN_DELAY = 30;   // frames down before refill starts
 const SHIELD_BREAK_DELAY = 120;  // a broken guard waits 2 s before refilling
+const GUARD_Q_DRAIN      = 2.5;  // an ability (Q) on a guard drains this x its damage from the pool
+const GUARD_Q_DRAIN_MIN  = 30;   // ...but never less, so a grab opener's chip still wears a guard down
+const GUARD_Q_CHIP       = 0.35; // share of an ability's damage that goes through a guard that holds
 const SHIELD_PARRY_REST  = 20;   // frames the guard must be down before a parry counts
 
 // Called on the raising edge by every guard path. false = refused.
@@ -382,6 +391,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   const _inbound = _netInboundHit; _netInboundHit = null;
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.health <= 0) return;
+  // Online: bosses and bots run on every client, so only the victim's own client counts their hits.
+  // Host-streamed minigame enemies (_netMinionId) are the exception: the host's copy is the real one.
+  // So is a Summoner's familiar, which exists only on its owner's client.
+  if (onlineMode && target.isRemote && attacker && !attacker.isRemote && attacker._netMinionId === undefined &&
+      !attacker._isFamiliar && (attacker.isAI || attacker.isBoss || attacker.isTrueForm || attacker.isMinion)) return;
   if (target.invincible > 0 && !_hitIframesLetThrough(attacker, target) &&
       !(isDot && typeof frameCount !== 'undefined' && target.invincible <= (target._hitIframeUntil || 0) - frameCount + 1)) return;
   if (target.godmode) return; // no hitbox, all damage blocked
@@ -589,13 +603,33 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         SoundManager.clang && SoundManager.clang();
         // Overdrive burst fires next frame, not from inside dealDamage.
         if (target._wxOverdrive > 0) target._wxParryBurst = true;
+        // A parry clears the parrier's spent swing chain, like a landed ability or super.
+        target._basicChainHeld = false;
+        target._basicChainN    = 0;
         actualDmg = 0;
         actualKb  = 0;
       }
     }
-    // Q/E guard break (smb-move-scenes.js): the guard shatters like an overflow break,
-    // and the hit lands as an unguarded one, knockback and all.
-    if (!_parried && actualDmg > 0 && typeof msGuardBreakClaim === 'function' && msGuardBreakClaim(attacker, target)) {
+    // Q/E guard break (smb-move-scenes.js). A super always shatters the guard like an overflow break.
+    // An ability only shatters a worn guard: it drains GUARD_Q_DRAIN x its damage (at least GUARD_Q_DRAIN_MIN),
+    // and a guard that holds still lets GUARD_Q_CHIP of the damage through. A broken guard takes the hit
+    // unguarded, knockback and all.
+    let _qGuardHeld = false;
+    let _gbClaim = !_parried && actualDmg > 0 && typeof msGuardBreakClaim === 'function' && msGuardBreakClaim(attacker, target);
+    const _gbKey = _gbClaim && attacker._msKill && attacker._msKill.key;
+    if (typeof _gbKey === 'string' && _gbKey.endsWith(':q')) {
+      const _qDrain = Math.max(actualDmg * GUARD_Q_DRAIN, GUARD_Q_DRAIN_MIN);
+      if (_qDrain < (target.shieldHP || 0)) {
+        _gbClaim    = false;
+        _qGuardHeld = true;
+        target.shieldHP -= _qDrain;
+        actualDmg = Math.round(actualDmg * GUARD_Q_CHIP);
+        actualKb  = 0;
+        spawnParticles(target.cx(), target.cy(), '#88ddff', 10);
+        spawnParticles(target.cx(), target.cy(), '#ff8844', 6);
+      }
+    }
+    if (_gbClaim) {
       target.shieldHP        = 0;
       target.shielding       = false;
       target.shieldBroken    = true;
@@ -609,7 +643,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       if (settings.dmgNumbers)
         damageTexts.push(new DamageText(target.cx(), target.y - 38, 'GUARD BREAK!', '#ff8844'));
     }
-    if (actualDmg > 0 && _guardUp) {
+    if (actualDmg > 0 && _guardUp && !_qGuardHeld) {
       if (_stacks <= 3) {
         // Overflow past the HP pool breaks the guard and goes through as damage.
         const _shHP = target.shieldHP || 0;
@@ -799,7 +833,17 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // The remote client applies the damage to itself.
   if (onlineMode && attacker && !attacker.isRemote && target && target.isRemote) {
-    NetworkManager.sendHit(_netPreTargetDmg, kbForce, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
+    if (attacker._netMinionId !== undefined) {
+      NetworkManager.sendHit(0, players.indexOf(target), _netPreTargetDmg, kbForce, { am: attacker._netMinionId });
+    } else if (target._netMinionId !== undefined) {
+      NetworkManager.sendHit(NetworkManager.getLocalSlot(), -1, _netPreTargetDmg, kbForce, { tm: target._netMinionId });
+    } else {
+      NetworkManager.sendHit(_netPreTargetDmg, kbForce, actualKb > 0 ? (target.cx() > attacker.cx() ? 1 : -1) : 0);
+    }
+  } else if (onlineMode && target && target.isBoss && target._netHpFollower && attacker &&
+             players.indexOf(attacker) === NetworkManager.getLocalSlot()) {
+    // Boss Co-op guest: the host's boss is the real one, so it takes this hit too.
+    NetworkManager.sendHit(NetworkManager.getLocalSlot(), players.indexOf(target), _netPreTargetDmg, kbForce);
   }
   // Public Server: forward to the victim's owner.
   if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.onDamage(attacker, target, _netPreTargetDmg, kbForce);
@@ -849,7 +893,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       frameCount <= (attacker._superHealUntil || 0)) {
     if (attacker._superCountPending) {
       attacker._superCountPending = false;
-      attacker._domainSuperCount = (attacker._domainSuperCount || 0) + 1;
+      attacker._domainSuperCount = Math.min(CONVICTION_CHARGES, (attacker._domainSuperCount || 0) + 1);
     }
     const _heal = Math.min(attacker._superHealPending || 0, attacker.maxHealth - attacker.health);
     attacker._superHealPending = 0;
@@ -1037,6 +1081,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Arena reacts to the hit (light, air pressure, dust).
   if (_hitAudible && typeof worldReactHit === 'function') {
     worldReactHit(attacker, target, actualDmg, actualKb, _guardUp, isSplash);
+  }
+  // Battle Royale structures record the hit (windows, skyline). State only.
+  if (_hitAudible && typeof brStructuresHit === 'function') {
+    brStructuresHit(attacker, target, actualDmg, actualKb, _guardUp);
   }
   // Blood only on direct entity hits.
   if (!_guardUp && !isSplash && attacker && !target.isBoss &&

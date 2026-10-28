@@ -35,7 +35,9 @@ function _pickFinisher(attacker) {
 }
 
 const _TF_KILL_POOL      = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_TF_ERASURE, FIN_TF_PHASE_SHIFT];
-const _CREATOR_KILL_POOL = [FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS, FIN_CR_CODE_DELETION];
+const _CREATOR_KILL_POOL = [FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS, FIN_CR_UNMAKING];
+const _FALLEN_GOD_KILL_POOL = [FIN_FG_VERDICT, FIN_FG_WALL_HOLDS, FIN_FG_THE_FALL];
+const _SOVEREIGN_KILL_POOL  = [CLASS_FINISHERS.nullblade, FIN_SOV_FORESIGHT, FIN_SOV_DISMANTLE];
 const _YETI_KILL_POOL    = [FIN_YETI_AVALANCHE, FIN_YETI_POLAR_SLAM, FIN_YETI_ICE_BURIAL];
 const _BEAST_KILL_POOL   = [FIN_BEAST_FERAL_TACKLE, FIN_BEAST_NATURE_DEVOUR, FIN_BEAST_SAVAGE_LAUNCH];
 const _BOSS_KILL_POOL    = [FIN_VOID_SLAM, FIN_REALITY_BREAK, FIN_SKY_EXECUTION, FIN_DARKNESS_FALLS];
@@ -216,6 +218,8 @@ function triggerFinisher(attacker, target) {
   if (typeof activeCinematic !== 'undefined' && activeCinematic) return false;
   if (typeof isCinematic !== 'undefined' && isCinematic) return false;
   if (!attacker || !target) return false;
+  // The Cosmic Axiom's death runs his own ending (startTFEnding) with its own finishing blows.
+  if (target.isTrueForm) return false;
   if (trainingMode || tutorialMode) return false;
   if (onlineMode || window._pubHubActive) return false;
   // Battle Royale: only the victim watches. A kill the local player lands plays nothing (the heal is paid in
@@ -243,8 +247,12 @@ function triggerFinisher(attacker, target) {
     if (attacker.isTrueForm)           _pool = _TF_KILL_POOL;
     else if (attacker.isYeti)          _pool = _YETI_KILL_POOL;
     else if (attacker.isBeast)         _pool = _BEAST_KILL_POOL;
+    else if (attacker.isFallenGod)     _pool = _FALLEN_GOD_KILL_POOL;
     else                               _pool = _CREATOR_KILL_POOL;
     def = _pool[Math.floor(Math.random() * _pool.length)];
+  } else if (attacker.isSovereignMK2 && !target.isBoss) {
+    // Sovereign plays his own set whatever loadout he is in.
+    def = _SOVEREIGN_KILL_POOL[Math.floor(Math.random() * _SOVEREIGN_KILL_POOL.length)];
   } else if ((target.isBoss || target.isSovereignMK2) && !attacker.isBoss) {
     // Player kills boss or Sovereign
     def = FIN_HEROS_TRIUMPH;

@@ -3,6 +3,29 @@
 // Depends on smb-globals.js, smb-fighter.js, smb-enemies.js and smb-menu-spawn.js.
 // Loads after smb-menu-spawn.js and before smb-menu-utils.js.
 
+// Minigame arenas: screen-wide standard PvP arenas with a solid centre floor.
+// KotH's zone sits there, and survival waves drop in at the sides.
+function _minigameArenaPool() {
+  return ARENA_KEYS_ORDERED.filter(k => {
+    const a = ARENAS[k];
+    if (!a || a.isStoryOnly || (a.worldWidth && a.worldWidth > GAME_W)) return false;
+    return (a.platforms || []).some(pl => pl.isFloor && pl.x <= GAME_W / 2 && pl.x + pl.w >= GAME_W / 2);
+  });
+}
+
+// The arena the host rolls for an online match, or null when nothing is random.
+function _onlineRollArena() {
+  if (gameMode === 'minigames') {
+    if (minigameType === 'sports' || minigameType === 'defense') return null;
+    return randChoice(_minigameArenaPool());
+  }
+  if (gameMode === '2p' || gameMode === 'online') {
+    if (selectedArena !== 'random') return null;
+    return randChoice(ARENA_KEYS_ORDERED.filter(k => ARENAS[k] && !ARENAS[k].isStoryOnly));
+  }
+  return null;
+}
+
 function _startGameCore() {
   // Every match starts escort-free; escort chapters re-arm it after this returns.
   if (typeof escortCleanup === 'function') escortCleanup();
@@ -35,9 +58,13 @@ function _startGameCore() {
   const chatEl = document.getElementById('onlineChat');
   if (chatEl) chatEl.style.display = _onlinePeerPresent ? 'flex' : 'none';
   if (_onlinePeerPresent && isBossMode && bossPlayerCount !== 2) bossPlayerCount = 2;
+  // The second fighter online is the other human, never a bot or an empty slot.
+  if (_onlinePeerPresent) { p2IsBot = false; p2IsNone = false; }
   if (_onlinePeerPresent && isTrainingMode) training2P = true;
   const isMinigamesMode      = gameMode === 'minigames';
   const isBattleRoyaleMode   = gameMode === 'battleroyale';
+  const isEndlessMode        = gameMode === 'endless';
+  if (typeof endlessReset === 'function') endlessReset();
   const isEscortMode         = gameMode === 'escort';
   const isExploreMode        = gameMode === 'exploration';
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
@@ -104,20 +131,17 @@ function _startGameCore() {
   } else if (isBattleRoyaleMode) {
     currentArenaKey = '__br__';
     if (typeof _makeBRArena === 'function') ARENAS['__br__'] = _makeBRArena();
+  } else if (isEndlessMode) {
+    currentArenaKey = '__endless__';
+    endlessBeginRun();
+    ARENAS['__endless__'] = endlessMakeArena();
   } else if (isMinigamesMode) {
     if (minigameType === 'sports') {
       currentArenaKey = 'soccer';
     } else if (minigameType === 'defense') {
       currentArenaKey = 'nexus';
     } else {
-      // Random arena from the standard PvP pool. Only screen-wide ones with a solid centre floor:
-      // KotH's zone sits there, and survival waves drop in at the sides.
-      const arenaPool = ARENA_KEYS_ORDERED.filter(k => {
-        const a = ARENAS[k];
-        if (!a || a.isStoryOnly || (a.worldWidth && a.worldWidth > GAME_W)) return false;
-        return (a.platforms || []).some(pl => pl.isFloor && pl.x <= GAME_W / 2 && pl.x + pl.w >= GAME_W / 2);
-      });
-      currentArenaKey = randChoice(arenaPool);
+      currentArenaKey = randChoice(_minigameArenaPool());
     }
   } else if (ladderDef && ARENAS[ladderDef.arena]) {
     currentArenaKey = ladderDef.arena;
@@ -139,27 +163,15 @@ function _startGameCore() {
       currentArenaKey = selectedArena === 'random' ? randChoice(arenaPool) : selectedArena;
     }
   }
+  // Online: a rolled arena is rolled once, by the host, and both sides play it.
+  if (_onlinePeerPresent && window._netMatchArena && ARENAS[window._netMatchArena]) currentArenaKey = window._netMatchArena;
+  window._netMatchArena = null;
   isRandomMapMode = (selectedArena === 'random' && !isRandLoadout);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && currentArenaKey !== 'training' && !isExploreMode && !isBattleRoyaleMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && currentArenaKey !== 'training' && !isExploreMode && !isBattleRoyaleMode && !isEndlessMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
-
-  // Online host: broadcast authoritative game state to guest BEFORE creating fighters
-  if (onlineMode && onlineLocalSlot === 1 && typeof NetworkManager !== 'undefined' && NetworkManager.connected) {
-    const syncState = {
-      arenaKey:  currentArenaKey,
-      gameMode:  gameMode,
-      lives:     chosenLives,
-      p1Weapon:  document.getElementById('p1Weapon')?.value || 'sword',
-      p2Weapon:  document.getElementById('p2Weapon')?.value || 'sword',
-      p1Class:   document.getElementById('p1Class')?.value  || 'none',
-      p2Class:   document.getElementById('p2Class')?.value  || 'none',
-      platforms: (ARENAS[currentArenaKey]?.platforms || []).map(pl => ({ x: pl.x, y: pl.y, w: pl.w })),
-    };
-    NetworkManager.sendGameStateSync(syncState);
-  }
 
   // Weapons and classes resolve together, so a 50/50 works when both are random.
   // Complete Randomizer forces random arena, weapon and class (1v1 only). Story uses its loadout menu.
@@ -376,8 +388,9 @@ function _startGameCore() {
     const _guestOnline = _onlinePeerPresent
       && typeof NetworkManager !== 'undefined' && !NetworkManager.isHost();
     const boss = (_isFallenGodFight() && typeof FallenGod !== 'undefined') ? new FallenGod() : new Boss();
-    // Online guests: mark boss as remote so loop skips its AI
-    if (_guestOnline) { boss.isRemote = true; boss.isAI = false; }
+    // Online: each client runs its own boss. The host owns its health (smb-network.js bossHp)
+    // and a boss only hurts the player on its own client (dealDamage).
+    if (_guestOnline) boss._netHpFollower = true;
   // True Creator: a much harder boss, needs the TRUEFORM code. Story has its own scaling below.
     if (unlockedTrueBoss && !storyModeActive && !boss.isFallenGod) {
       boss.health            = 4500;
@@ -614,6 +627,12 @@ function _startGameCore() {
     players  = [p1];
     p1.target = null;
     if (typeof initBattleRoyale === 'function') initBattleRoyale();
+  } else if (isEndlessMode) {
+    p1.isAI  = false;
+    p1.lives = 3; p1._maxLives = 3;
+    players  = [p1];
+    p1.target = null;
+    initEndless();
   } else if (gameMode === 'escort') {
     // Escort: single player only: NPC and enemies spawned by initEscortMode() later
     p1.isAI   = false;
@@ -646,7 +665,7 @@ function _startGameCore() {
       _godRef = spawnGod(false);
       if (_godRef && typeof _godWasAlive !== 'undefined') _godWasAlive = true;
       if (_storyGod && _godRef) {
-        const _gh = _activeStory2Chapter.godStoryHealth || 1400;
+        const _gh = _activeStory2Chapter.godStoryHealth || 20000;
         _godRef.maxHealth = _gh; _godRef.health = _gh;
         _godRef._storyGod = true;
         _godRef.target = p1;
@@ -877,6 +896,7 @@ function _startGameCore() {
     if (ladderDef.p1Lives) p1.lives = p1._maxLives = ladderDef.p1Lives;
     if (ladderDef.p1HpMul && ladderDef.p1HpMul !== 1) { p1.maxHealth = Math.round(p1.maxHealth * ladderDef.p1HpMul); p1.health = p1.maxHealth; }
     if (ladderDef.p2HpMul && ladderDef.p2HpMul !== 1) { p2.maxHealth = Math.round(p2.maxHealth * ladderDef.p2HpMul); p2.health = p2.maxHealth; }
+    if (ladderDef.tac) p2._btTune = ladderDef.tac;
   }
   if (p2) document.getElementById('p2HudName').textContent = p2.name;
   document.getElementById('killFeed').innerHTML = '';

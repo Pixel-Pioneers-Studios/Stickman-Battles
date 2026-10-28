@@ -22,6 +22,8 @@ function updateTFPendingAttacks() {
     }
   }
 
+  if (typeof _atkTickPendingCtxs === 'function') _atkTickPendingCtxs();
+
   if (!tf || tf.health <= 0) return;
   if (tf._wallComboTimer > 0) tf._wallComboTimer--;
   if (tf._antiRangedCooldown > 0) tf._antiRangedCooldown--;
@@ -82,7 +84,7 @@ function updateTFPendingAttacks() {
     bossStaggerDmg   = 0;
     bossStaggerDecay = 0;
     screenShake = Math.max(screenShake, 25);
-    showBossDialogue(randChoice(['...noted.', 'You hit like you mean it.', 'That was unexpected. I respect it.']), 120);
+    showBossDialogue(randChoice(['...noted.', 'Mark that moment. It was your best one.', 'Now you have my attention.']), 120);
     spawnParticles(tf.cx(), tf.cy(), '#ffffff', 22);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.4);
   }
@@ -99,12 +101,17 @@ function updateTFPendingAttacks() {
     bossDesperationMode  = true;
     bossDesperationFlash = 90;
     screenShake = Math.max(screenShake, 30);
-    showBossDialogue('You\'ve earned the last of me. I hope it was worth asking for.', 300);
+    showBossDialogue('The last of me is the worst of me. You asked for it.', 300);
     spawnParticles(tf.cx(), tf.cy(), '#ffffff', 50);
     spawnParticles(tf.cx(), tf.cy(), '#000000', 30);
     if (typeof directorAddIntensity === 'function') directorAddIntensity(0.8);
   }
 
+  _tickTFPendingMoves(tf);
+}
+
+// Delayed halves of TrueForm moves. tf can also be an attack-viewer context.
+function _tickTFPendingMoves(tf) {
   // Pending Reality Slash
   if (tf._pendingSlash) {
     tf._pendingSlash.timer--;
@@ -114,7 +121,7 @@ function updateTFPendingAttacks() {
       // Use the position locked at telegraph time so the warning circle matches the actual landing spot
       const destX = tf._pendingSlash.landX !== undefined ? tf._pendingSlash.landX : clamp(tgt.cx() + behindOff, 20, GAME_W - 20);
       const destY = tf._pendingSlash.landY !== undefined ? tf._pendingSlash.landY : tgt.y;
-      const landed = _bossTeleportActor(tf, destX, destY, { preferRaised: true, sideBias: Math.sign(behindOff) || 1 });
+      const landed = _bossTeleportActor(tf, destX, destY, { nearFeetY: destY + tgt.h, aroundX: tgt.cx(), sideBias: Math.sign(behindOff) || 1 });
       if (!landed) {
         tf._pendingSlash = null;
         tf._finishAttackState('slash');
@@ -125,11 +132,15 @@ function updateTFPendingAttacks() {
       spawnParticles(tf.cx(), tf.cy(), '#ffffff', 20);
       spawnParticles(tf.cx(), tf.cy(), '#000000', 12);
       screenShake = Math.max(screenShake, 12);
-      dealDamage(tf, tgt, 18, 10);
+      // Lands only inside the SLASH ZONE circle (r 80) drawn at telegraph time, centred on the target's
+      // body then. His own landing can be a raised platform, so it is not the reference.
+      const _zy = destY + tgt.h * 0.5;
+      const _inZone = p => Math.hypot(p.cx() - destX, p.cy() - _zy) < 80 + p.w / 2;
+      if (_inZone(tgt)) dealDamage(tf, tgt, 18, 10);
       for (const p of players) {
         if (p.isBoss || p.health <= 0) continue;
         const sdx = p.cx() - tf.cx();
-        if (Math.abs(sdx) < 220) {
+        if (_inZone(p)) {
           p.vx += (sdx > 0 ? 1 : -1) * 9;
           if (p !== tgt) dealDamage(tf, p, 6, 5);
         }
@@ -149,7 +160,7 @@ function updateTFPendingAttacks() {
         // Teleport to alternating sides of the player
         const side   = tc.hits % 2 === 0 ? 1 : -1;
         const offset = side * (45 + Math.random() * 25);
-        const landed = _bossTeleportActor(tf, tgt.cx() + offset, tgt.y, { preferRaised: true, sideBias: side });
+        const landed = _bossTeleportActor(tf, tgt.cx() + offset, tgt.y, { nearFeetY: tgt.y + tgt.h, aroundX: tgt.cx(), sideBias: side });
         if (!landed) {
           tc.hits = 0;
           tf._pendingTeleportCombo = null;
@@ -162,7 +173,7 @@ function updateTFPendingAttacks() {
         spawnParticles(tf.cx(), tf.cy(), '#000000', 18);
         spawnParticles(tf.cx(), tf.cy(), '#ffffff', 10);
         screenShake = Math.max(screenShake, 14);
-        dealDamage(tf, tgt, 14, 8);
+        if (_tfInReach(tf, tgt, 85)) dealDamage(tf, tgt, 14, 8);
         // Brief invincibility so the combo can't be counter-hit
         tf.invincible = Math.max(tf.invincible, 12);
       }
@@ -219,12 +230,13 @@ function updateTFPendingAttacks() {
           });
         }
       }
-      // Knockback and damage all nearby players
+      // Knockback and damage players inside the CRUSH circle (r 200 at arena centre)
       for (const p of players) {
         if (p.isBoss || p.health <= 0) continue;
         const pdx2 = p.cx() - GAME_W / 2;
         const pdy2 = p.cy() - GAME_H / 2;
         const dist2 = Math.hypot(pdx2, pdy2) || 1;
+        if (dist2 > 200 + p.w / 2) continue;
         p.vx += (pdx2 / dist2) * 28;
         p.vy += (pdy2 / dist2) * 18 - 8;
         dealDamage(tf, p, 22, 16);
@@ -240,7 +252,7 @@ function updateTFPendingAttacks() {
       const csTgt = tf._pendingCollapseStrike.target;
       if (csTgt && csTgt.health > 0) {
         const csDir = (csTgt.facing || 1);
-        const landed = _bossTeleportActor(tf, csTgt.cx() - csDir * 55, csTgt.y, { preferRaised: true, sideBias: -csDir });
+        const landed = _bossTeleportActor(tf, csTgt.cx() - csDir * 55, csTgt.y, { nearFeetY: csTgt.y + csTgt.h, aroundX: csTgt.cx(), sideBias: -csDir });
         if (!landed) {
           tf._pendingCollapseStrike = null;
           tf._finishAttackState('collapseStrike');
@@ -259,8 +271,8 @@ function updateTFPendingAttacks() {
         tf.weapon.kb     = 16;
         if (tf.cooldown <= 0) {
           tf.attack(csTgt);
-        } else {
-          // Cooldown not ready: fire damage directly so the cinematic never whiffs
+        } else if (_tfInReach(tf, csTgt, 85)) {
+          // Cooldown not ready: fire the hit directly, but only in reach (the teleport can land elsewhere)
           dealDamage(tf, csTgt, 55, 16);
           csTgt.vx += (csTgt.cx() > tf.cx() ? 1 : -1) * 16;
           csTgt.vy  = Math.min(csTgt.vy, -10);

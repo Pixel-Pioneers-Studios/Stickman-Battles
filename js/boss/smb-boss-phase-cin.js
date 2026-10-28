@@ -204,7 +204,7 @@ function _makeTFPhase2Cinematic(tf) {
       }
       if (t >= 1.1 && !this._roarFired) {
         this._roarFired = true;
-        showBossDialogue('You surprised me. That almost never happens.', 250);
+        showBossDialogue('You\'re still breathing. I\'ll correct that.', 250);
       }
     },
     onEnd() { if (typeof CinPerf !== 'undefined') CinPerf.endBound(); slowMotion = 1.0; cinematicCamOverride = false; }

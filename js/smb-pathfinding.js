@@ -62,12 +62,28 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
 
     if (f % 4 === 0) arcPoints.push([x, y]);
 
+    // Walls (pl.isWall) block from every side, not just from below.
+    for (let i = 0; i < pls.length; i++) {
+      const pl = pls[i];
+      if (!pl.isWall || pl.isFloorDisabled) continue;
+      if (x > pl.x - 6 && x < pl.x + pl.w + 6 && y > pl.y && y - 80 < pl.y + pl.h) {
+        return { landed: false, blocked: true, frame: f, arcPoints };
+      }
+    }
+
     // Landing: feet cross platform top while falling
     if (vy > 0) {
       for (let i = 0; i < pls.length; i++) {
         const pl = pls[i];
         if (pl.isFloorDisabled) continue;
         if (i === skipPlatIdx && f < 8) continue; // skip launch platform briefly
+        if (pl.ramp) {
+          // A slope stops the arc where it meets the surface (no node on it, so no edge lands here).
+          if (x < pl.x || x > pl.x + pl.w) continue;
+          const sy = pl.yL + (pl.yR - pl.yL) * ((x - pl.x) / pl.w);
+          if (prevY <= sy + 2 && y >= sy) return { landed: true, x, y: sy, platIdx: i, frame: f, doubleUsed: firedDouble, arcPoints };
+          continue;
+        }
         // Must enter from above (prevY was above the surface)
         if (x > pl.x + 2 && x < pl.x + pl.w - 2 &&
             prevY <= pl.y + 2 && y >= pl.y) {
@@ -83,6 +99,7 @@ function pfSimulateArc(feetX, feetY, vx, initVY, arena, useDouble, skipPlatIdx, 
         const pl = pls[i];
         if (pl.isFloorDisabled) continue;
         if (i === skipPlatIdx) continue;
+        if (pl.passUnder || pl.ramp) continue;   // one-way decks and slopes let a rising fighter through (Fighter.checkPlatform)
         const ph = pl.h || 20;
         if (x > pl.x && x < pl.x + pl.w &&
             y > pl.y && y < pl.y + ph) {
@@ -252,6 +269,7 @@ function pfDropSafe(bot, dir) {
 // Platform safety helpers
 function _pfPlatSafe(pl, arena) {
   if (!pl || pl.isFloorDisabled) return false;
+  if (pl.ramp) return false;   // slopes (BR volcano) aren't graph nodes; brStructureWaypoint routes them
   if (arena.hasLava && arena.lavaY && pl.y + (pl.h || 20) >= arena.lavaY) return false;
   return true;
 }
@@ -532,6 +550,11 @@ function pfAStar(graph, startId, goalId) {
 // Main waypoint query
 
 function pfGetNextWaypoint(bot, targetX, targetY) {
+  // Battle Royale buildings route their own doorways and stairwells (smb-br-structures.js).
+  if (typeof brStructureWaypoint === 'function') {
+    const sw = brStructureWaypoint(bot, targetX, targetY);
+    if (sw) return sw;
+  }
   const graph = currentPlatformGraph;
   if (!graph || !graph.nodes.length) return null;
 

@@ -101,8 +101,8 @@ const BR_LANDMARKS = [
 
   { x: 1100, w: 1100, name: 'The City', themeKey: 'city', layer: 'surface',
     danger: 1, density: 1.0, rarity: 0.2, plat: '#6a7382', edge: '#454d59',
-    // Six ledges, not sixteen. Reads as three buildings with roofs worth contesting.
-    plats: [[80,770,220],[380,640,200],[700,770,240],[180,500,150],[520,500,180],[860,620,160]] },
+    // Two ledge stacks read as buildings with roofs worth contesting. The third building is the office (smb-br-structures.js).
+    plats: [[80,770,220],[380,640,200],[180,500,150],[520,500,180]] },
 
   { x: 2200, w: 1200, name: 'The Plains', themeKey: 'grass', layer: 'surface',
     danger: 0, density: 0.6, rarity: 0.0, plat: '#5aae4e', edge: '#3a7030',
@@ -116,11 +116,12 @@ const BR_LANDMARKS = [
     plats: [[120,780,190],[430,660,170],[700,780,170]] },
 
   { x: 4300, w: 1300, name: 'The Volcano', themeKey: 'volcano', layer: 'surface',
-    danger: 4, density: 1.6, rarity: 0.7, plat: '#4a2a22', edge: '#7a3a22',
-    plats: [[100,770,180],[400,640,200],[760,770,190],[560,500,150]],
-    // The vent runs all the way down into the Depths.
-    holes: [[1000,1160]],
-    lava: [[180,230],[520,260],[860,200]] },
+    danger: 4, density: 1.6, rarity: 0.7, plat: '#4a2a22', edge: '#7a3a22', signY: 430,
+    // The mountain itself (slopes, rim, crater pit, its ledges) is built by smb-br-structures.js.
+    // The vent opens in the pit floor and runs all the way down into the Depths.
+    plats: [],
+    holes: [[610,690]],
+    splits: [500, 800] },
 
   { x: 5600, w: 900, name: 'East Plains', themeKey: 'grass', layer: 'surface',
     danger: 0, density: 0.6, rarity: 0.0, plat: '#5aae4e', edge: '#3a7030',
@@ -128,13 +129,16 @@ const BR_LANDMARKS = [
 
   { x: 6500, w: 1200, name: 'The Ruins', themeKey: 'ruins', layer: 'surface',
     danger: 2, density: 1.3, rarity: 0.4, plat: '#8a7a5a', edge: '#5e523a',
-    plats: [[100,700,120],[330,780,110],[560,620,130],[800,730,120],[1000,560,140]],
+    // The temple (portico, toppling pillars, the sealed vault) is built by smb-br-structures.js at rel 540-900.
+    plats: [[100,700,120],[330,780,110],[1000,560,140]],
     wildlife: [[600, 'beast']] },
 
   { x: 7700, w: 1000, name: 'Frostline', themeKey: 'ice', layer: 'surface',
     danger: 2, density: 1.1, rarity: 0.3, plat: '#9fd8ea', edge: '#6aa8c4',
-    plats: [[80,780,260],[420,650,240],[760,780,200],[480,510,180]],
-    wildlife: [[500, 'yeti']] },
+    // The gorge (rel 300-760) has no floor: the rope bridge over it is built by smb-br-structures.js.
+    plats: [[40,780,200],[110,650,150],[810,780,170]],
+    holes: [[300,760]],
+    wildlife: [[150, 'yeti']] },
 
   { x: 8700, w: 1200, name: 'Neon Sector', themeKey: 'cyberpunk', layer: 'surface',
     danger: 2, density: 1.3, rarity: 0.4, plat: '#4a3a6a', edge: '#7a5ac0',
@@ -164,10 +168,12 @@ const BR_LANDMARKS = [
   { x: 4300, w: 1300, name: 'Volcano Depths', themeKey: 'volcano', layer: 'under',
     danger: 5, density: 2.3, rarity: 0.95, plat: '#4a2a22', edge: '#7a3a22',
     // Best loot, over the most lava, furthest from any exit.
-    plats: [[150,1370,160],[520,1260,170],[880,1370,160],
-            // Climb out under the vent (rel 1000-1160 of the surface band).
-            [1000,1380,150],[1040,1240,150],[1000,1100,150],[1030,1000,150]],
-    lava: [[330,170],[700,180],[1150,150]] },
+    plats: [[150,1370,160],[880,1370,160],[1060,1260,150],
+            // The climb up into the volcano's pit, under the vent (rel 610-690 of the surface band). One-way steps.
+            // The top one stands 92px under the crust, so a fighter on it can walk off its ends without
+            // catching their head on the crust's underside (it ends at 974).
+            [560,1380,150,'pass'],[640,1255,150,'pass'],[560,1155,150,'pass'],[610,1066,80,'pass']],
+    lava: [[330,170],[1150,150]] },
 
   // Sky
   // Reachable only through a rift. Stepping off lands on the surface, so the sky is one-way.
@@ -395,6 +401,14 @@ function _makeBRArena() {
     var segs = [], cur = L.x;
     cuts.forEach(function (c) { if (c[0] > cur) segs.push([cur, c[0]]); cur = Math.max(cur, c[1]); });
     if (cur < L.x + L.w) segs.push([cur, L.x + L.w]);
+    // splits: [relX] seams with no gap, so the path graph sees separate floors (the volcano's pit floor is
+    // walled off from the crust under its slopes; one slab would read as a walk straight through the rock).
+    (L.splits || []).forEach(function (rx) {
+      var sx = L.x + rx;
+      for (var k = 0; k < segs.length; k++) {
+        if (sx > segs[k][0] + 4 && sx < segs[k][1] - 4) { segs.splice(k, 1, [segs[k][0], sx], [sx, segs[k][1]]); break; }
+      }
+    });
     segs.forEach(function (seg) {
       var x0 = seg[0], x1 = seg[1];
       if (x1 - x0 < 4) return;
@@ -416,7 +430,8 @@ function _makeBRArena() {
   // Authored interiors
   BR_LANDMARKS.forEach(function (L) {
     (L.plats || []).forEach(function (pl) {
-      push({ x: L.x + pl[0], y: pl[1], w: pl[2], h: 16,
+      // A 4th entry 'pass' makes a one-way step (jump up through it), for climbs stacked over each other.
+      push({ x: L.x + pl[0], y: pl[1], w: pl[2], h: 16, passUnder: pl[3] === 'pass',
              color: L.plat, edge: L.edge, _brBand: L.name });
     });
     (L.lava || []).forEach(function (lv) {
@@ -431,6 +446,9 @@ function _makeBRArena() {
     brRifts.push({ x: pr.a.x, y: pr.a.y, pair: i, side: 'a', color: pr.color, label: pr.label });
     brRifts.push({ x: pr.b.x, y: pr.b.y, pair: i, side: 'b', color: pr.color, label: pr.label });
   });
+
+  // Structures add their own floors (the office), so reach validation covers them.
+  if (typeof brStructurePlatforms === 'function') brStructurePlatforms(push);
 
   var arena = {
     id: 'battleroyale',
@@ -463,7 +481,8 @@ const BR_STRIDE   = 210;   // horizontal gap still bridgeable from a standing ju
 function _brValidateReach(platforms) {
   var bad = [];
   platforms.forEach(function (pl) {
-    if (pl.isFloor) return;
+    if (pl.isFloor || pl.isWall || pl.ramp) return;   // walls and slopes (BR structures) are not chest surfaces
+    if (pl._brRampFed) return;   // reached by walking up a slope (the volcano's rim)
     // The floor under this platform's layer is always a valid support.
     var layerFloor = pl.y > BR_GROUND_Y ? BR_CAVE_FLOOR_Y
                    : pl.y < BR_SKY_FLOOR_Y + 1 ? null    // sky: rift-only by design
@@ -539,6 +558,7 @@ function initBattleRoyale() {
   _brHideRestartBtn();
 
   currentArena = _makeBRArena();
+  if (typeof brResetStructures === 'function') brResetStructures();
   // Clear the arena key. Otherwise drawBackground paints that arena's backdrop across the 12000px world, over the landmark bands.
   currentArenaKey = 'battleroyale';
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
@@ -620,8 +640,8 @@ function _brSpawnLoot() {
   var plats = currentArena.platforms;
   if (!plats || !plats.length) return;
 
-  function _makeItem(band) {
-    var rarity = _brRollRarity(band ? band.rarity : 0);
+  function _makeItem(band, bias) {
+    var rarity = _brRollRarity(bias !== undefined ? bias : (band ? band.rarity : 0));
     var total = 0;
     for (var i = 0; i < BR_LOOT_POOL.length; i++) total += BR_LOOT_POOL[i].weight;
     var r = Math.random() * total, tpl = BR_LOOT_POOL[0];
@@ -653,12 +673,24 @@ function _brSpawnLoot() {
     var spots = [];
     plats.forEach(function (pl) {
       if (pl._brBand !== L.name) return;
+      if (pl.isFloor && typeof brStructureSpotOK === 'function') {
+        // Crust inside a structure's rock (under the volcano's slopes) is out of reach.
+        var _from = pl.x + 90, _to = pl.x + pl.w - 90;
+        for (var _fx = _from; _fx < _to; _fx += 600) {
+          var _sx = _fx + Math.random() * 380;
+          if (brStructureSpotOK(_sx, pl.y)) spots.push({ x: _sx, y: pl.y });
+        }
+        return;
+      }
       if (pl.isFloor) {
         // One chest per 600px of floor, so a band-long slab can't soak the whole budget.
         var from = pl.x + 90, to = pl.x + pl.w - 90;
         for (var fx = from; fx < to; fx += 600) spots.push({ x: fx + Math.random() * 380, y: pl.y });
       } else {
-        spots.push({ x: pl.x + 16 + Math.random() * Math.max(1, pl.w - 32), y: pl.y });
+        // _brLootW: a structure's loot shelf counts several times (the volcano's pit, the temple vault).
+        for (var _lw = 0; _lw < (pl._brLootW || 1); _lw++) {
+          spots.push({ x: pl.x + 16 + Math.random() * Math.max(1, pl.w - 32), y: pl.y, bias: pl._brLootRarity, vault: pl._brVault });
+        }
       }
     });
     if (!spots.length) return;
@@ -667,7 +699,8 @@ function _brSpawnLoot() {
       brLootBoxes.push({
         x: sp.x, y: sp.y - 20,
         band: L.name,
-        item: _makeItem(L),
+        item: _makeItem(L, sp.bias),
+        _vault: !!sp.vault,
         opened: false,
         anim: 0,
         health: 30,
@@ -936,6 +969,7 @@ function _brUpdateHazards() {
       if (f.vy > -6) f.vy = -12;
       f._lavaJumpGrace = 12;
       f._brLavaTick = (f._brLavaTick || 0) + 1;
+      f._brLavaAt = typeof frameCount !== 'undefined' ? frameCount : 0;   // the volcano counts lava deaths
       if (f._brLavaTick % 18 === 1 && typeof dealDamage === 'function') {
         dealDamage(null, f, 7, 0);
         if (typeof spawnParticles === 'function') spawnParticles(fx, hz.y, '#ff7722', 6);
@@ -1116,6 +1150,7 @@ function _brUpdateGroundItems() {
     if (plats) {
       for (var pi = 0; pi < plats.length; pi++) {
         var pl = plats[pi];
+        if (pl.isFloorDisabled) continue;   // a snapped bridge, a raised door
         if (gi_item.y >= pl.y - 2 && gi_item.y <= pl.y + 14 &&
             gi_item.x >= pl.x && gi_item.x <= pl.x + pl.w && gi_item.vy > 0) {
           gi_item.y  = pl.y - 2;
@@ -1645,6 +1680,8 @@ function _brNavStep(bot) {
     }
   }
 
+  // A structure route can ask for a running jump (the volcano's crater is wider than a slow bot's walking jump).
+  if (wp && wp.spd) spd = Math.max(spd, wp.spd);
   var dx  = wpX - bot.cx();
   var dir = dx > 0 ? 1 : -1;
   if (Math.abs(dx) > 14) {
@@ -1656,10 +1693,13 @@ function _brNavStep(bot) {
 
   if (bot.onGround) {
     // Graph says jump, the waypoint is above us, or we're pressed against something that isn't moving. Same instruction.
-    var blocked = Math.abs(bot.x - (bot._brNavLastX !== undefined ? bot._brNavLastX : bot.x)) < 1.2
+    // Office waypoints (wp.brs) skip the unstick hop: inside, it clears the walls; beside it, it lands on the fire escape.
+    var blocked = !(wp && wp.brs)
+                  && Math.abs(bot.x - (bot._brNavLastX !== undefined ? bot._brNavLastX : bot.x)) < 1.2
                   && Math.abs(dx) > 30;
     if (wantJump || wpY < bot.y - 40 || blocked) bot.vy = -((wantJump && wp.vy) || 20);
-  } else if (bot.canDoubleJump && bot.vy > 0 && (wantJump || wpY < bot.y - 30)) {
+  } else if (bot.canDoubleJump && bot.vy > 0 && !(wp && wp.brs) && (wantJump || wpY < bot.y - 30)) {
+    // Office climbs (wp.brs) are aimed single jumps; a double jump carries the bot over the roof.
     bot.vy = -17; bot.canDoubleJump = false;
   }
   bot._brNavLastX = bot.x;
@@ -1688,6 +1728,7 @@ function _brCreditElimination(attacker, target) {
   }
   target._brKillCounted = true;
   _brDropLoadout(target);
+  if (typeof brStructuresNoteDeath === 'function') brStructuresNoteDeath(target);   // lava deaths heat the volcano
   // Only the victim sees a finisher, so the killer takes its heal on the kill. A finisher kill paid it when it started.
   if (attacker && attacker !== target && !attacker._brWildlife && !target._brFinKill &&
       typeof _finPayHeal === 'function') {
@@ -1866,6 +1907,8 @@ function _brIsAudibleHit(attacker, target) {
 // Physics is frozen by the cull. Timers tick here, so a dormant bot is still mortal.
 // Ground height under a world X for the cheap fall integrator. Two levels: the surface crust and the cavern floor.
 function _brGroundYAt(x) {
+  // The volcano's slopes stand above the crust (smb-br-structures.js).
+  if (typeof brStructureGroundY === 'function') { var _sy = brStructureGroundY(x); if (_sy !== null) return _sy; }
     // Sinkholes and the vent land on the cavern floor. Everything else lands on the surface crust.
   for (var i = 0; i < BR_LANDMARKS.length; i++) {
     var L = BR_LANDMARKS[i];
@@ -1914,7 +1957,7 @@ function _brDormantTick(bot) {
       var _bd = Infinity, _bx3 = null;
       for (var _li = 0; _li < brLootBoxes.length; _li++) {
         var _box = brLootBoxes[_li];
-        if (_box.opened || _box.health <= 0) continue;
+        if (_box.opened || _box.health <= 0 || _box._vault) continue;   // the temple vault is sealed: no off-screen looting
         if (_box.x < _w.left + 60 || _box.x > _w.right - 60) continue;
         var _d3 = Math.abs(_box.x - bot.cx());
         if (_d3 < _bd && _d3 < 2200) { _bd = _d3; _bx3 = _box; }
@@ -2169,6 +2212,7 @@ function updateBattleRoyale() {
   _brCheckBoxBreaking();
   _brUpdateGroundItems();
   if (typeof brUpdateForms === 'function') brUpdateForms();
+  if (typeof brUpdateStructures === 'function') brUpdateStructures();
   _brUpdateBots();
   _brUpdateSpectate();
   _brTrackPlayerFeats();
@@ -2183,7 +2227,8 @@ function _brDrawLandmarkSigns() {
     if (L.danger === 0) return;                    // plains/dunes are connective tissue
     // Each sign lives in its own layer, or a sky name lands on top of the surface band directly beneath it.
     var cx = L.x + L.w / 2;
-    var y  = L.layer === 'sky'   ? 120
+    var y  = L.signY ? L.signY
+           : L.layer === 'sky'   ? 120
            : L.layer === 'under' ? BR_GROUND_Y + BR_CRUST_H + 120
                                  : BR_SKY_FLOOR_Y + 260;
     ctx.font = 'bold 30px Arial';
@@ -2466,6 +2511,7 @@ function drawBattleRoyaleHUD() {
   }
 
   if (!brSpectating && typeof brDrawFormHUD === 'function') brDrawFormHUD();
+  if (typeof drawBRStructuresHUD === 'function') drawBRStructuresHUD();
 
   _drawBRMinimap();
 

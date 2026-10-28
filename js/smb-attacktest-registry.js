@@ -388,7 +388,7 @@ const ATK_REGISTRY = {
         if (!target) return;
         const dx = target.cx()-ctx.cx(), dy = (target.cy())-(ctx.cy());
         const spd = 14, mag = Math.hypot(dx,dy)||1;
-        const _iceBoulder = new Projectile(ctx.cx(), ctx.cy(), (dx/mag)*spd, (dy/mag)*spd-4, null, Math.round(22*_atkDamageScale), '#aaddff');
+        const _iceBoulder = new Projectile(ctx.cx(), ctx.cy(), (dx/mag)*spd, (dy/mag)*spd-4, _atkCurrentFirer, Math.round(22*_atkDamageScale), '#aaddff');
         _iceBoulder.radius = 10; _iceBoulder.life = 120;
         projectiles.push(_iceBoulder);
         spawnParticles(ctx.cx(), ctx.cy(), '#aaddff', 12);
@@ -401,7 +401,7 @@ const ATK_REGISTRY = {
         for (let i=0;i<8;i++) {
           const ang = (Math.PI*0.9)+(i/7)*(Math.PI*1.0);
           const spd = 4+Math.random()*4;
-          const _blizzP = new Projectile(ctx.cx(), ctx.y+30+i*20, Math.cos(ang)*spd, Math.sin(ang)*spd+1, null, Math.round(8*_atkDamageScale), '#88ccff');
+          const _blizzP = new Projectile(ctx.cx(), ctx.y+30+i*20, Math.cos(ang)*spd, Math.sin(ang)*spd+1, _atkCurrentFirer, Math.round(8*_atkDamageScale), '#88ccff');
           _blizzP.radius = 8; _blizzP.life = 180;
           projectiles.push(_blizzP);
         }

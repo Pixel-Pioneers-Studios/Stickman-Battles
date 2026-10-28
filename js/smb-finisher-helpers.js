@@ -58,7 +58,7 @@ function _finFlash(ctx, alpha, r, g, b) {
   if (typeof settings !== 'undefined' && settings && settings.phaseFlash === false) return;
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
-  ctx.fillStyle = `rgba(${r||255},${g||255},${b||255},${Math.min(1,alpha)})`;
+  ctx.fillStyle = `rgba(${r ?? 255},${g ?? 255},${b ?? 255},${Math.min(1,alpha)})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.restore();
 }
@@ -228,14 +228,14 @@ function _drawFaceCloseup(ctx, fighter, sx, sy, scale, exprOverride) {
 // Per-character dialogue pools
 const _FIN_DIALOGUE = {
   trueform: [
-    'I will uncode you.',
+    'I will unmake you.',
     'You are an error.',
     'Removed.',
     'You never existed.',
-    'End of instance.',
+    'Not even a trace.',
   ],
   creator: [
-    'I wrote you. I can delete you.',
+    'I made this world. I can unmake you.',
     'Back to nothing.',
     'I designed your defeat.',
     'You had no say in this.',

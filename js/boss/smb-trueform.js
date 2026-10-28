@@ -141,10 +141,19 @@ class TrueForm extends Fighter {
     this._antiRangedFieldR = 220;
   }
 
+  // Neutron Star's slam drops through raised platforms to the floor its SLAM circle marks.
+  checkPlatform(pl) {
+    if (!pl.isFloor && typeof tfNeutronStar !== 'undefined' && tfNeutronStar &&
+        tfNeutronStar.phase === 'slam' && tfNeutronStar.bossRef === this) return;
+    super.checkPlatform(pl);
+  }
+
   getPhase() {
-    if (this.health > 3500) return 1;  // >70% HP
-    if (this.health > 1500) return 2;  // 30–70% HP
-    return 3;                           // <30% HP
+    // Fractions of maxHealth: story scales maxHealth with the player's boosts.
+    const pct = this.health / this.maxHealth;
+    if (pct > 0.35) return 1;
+    if (pct > 0.15) return 2;
+    return 3;
   }
 
   _startAttackState(name, startFrames = 0, locked = false) {
@@ -252,6 +261,7 @@ class TrueForm extends Fighter {
 
   updateAI() {
     if (activeCinematic || gameFrozen) return; // freeze during cinematics / freeze frames
+    if (tfEndingScene && !tfEndingScene.isIntro) return; // dead: the ending owns the screen
     if (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive) return; // scripted opening: TF does not act
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;
@@ -323,10 +333,6 @@ class TrueForm extends Fighter {
       return;
     }
     const _tfHpPct = this.health / this.maxHealth;
-    if (!this._cinematicFired.has('qte75') && _tfHpPct <= 0.75) {
-      this._cinematicFired.add('qte75');
-      if (typeof triggerQTEPhase === 'function') triggerQTEPhase(1);
-    }
     if (!this._cinematicFired.has('50') && _tfHpPct <= 0.50) {
       this._cinematicFired.add('50');
       this.postSpecialPause = Math.max(this.postSpecialPause, 14);
@@ -342,33 +348,14 @@ class TrueForm extends Fighter {
       startCinematic(_cin50);
       return;
     }
-    // 1000 HP: Paradox returns: joint fight, TF kills Paradox, absorption, dimension punch
-    if (!this._cinematicFired.has('paradox1000') && this.health <= 1000 &&
+    // 10% HP: Paradox returns: joint fight, TF kills Paradox, absorption, dimension punch
+    if (!this._cinematicFired.has('paradox1000') && _tfHpPct <= 0.10 &&
         typeof startTFParadoxReturn1000 === 'function') {
       this._cinematicFired.add('paradox1000');
       this.postSpecialPause = Math.max(this.postSpecialPause, 20);
       startTFParadoxReturn1000(this);
       return;
     }
-    if (!this._cinematicFired.has('qte25') && _tfHpPct <= 0.25) {
-      this._cinematicFired.add('qte25');
-      if (typeof triggerQTEPhase === 'function') triggerQTEPhase(3);
-    }
-    if (!this._cinematicFired.has('15') && _tfHpPct <= 0.15) {
-      this._cinematicFired.add('15');
-      this.postSpecialPause = Math.max(this.postSpecialPause, 16);
-      // Defer QTE to cinematic end: same overlap hazard as the 50% threshold.
-      const _cin15 = _makeTFDesp15Cinematic(this);
-      const _onEnd15 = _cin15.onEnd;
-      _cin15.onEnd = function () {
-        if (_onEnd15) _onEnd15();
-        if (typeof triggerQTEPhase === 'function') triggerQTEPhase(4);
-      };
-      startCinematic(_cin15);
-      return;
-    }
-
-    // False Victory is triggered from _tfeResumeAfterIntro, not an HP threshold.
 
     this._comboTimer++;
     if (this._comboTimer > 90) {
@@ -378,7 +365,7 @@ class TrueForm extends Fighter {
 
     if (!this._desperationMode && this.health / this.maxHealth < 0.20) {
       this._desperationMode = true;
-      showBossDialogue(randChoice(['You wanted this.', 'Last warning. You passed it.', 'There is no ceiling above me.', 'Fine. All of it.']), 260);
+      showBossDialogue(randChoice(['You wanted this.', 'Last warning. You passed it.', 'There is no ceiling above me.', 'All of it. Now.']), 260);
       screenShake = Math.max(screenShake, 28);
       spawnParticles(this.cx(), this.cy(), '#ffffff', 30);
       spawnParticles(this.cx(), this.cy(), '#000000', 20);
@@ -549,7 +536,7 @@ class TrueForm extends Fighter {
         this._antiRangedDashCd = 78;
         const useTeleportCloser = d > 240 && !this._tfAttackState.locked && Math.random() < 0.35;
         if (useTeleportCloser) {
-          const closer = _bossTeleportActor(this, t.cx() - dir * 34, t.y, { preferRaised: true, sideBias: -dir });
+          const closer = _bossTeleportActor(this, t.cx() - dir * 34, t.y, { nearFeetY: t.y + t.h, aroundX: t.cx(), sideBias: -dir });
           if (closer) {
             screenShake = Math.max(screenShake, 10);
             spawnParticles(this.cx(), this.cy(), '#8844ff', 10);
@@ -1190,11 +1177,47 @@ class TrueForm extends Fighter {
     if (ragRot !== 0) { ctx.translate(cx, coreY); ctx.rotate(ragRot); ctx.translate(-cx, -coreY); }
 
     const segGlow = 11 + Math.sin(T * 2.8) * 4 + rage * 8;  // increases with rage
+    // Nebula mantle behind the body: shoulders to past the knees, trailing away from facing.
+    {
+      const mTop = seg.torsoTop + dTorso.y, mBot = seg.hipY + 20;
+      const sway = Math.sin(T * 0.9) * 4 + (this.state === 'walking' ? 5 : 0);
+      const back = -f * (16 + sway), tail = -f * (26 + sway * 1.4);
+      const mg = ctx.createLinearGradient(0, mTop, 0, mBot);
+      mg.addColorStop(0, `rgba(${Math.round(cRc * 0.8)},${Math.round(cG * 0.6)},${Math.max(0, cB)},0.85)`);
+      mg.addColorStop(0.6, `rgba(${Math.round(cRc * 0.45)},${Math.round(cG * 0.3)},${Math.round(Math.max(0, cB) * 0.6)},0.6)`);
+      mg.addColorStop(1, 'rgba(40,10,90,0.05)');
+      ctx.save();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = mg;
+      ctx.beginPath();
+      ctx.moveTo(cx - 9, mTop);
+      ctx.lineTo(cx + 9, mTop);
+      ctx.quadraticCurveTo(cx + back * 0.5 + f * 4, (mTop + mBot) / 2, cx + tail + f * 6, mBot);
+      ctx.lineTo(cx + tail - f * 4, mBot - 6);
+      ctx.lineTo(cx + tail - f * 12, mBot + 2);
+      ctx.quadraticCurveTo(cx + back * 0.4 - f * 10, (mTop + mBot) / 2, cx - 9, mTop);
+      ctx.closePath();
+      ctx.fill();
+      ctx.save(); ctx.clip();
+      if (this._cosmicStars) {
+        for (const st of this._cosmicStars) {
+          ctx.globalAlpha = blinkAlpha * (0.5 + 0.5 * Math.abs(Math.sin(T * st.tw + st.p)));
+          ctx.fillStyle = st.warm ? '#ffe2b8' : '#ffffff';
+          ctx.fillRect(cx + tail * 0.5 + st.x * 18, (mTop + mBot) / 2 + st.y * (mBot - mTop) * 0.5, st.r, st.r);
+        }
+      }
+      ctx.restore();
+      ctx.globalAlpha = blinkAlpha * 0.9;
+      ctx.strokeStyle = glowColor; ctx.lineWidth = 1.4;
+      ctx.shadowColor = glowColor; ctx.shadowBlur = 8;
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.shadowColor = glowColor;
     ctx.shadowBlur  = segGlow;
     ctx.strokeStyle = WHITE;
     ctx.fillStyle   = '#000000';
-    ctx.lineWidth   = 2.4;
+    ctx.lineWidth   = 3.2;
     ctx.lineCap     = 'round';
     ctx.lineJoin    = 'round';
 
@@ -1353,11 +1376,18 @@ class TrueForm extends Fighter {
     ctx.save();
     ctx.translate(seg.torsoX, seg.torsoTop + torsoH * 0.5 + dTorso.y);
     ctx.rotate(torsoTilt + ragRot);
+    // Tapered chest: broad shoulders narrowing to the waist.
+    const _sh = torsoW * 1.45, _wa = torsoW * 0.7, _hh = torsoH * 0.5;
     ctx.beginPath();
-    ctx.rect(-torsoW, -torsoH * 0.5, torsoW * 2, torsoH);
+    ctx.moveTo(-_sh, -_hh);
+    ctx.lineTo(_sh, -_hh);
+    ctx.quadraticCurveTo(_sh * 0.85, 0, _wa, _hh);
+    ctx.lineTo(-_wa, _hh);
+    ctx.quadraticCurveTo(-_sh * 0.85, 0, -_sh, -_hh);
+    ctx.closePath();
     ctx.save();
     ctx.clip();
-    _paintCosmos(torsoW, torsoH * 0.5, 0);
+    _paintCosmos(_sh, _hh, 0);
     ctx.restore();
     ctx.strokeStyle = WHITE;
     ctx.shadowColor = glowColor;

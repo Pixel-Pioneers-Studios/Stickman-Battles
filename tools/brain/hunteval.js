@@ -18,6 +18,7 @@
  *        [--sample]          the hunter samples its actions instead of playing its top choice (a clone of the user)
  *        [--turnaway=9]      the hunter turns away from its opponent only after asking for N frames running
  *        [--turndz=40]       ...and within N px of its opponent's x every turn counts as away
+ *        [--brainkit=rangedClass]  the challenger (mirror and hunter arms) always holds that kit (js/smb-brain.js resolveKit)
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
@@ -51,12 +52,12 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
     await new Promise(r => setTimeout(r, 2500));
     await page.evaluate(() => { try { backToHome(); } catch (e) {} });
     console.log(`Hunter iteration ${HUNTER.iter} vs target iteration ${TARGET.iter}${args.habit ? ' with habit ' + args.habit : ''}, ${EPS} matches per arm, seed ${SEED}, both top choice`);
-    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe, turnAway, turnDz, sample) => {
+    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe, turnAway, turnDz, sample, brainKit) => {
       const rnd = Math.random;
       const seeded = s => () => { s = (s + 0x6D2B79F5) >>> 0; let t = s;
         t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-      const spec = { type: 'self', label: 'target', greedy: true, brainKit: 'randomClass', kit: 'randomClass', habit: habit || undefined };
+      const spec = { type: 'self', label: 'target', greedy: true, brainKit: brainKit || 'randomClass', kit: 'randomClass', habit: habit || undefined };
       // Throwaway matches: the first rollout in a fresh page is not reproducible (lazy init).
       Math.random = seeded(seed);
       Brain.rollout({ weights: target, hunt: target, maxFrames: 7200, opponents: [spec], episodes: 2, greedy: true });
@@ -73,7 +74,7 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
       }
       Math.random = rnd;
       return out;
-    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0, parseInt(args.turnaway, 10) || 0, parseInt(args.turndz, 10) || 0, !!args.sample);
+    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0, parseInt(args.turnaway, 10) || 0, parseInt(args.turndz, 10) || 0, !!args.sample, args.brainkit || null);
     const M = res.mirror, H = res.hunter;
     const se = Math.sqrt(0.25 / EPS) * 100;
     if (args.json) {

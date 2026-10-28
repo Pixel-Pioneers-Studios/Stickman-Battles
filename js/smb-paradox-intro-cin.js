@@ -4,7 +4,7 @@
 
 // TF intro cinematic (_makeTFIntroCinematic). Fires at fight start, fully scripted.
 // Six scripted hits, the neck snap, Paradox thrown into the portal, then the fight
-// resumes with TF at 9000 HP (hard set at frame 300).
+// resumes with TF at 90% HP (hard set at frame 300).
 function _makeTFIntroCinematic(tf) {
   const PORTAL_X  = GAME_W - 140;
   const PORTAL_Y  = GAME_H - 100;
@@ -16,10 +16,10 @@ function _makeTFIntroCinematic(tf) {
   // Player hits TF   (5 hits, interleaved, frames ~54–150)
   const P1_HITS      = [0.9, 1.2,  1.6, 1.95, 2.3 ];
 
-  // Per-hit damage. Totals exceed 1000, so the frame-300 hard set decides final HP.
+  // Per-hit damage. The frame-300 hard set decides final HP.
   const PARADOX_HIT_DMG = [120, 130, 125, 140, 115, 135]; // sum = 765
   const P1_HIT_DMG      = [ 80,  90,  85,  95,  75];      // sum = 425
-  // Clamped to >= 9000 per hit, then forced to exactly 9000 at frame 300 (t=5.0 s).
+  // Clamped to >= 90% per hit, then forced to exactly 90% at frame 300 (t=5.0 s).
 
   return {
     durationFrames: 500,   // ~8.3 s at 60 fps
@@ -99,8 +99,8 @@ function _makeTFIntroCinematic(tf) {
         }
       }
 
-      // Stray damage (class effects, particles) must not push TF below 9000 before frame 300.
-      if (tf && !this._hp9kForced && tf.health < 9000) tf.health = 9000;
+      // Stray damage (class effects, particles) must not push TF below 90% before frame 300.
+      if (tf && !this._hp9kForced && tf.health < tf.maxHealth * 0.9) tf.health = Math.round(tf.maxHealth * 0.9);
 
       // Step 0: position entities
       if (!this._setupDone && t >= 0.05) {
@@ -166,7 +166,7 @@ function _makeTFIntroCinematic(tf) {
         const idx = this._paradoxHitIdx++;
         if (paradoxEntity) paradoxEntity.punch(1);
         const drop = PARADOX_HIT_DMG[idx];
-        if (tf) tf.health = Math.max(9000, tf.health - drop);
+        if (tf) tf.health = Math.max(Math.round(tf.maxHealth * 0.9), tf.health - drop);
         const px = tf ? tf.cx() : GAME_W / 2;
         const py = tf ? tf.cy() : GAME_H / 2;
         spawnParticles(px, py, '#00ffff', 7);
@@ -204,7 +204,7 @@ function _makeTFIntroCinematic(tf) {
           this._heroAtkTimer = 22;
         }
 
-        if (tf) tf.health = Math.max(9000, tf.health - drop);
+        if (tf) tf.health = Math.max(Math.round(tf.maxHealth * 0.9), tf.health - drop);
         const px = tf ? tf.cx() : GAME_W / 2;
         const py = tf ? tf.cy() : GAME_H / 2;
 
@@ -230,12 +230,11 @@ function _makeTFIntroCinematic(tf) {
         if (hero) { hero.x -= 12; hero.vx = 0; hero.vy = 0; }
       }
 
-      // Step 4: hard HP set at frame 300 (t=5.0 s). TF is exactly 9000 when execution starts.
+      // Step 4: hard HP set at frame 300 (t=5.0 s). TF is exactly 90% when execution starts.
       if (!this._hp9kForced && t >= 5.0) {
         this._hp9kForced = true;
         if (tf) {
-          tf.health           = 9000; // hard set: no Math.max, no Math.min
-          tf.maxHealth        = Math.max(tf.maxHealth, 9000);
+          tf.health           = Math.round(tf.maxHealth * 0.9); // hard set: no Math.max, no Math.min
           tf.postSpecialPause = 0;   // will be re-applied in onEnd guard
         }
       }
@@ -414,10 +413,9 @@ function _makeTFIntroCinematic(tf) {
       cinematicCamOverride = false;
       paradoxEntity        = null;
 
-      // Net in case the cinematic was cut short: TF back to 9000.
+      // Net in case the cinematic was cut short: TF back to 90%.
       if (tf) {
-        tf.health           = 9000;
-        tf.maxHealth        = Math.max(tf.maxHealth, 9000);
+        tf.health           = Math.round(tf.maxHealth * 0.9);
         // Grace window before TF's first special.
         tf.postSpecialPause = 4; // ~60 frames before first special
       }

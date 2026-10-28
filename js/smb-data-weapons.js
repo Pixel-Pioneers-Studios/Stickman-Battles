@@ -647,6 +647,19 @@ const WEAPONS = {
     }
   },
 
+  cataclysm: {
+    // Secret: the most overpowered weapon in the game (smb-cataclysm.js). enemyOnly keeps it out of menus and loot;
+    // equip it with the console: setweapon cataclysm me. Every swing casts a random Conviction.
+    // An admin weapon: no real cooldowns. The swing and Q keep only a short spam guard (Convictions stack, up to 3).
+    enemyOnly: true,
+    name: 'Cataclysm', damage: 22, range: 96, cooldown: 14, endlag: 6,
+    kb: 14, abilityCooldown: 20, type: 'melee', weaponType: 'heavy', color: '#b48cff',
+    abilityName: 'Meteor Swarm',
+    customAttack(user, target) { if (typeof cxCastConviction === 'function') cxCastConviction(user, target); return true; },
+    ability(user, target) { if (typeof cxMeteorSwarm === 'function') cxMeteorSwarm(user, target); },
+    superMove(user, target) { if (typeof cxSummonAxiom === 'function') cxSummonAxiom(user, target); },
+  },
+
   lantern: {
     // Lantern (Trial of Sense): its ability deals no damage and fires a reveal sweep instead (smb-trials.js).
     name: 'Lantern', damage: 0, range: 78, cooldown: 34, endlag: 10,

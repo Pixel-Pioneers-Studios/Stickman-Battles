@@ -143,20 +143,38 @@ function drawBossSpikes() {
     if (sp.done || sp.h <= 0) continue;
     const baseY = 460;
     const tipY  = baseY - sp.h;
+    // A crystal of unmade ground: one main shard and two spurs, as wide as the 40px hit check in the loop.
+    const lean = ((sp.x * 7.31) % 1 - 0.5) * 6;
     ctx.save();
-    ctx.shadowColor = '#cc00ff';
-    ctx.shadowBlur  = 12;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(190,110,255,0.35)';
+    ctx.beginPath(); ctx.ellipse(sp.x, baseY + 1, 26, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    const g = ctx.createLinearGradient(0, baseY, 0, tipY);
+    g.addColorStop(0, '#2a0c4a'); g.addColorStop(0.6, '#7a3ac8'); g.addColorStop(1, '#f0e0ff');
+    ctx.fillStyle = g;
+    ctx.strokeStyle = 'rgba(235,215,255,0.9)';
+    ctx.lineWidth = 1.2;
+    ctx.shadowColor = '#b060ff';
+    ctx.shadowBlur  = 14;
+    const shard = (bx, hw, h, tx) => {
+      ctx.beginPath();
+      ctx.moveTo(bx - hw, baseY);
+      ctx.lineTo(bx + tx - hw * 0.15, baseY - h * 0.82);
+      ctx.lineTo(bx + tx, baseY - h);
+      ctx.lineTo(bx + hw, baseY);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+    };
+    shard(sp.x - 11, 7, sp.h * 0.5, -8);
+    shard(sp.x + 12, 6, sp.h * 0.38, 7);
+    shard(sp.x, 12, sp.h, lean);
+    // Lit facet down the main shard
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,245,255,0.35)';
     ctx.beginPath();
-    ctx.moveTo(sp.x - 3,   baseY);
-    ctx.lineTo(sp.x + 3,   baseY);
-    ctx.lineTo(sp.x + 0.5, tipY);
-    ctx.lineTo(sp.x - 0.5, tipY);
-    ctx.closePath();
-    ctx.fillStyle = '#aaaacc';
-    ctx.fill();
-    ctx.strokeStyle = '#cc00ff';
-    ctx.lineWidth   = 1.5;
-    ctx.stroke();
+    ctx.moveTo(sp.x + lean, tipY); ctx.lineTo(sp.x + 2, baseY); ctx.lineTo(sp.x - 5, baseY);
+    ctx.closePath(); ctx.fill();
     ctx.restore();
   }
 }

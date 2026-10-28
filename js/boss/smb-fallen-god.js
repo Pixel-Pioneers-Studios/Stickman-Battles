@@ -346,18 +346,73 @@ class FallenGod extends Boss {
     this._fgWaves = this._fgWaves.filter(wv => wv.life > 0);
   }
 
-  // Golden rim on top of the base Boss draw. Called as p.draw(), so no ctx parameter (it would shadow the canvas global).
+  // His look, behind the body: a halo knocked askew and split where Axiom broke it, a short
+  // stole, and three stones from his walls turning around him.
+  _drawSignature(cx, headCY, shoulderY, hipY, f, headR) {
+    const t = frameCount;
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const sway = Math.sin(t * 0.07 + this.x * 0.02) * 2;
+    ctx.fillStyle = 'rgba(90,58,8,0.8)';
+    ctx.strokeStyle = 'rgba(255,220,130,0.7)';
+    ctx.lineWidth = 1.1;
+    for (const k of [0, 1]) {
+      const x0 = cx - f * (3 + k * 3), x1 = cx - f * (12 + k * 7) + sway;
+      ctx.beginPath();
+      ctx.moveTo(x0 - 2, shoulderY - 1);
+      ctx.lineTo(x0 + 2, shoulderY - 1);
+      ctx.lineTo(x1 + 3, hipY + 12 - k * 6);
+      ctx.lineTo(x1, hipY + 17 - k * 6);
+      ctx.lineTo(x1 - 3, hipY + 12 - k * 6);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    const hx = cx - f * 3, hy = headCY - headR * 0.9, R = headR * 1.7;
+    ctx.translate(hx, hy);
+    ctx.rotate(-f * 0.35);
+    ctx.scale(1, 0.38);
+    ctx.strokeStyle = 'rgba(255,214,110,0.85)';
+    ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 10;
+    ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0.25, Math.PI - 0.1); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -2, R, Math.PI + 0.15, Math.PI * 2 - 0.3); ctx.stroke();
+    ctx.restore();
+    this._fgStones(false);
+  }
+
+  // The stones behind him draw with the signature, the ones in front after the body.
+  _fgStones(front) {
+    ctx.save();
+    ctx.fillStyle = '#3a2808';
+    ctx.strokeStyle = 'rgba(255,214,110,0.75)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const a = frameCount * 0.025 + i * Math.PI * 2 / 3;
+      if ((Math.sin(a) > 0) !== front) continue;
+      ctx.save(); ctx.translate(this.cx() + Math.cos(a) * 26, this.cy() + Math.sin(a) * 9); ctx.rotate(a * 0.5);
+      ctx.fillRect(-4, -3, 8, 6); ctx.strokeRect(-4, -3, 8, 6);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // Golden glow on top of the base Boss draw. Called as p.draw(), so no ctx parameter (it would shadow the canvas global).
   draw() {
     this._fgDrawHazards();
     super.draw();
+    if (this.health > 0) this._fgStones(true);
     if (!this._fallenGodTint) return;
     ctx.save();
     const stance = this._fgMove && this._fgMove.type === 'stance';
     ctx.globalAlpha = stance ? 0.35 + 0.15 * Math.sin(frameCount * 0.3) : 0.18 + 0.08 * Math.sin(Date.now() / 400);
-    ctx.fillStyle   = '#ffcc44';
-    ctx.shadowColor = '#ffaa00';
-    ctx.shadowBlur  = stance ? 36 : 24;
-    ctx.fillRect(this.x - 4, this.y - 4, this.w + 8, this.h + 8);
+    ctx.globalCompositeOperation = 'lighter';
+    const gx = this.cx(), gy = this.cy(), gr = this.h * 0.75;
+    const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+    glow.addColorStop(0, 'rgba(255,204,68,0.9)'); glow.addColorStop(0.45, 'rgba(255,170,0,0.35)'); glow.addColorStop(1, 'rgba(255,170,0,0)');
+    ctx.fillStyle = glow;
+    ctx.save(); ctx.translate(gx, gy); ctx.scale(0.55, 1); ctx.translate(-gx, -gy);
+    ctx.beginPath(); ctx.arc(gx, gy, gr, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
     if (stance) {
       ctx.globalAlpha = 0.7;
       ctx.strokeStyle = FG_LIGHT;

@@ -6,7 +6,7 @@
 // Ends with tfCinematicState = 'none' so the fight resumes.
 function _makeTFKicksParadoxOutCinematic(tf) {
   return {
-    durationFrames:   300,  // 5 seconds
+    durationFrames:   186,  // 3.1 s: Paradox is gone by ~2.2 s
     _teleportFired:   false,
     _windupFired:     false,
     _launchFired:     false,
@@ -14,10 +14,10 @@ function _makeTFKicksParadoxOutCinematic(tf) {
 
     update(t) {
       if      (t < 0.2) slowMotion = Math.max(0.05, 1 - t * 4.75);
-      else if (t > 3.8) slowMotion = Math.min(1.0,  (t - 3.8) / 1.0);
+      else if (t > 2.3) slowMotion = Math.min(1.0,  (t - 2.3) / 0.8);
       else              slowMotion = 0.05;
 
-      cinematicCamOverride = t < 4.8;
+      cinematicCamOverride = t < 3.0;
       if (cinematicCamOverride) {
         cinematicZoomTarget = 1.6;
         const px = paradoxEntity ? paradoxEntity.cx() : GAME_W / 2;
@@ -94,286 +94,321 @@ function _makeTFKicksParadoxOutCinematic(tf) {
   };
 }
 
-// Paradox return at 1000 HP (startTFParadoxReturn1000).
-// Flow: Paradox returns, joint fight, gamma rays, multiversal strikes, execute,
-// absorption, dimension punch, Code Realm.
-// Moves TF and hero to a fixed, always-visible stage position.
-function _snapToCinematicStage(tf, hero) {
-  const stageY = GAME_H - 120;
-  if (tf)   { tf.x   = GAME_W * 0.65 - tf.w / 2;   tf.y   = stageY - tf.h;   tf.vx = 0; tf.vy = 0; }
-  if (hero) { hero.x = GAME_W * 0.28 - hero.w / 2; hero.y = stageY - hero.h; hero.vx = 0; hero.vy = 0; }
+// Paradox return at 10% HP (startTFParadoxReturn1000). Staged shot by shot: Paradox tears back in,
+// the two of them land three hits, the Axiom catches the fourth, kicks Kael away, and burns Paradox
+// out with a point-blank burst. Paradox crawls to Kael and hands over what is left (absorption).
+// Bodies are posed (CinRig): Kael through a CinPerf performance, Paradox through its `pose` field.
+
+function _retFloorY() {
+  const fl = currentArena && currentArena.platforms && currentArena.platforms.find(p => p.isFloor && !p.isFloorDisabled);
+  return fl ? fl.y : GAME_H - 72;
 }
 
 function startTFParadoxReturn1000(tf) {
   tfCinematicState = 'paradox_death'; // reuse state to suppress normal AI
   if (tf) tf.invincible = 9999;
+  const hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
+  const fy = _retFloorY();
+  // Staged clear of the two low platforms (x 205-315 and 585-695 at y 378), which would cut across heads.
+  if (tf)   { tf.x = 470 - tf.w / 2;   tf.y = fy - tf.h;   tf.vx = 0; tf.vy = 0; tf.facing = -1; }
+  if (hero) { hero.x = 160 - hero.w / 2; hero.y = fy - hero.h; hero.vx = 0; hero.vy = 0; hero.facing = 1;
+              hero.invincible = Math.max(hero.invincible || 0, 9999); }
+  hitStopFrames = 0;
+  if (typeof startCinematic === 'function') startCinematic(_makeTFParadoxReturn1000Cinematic(tf));
+}
 
-  const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
-  _snapToCinematicStage(tf, _hero);
-  if (_hero) _hero.invincible = Math.max(_hero.invincible || 0, 9999);
+// A posed actor: blends from its current pose to a named or literal pose over n frames.
+function _retActor(start) {
+  const L = CIN_PERF_POSES;
+  const res = p => (typeof p === 'string' ? L[p] : p) || L.stand;
+  return {
+    from: res(start), to: res(start), t: 0, n: 1, ease: null,
+    go(pose, n, ease) { this.from = this.now(); this.to = res(pose); this.t = 0; this.n = Math.max(1, n || 1); this.ease = ease || 'outCubic'; },
+    tick() { if (this.t < this.n) this.t++; },
+    now() {
+      let u = Math.min(1, this.t / this.n);
+      if (typeof animEase !== 'undefined' && animEase[this.ease]) u = animEase[this.ease](u);
+      return cinLerpPose(this.from, this.to, u);
+    },
+  };
+}
 
-  if (typeof showBossDialogue === 'function') showBossDialogue('Not yet.', 200);
-  if (typeof startCinematic === 'function') {
-    startCinematic(_makeTFParadoxReturn1000Cinematic(tf));
-  }
+// Where a pose's right hand sits relative to the feet anchor, at the figure scale both actors use.
+function _retHand(pose, facing) {
+  const p = Object.assign({}, typeof pose === 'string' ? CIN_PERF_POSES[pose] : pose,
+    { x: 0, y: 0, facing, scale: 0.9, headScale: 0.77 });
+  const J = CinRig.joints(p);
+  return { x: J.rHand.x, y: J.rHand.y };
 }
 
 function _makeTFParadoxReturn1000Cinematic(tf) {
+  const hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
+  const fy   = _retFloorY();
+  const kael = _retActor('hunch');
+  const pdx  = _retActor('menace');
+  let rec = null;
+  const subs = [];   // { who, text, color, from, to } in frames
+  const say = (F, who, text, color, len) => subs.push({ who, text, color, from: F, to: F + (len || 120) });
+  let F = -1;
+
+  // Kael and Paradox fight with the same body proportions, so one helper places either so that its
+  // right hand lands on (x, y).
+  const placePdxHand = (pose, x, y) => {
+    const h = _retHand(pose, paradoxEntity.facing);
+    paradoxEntity.x = x - h.x - paradoxEntity.w / 2;
+    paradoxEntity.y = y - h.y - paradoxEntity.h;
+  };
+  const placeHeroHand = (pose, x, y) => {
+    const h = _retHand(pose, hero.facing);
+    hero.x = x - h.x - hero.w / 2;
+    hero.y = Math.min(fy - hero.h, y - h.y - hero.h);
+  };
+  const tfChest = () => ({ x: tf.cx() - tf.facing * 6, y: tf.y + tf.h * 0.38 });
+  const hit = (x, y, color, big) => {
+    CinFX.shockwave(x, y, color, { count: big ? 2 : 1, maxR: big ? 110 : 70, lw: big ? 3 : 2, dur: big ? 24 : 16 });
+    CinFX.speedLines(x, y, '#ffffff', { count: 18, maxLen: big ? 220 : 140, dur: 10 });
+    spawnParticles(x, y, color, big ? 30 : 16);
+    spawnParticles(x, y, '#ffffff', big ? 14 : 8);
+    screenShake = Math.max(screenShake, big ? 30 : 16);
+    if (typeof SoundManager !== 'undefined' && SoundManager.heavyHit) SoundManager.heavyHit();
+  };
+  const tfPunch = (mode, atkP, dir) => {
+    tf.state = 'attacking'; tf._attackMode = mode; tf.facing = dir;
+    tf.attackDuration = 20; tf.attackTimer = Math.round(20 * (1 - atkP));
+  };
+  const tfIdle = () => { tf.state = 'idle'; tf.attackTimer = 0; tf.ragdollTimer = 0; };
+
   return {
-    durationFrames:   900,  // 15 seconds: extended for pacing
-    _spawnFired:      false,
-    _fightFired:      false,
-    _fight2Fired:     false,
-    _gammaFired:      false,
-    _multiAttackFired:false,
-    _multiStrike2:    false,
-    _multiStrike3:    false,
-    _executeFired:    false,
-    _collapseFired:   false,
-    _paradoxContinuousCd: 0, // frames until next autonomous Paradox attack
-    _phaseLabel: { text: '— THE RETURN —', color: '#00ffff' },
+    durationFrames: 640,
 
     update(t) {
-      if      (t < 0.3)  slowMotion = Math.max(0.05, 1 - t * 3.3);
-      else if (t > 13.5) slowMotion = Math.min(1.0,  (t - 13.5) / 1.0);
-      else               slowMotion = 0.06;
+      if (!tf || !hero) return;
+      F++;
+      kael.tick(); pdx.tick();
+      if (F === 0) {
+        rec = CinPerf.begin(hero, 'cutscene', { frames: 9999, bound: true, glow: false, noWeapon: true,
+          track: { sample: () => kael.now() }, exprs: [{ at: 0, expr: 'hurt' }] });
+        tfIdle();
+        slowMotion = 0.35;
+        CinCam.snap(tf.cx(), tf.y + 26, 2.1);
+        say(10, 'COSMIC AXIOM', 'Not yet. Not to you.', '#c9a6ff', 80);
+      }
+      if (rec) { rec.frame = F; }
 
-      cinematicCamOverride = t < 14.8;
-      if (cinematicCamOverride) {
-        const focus = paradoxEntity || tf;
-        // Camera: TF, then Paradox during gamma, then both
-        if (t < 4.0) {
-          cinematicZoomTarget = 1.3;
-          cinematicFocusX = tf ? tf.cx() : GAME_W / 2;
-          cinematicFocusY = GAME_H / 2 - 20;
-        } else if (t < 8.0) {
-          cinematicZoomTarget = 1.5;
-          cinematicFocusX = paradoxEntity ? paradoxEntity.cx() : (tf ? tf.cx() : GAME_W / 2);
-          cinematicFocusY = GAME_H / 2 - 30;
-        } else {
-          cinematicZoomTarget = 1.2;
-          cinematicFocusX = GAME_W / 2;
-          cinematicFocusY = GAME_H / 2 - 20;
-        }
+      // S2: the tear opens behind Kael and Paradox steps through.
+      if (F === 52) {
+        CinCam.snap(hero.cx() - 40, fy - 70, 1.55);
+        slowMotion = 1;
+        const rx = hero.cx() - 90;
+        spawnParadox(rx - 17, fy - 84);
+        paradoxEntity.facing = 1; paradoxEntity.alpha = 0; paradoxEntity.pose = null;
+        paradoxEntity.fx.push({ type: 'rift', x: rx, y: fy - 55, h: 120, w: 16, life: 110, max: 110 });
+        screenShake = Math.max(screenShake, 10);
+      }
+      // The main loop ticks paradoxEntity (updateParadox); the cinematic only poses it.
+      if (paradoxEntity && F >= 52) paradoxEntity.pose = pdx.now();
+      if (F === 62) { pdx.go('menace', 1); spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#00ffff', 24); }
+      if (F === 74) say(F, 'PARADOX', "I'm not finished.", '#7ff', 80);
+      if (F === 78) { kael.go('lookUp', 14); rec.exprs = [{ at: 0, expr: 'neutral' }]; }
+
+      // S3: two-shot, both drop into the run. The hold is the beat.
+      if (F === 102) {
+        CinCam.snap((hero.cx() + paradoxEntity.cx()) / 2, fy - 50, 1.9);
+        kael.go('charge', 8, 'outBack'); pdx.go('charge', 8, 'outBack');
+        rec.exprs = [{ at: 0, expr: 'intense' }];
       }
 
-      // 0.6 s: Paradox flashes back in: spawn on cinematic stage next to hero
-      if (t >= 0.6 && !this._spawnFired) {
-        this._spawnFired = true;
-        const _stageY = GAME_H - 120 - 50;
-        spawnParadox(GAME_W * 0.20, _stageY);
-        if (paradoxEntity) { paradoxEntity.facing = 1; paradoxEntity.vy = 0; }
-        if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.5, 16);
-        screenShake = Math.max(screenShake, 20);
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue("I'm not finished.", 260);
-        const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
-        if (_hero) _hero.invincible = Math.max(_hero.invincible || 0, 9999);
+      // S4: the rush. Paradox hits first, Kael follows with the uppercut, Paradox drives him down.
+      if (F === 122) {
+        CinCam.setFocus((hero.cx() + tf.cx()) / 2, fy - 60, 1.35);
+        pdx.go('thrust', 10, 'inCubic'); kael.go('coil', 10);
+        CinFX.speedLines(paradoxEntity.cx(), paradoxEntity.cy(), '#00ffff', { count: 14, maxLen: 120, dur: 10, dir: Math.PI, spread: 0.6 });
+        paradoxEntity._from = { x: paradoxEntity.x, y: paradoxEntity.y };
+        hero._from = { x: hero.x, y: hero.y };
+      }
+      if (F > 122 && F <= 132) {
+        const u = (F - 122) / 10, c = tfChest(), h = _retHand('thrust', 1);
+        const tx = c.x - h.x - paradoxEntity.w / 2;
+        paradoxEntity.x = paradoxEntity._from.x + (tx - paradoxEntity._from.x) * u * u;
+        hero.x = hero._from.x + (c.x - 120 - hero.w / 2 - hero._from.x) * u;
+      }
+      if (F === 132) {
+        const c = tfChest();
+        placePdxHand('thrust', c.x, c.y);
+        CinCam.snap(c.x - 20, c.y, 2.3);
+        CinFX.impactFrame([tf, hero], { dur: 3, color: '#001018' });
+        hit(c.x, c.y, '#00ffff', false);
+        slowMotion = 0;
+        tf.state = 'stunned';
+      }
+      if (F === 138) { slowMotion = 1; CinCam.setFocus(tf.cx() - 40, fy - 70, 1.6); }
+      if (F > 138 && F <= 148) tf.x += 2.4;
+      if (F === 140) kael.go('uppercut', 6, 'outCubic');
+      if (F > 138 && F <= 146) { const c = tfChest(); placeHeroHand('coil', c.x - 30, c.y + 30); }
+      if (F === 146) {
+        const c = tfChest();
+        placeHeroHand('uppercut', c.x - 2, c.y - 14);
+        CinCam.snap(c.x - 10, c.y - 10, 2.2);
+        CinFX.impactFrame([tf, hero], { dur: 3, color: '#000000' });
+        hit(c.x, c.y - 14, '#ffffff', false);
+        pdx.go('guard', 8);
+        paradoxEntity.fx.push({ type: 'slash', x0: c.x - 20, y0: c.y + 30, x1: c.x + 10, y1: c.y - 50, bend: 0.4, life: 14, max: 14, color: '#ffffff' });
+      }
+      if (F > 146 && F <= 162) tf.y -= (162 - F) * 0.45;            // lifted off his feet
+      if (F === 152) {
+        CinCam.setFocus(tf.cx(), tf.y - 10, 1.4);
+        paradoxEntity.noGravity = true; paradoxEntity.vy = 0;
+        pdx.go('raise', 8); kael.go('brace', 10);
+      }
+      if (F > 152 && F <= 162) {
+        paradoxEntity.x += (tf.cx() - 30 - paradoxEntity.x) * 0.25;
+        paradoxEntity.y += (tf.y - 70 - paradoxEntity.y) * 0.3;
+      }
+      if (F === 163) { pdx.go('slam', 4, 'inCubic'); }
+      if (F > 163 && F <= 170) {
+        tf.y += (fy - tf.h - tf.y) * 0.5;
+        paradoxEntity.y += (fy - paradoxEntity.h - paradoxEntity.y) * 0.45;
+      }
+      if (F === 170) {
+        tf.y = fy - tf.h; paradoxEntity.y = fy - paradoxEntity.h; paradoxEntity.noGravity = false;
+        tf.state = 'ragdoll'; tf.ragdollTimer = 45; tf.ragdollAngle = -1.35;
+        CinCam.snap(tf.cx(), fy - 40, 1.25);
+        hit(tf.cx(), fy - 10, '#00ffff', true);
+        slowMotion = 0.6;
+      }
+      if (F > 170 && F < 205) tf.ragdollTimer = 45;
+
+      // S5: he gets up slowly. Close on him.
+      if (F === 186) { pdx.go('guard', 12); kael.go('guard', 12); }
+      if (F >= 205 && F < 235) { tf.ragdollTimer = Math.max(0, 45 - (F - 205) * 1.6); if (tf.ragdollTimer <= 0) tfIdle(); }
+      if (F === 214) { slowMotion = 0.25; CinCam.snap(tf.cx(), tf.y + 22, 2.4); }
+      if (F === 222) say(F, 'COSMIC AXIOM', 'Two of you.', '#c9a6ff', 70);
+
+      // S6: Paradox goes for the last hit; the Axiom catches it.
+      if (F === 246) {
+        tfIdle(); slowMotion = 1;
+        CinCam.setFocus((paradoxEntity.cx() + tf.cx()) / 2, fy - 60, 1.5);
+        pdx.go('thrust', 8, 'inCubic');
+        paradoxEntity._from = { x: paradoxEntity.x };
+      }
+      if (F > 246 && F < 256) {
+        const u = (F - 246) / 10;
+        paradoxEntity.x = paradoxEntity._from.x + (tf.cx() - 150 - paradoxEntity._from.x) * u * u + u * 50;
+      }
+      if (F >= 254 && F < 300) tfPunch('punch', 0.5, -1);
+      if (F === 256) {
+        // Fist on fist: put Paradox's hand on the Axiom's extended fist.
+        const fist = { x: tf.cx() - 62, y: tf.y + 31 };
+        placePdxHand('thrust', fist.x, fist.y);
+        CinCam.snap(fist.x, fist.y - 6, 2.6);
+        slowMotion = 0;
+        screenShake = Math.max(screenShake, 8);
+        spawnParticles(fist.x, fist.y, '#ffffff', 10);
+        say(F + 6, 'COSMIC AXIOM', 'Still not enough.', '#c9a6ff', 80);
       }
 
-      // 1.5 s: Paradox and hero land first scripted hit on TF
-      if (t >= 1.5 && !this._fightFired) {
-        this._fightFired = true;
-        if (paradoxEntity) paradoxEntity.punch(1);
-        if (tf) {
-          tf.hurtTimer = 12;
-          tf.vx        = -4;
-          spawnParticles(tf.cx(), tf.cy(), '#00ffff', 22);
-          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 12);
-          screenShake = Math.max(screenShake, 24);
-          if (typeof DamageText !== 'undefined' && settings.dmgNumbers) {
-            damageTexts.push(new DamageText('CRITICAL', tf.cx(), tf.cy() - 30, '#00ffff'));
-          }
-        }
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue("You can't stop both of us.", 260);
+      // S7: Kael comes in; one kick sends him across the floor.
+      if (F === 296) { slowMotion = 1; CinCam.setFocus(tf.cx() - 120, fy - 60, 1.3); kael.go('charge', 6); hero._from = { x: hero.x }; }
+      if (F > 296 && F <= 306) hero.x = hero._from.x + (tf.cx() - 100 - hero._from.x) * ((F - 296) / 10);
+      if (F >= 302 && F < 318) { tf.state = 'attacking'; tf._attackMode = 'kick'; tf.facing = -1; tf.attackDuration = 16; tf.attackTimer = Math.max(0, 318 - F); }
+      if (F === 308) {
+        hit(hero.cx() + 10, hero.cy(), '#c9a6ff', false);
+        CinFX.impactFrame([tf, hero], { dur: 2, color: '#000000' });
+        kael.go('flail', 4); rec.exprs = [{ at: 0, expr: 'hurt' }];
+        hero._kv = -24;
+      }
+      if (F > 308 && hero._kv !== undefined) {
+        hero.x += hero._kv; hero._kv *= 0.88;
+        hero.x = Math.max(40, hero.x);
+        if (F === 324) kael.go('brace', 8);
+        if (Math.abs(hero._kv) < 0.4) hero._kv = undefined;
       }
 
-      // 2.8 s: Second coordinated attack burst
-      if (t >= 2.8 && !this._fight2Fired) {
-        this._fight2Fired = true;
-        if (paradoxEntity) paradoxEntity.punch(1);
-        const _hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
-        if (_hero) { _hero.attackTimer = 16; _hero.attackDuration = 16; }
-        if (tf) {
-          tf.hurtTimer = 10; tf.vx = 3;
-          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 16);
-          spawnParticles(tf.cx(), tf.cy(), '#ffaa00', 10);
-          screenShake = Math.max(screenShake, 18);
-        }
-        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.22, 8);
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue("End of the line.", 260);
+      // S8: the burst. Background drops out, the beam goes through Paradox.
+      if (F === 330) {
+        CinCam.snap((paradoxEntity.cx() + tf.cx()) / 2, fy - 60, 1.8);
+        CinFX.bgContrast('#000000', 0.88, 70);
+        tfPunch('punch', 0.85, -1);
+        say(F, 'COSMIC AXIOM', 'Be nothing.', '#c9a6ff', 60);
       }
-
-      // 4.5 s: TF turns on Paradox: GAMMA RAY BURST
-      if (t >= 4.5 && !this._gammaFired) {
-        this._gammaFired = true;
-        const gx = tf ? tf.cx() : GAME_W * 0.65;
-        const gy = tf ? tf.cy() : GAME_H / 2;
-        if (settings.particles) {
-          for (let i = 0; i < 80 && particles.length < MAX_PARTICLES; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const spd   = 5 + Math.random() * 16;
-            const _p    = _getParticle();
-            _p.x = gx; _p.y = gy;
-            _p.vx = Math.cos(angle) * spd; _p.vy = Math.sin(angle) * spd;
-            _p.color = Math.random() < 0.5 ? '#ffff00' : (Math.random() < 0.5 ? '#ffffff' : '#ff8800');
-            _p.size  = 2 + Math.random() * 6; _p.life = 40 + Math.random() * 40; _p.maxLife = 80;
-            particles.push(_p);
-          }
-        }
-        // Gamma beam shockwave ring
-        if (typeof CinFX !== 'undefined') {
-          CinFX.shockwave(gx, gy, '#ffff44', { count: 3, maxR: 340, lw: 6, dur: 55 });
-          CinFX.flash('#ffff44', 0.65, 22);
-        }
-        screenShake = Math.max(screenShake, 44);
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue('GAMMA RAY BURST — MULTIVERSAL COLLAPSE', 300);
-        if (paradoxEntity) {
-          paradoxEntity.hurtTimer = 35;
-          paradoxEntity.alpha     = 0.5;
-          if (cinematicCamOverride) {
-            cinematicFocusX = paradoxEntity.cx();
-            cinematicFocusY = paradoxEntity.cy() - 30;
-          }
-        }
-        // TF faces Paradox and wind-up
-        if (tf && paradoxEntity) {
-          tf.facing = Math.sign(paradoxEntity.cx() - tf.cx()) || 1;
-          tf.attackTimer = 20; tf.attackDuration = 20;
-        }
-      }
-
-      // 6.0 s: MULTIVERSAL STRIKE 1: dimensional lightning bolt at Paradox
-      if (t >= 6.0 && !this._multiAttackFired) {
-        this._multiAttackFired = true;
-        const px = paradoxEntity ? paradoxEntity.cx() : GAME_W * 0.25;
-        const py = paradoxEntity ? paradoxEntity.cy() : GAME_H / 2;
+      if (F === 342) {
+        const x0 = tf.cx() - 30, y0 = tf.y + 30;
+        paradoxEntity.fx.push({ type: 'beam', x0, y0, x1: x0 - 520, y1: y0, r: 26, life: 46, max: 46 });
+        CinFX.impactFrame([tf], { dur: 4 });   // the kill: the one full white frame in this sequence
         screenShake = Math.max(screenShake, 40);
-        if (settings.particles) {
-          // Sky streak to Paradox
-          for (let i = 0; i < 50 && particles.length < MAX_PARTICLES; i++) {
-            const _p = _getParticle();
-            const frac = i / 50;
-            _p.x = px + (Math.random() - 0.5) * 30;
-            _p.y = py - 200 * (1 - frac) + (Math.random() - 0.5) * 20;
-            _p.vx = (Math.random() - 0.5) * 3;
-            _p.vy = 4 + Math.random() * 6;
-            _p.color = Math.random() < 0.55 ? '#ff00ff' : '#8800ff';
-            _p.size  = 2 + Math.random() * 5; _p.life = 20 + Math.random() * 20; _p.maxLife = 40;
-            particles.push(_p);
-          }
-        }
-        if (typeof CinFX !== 'undefined') {
-          CinFX.shockwave(px, py, '#ff00ff', { count: 2, maxR: 200, lw: 5, dur: 40 });
-          CinFX.flash('#ff00ff', 0.50, 16);
-        }
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue('MULTIVERSAL STRIKE — DIMENSIONAL OVERWRITE', 300);
-        if (paradoxEntity) { paradoxEntity.hurtTimer = Math.max(paradoxEntity.hurtTimer, 20); }
+        pdx.go('flail', 5); paradoxEntity.expr = 'hurt';
+        paradoxEntity.noGravity = true;
+        if (typeof SoundManager !== 'undefined' && SoundManager.explosion) SoundManager.explosion();
       }
+      if (F > 342 && F <= 380) { paradoxEntity.x = Math.max(70, paradoxEntity.x - 4.6); paradoxEntity.y = Math.min(fy - paradoxEntity.h, paradoxEntity.y + (F < 360 ? -0.6 : 2.2)); }
+      if (F === 380) { paradoxEntity.noGravity = false; pdx.go('kneel', 10); tfIdle(); }
 
-      // 7.2 s: MULTIVERSAL STRIKE 2: reality tear
-      if (t >= 7.2 && !this._multiStrike2) {
-        this._multiStrike2 = true;
-        const px2 = paradoxEntity ? paradoxEntity.cx() : GAME_W * 0.25;
-        const py2 = paradoxEntity ? paradoxEntity.cy() : GAME_H / 2;
-        screenShake = Math.max(screenShake, 36);
-        if (settings.particles) {
-          for (let i = 0; i < 60 && particles.length < MAX_PARTICLES; i++) {
-            const angle = (i / 60) * Math.PI * 2;
-            const spd   = 2 + Math.random() * 9;
-            const _p    = _getParticle();
-            _p.x = px2 + Math.cos(angle) * 20; _p.y = py2 + Math.sin(angle) * 20;
-            _p.vx = Math.cos(angle) * spd; _p.vy = Math.sin(angle) * spd;
-            _p.color = Math.random() < 0.5 ? '#00ffff' : '#ffffff';
-            _p.size  = 1.5 + Math.random() * 4; _p.life = 25 + Math.random() * 25; _p.maxLife = 50;
-            particles.push(_p);
-          }
-        }
-        if (typeof CinFX !== 'undefined') {
-          CinFX.shockwave(px2, py2, '#00ffff', { count: 2, maxR: 160, lw: 4, dur: 35 });
-          CinFX.flash('#00ffff', 0.35, 12);
-          CinFX.groundCrack(px2, GAME_H - 120, { count: 8, color: '#00ffff' });
-        }
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue('REALITY TEAR — TIMELINE COLLAPSE', 300);
+      // S9: Paradox on his knees next to Kael. Kael gets to him.
+      if (F === 392) {
+        kael.go('stand', 10); rec.exprs = [{ at: 0, expr: 'neutral' }];
+        hero._from = { x: hero.x };
+        CinCam.snap((hero.cx() + paradoxEntity.cx()) / 2, fy - 45, 2.0);
       }
-
-      // 8.0 s: MULTIVERSAL STRIKE 3: execute windup
-      if (t >= 8.0 && !this._multiStrike3) {
-        this._multiStrike3 = true;
-        if (tf) {
-          tf.attackTimer    = 30;
-          tf.attackDuration = 30;
-          if (paradoxEntity) tf.facing = Math.sign(paradoxEntity.cx() - tf.cx()) || tf.facing;
-        }
-        screenShake = Math.max(screenShake, 28);
-        if (typeof CinFX !== 'undefined') CinFX.flash('#ff4400', 0.30, 14);
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue("You've served your purpose. End sequence.", 320);
+      if (F > 392 && F <= 410) {
+        const goal = paradoxEntity.cx() + 52 - hero.w / 2;
+        hero.x = hero._from.x + (goal - hero._from.x) * ((F - 392) / 18);
+        hero.facing = paradoxEntity.cx() > hero.cx() ? 1 : -1;
       }
-
-      // 9.2 s: Execute command: TF charges final blow
-      if (t >= 9.2 && !this._executeFired) {
-        this._executeFired = true;
-        if (tf) {
-          tf.attackTimer    = 28;
-          tf.attackDuration = 28;
-          if (paradoxEntity) tf.facing = Math.sign(paradoxEntity.cx() - tf.cx()) || tf.facing;
-        }
-        screenShake = Math.max(screenShake, 24);
-        if (typeof showBossDialogue === 'function')
-          showBossDialogue('EXECUTE: PARADOX_ENTITY.terminate()', 360);
-        if (typeof CinFX !== 'undefined') CinFX.flash('#00ff88', 0.35, 14);
+      if (F === 412) { kael.go('kneel', 12); paradoxEntity.facing = hero.cx() < paradoxEntity.cx() ? -1 : 1; }
+      if (F === 418) say(F, 'PARADOX', 'Take it. All of it.', '#7ff', 100);
+      if (F === 470) {
+        paradoxEntity.done = true;
+        paradoxEntity.fx.push({ type: 'ring', x: hero.cx(), y: hero.cy(), r: 90, life: 40, max: 40, color: '#00ffff' });
       }
-
-      // 11.0 s: Paradox collapses: big final burst
-      if (t >= 11.0 && !this._collapseFired) {
-        this._collapseFired = true;
-        if (paradoxEntity) {
-          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#00ffff', 80);
-          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#ffffff', 40);
-          spawnParticles(paradoxEntity.cx(), paradoxEntity.cy(), '#000000', 30);
-          if (typeof CinFX !== 'undefined') {
-            CinFX.shockwave(paradoxEntity.cx(), paradoxEntity.cy(), '#ffffff', { count: 4, maxR: 300, lw: 5, dur: 60 });
-          }
-          paradoxEntity.done = true;
-        }
-        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.90, 30);
-        screenShake = Math.max(screenShake, 60);
-        if (typeof showBossDialogue === 'function') showBossDialogue('...', 280);
-      }
-
-      // Paradox fights on its own between spawn and gamma ray.
-      if (t >= 0.6 && t < 4.5 && paradoxEntity && !paradoxEntity.done && tf) {
-        const pdx = tf.cx() - paradoxEntity.cx();
-        // Smooth movement toward TF; hang back slightly when in punch range
-        const targetVx = Math.abs(pdx) > 60 ? Math.sign(pdx) * 5.5 : 0;
-        paradoxEntity.x += targetVx * 0.45;
-        paradoxEntity.facing = Math.sign(pdx) || paradoxEntity.facing;
-
-        this._paradoxContinuousCd = (this._paradoxContinuousCd || 0) - 1;
-        if (this._paradoxContinuousCd <= 0 && Math.abs(pdx) < 110) {
-          this._paradoxContinuousCd = 48 + Math.floor(Math.random() * 20);
-          paradoxEntity.punch(Math.sign(pdx));
-          // Visual flinch on TF, no HP change, cinematic controls only
-          tf.hurtTimer = Math.max(tf.hurtTimer, 8);
-          tf.vx        = -Math.sign(pdx) * 2.5;
-          spawnParticles(tf.cx(), tf.cy(), '#00ffff', 10);
-          spawnParticles(tf.cx(), tf.cy(), '#ffffff', 5);
-          screenShake = Math.max(screenShake, 8);
+      if (F > 470 && F < 520 && settings.particles && paradoxEntity) {
+        for (let i = 0; i < 3 && particles.length < MAX_PARTICLES; i++) {
+          const _p = _getParticle();
+          _p.x = paradoxEntity.cx() + (Math.random() - 0.5) * 24; _p.y = paradoxEntity.cy() + (Math.random() - 0.5) * 60;
+          _p.vx = (hero.cx() - _p.x) / 22; _p.vy = (hero.cy() - _p.y) / 22;
+          _p.color = Math.random() < 0.6 ? '#00ffff' : '#ffffff'; _p.size = 1.5 + Math.random() * 2.5;
+          _p.life = 22; _p.maxLife = 22; particles.push(_p);
         }
       }
+      // S10: it takes. Kael comes up lit, and the Axiom answers.
+      if (F === 500) { kael.go('roar', 14, 'outBack'); rec.exprs = [{ at: 0, expr: 'angry' }]; CinCam.setFocus(hero.cx(), hero.cy() - 10, 1.9); }
+      if (F === 508) {
+        rec.color = '#7ffcff'; rec.glow = true;
+        CinFX.shockwave(hero.cx(), hero.cy(), '#00ffff', { count: 2, maxR: 130, lw: 3, dur: 26 });
+        CinFX.speedLines(hero.cx(), hero.cy(), '#bffcff', { count: 24, maxLen: 200, dur: 14 });
+        spawnParticles(hero.cx(), hero.cy(), '#00ffff', 34);
+        screenShake = Math.max(screenShake, 22);
+      }
+      if (F === 528) kael.go('guard', 12);
+      if (F === 546) {
+        CinCam.snap(tf.cx(), tf.y + 24, 2.3);
+        say(F, 'COSMIC AXIOM', 'You took his power. Show me what it is worth.', '#c9a6ff', 92);
+      }
+    },
 
-      if (paradoxEntity) paradoxEntity.update();
+    draw(c, t) {
+      const fr = Math.round(t * 60);
+      const s = subs.filter(x => fr >= x.from && fr < x.to).pop();
+      if (!s) return;
+      const a = Math.min(1, (fr - s.from) / 8, (s.to - fr) / 12);
+      const cw = c.canvas.width, ch = c.canvas.height;
+      c.save();
+      c.globalAlpha = Math.max(0, a);
+      c.textAlign = 'center';
+      c.font = `bold ${Math.round(ch * 0.018)}px Arial`;
+      c.fillStyle = s.color;
+      c.fillText(s.who, cw / 2, ch * 0.905);
+      c.font = `italic ${Math.round(ch * 0.03)}px Arial`;
+      c.fillStyle = '#f2f2f2';
+      c.shadowColor = '#000'; c.shadowBlur = 6;
+      c.fillText(s.text, cw / 2, ch * 0.95);
+      c.restore();
     },
 
     onEnd() {
       slowMotion           = 1.0;
       cinematicCamOverride = false;
+      if (hero) CinPerf.end(hero);
+      if (tf) tfIdle();
       paradoxEntity        = null;
       _tfKCOverlay         = null;
 
@@ -384,22 +419,16 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         tf.invincible       = 60;
         tf.postSpecialPause = 3;
       }
-
-      // Reposition hero safely, then begin absorption → dimension punch → Code Realm
-      const hero = typeof players !== 'undefined' ? players.find(p => !p.isBoss) : null;
       if (hero) {
-        hero.x  = Math.max(40, tf ? tf.x - 150 : GAME_W * 0.25);
-        hero.y  = GAME_H - 72 - hero.h;
+        hero.y  = fy - hero.h;
         hero.vx = 0; hero.vy = 0;
         hero.invincible = 9999;
       }
 
-      if (hero && typeof startTFAbsorptionScene === 'function') {
-        startTFAbsorptionScene(hero, null);
-      } else if (hero && typeof _startAbsorptionThenPunch === 'function') {
-        _startAbsorptionThenPunch(tf, hero);
-      }
+      // Paradox's power went into Kael on screen, so round 2 starts here.
+      playerParadoxAbsorbed = true;
+      if (hero) hero.paradoxPowered = true;
+      if (hero && tf && typeof _tfeResumeAfterIntro === 'function') _tfeResumeAfterIntro({ boss: tf, hero });
     }
   };
 }
-

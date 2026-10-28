@@ -55,6 +55,48 @@ class Boss extends Fighter {
     this._cinematicFired    = new Set(); // HP-threshold cinematics already played
   }
 
+  // The Creator's look: a long mantle and a broken halo of reality shards behind his head.
+  // The halo is missing a piece; it loosens and turns magenta as his phases advance.
+  _drawSignature(cx, headCY, shoulderY, hipY, f, headR) {
+    if (this.isFallenGod) return;
+    const ph = this.getPhase(), t = frameCount;
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const cd = typeof animCapeDrive === 'function' ? animCapeDrive(this) : { dir: -f, sweep: 0, lift: 0 };
+    const wv = Math.sin(t * 0.08 + this.x * 0.03) * 4 + cd.sweep;
+    const tipX = cx + cd.dir * (30 + wv), tipY = hipY + 34 + cd.lift + Math.sin(t * 0.06) * 2;
+    ctx.fillStyle = '#14062a';
+    ctx.strokeStyle = 'rgba(200,150,255,0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, shoulderY - 3);
+    ctx.lineTo(cx + 7, shoulderY - 3);
+    ctx.quadraticCurveTo(cx + cd.dir * 14, hipY, tipX + cd.dir * 4, tipY);
+    // Torn hem
+    ctx.lineTo(tipX - cd.dir * 6, tipY - 7);
+    ctx.lineTo(tipX - cd.dir * 11, tipY + 1);
+    ctx.lineTo(tipX - cd.dir * 18, tipY - 6);
+    ctx.quadraticCurveTo(cx - cd.dir * 2, hipY - 4, cx - 7, shoulderY - 3);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // Halo
+    const hx = cx - f * 2, hy = headCY - 2;
+    const R = headR * 2.1 + (ph >= 3 ? 3 + Math.sin(t * 0.2) * 1.5 : 0);
+    const col = ph >= 3 ? '255,110,220' : '220,190,255';
+    ctx.strokeStyle = 'rgba(' + col + ',' + (ph >= 2 ? 0.95 : 0.8) + ')';
+    ctx.shadowColor = ph >= 3 ? '#ff40c0' : '#b070ff';
+    ctx.shadowBlur = ph >= 2 ? 14 : 9;
+    ctx.lineWidth = 2.2;
+    const n = 7, spin = t * (0.008 + ph * 0.004);
+    for (let i = 0; i < n; i++) {
+      if (i === 2) continue;
+      const a0 = spin + (i / n) * Math.PI * 2, a1 = a0 + (Math.PI * 2 / n) * 0.72;
+      const off = ph >= 3 ? Math.sin(t * 0.07 + i * 1.9) * 2.5 : 0;
+      ctx.beginPath(); ctx.arc(hx, hy, R + off, a0, a1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   getPhase() {
     // Thresholds are proportional, so they hold at any max HP (True Creator is 4500,
     // and 2P multiplies by 1.5). Absolute 2000/1000 would stretch phase 1 too far.
@@ -418,9 +460,9 @@ class Boss extends Fighter {
       { hp: 2200, text: 'You\'re still here. Interesting.' },
       { hp: 2000, text: 'I was holding back. Not anymore.' },
       { hp: 1600, text: 'You\'re earning this.' },
-      { hp: 1200, text: 'Every world has a limit. You\'re approaching mine.' },
+      { hp: 1200, text: 'Every world has a limit. You just found yours.' },
       { hp: 1000, text: 'I built this place. I decide when it ends.' },
-      { hp: 600,  text: 'I miscalculated. That won\'t happen again.' },
+      { hp: 600,  text: 'Recalculating. You won\'t like the answer.' },
       { hp: 300,  text: 'You\'ve gone further than anyone. That means nothing.' },
       { hp: 100,  text: 'Still standing. So am I.' },
     ];
@@ -596,7 +638,7 @@ class Boss extends Fighter {
       'I was always behind you.',
       'You never had the initiative.',
       'Amusing.',
-      'I let you get that far.',
+      'That far. No further.',
     ];
     return lines[Math.floor(Math.random() * lines.length)];
   }
@@ -840,9 +882,15 @@ function _bossFindSafeArenaPosition(actor, desiredCenterX, preferredY, opts = {}
   const preferred = preferRaised ? platforms.filter(pl => !pl.isFloor) : platforms.slice();
   const usable = preferred.length ? preferred : platforms;
   const desiredX = Number.isFinite(desiredCenterX) ? desiredCenterX : actor.cx();
+  // nearFeetY (a target's feet): strikes that teleport to a target land on its platform, not the
+  // nearest one sideways, which may be a deck high above it.
+  const nearY = Number.isFinite(opts.nearFeetY) ? opts.nearFeetY : null;
+  // Horizontal term is the gap to the platform's span (0 when over it), so a wide floor isn't scored by its centre.
+  const score = pl => nearY === null ? Math.abs((pl.x + pl.w / 2) - desiredX)
+    : Math.max(0, pl.x - desiredX, desiredX - (pl.x + pl.w)) + Math.abs(pl.y - nearY) * 3;
   const samples = usable
     .slice()
-    .sort((a, b) => Math.abs((a.x + a.w / 2) - desiredX) - Math.abs((b.x + b.w / 2) - desiredX));
+    .sort((a, b) => score(a) - score(b));
 
   for (const pl of samples) {
     const left = Math.max(bounds.left + 10, pl.x + 8);
@@ -851,7 +899,15 @@ function _bossFindSafeArenaPosition(actor, desiredCenterX, preferredY, opts = {}
 
     const centerBias = clamp(desiredX - actor.w / 2, left, right);
     const sideBias = opts.sideBias === 1 ? right : opts.sideBias === -1 ? left : (left + right) * 0.5;
-    const positions = [centerBias, sideBias, left, right, clamp((left + right) * 0.5, left, right)];
+    const positions = [centerBias];
+    // A strike blocked at its spot tries spots fanning out from it, then the target's other side
+    // (aroundX), before the platform's far ends.
+    if (nearY !== null) {
+      const aims = [desiredX];
+      if (Number.isFinite(opts.aroundX)) aims.push(2 * opts.aroundX - desiredX);
+      for (const o of [0, 20, -20, 40, -40, 70, -70]) for (const ax of aims) positions.push(clamp(ax - actor.w / 2 + o, left, right));
+    }
+    positions.push(sideBias, left, right, clamp((left + right) * 0.5, left, right));
     for (const posX of positions) {
       const posY = pl.y - actor.h - 2;
       if (_bossTeleportSpotSafe(actor, posX, posY)) return { x: posX, y: posY, platform: pl };

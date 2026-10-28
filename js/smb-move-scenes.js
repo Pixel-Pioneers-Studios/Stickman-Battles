@@ -126,7 +126,7 @@ function msGuardBreakClaim(att, t) {
   const k = att && att._msKill;
   if (!k || !t || (k.guardBroke && k.guardBroke.includes(t))) return false;
   const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
-  const live = att._msScene && att._msScene.key === k.key;
+  const live = (att._msScene && att._msScene.key === k.key) || att._msNetKey === k.key;
   if (!live && !(k.end && fc - k.end <= MS_KILL_TAIL)) return false;
   (k.guardBroke = k.guardBroke || []).push(t);
   return true;
@@ -277,14 +277,16 @@ const MS_PROTO = {
   },
   _targetable(t) {
     if (!t || t === this.user || t.health <= 0 || t.backstageHiding) return false;
-    if (t._msScene && t._msScene !== this && t._msScene.landed) return false;
     if (t._msLock && t._msLock !== this) return false;
     if (typeof isHostileTarget === 'function' && !isHostileTarget(this.user, t)) return false;
     return true;
   },
   // Heavy targets take the hits but are never held: bosses keep their own AI.
   canLock(t) {
-    return !!t && !t.isBoss && !t.isTrueForm && !t._isGod && !t.isGod && !t.isRemote &&
+    // A performer whose move has connected is hit, not held: the hold would cancel it.
+    return !!t && !(t._msScene && t._msScene !== this && t._msScene.landed) &&
+           !t.isBoss && !t.isTrueForm && !t._isGod && !t.isGod &&
+           (!t.isRemote || MoveSceneNet.canHold(this.user, t)) &&
            !(t.drawScale && t.drawScale > 1.45) && !(t.kbResist !== undefined && t.kbResist < 0.45);
   },
   lock(t) {
@@ -388,6 +390,7 @@ const MS_PROTO = {
     }
     t.canDoubleJump = true;
     t.onGround = false;
+    if (t.isRemote) MoveSceneNet.onRelease(this, t, o);
   },
 
   impact(t, color, big) {
@@ -420,7 +423,9 @@ const MS_PROTO = {
   zoom(z, frames) {
     if (typeof setCameraDrama === 'function') setCameraDrama('focus', frames || 30, this.user, z || 1.12);
   },
-  sfx(name) { if (typeof SoundManager !== 'undefined' && typeof SoundManager[name] === 'function') SoundManager[name](); },
+  sfx(name) {
+    if (MoveScene._netCur === this) MoveSceneNet.out(this.user, { t: 'sfx', n: name });
+    if (typeof SoundManager !== 'undefined' && typeof SoundManager[name] === 'function') SoundManager[name](); },
   fire() {
     if (this.fired || typeof this.legacy !== 'function') return;
     this.fired = true;
@@ -448,8 +453,6 @@ const MoveScene = {
   // effect (projectiles, AoE) at the release frame.
   begin(user, kind, target, legacy) {
     if (!user || user.isBoss || user.isTrueForm || user.isRemote) return false;
-    if (typeof onlineMode !== 'undefined' && onlineMode) return false;
-    if (typeof PubHub !== 'undefined' && PubHub.active) return false;
     if (user._msScene || user._msLock) return false;
     // Admin attack kits and custom weapons replace the ability with their own;
     // the choreography belongs to the stock weapon.
@@ -483,14 +486,17 @@ const MoveScene = {
     // A weapon still out from a throw is hidden by that throw, not by this fighter's baseline.
     if (!user._msHideWhile) user._msHideWas = user._hideWeapon;
     this.scenes.push(sc);
+    this._netCur = MoveSceneNet.sends(user) ? sc : null;
     if (def.start) def.start(sc);
     this._pose(sc);
+    this._netCur = null;
     return true;
   },
 
   isBusy(f) { return !!(f && (f._msScene || f._msLock)); },
 
   update() {
+    MoveSceneNet.tick();
     if (this._freezeNext) {
       if (typeof hitStopFrames !== 'undefined') hitStopFrames = Math.max(hitStopFrames, this._freezeNext);
       this._freezeNext = 0;
@@ -514,6 +520,7 @@ const MoveScene = {
     const live = _msAllFighters();
     for (const sc of this.scenes.slice()) {
       const u = sc.user;
+      this._netCur = MoveSceneNet.sends(u) ? sc : null;
       if (halt || !u || u.health <= 0 || u._msScene !== sc || !live.includes(u)) { this.abort(sc); continue; }
       const dt = (typeof slowMotion === 'number' && slowMotion > 0) ? Math.min(1, slowMotion) : 1;
       sc.dt = dt;
@@ -542,10 +549,10 @@ const MoveScene = {
         sc._clampBody(b);
         b.f.x = b.x; b.f.y = b.y;
       }
-      // Performer: armored throughout, invulnerable only once the move connects.
+      // Performer: armored throughout (hits land, nothing staggers it). Never invulnerable:
+      // that let long scenes walk through supers.
       if (!sc.landed && (u.totalDamageDealt || 0) > sc.dmg0) sc.landed = true;
       u._superArmorUntil = Math.max(u._superArmorUntil || 0, fc + 2);
-      if (sc.landed) u.invincible = Math.max(u.invincible || 0, 2);
       u.facing = sc.f;
       u.shielding = false;
       u.attackTimer = 0;
@@ -579,6 +586,7 @@ const MoveScene = {
         this.finish(sc);
       }
     }
+    this._netCur = null;
     this._tickFx();
   },
 
@@ -638,8 +646,6 @@ const MoveScene = {
     if (i >= 0) this.scenes.splice(i, 1);
     if (u && u._msScene === sc) {
       u._msScene = null;
-      // The scene's own i-frames end with it; longer ones came from elsewhere.
-      if (sc.landed && u.invincible <= 2) u.invincible = 0;
       if (u._msKill && u._msKill.key === sc.key) u._msKill.end = typeof frameCount !== 'undefined' ? frameCount : 1;
       // Ease from the scene's last pose back into the weapon's own carry.
       if (u._movePose) { u._msOut = { p: u._movePose, t: MS_BLEND_OUT }; if (!this.outs.includes(u)) this.outs.push(u); }
@@ -669,12 +675,12 @@ const MoveScene = {
   },
 
   // The victim spends a full super meter to break the hold from inside.
-  breakOut(v) {
+  // `net`: an online victim already paid for the break on its own client.
+  breakOut(v, net) {
     const sc = v && v._msLock;
-    if (!sc || !v.superReady || v.health <= 0) return false;
+    if (!sc || (!net && !v.superReady) || v.health <= 0) return false;
     const u = sc.user;
-    v.superMeter = 0;
-    v.superReady = false;
+    if (!net) { v.superMeter = 0; v.superReady = false; }
     const dir = u.cx() >= v.cx() ? 1 : -1;
     const vx = v.cx(), vy = v.cy();
     this.abort(sc);
@@ -698,6 +704,12 @@ const MoveScene = {
     v.canDoubleJump = true;
     v._comboHitCount = 0;
     u._comboHitCount = 0;
+    this._breakFx(v, dir, vx, vy);
+    if (!v.isAI && typeof _achStats !== 'undefined') _achStats.superCount = (_achStats.superCount || 0) + 1;
+    return true;
+  },
+
+  _breakFx(v, dir, vx, vy) {
     const shards = [];
     for (let i = 0; i < 16; i++) {
       const a = (i / 16) * Math.PI * 2 + Math.random() * 0.3;
@@ -719,8 +731,6 @@ const MoveScene = {
       if (SoundManager.clang) SoundManager.clang();
       if (SoundManager.superActivate) SoundManager.superActivate();
     }
-    if (!v.isAI && typeof _achStats !== 'undefined') _achStats.superCount = (_achStats.superCount || 0) + 1;
-    return true;
   },
 
   _tickFx() {
@@ -899,7 +909,7 @@ const MoveScene = {
   const P = Fighter.prototype;
   const _attack = P.attack, _ability = P.ability, _useSuper = P.useSuper, _respawn = P.respawn;
   P.attack = function (t) {
-    if (this._msScene || this._msLock) return;
+    if (this._msScene || this._msLock || this._msNetHold) return;
     const cd0 = this.cooldown || 0, at0 = this.attackTimer || 0;
     const r = _attack.call(this, t);
     // A normal swing ends the move's kill claim, unless it is a keepOnSwing buff.
@@ -910,7 +920,7 @@ const MoveScene = {
   };
   // An ability or super that ran without a scene ends the previous move's kill claim.
   P.ability = function (t) {
-    if (this._msScene || this._msLock) return;
+    if (this._msScene || this._msLock || this._msNetHold) return;
     const k0 = this._msKill, cd0 = this.abilityCooldown || 0;
     const r = _ability.call(this, t);
     if (k0 && this._msKill === k0 && !this._msScene && (this.abilityCooldown || 0) > cd0) this._msKill = null;
@@ -918,6 +928,7 @@ const MoveScene = {
   };
   P.useSuper = function (t) {
     if (this._msLock) { MoveScene.breakOut(this); return; }
+    if (this._msNetHold) { MoveSceneNet.requestBreak(this); return; }
     if (this._msScene) return;
     const k0 = this._msKill, m0 = this.superMeter || 0;
     const r = _useSuper.call(this, t);
@@ -927,9 +938,282 @@ const MoveScene = {
   P.respawn = function () {
     if (this._msScene) MoveScene.abort(this._msScene);
     if (this._msLock) this._msLock.release(this, 0, 0, { stun: 0 });
+    this._msNetHold = null;
     this._movePose = null;
     this._msKill = null;
     return _respawn.apply(this, arguments);
   };
   P._msHooked = true;
 })();
+
+// Online play. The performer's own client runs the scene. Its state packets
+// (duel room playerState, Public Server pub:state) carry an `ms` block: the scene
+// key and track time, the performer pose, each held player's offset and pose,
+// and one-shot events (effects, sounds, releases, break requests) repeated over
+// several packets and de-duplicated by id. Damage still travels as hit packets.
+// A held victim's client gives its body to the hold until the release arrives.
+const MoveSceneNet = (() => {
+  const EV_REPEAT = 6;              // packets each one-shot event rides
+  const HOLD_STALE = 20;            // frames without a listing before a hold drops
+  let _seq = (Math.random() * 1e6) | 0;
+
+  const _fc = () => (typeof frameCount !== 'undefined' ? frameCount : 0);
+  const _duel = () => typeof onlineMode !== 'undefined' && onlineMode &&
+    typeof NetworkManager !== 'undefined' && NetworkManager.connected;
+  const _pub = () => typeof PubHub !== 'undefined' && PubHub.active;
+  const _list = () => (typeof players !== 'undefined' ? players : []);
+
+  function active() { return _duel() || _pub(); }
+
+  function _local() {
+    if (_pub()) { const p = _list()[0]; return p && !p._pubRemote ? p : null; }
+    if (_duel()) return _list()[NetworkManager.getLocalSlot()] || null;
+    return null;
+  }
+  function _slotOf(f) {
+    if (!f) return null;
+    if (_pub()) return f._pubBotId === undefined && f._pubSlot !== undefined ? f._pubSlot : null;
+    const i = _list().indexOf(f);
+    return i >= 0 ? i : null;
+  }
+  function _bySlot(s) {
+    if (s === null || s === undefined) return null;
+    if (_pub()) return _list().find(p => p && p._pubBotId === undefined && p._pubSlot === s) || null;
+    return _list()[s] || null;
+  }
+
+  // Fighters whose packets this client sends: its own player, and in the Public
+  // Server the bots it simulates as authority.
+  function sends(f) {
+    if (!f || f.isRemote) return false;
+    if (_pub()) return f === _list()[0] || f._pubBotId !== undefined;
+    if (_duel()) return f === _local() || (f._netMinionId !== undefined && NetworkManager.isHost());
+    return false;
+  }
+
+  // A remote human whose own client will read the hold.
+  function canHold(user, t) {
+    if (!t || !t.isRemote || !sends(user) || t.isBoss || t._netMinionId !== undefined) return false;
+    if (_pub()) return t._pubRemote && t._pubBotId === undefined && t._pubSlot !== undefined;
+    return _list().includes(t);
+  }
+
+  function _packPose(mp) {
+    if (!mp) return null;
+    const a = MS_POSE_KEYS.map(k => (mp[k] == null || !isFinite(mp[k])) ? null : Math.round(mp[k] * 100) / 100);
+    a.push((mp.trail ? 1 : 0) | (mp.air ? 2 : 0) | (mp.hide ? 4 : 0) | (mp.smear ? 8 : 0) | (mp.keepState ? 16 : 0));
+    return a;
+  }
+  function _unpackPose(a) {
+    if (!Array.isArray(a)) return null;
+    const o = {};
+    MS_POSE_KEYS.forEach((k, i) => { o[k] = a[i] == null ? undefined : a[i]; });
+    const fl = a[MS_POSE_KEYS.length] || 0;
+    o.trail = !!(fl & 1); o.air = !!(fl & 2); o.hide = !!(fl & 4); o.smear = !!(fl & 8); o.keepState = !!(fl & 16);
+    return o;
+  }
+
+  function out(f, ev) {
+    if (!f) return;
+    const q = f._msNetOut || (f._msNetOut = []);
+    ev.i = ++_seq;
+    ev.left = EV_REPEAT;
+    q.push(ev);
+    if (q.length > 60) q.splice(0, q.length - 60);
+  }
+  function _outFx(f, kind, items) {
+    for (const o of items) out(f, { t: kind === 'fx' ? 'fx' : 'scr', o });
+  }
+
+  function onRelease(sc, t, o) {
+    if (!canHold(sc.user, t)) return;
+    out(sc.user, {
+      t: 'rel', s: _slotOf(t), n: sc.start,
+      vx: +(t.vx || 0).toFixed(2), vy: +(t.vy || 0).toFixed(2),
+      st: t.stunTimer || 0, rg: o && o.tumble ? (t.ragdollTimer || 0) : 0, rs: t.ragdollSpin || 0,
+    });
+  }
+
+  // Sender side: the `ms` block for one of this client's fighters, or undefined.
+  function pack(p) {
+    if (!p || !active() || !sends(p)) return undefined;
+    let m = null;
+    const sc = p._msScene;
+    if (sc && !sc.done) {
+      m = { k: sc.key, n: sc.start, kd: sc.kind, cb: sc.comboBase || 0, tr: sc.track,
+            lt: Math.round(sc.lt * 10) / 10, p: _packPose(p._movePose), v: [] };
+      for (const v of sc.victims) {
+        if (!canHold(p, v)) continue;
+        const b = sc.bodies.get(v);
+        m.v.push({ s: _slotOf(v), dx: Math.round(((b ? b.x : v.x) - p.x) * 10) / 10,
+                   dy: Math.round(((b ? b.y : v.y) - p.y) * 10) / 10, p: _packPose(v._movePose) });
+      }
+    }
+    if (p._msNetHold && p._movePose) (m = m || {}).hp = _packPose(p._movePose);
+    if (p._hideWeapon) (m = m || {}).hw = 1;
+    const q = p._msNetOut;
+    if (q && q.length) {
+      (m = m || {}).ev = q.map(e => { const c = Object.assign({}, e); delete c.left; return c; });
+      for (const e of q) e.left--;
+      p._msNetOut = q.filter(e => e.left > 0);
+    }
+    return m || undefined;
+  }
+
+  function _applyEvent(f, e, me) {
+    if (e.t === 'fx' && e.o) MoveScene.fx.push(JSON.parse(JSON.stringify(e.o)));
+    else if (e.t === 'scr' && e.o) MoveScene.screen.push(JSON.parse(JSON.stringify(e.o)));
+    else if (e.t === 'sfx') {
+      if (typeof SoundManager !== 'undefined' && typeof SoundManager[e.n] === 'function') SoundManager[e.n]();
+    } else if (e.t === 'rel') {
+      if (!me || _bySlot(e.s) !== me) return;
+      me._msNetHold = null;
+      me._movePose = null;
+      me._msNetIgnore = { n: e.n, by: f, until: _fc() + MS_REGRAB_LOCKOUT };
+      if (me.health <= 0) return;
+      me.vx = e.vx || 0; me.vy = e.vy || 0;
+      me.stunTimer = Math.max(me.stunTimer || 0, e.st || 0);
+      if (e.rg) { me.ragdollTimer = Math.max(me.ragdollTimer || 0, e.rg); me.ragdollSpin = e.rs || 0; }
+      me.canDoubleJump = true;
+      me.onGround = false;
+    } else if (e.t === 'brk') {
+      if (!me || e.s !== _slotOf(me)) return;
+      const sc = f._msLock;
+      if (sc && sc.user === me && sc.start === e.n) MoveScene.breakOut(f, true);
+    }
+  }
+
+  // Receiver side: called with each remote fighter and its packet's `ms` block.
+  function applyRemote(f, m) {
+    if (!f) return;
+    const fc = _fc();
+    const me = _local();
+    if (m && m.ev) {
+      const seen = f._msNetSeen || (f._msNetSeen = new Set());
+      for (const e of m.ev) {
+        if (!e || seen.has(e.i)) continue;
+        seen.add(e.i);
+        if (seen.size > 240) seen.delete(seen.values().next().value);
+        try { _applyEvent(f, e, me); } catch (err) { /* a bad event must not stall the frame */ }
+      }
+    }
+    // Held by one of my scenes: my scene owns this body and pose.
+    if (f._msLock && f._msLock.user && !f._msLock.user.isRemote) {
+      f.shielding = false;
+      f.attackTimer = 0;
+    }
+    if (m && m.k) {
+      if (f._msNetKey !== m.k || f._msNetN !== m.n) {
+        f._msNetKey = m.k; f._msNetN = m.n;
+        f._msKill = { key: m.k, end: 0 };
+        f._msOut = null;
+      }
+      f._msNetKind = m.kd; f._msNetCb = m.cb || 0;
+      // Sample the track locally between packets, so the move stays smooth at 20 Hz.
+      if (m.tr !== f._msNetTr || m.lt !== f._msNetLtSrc) { f._msNetTr = m.tr; f._msNetLtSrc = m.lt; f._msNetLt = m.lt; }
+      else f._msNetLt += 1;
+      const def = MS_DEFS[m.k];
+      const tr = def && def.tracks && def.tracks[m.tr];
+      let pose = null;
+      if (tr && !def.poseMod) pose = msSample(tr.keys, Math.min(f._msNetLt, tr.len || f._msNetLt));
+      f._movePose = pose || _unpackPose(m.p);
+      f.superActive = m.kd === 'e';
+      if (me && Array.isArray(m.v)) {
+        for (const e of m.v) {
+          if (_bySlot(e.s) !== me || me.health <= 0) continue;
+          const ig = me._msNetIgnore;
+          if (ig && ig.by === f && ig.n === m.n && fc < ig.until) continue;
+          let h = me._msNetHold;
+          if (!h || h.by !== f || h.n !== m.n) {
+            h = me._msNetHold = { by: f, n: m.n, t0: fc, cx: me.x - f.x, cy: me.y - f.y };
+            if (me._msScene) MoveScene.abort(me._msScene);
+          }
+          h.dx = e.dx; h.dy = e.dy; h.pose = _unpackPose(e.p); h.listed = fc;
+        }
+      }
+    } else if (f._msNetKey) {
+      f._msNetKey = null;
+      if (f._msKill) f._msKill.end = fc || 1;
+      if (f._movePose) { f._msOut = { p: f._movePose, t: MS_BLEND_OUT }; if (!MoveScene.outs.includes(f)) MoveScene.outs.push(f); }
+      f._movePose = null;
+      f.superActive = false;
+    }
+    if (!f._msNetKey && !f._msLock) {
+      if (m && m.hp) { f._movePose = _unpackPose(m.hp); f._msNetHp = true; }
+      else if (f._msNetHp) { f._movePose = null; f._msNetHp = false; }
+    }
+    if (m && m.hw) { f._hideWeapon = true; f._msNetHw = true; }
+    else if (f._msNetHw) { f._hideWeapon = false; f._msNetHw = false; }
+  }
+
+  // Inbound hit packet from a performer mid-scene: count it as one scene hit, as
+  // the sender did, so the scene's own hit i-frames and combo scaling match.
+  function inboundHit(att) {
+    if (!att || !att._msNetKey) return;
+    const fc = _fc();
+    att._attackStartFrame = fc;
+    att._comboHitCount = att._msNetCb || 0;
+    att._comboLastFrame = fc;
+    if (typeof CLASH_TIER_SUPER !== 'undefined') att._attackKindTier = att._msNetKind === 'e' ? CLASH_TIER_SUPER : CLASH_TIER_ABILITY;
+  }
+
+  // Victim side: spend a full meter to break out. The performer's client ends the scene.
+  function requestBreak(me) {
+    const h = me && me._msNetHold;
+    if (!h || !me.superReady || me.health <= 0) return;
+    me.superMeter = 0;
+    me.superReady = false;
+    out(me, { t: 'brk', s: _slotOf(h.by), n: h.n });
+    const dir = h.by.cx() >= me.cx() ? 1 : -1;
+    me._msNetHold = null;
+    me._movePose = null;
+    me._msNetIgnore = { n: h.n, by: h.by, until: _fc() + 90 };
+    me.stunTimer = 0; me.hurtTimer = 0; me.ragdollTimer = 0;
+    me._hitIframeBy = null;
+    me.invincible = Math.max(me.invincible || 0, MS_BREAK_IFRAMES);
+    me.vx = -dir * 2; me.vy = -5;
+    me.canDoubleJump = true;
+    me._comboHitCount = 0;
+    MoveScene._breakFx(me, dir, me.cx(), me.cy());
+  }
+
+  // Each frame after physics: a held local fighter follows the performer.
+  function tick() {
+    const me = active() ? _local() : null;
+    const h = me && me._msNetHold;
+    if (!h) return;
+    const fc = _fc();
+    const by = h.by;
+    const present = _list().includes(by) || (typeof minions !== 'undefined' && minions.includes(by));
+    if (!by || by.health <= 0 || me.health <= 0 || !present || !by._msNetKey ||
+        by._msNetN !== h.n || fc - (h.listed || h.t0) > HOLD_STALE || fc - h.t0 > 900) {
+      me._msNetHold = null;
+      me._movePose = null;
+      if (me.health > 0) me.stunTimer = Math.max(me.stunTimer || 0, 8);
+      return;
+    }
+    h.cx += (h.dx - h.cx) * 0.5;
+    h.cy += (h.dy - h.cy) * 0.5;
+    me.x = by.x + h.cx;
+    me.y = by.y + h.cy;
+    me.vx = 0; me.vy = 0;
+    me.stunTimer = Math.max(me.stunTimer || 0, 3);
+    me.hurtTimer = Math.max(me.hurtTimer || 0, 2);
+    me.ragdollTimer = 0;
+    me.shielding = false;
+    me.attackTimer = 0;
+    me.facing = by.cx() > me.cx() ? 1 : -1;
+    if (h.pose) me._movePose = h.pose;
+  }
+
+  return { active, sends, canHold, out, _outFx, onRelease, pack, applyRemote, inboundHit, requestBreak, tick };
+})();
+
+// The performer's client captures what its scenes draw, for the packets.
+for (const _msName of ['fx', 'screen']) {
+  MoveScene[_msName].push = function () {
+    const cur = MoveScene._netCur;
+    if (cur) MoveSceneNet._outFx(cur.user, _msName, Array.prototype.slice.call(arguments));
+    return Array.prototype.push.apply(this, arguments);
+  };
+}

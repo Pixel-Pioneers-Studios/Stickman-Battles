@@ -398,7 +398,7 @@ const AAMultiverse = {
     if (AA_WORLDS[this.idx].key !== 'aa_between' || frameCount - this._lastHitF >= 50) return;
     aa.invincible = 0;   // the hit's own i-frames would otherwise swallow it
     _aaMvHurtBoss(aa, 0.02, 0);
-    if (typeof showBossDialogue === 'function') showBossDialogue('…You knocked me into the space between.', 150);
+    if (typeof showBossDialogue === 'function') showBossDialogue('The space between. I have fallen further than this.', 150);
   },
 
   _rulesBranch(aa, hz, hero) {

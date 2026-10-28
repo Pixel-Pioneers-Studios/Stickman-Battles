@@ -192,6 +192,19 @@ function gameLoop(timestamp) {
         if (rs.name)  remoteP.name  = rs.name;
         if (rs.hat)   remoteP.hat   = rs.hat;
         if (rs.cape)  remoteP.cape  = rs.cape;
+        // The owner's class, not whatever this client's own P2 menu picked.
+        if (rs.charClass && rs.charClass !== remoteP._netClass && typeof applyClass === 'function' &&
+            typeof CLASSES !== 'undefined' && CLASSES[rs.charClass]) {
+          remoteP._netClass = rs.charClass;
+          const _keepW = remoteP.weaponKey;
+          applyClass(remoteP, rs.charClass);
+          if (_keepW && WEAPONS[_keepW]) { remoteP.weaponKey = _keepW; remoteP.weapon = WEAPONS[_keepW]; }
+          if (rs.health != null) remoteP.health = rs.health;
+          if (rs.maxHealth != null) remoteP.maxHealth = rs.maxHealth;
+        }
+        if (rs.ab != null) remoteP.abilityCooldown = rs.ab;
+        if (rs.su != null) remoteP.superReady = !!rs.su;
+        if (typeof MoveSceneNet !== 'undefined') MoveSceneNet.applyRemote(remoteP, rs.ms);
       }
     }
   }
@@ -364,7 +377,12 @@ function gameLoop(timestamp) {
   }
 
   // Cinematic camera: smooth follow with a spring, plus optional hard cuts.
-  if (cinematicCamOverride) {
+  // The shot keeps its own state: easing from the gameplay camera's fresh values each frame only
+  // ever moved 7-9% of the way, so cinematic zooms and cuts never showed.
+  // Camera sequences (createCameraSequence) drive camXCur/camZoomCur themselves.
+  if (cinematicCamOverride && !(typeof _camSeq !== 'undefined' && _camSeq)) {
+    if (_cinCamZoom === null) { _cinCamZoom = camZoom; _cinCamX = camCX; _cinCamY = camCY; }
+    camZoom = _cinCamZoom; camCX = _cinCamX; camCY = _cinCamY;
     if (cinematicCamSnapFrames > 0) {
       camZoom = cinematicZoomTarget;
       camCX   = cinematicFocusX;
@@ -385,10 +403,14 @@ function gameLoop(timestamp) {
       _camPrevFocusY = cinematicFocusY;
       _camOvershootX *= 0.82;
       _camOvershootY *= 0.82;
-      camCX += _camOvershootX;
-      camCY += _camOvershootY;
     }
+    _cinCamZoom = camZoom; _cinCamX = camCX; _cinCamY = camCY;
+    camCX += _camOvershootX;
+    camCY += _camOvershootY;
+    // Park the gameplay camera on the shot so releasing the override eases out instead of popping.
+    camZoomCur = _cinCamZoom; camXCur = _cinCamX; camYCur = _cinCamY;
   } else {
+    _cinCamZoom = null;
     cinematicCamSnapFrames = 0;
     _camPrevFocusX = camCX;
     _camPrevFocusY = camCY;
@@ -436,6 +458,9 @@ function gameLoop(timestamp) {
 
   // Phase: render (world, entities, particles, HUD)
   drawBackground();
+  // Battle Royale skyline, volcano cone and office interior: behind the platforms.
+  if (gameMode === 'battleroyale' && typeof drawBRStructuresBack === 'function') drawBRStructuresBack();
+  if (gameMode === 'endless' && typeof drawEndlessBack === 'function') drawEndlessBack();
   // Conviction tint: screen space, before world entities.
   if (typeof DomainManager !== 'undefined') DomainManager.draw();
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
@@ -458,6 +483,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'defense' && typeof drawMinigameDefenseNexus === 'function') drawMinigameDefenseNexus();
   if (gameMode === 'minigames' && minigameType === 'koth' && typeof drawKothZone === 'function') drawKothZone();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
+  if (gameMode === 'endless' && typeof drawEndlessWorld === 'function') drawEndlessWorld();
   if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortNPC === 'function') drawEscortNPC();
   if (gameMode === 'shipflight' && typeof drawShipFlight === 'function') drawShipFlight();
   drawBackstagePortals();
@@ -465,7 +491,10 @@ function gameLoop(timestamp) {
 
   // Boss beams: update and draw. Also runs in training with a boss or an admin kit.
   const _anyAdminKit = typeof players !== 'undefined' && players.some(p => p._adminKit);
-  const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit
+  // The attack viewer fires boss effects into ordinary matches.
+  const _atkBossFx = !!window.FORCE_ATTACK_MODE
+    && (bossBeams.length || bossSpikes.length || bossWarnings.length || bossMetSafeZones.length);
+  const hasBossActive = (currentArena && currentArena.isBossArena) || (trainingMode && trainingDummies.some(d => d.isBoss)) || _anyAdminKit || _atkBossFx
     || (damnationActive && players.some(p => p.isBoss));
   // A boss outside a boss arena (the Fallen God in space) still needs its death scene and stagger.
   if (!hasBossActive && bossDeathScene) updateBossDeathScene();
@@ -596,8 +625,11 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'sports' && typeof updateSports === 'function') updateSports();
   if (gameMode === 'minigames') updateMinigame();
   if (gameMode === 'battleroyale' && typeof updateBattleRoyale === 'function') updateBattleRoyale();
+  if (gameMode === 'endless' && typeof updateEndless === 'function') updateEndless();
   // The Sewer: barges drift, carry riders, and burn anything in the flow. No-op elsewhere.
   if (typeof updateSewer === 'function') updateSewer();
+  // Cataclysm (secret weapon): Convictions, meteors, Axiom. No-op unless someone wields it.
+  if (typeof updateCataclysm === 'function') updateCataclysm();
   if (damnationActive && typeof updateDamnation === 'function') updateDamnation();
   // TrueForm updates. Also runs with a trueform admin kit or FORCE_ATTACK_MODE TF effects.
   const _anyTFKit = typeof players !== 'undefined' && players.some(p => p._adminKit && p._adminKit.kitKey === 'trueform');
@@ -615,7 +647,10 @@ function gameLoop(timestamp) {
     (typeof tfChainSlam   !== 'undefined' && tfChainSlam)          ||
     (typeof tfGraspSlam   !== 'undefined' && tfGraspSlam)          ||
     (typeof tfPhaseShift  !== 'undefined' && tfPhaseShift)         ||
-    (typeof tfGravityInverted !== 'undefined' && tfGravityInverted)
+    (typeof tfRealityOverride !== 'undefined' && tfRealityOverride) ||
+    (typeof tfGravityInverted !== 'undefined' && tfGravityInverted) ||
+    tfAttackRetryQueue.length ||
+    (typeof _atkPendingCtxs !== 'undefined' && _atkPendingCtxs.length)
   );
   if ((gameMode === 'trueform' || _anyTFKit || _forceTF
       || (damnationActive && players.some(p => p.isTrueForm))) &&
@@ -889,6 +924,12 @@ function gameLoop(timestamp) {
   if (typeof drawCinSpeedLines === 'function') drawCinSpeedLines();
   // Paradox entity (world-space, drawn over fighters)
   if (typeof drawParadox === 'function') drawParadox();
+  // A cinematic's own world-space layer (figures and effects that are not fighters)
+  if (activeCinematic && typeof activeCinematic.drawWorld === 'function') {
+    ctx.save();
+    try { activeCinematic.drawWorld(ctx); } catch (e) { console.error('[cinematic] drawWorld threw:', e); }
+    ctx.restore();
+  }
   // Divine Summon: Herald entity world-space draw
   if (typeof drawDivineSummon === 'function') drawDivineSummon();
   // TF-kills-Paradox cinematic overlay (lock rings world-space + terminal screen-space)
@@ -1030,6 +1071,9 @@ function gameLoop(timestamp) {
   ctx.restore();
   ctx.globalAlpha = 1;
 
+  // Battle Royale office facade: after the fighters, so it hides whoever is inside.
+  if (gameMode === 'battleroyale' && typeof drawBRStructuresFront === 'function') drawBRStructuresFront();
+  if (typeof drawCataclysmFX === 'function') drawCataclysmFX();
   // Debris (cosmetic, no collision or sync)
   if (typeof updateDestruction === 'function') { updateDestruction(); drawDebrisChunks(); }
   if (typeof updateWorldReact === 'function') { updateWorldReact(); drawWorldReactFront(); }
@@ -1124,6 +1168,7 @@ function gameLoop(timestamp) {
   // Minigame HUD overlay
   if (gameMode === 'minigames') drawMinigameHUD();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleHUD === 'function') drawBattleRoyaleHUD();
+  if (gameMode === 'endless' && typeof drawEndlessHUD === 'function') drawEndlessHUD();
   if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortHUD === 'function') drawEscortHUD();
   if (gameMode === 'assassination' && typeof drawAssassinationHUD === 'function') drawAssassinationHUD();
   if (gameMode === 'gauntlet' && typeof drawGauntletHUD === 'function') drawGauntletHUD();

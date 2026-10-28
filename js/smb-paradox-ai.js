@@ -126,15 +126,19 @@ function paradoxFusionUpdateAI(fighter) {
     }
   }
 
-  // Floor hazard
-  if (!inDanger && typeof bossFloorState !== 'undefined' && bossFloorState === 'hazard') {
-    // Stay airborne
-    inDanger = true;
-    dodgeDir = dir; // keep moving toward boss even during floor hazard
-  }
+  // Floor removal: the shared hazard layer (btHazardNav) picks the deck to escape to.
+  const haz = typeof btHazardNav === 'function' ? btHazardNav(fighter, dir) : null;
 
   // Execute priority
-  if (inDanger) {
+  if (haz && !haz.fight) {
+    fighter.vx = haz.move * 6.2;
+    if (haz.jump) {
+      if (fighter.onGround) fighter.vy = -17;
+      else if (fighter.canDoubleJump) { fighter.vy = -13; fighter.canDoubleJump = false; }
+    }
+    fighter._pdxDriftFrames = 0;
+    return;
+  } else if (inDanger) {
     // A. Dodge
     fighter.vx = dodgeDir * 7.5;
     if (fighter.onGround) fighter.vy = -17; // jump out of danger

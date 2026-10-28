@@ -15,12 +15,8 @@
 
 const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
 const puppeteer = require('puppeteer-core');
 
-const PORT = 9333;
-const PROFILE = path.join(os.homedir(), '.agent-chrome-profile-studio');
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const N = Number((process.argv.find(a => a.startsWith('--n=')) || '--n=10').slice(4));
 
 // Creator rules of thumb for Shorts "Stayed to watch" (YouTube publishes no cutoffs).
@@ -29,20 +25,7 @@ const MIN_VIEWS = 100; // below this the % is mostly noise
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function connect() {
-  try {
-    return await puppeteer.connect({ browserURL: `http://127.0.0.1:${PORT}`, defaultViewport: null });
-  } catch (_) {
-    spawn(CHROME, [`--user-data-dir=${PROFILE}`, `--remote-debugging-port=${PORT}`,
-      '--no-first-run', '--no-default-browser-check', 'https://studio.youtube.com/'],
-      { detached: true, stdio: 'ignore' }).unref();
-    for (let i = 0; i < 20; i++) {
-      await sleep(500);
-      try { return await puppeteer.connect({ browserURL: `http://127.0.0.1:${PORT}`, defaultViewport: null }); } catch (_) {}
-    }
-    throw new Error('Could not start Chrome on port ' + PORT);
-  }
-}
+const connect = () => require('./studio-chrome').connectStudio();
 
 async function bodyText(p) { return p.evaluate(() => document.body.innerText); }
 
@@ -114,7 +97,7 @@ async function readShort(p, id) {
 
 (async () => {
   const b = await connect();
-  const p = await b.newPage();
+  const p = await require('./studio-chrome').studioPage(b);
   try {
     const shorts = await listShorts(p);
     if (!shorts) {
@@ -146,7 +129,6 @@ async function readShort(p, id) {
       console.log(`(pass >= ${PASS}%, fail < ${FAIL}%: creator rules of thumb, not official YouTube numbers)`);
     }
   } finally {
-    await p.close().catch(() => {});
     b.disconnect();
   }
 })().catch(e => { console.error(e.message); process.exit(1); });

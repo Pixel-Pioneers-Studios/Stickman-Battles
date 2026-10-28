@@ -173,11 +173,11 @@ const SMK2_STRATEGY_SWAP = Object.freeze({
 
 // Spoken on a tactic swap.
 const SMK2_TACTIC_SWAP_LINES = [
-  'That stopped working.',
+  'Enough of that.',
   'New plan.',
   'You adapted. So will I.',
   'Different approach.',
-  'I won\'t keep losing that exchange.',
+  'That exchange is closed.',
   'Change of pace.',
 ];
 

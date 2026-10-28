@@ -2921,7 +2921,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._blindEvadeSrc   = src;
     if (this._blindLineCd <= 0 && typeof showBossDialogue === 'function') {
       this._blindLineCd = 420;
-      showBossDialogue(src === 'super' ? 'That again. I felt it the first time.'
+      showBossDialogue(src === 'super' ? 'That again. Already answered.'
                                        : 'I do not need to see it.', 110);
     }
   }
@@ -2957,7 +2957,7 @@ class SovereignMK2 extends AdaptiveAI {
     this._blindEvadeSrc     = 'ambient';
     if (this._blindLineCd <= 0 && typeof showBossDialogue === 'function') {
       this._blindLineCd = 420;
-      showBossDialogue('Something in this place is biting me. It changes nothing.', 110);
+      showBossDialogue('This place bites. So do I.', 110);
     }
   }
 
@@ -4421,6 +4421,18 @@ class SovereignMK2 extends AdaptiveAI {
       return true;
     }
     return false;
+  }
+
+  // Absolute Dominion is banked, not forced (Fighter._wantsConviction). He keeps it when the plain
+  // super is worth more: it can end this life, or he needs its heal (the expansion heals nothing).
+  // Otherwise the bank is spent, it can't grow past one.
+  _sovWantsConviction(t) {
+    if (!t || t.health <= 0) return true;
+    const tHp = t.health / (t.maxHealth || 1);
+    const hp  = this.health / (this.maxHealth || 1);
+    if (tHp < 0.25) return false;
+    if (hp < 0.25 && tHp > hp) return false;
+    return true;
   }
 
   _updateSuperBank() {

@@ -20,6 +20,8 @@ const BOT_TACTICS = {
   // Longest pause (frames) before a bot takes a swing it could already take in
   // the open. Combos and punishes are not delayed.
   hesitate: { medium: 70, hard: 14, expert: 0 },
+  // A fighter's own _btTune { skill, think, hesitate } replaces its difficulty's
+  // row in all three (the Fight Ladder sets one per rung).
   // Defence: guard a swing seen in time or on getting up from a combo, and
   // steer back to the stage when knocked off it.
   guard: true,
@@ -94,6 +96,7 @@ function botTacSkill(f) {
   if (!BOT_TACTICS.enabled || !f || !f.isAI || f.isBoss || (f.isMinion && !storyFoe) || f.isRemote) return 0;
   if (f.constructor !== Fighter && !storyFoe) return 0;    // Sovereign, AdaptiveAI, creatures: own brains
   if (typeof f._botIQ === 'number') return f._botIQ;
+  if (f._btTune) return f._btTune.skill;
   if (typeof storyModeActive !== 'undefined' && storyModeActive && !BOT_TACTICS.story) return 0;
   if (typeof gameMode !== 'undefined' && gameMode === 'exploration' && !BOT_TACTICS.story) return 0;
   if (typeof brActive !== 'undefined' && brActive && !BOT_TACTICS.br) return 0;
@@ -281,15 +284,22 @@ function _btNear(x) {
 // One flight of the whole body box from platform P. Returns where it lands on N
 // and after how many frames, or null if it clips a platform or leaves the arena.
 // (The pathfinder's arc is a single point, which fits through gaps a body does not.)
-function _btArc(f, x, vx, vy, dbl, P, N) {
+// dblVY: the double jump's vy (a bot's -17 by default; a key-driven fighter's is weaker).
+// delay / hold: a key-driven flight. No key for `delay` frames (straight up from a standstill), the key
+// held for `hold` frames (default: all the way), then let go, where air friction slowly bleeds vx.
+function _btArc(f, x, vx, vy, dbl, P, N, dblVY, delay, hold) {
   const pls = currentArena.platforms, near = _btNear(x), hw = f.w / 2, h = f.h;
   const g = pfArenaGravity(currentArena), vmax = currentArena.isLowGravity ? 10 : 19;
+  const d0 = delay || 0, d1 = hold === undefined ? Infinity : d0 + hold;
+  const airFric = 1 - 0.06 * ((currentArena.modifiers && currentArena.modifiers.frictionMult) || 1);
+  let cv = d0 ? 0 : vx;
   const bottom = currentArena.deathY || 700, step = vy === 0;
   let y = pls[P].y, fired = false;
   for (let n = 0; n < 260; n++) {
     const py = y;
-    if (dbl && !fired && vy >= -1) { vy = -17; fired = true; }
-    vy = Math.min(vy + g, vmax); x += vx; y += vy;
+    if (dbl && !fired && vy >= -1) { vy = dblVY || -17; fired = true; }
+    if (n >= d0) cv = n < d1 ? vx : cv * airFric;
+    vy = Math.min(vy + g, vmax); x += cv; y += vy;
     for (let k = 0; k < near.length; k++) {
       const i = near[k], pl = pls[i];
       if (x + hw <= pl.x || x - hw >= pl.x + pl.w) continue;
@@ -306,38 +316,54 @@ function _btArc(f, x, vx, vy, dbl, P, N) {
 }
 
 // Quickest way off platform P onto N: a spot to jump from, or an end to step off.
-function _btPlanHop(f, P, N, spd) {
+// jp: a key-driven fighter's jump ({ jump, dbl } vy), which has one height and one air speed
+// (a held key). Without it, a bot's: any height and speed it likes.
+function _btPlanHop(f, P, N, spd, jp) {
   const pls = currentArena.platforms, A = pls[P], B = pls[N], x = f.cx(), hw = f.w / 2;
   const inset = Math.min(22, B.w * 0.2);
   let best = null, bc = Infinity;
-  const tryAt = (lx, vx, vy, dbl) => {
+  const tryAt = (lx, vx, vy, dbl, delay, hold) => {
     const walk = Math.abs(lx - x) / spd;                    // cost is frames: the walk, then the flight
     if (walk >= bc) return;
     // A step off starts falling once the whole body is past the end.
-    const r = _btArc(f, vy ? lx : lx + Math.sign(vx) * (hw + 3), vx, vy, dbl, P, N);
-    if (!r || r.x < B.x + 8 || r.x > B.x + B.w - 8) return;
+    const r = _btArc(f, vy ? lx : lx + Math.sign(vx) * (hw + 3), vx, vy, dbl, P, N, jp && jp.dbl, delay, hold);
+    // Keys fly a coarser arc than a bot's set velocity: no landing near an end.
+    const edge = jp ? Math.min(30, B.w * 0.3) : 8;
+    if (!r || r.x < B.x + edge || r.x > B.x + B.w - edge) return;
     // Touching down near an end is a last resort.
     const cost = walk + r.frame + (r.x < B.x + inset || r.x > B.x + B.w - inset ? 45 : 0);
     if (cost >= bc) return;
-    bc = cost; best = { x: lx, vx, vy, dbl, P, N };
+    bc = cost; best = { x: lx, vx, vy, dbl, P, N, delay: delay || 0, hold };
   };
   const lo = Math.max(A.x + hw, B.x - 340), hi = Math.min(A.x + A.w - hw, B.x + B.w + 340);
   // A full jump first; under a low ceiling only a shorter one fits; the double
-  // jump only when nothing else gets there.
-  for (const vy of [-20, -15, -11, 0]) {
+  // jump only when nothing else gets there. Keys have one height and one speed, so a
+  // key-driven jump instead rises straight up for a while before it drifts across, or lets go early.
+  // Each schedule is searched only if the plainer ones before it found nothing (a plan can cost ms).
+  const J = jp ? jp.jump : -20;
+  const KEY_SCHED = [[0], [0, 14], [8], [16], [0, 6], [8, 14], [24], [16, 14], [8, 6], [24, 14], [16, 6], [24, 6]];
+  for (const vy of jp ? [J, 0] : [-20, -15, -11, 0]) {
     if (best) break;
+    if (jp) {
+      for (const [dl, hd] of KEY_SCHED) {
+        if (best) break;
+        for (let lx = lo; lx <= hi; lx += 16) { tryAt(lx, spd, vy || J, !vy, dl, hd); tryAt(lx, -spd, vy || J, !vy, dl, hd); }
+      }
+      continue;
+    }
     for (let lx = lo; lx <= hi; lx += 16) {
-      for (const m of [1, 0.6, 0.25]) { tryAt(lx, spd * m, vy || -20, !vy); tryAt(lx, -spd * m, vy || -20, !vy); }
+      for (const m of [1, 0.6, 0.25]) { tryAt(lx, spd * m, vy || J, !vy); tryAt(lx, -spd * m, vy || J, !vy); }
     }
   }
   if (B.y > A.y) {
-    for (const m of [1, 0.5]) { tryAt(A.x + A.w - 2, spd * m, 0, false); tryAt(A.x + 2, -spd * m, 0, false); }
+    if (jp) for (const hd of [undefined, 0, 4]) { tryAt(A.x + A.w - 2, spd, 0, false, 0, hd); tryAt(A.x + 2, -spd, 0, false, 0, hd); }
+    else for (const m of [1, 0.5]) { tryAt(A.x + A.w - 2, spd * m, 0, false); tryAt(A.x + 2, -spd * m, 0, false); }
   }
   return best;
 }
 
 // No hop straight there and no route in the graph: one platform in between.
-function _btPlanVia(f, P, T, spd, not) {
+function _btPlanVia(f, P, T, spd, not, jp) {
   const pls = currentArena.platforms, B = pls[T], x = f.cx();
   let best = null, bc = Infinity;
   for (let K = 0; K < pls.length; K++) {
@@ -345,8 +371,8 @@ function _btPlanVia(f, P, T, spd, not) {
     if (K === P || K === T || K === not || pk.isFloorDisabled || pk.isCeiling || pk.x > B.x + B.w + 500 || pk.x + pk.w < B.x - 500 ||
         Math.abs(pk.y - B.y) > 420) continue;
     const mid = Math.max(pk.x, Math.min(pk.x + pk.w, B.x + B.w / 2));
-    if (!_btPlanHop({ cx: () => mid, w: f.w, h: f.h }, K, T, spd)) continue;
-    const pl = _btPlanHop(f, P, K, spd);
+    if (!_btPlanHop({ cx: () => mid, w: f.w, h: f.h }, K, T, spd, jp)) continue;
+    const pl = _btPlanHop(f, P, K, spd, jp);
     if (!pl) continue;
     const cost = Math.abs(pl.x - x) + Math.abs(mid - pl.x) + Math.abs(pk.y - B.y);
     if (cost < bc) { bc = cost; best = pl; }
@@ -416,6 +442,196 @@ function _btLevel(f, t, spd, d, dir) {
   return true;
 }
 
+// The same platform layer for a fighter played through keys (the brain's Sovereign, who never sees
+// the terrain). Plan, flight and recovery are the bots'; the output is this frame's keys,
+// { move: -1|0|1, jump }, or null when there is nothing to cross and the fight is the driver's.
+// A key can't set a speed or snap to a spot, so flights are planned at the one jump height and
+// run speed a key gives. Jump is pressed for one frame, then again at the top for the double.
+function btKeyNav(f, t) {
+  if (!f || !t || !(f.health > 0) || !(t.health > 0) || typeof currentArena === 'undefined' ||
+      !currentArena || !currentArena.platforms || typeof pfArenaGravity !== 'function') return null;
+  const k = f._btKey || (f._btKey = { held: false, fly: null, hop: null, noKey: -1, noUntil: 0, miss: 0, on: false });
+  const out = r => {
+    k.on = !!r;
+    if (!r) { k.held = false; return null; }
+    r.jump = !!r.jump && !k.held;   // a held key fires once: let go a frame between presses
+    k.held = r.jump;
+    return r;
+  };
+  if (f.stunTimer > 0 || f.ragdollTimer > 0 || (typeof MoveScene !== 'undefined' && MoveScene.isBusy(f))) {
+    k.fly = null; k.hop = null; return out(null);
+  }
+  const mk = f.charClass === 'megaknight';
+  const jp = { jump: mk ? -22 : -17, dbl: mk ? -16 : -13 };
+  const spd = 5.2 * (f.classSpeedMult || 1) * (f._speedBuff > 0 ? 1.35 : 1);
+  const feet = f.y + f.h, fc = _btFc();
+
+  // In a planned flight: hold the heading, double jump at the top (_btFly).
+  const j = k.fly;
+  if (j) {
+    // A flight falling over open air has gone wrong: the recovery below takes it.
+    if (f.hurtTimer > 0 || ++j.n > 150 || (j.left && f.vy > 0 && _btGroundY(f.cx(), f.y + f.h) === null)) k.fly = null;
+    else {
+      if (!f.onGround) { j.left = true; j.air++; }
+      if (f.onGround && (j.left || j.n > 30)) k.fly = null;
+      else {
+        const fire = j.dbl && j.left && f.canDoubleJump && f.vy >= -1;
+        if (fire) j.dbl = false;
+        // The plan's key schedule counts airborne frames; a step off keeps walking until it is airborne.
+        const keyOn = !j.left ? !j.vy || !j.delay : j.air >= j.delay && (j.hold === undefined || j.air < j.delay + j.hold);
+        return out({ move: keyOn ? Math.sign(j.vx) : 0, jump: fire || (!j.left && j.vy) });
+      }
+    }
+  }
+
+  // Over a pit with no floor below: steer for the nearest floor, double jump once falling (_btRecover).
+  if (!f.onGround && _btGroundY(f.cx(), feet) === null) {
+    let best = null, bd = Infinity;
+    for (const pl of currentArena.platforms) {
+      if (pl.isFloorDisabled || pl.y < feet - 150) continue;
+      const tx = Math.max(pl.x + 24, Math.min(pl.x + pl.w - 24, f.cx()));
+      const dd = Math.abs(tx - f.cx()) + Math.max(0, feet - pl.y) * 0.5;
+      if (dd < bd) { bd = dd; best = { tx, y: pl.y }; }
+    }
+    if (best) {
+      const fire = f.canDoubleJump && !f._noDoubleJump && f.vy > 1 && feet > best.y - 40;
+      return out({ move: Math.abs(best.tx - f.cx()) > 6 ? Math.sign(best.tx - f.cx()) : 0, jump: fire });
+    }
+  }
+
+  // Target on another platform: plan the hop as _btLevel does, then walk to its spot and go.
+  if (!f.onGround) return out(null);
+  const tFeet = t.y + t.h, pls = currentArena.platforms;
+  if (Math.abs(t.cx() - f.cx()) > 760) return out(null);
+  const P = _btPlatUnder(f.cx(), feet), T = _btPlatUnder(t.cx(), tFeet);
+  if (P < 0 || T < 0 || P === T || Math.abs(pls[P].y - feet) > 8) { k.hop = null; return out(null); }
+  if (Math.abs(pls[P].y - pls[T].y) <= 40 &&
+      Math.max(pls[P].x - pls[T].x - pls[T].w, pls[T].x - pls[P].x - pls[P].w) < 30) { k.hop = null; return out(null); }
+  let pl = k.hop;
+  if (!pl || pl.P !== P || pl.T !== T || fc >= pl.until) {
+    if (k.noKey === P * 1000 + T && fc < k.noUntil) return out(null);
+    const was = fc < (k.wasUntil || 0) ? k.was : -1;
+    pl = _btPlanHop(f, P, T, spd, jp);
+    if (!pl) {
+      const N = _btNextPlat(P, T, f.cx(), t.cx());
+      pl = (N !== T && N !== was ? _btPlanHop(f, P, N, spd, jp) : null) || _btPlanVia(f, P, T, spd, was, jp);
+    }
+    if (!pl) { k.hop = null; k.noKey = P * 1000 + T; k.noUntil = fc + 75; return out(null); }
+    pl.T = T; pl.until = fc + 90;
+    k.hop = pl;
+  }
+  const dx = pl.x - f.cx();
+  if (!pl.delay && Math.abs(dx) > spd * 0.6) return out({ move: Math.sign(dx), jump: false });
+  if (pl.delay) {
+    // A straight-up start needs a standstill on the spot. Let go early enough for the slide to end
+    // there, then fly the plan from wherever he stopped, if it still lands.
+    const fr = 1 - 0.22 * ((currentArena.modifiers && currentArena.modifiers.frictionMult) || 1);
+    const dxs = pl.x - (f.cx() + f.vx * fr / (1 - fr));
+    // A tap moves ~27px, more than the window, so a stop near the spot tries the flight from there first.
+    const near = Math.abs(f.vx) <= 0.6 && Math.abs(dx) <= 30 &&
+                 _btArc(f, f.cx(), pl.vx, pl.vy || jp.jump, pl.dbl, P, pl.N, jp.dbl, pl.delay, pl.hold);
+    // Sliding past it already: coast (reversing would overshoot the other way, for good).
+    if (!near && Math.abs(dxs) > 10) return out({ move: Math.abs(f.vx) > 0.6 && Math.sign(dxs) !== Math.sign(f.vx) ? 0 : Math.sign(dxs), jump: false });
+    if (Math.abs(f.vx) > 0.6) return out({ move: 0, jump: false });
+    if (!near && !_btArc(f, f.cx(), pl.vx, pl.vy || jp.jump, pl.dbl, P, pl.N, jp.dbl, pl.delay, pl.hold)) {
+      if (++k.miss > 2) { k.noKey = P * 1000 + T; k.noUntil = fc + 75; k.miss = 0; }
+      k.hop = null; return out(null);
+    }
+  }
+  if (f._landLag > 0 || f.attackEndlag > 0) return out({ move: 0, jump: false });
+  k.miss = 0;
+  // A step off walks on past the end; a jump goes from here.
+  k.fly = { vx: pl.vx, vy: pl.vy, dbl: pl.dbl, delay: pl.delay || 0, hold: pl.hold, n: 0, air: 0, left: false };
+  k.hop = null; k.was = P; k.wasUntil = fc + 300;
+  return out({ move: pl.delay ? 0 : Math.sign(pl.vx), jump: !!pl.vy });
+}
+
+// Boss floor removal for a fighter played through keys (the brain, Paradox in fusion). btKeyNav already
+// recovers over a pit; what it can't see is a floor that is about to go, or a deck edge that now drops
+// into the void. Port of Sovereign's scripted _runFloorHazard (smb-smk2-class.js). Telegraph escapes
+// (spikes, beams, slam rings) were measured and left out: on the Creator they took the legs ~20% of the
+// match, halved damage dealt and saved no lives (tools/boss-bench.js). `want` is the driver's move
+// (-1|0|1). Returns { move, jump } to override this frame's legs, or null.
+function btHazardNav(f, want) {
+  if (!f || !(f.health > 0) || typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return null;
+  if (f.stunTimer > 0 || f.ragdollTimer > 0 || (typeof isCinematic !== 'undefined' && isCinematic)) return null;
+  const k = f._btHaz || (f._btHaz = { held: false, deck: null });
+  const out = r => {
+    if (!r) { k.held = false; return null; }
+    r.jump = !!r.jump && !k.held;
+    k.held = r.jump;
+    return r;
+  };
+  const pls = currentArena.platforms, feet = f.y + f.h, cx = f.cx();
+  const edge = d => { try { return !!f.isEdgeDanger(d); } catch (e) { return false; } };
+
+  // The Creator's lava/void floor and Cosmic Axiom's floor collapse. The warning counts.
+  const floorGoing = (gameMode === 'boss' || gameMode === 'trueform') &&
+    ((typeof bossFloorState !== 'undefined' && bossFloorState !== 'normal') ||
+     (typeof tfFloorRemoved !== 'undefined' && tfFloorRemoved));
+  const floor = floorGoing ? pls.find(p => p.isFloor) : null;
+  if (!floor) k.deck = null;
+  if (floor) {
+    const deckAt = x => pls.some(p => p && !p.isFloor && !p.isFloorDisabled && x > p.x && x < p.x + p.w &&
+                                      p.y >= feet - 8 && p.y <= feet + 8);
+    if (f.onGround && feet < floor.y - 8 && deckAt(cx)) {
+      k.deck = null;
+      // On a deck: the driver fights (fight: keep its jump and buttons), but may not step off it.
+      // Once the floor is gone (isFloorDisabled) the platform layer can't route onto it, so it may
+      // hop deck to deck after the opponent (nav); during the warning it could still route down.
+      k.held = false;
+      return { move: want && !deckAt(cx + want * (f.w / 2 + 14)) ? 0 : want, jump: false, fight: true,
+               nav: !!floor.isFloorDisabled };
+    }
+    const decks = pls.filter(pl => pl && !pl.isFloor && !pl.isFloorDisabled);
+    if (!f.onGround) {
+      // Airborne: leave the driver alone unless the floor is gone and nothing is underneath. The target
+      // is picked from where the body is now, never kept from the jump that started it.
+      k.deck = null;
+      if (!floor.isFloorDisabled || decks.some(pl => cx > pl.x && cx < pl.x + pl.w && pl.y >= feet - 4)) return out(null);
+      const lift = f.canDoubleJump ? 85 : 0;   // a double jump lifts ~85px
+      let deck = null, best = Infinity;
+      for (const pl of decks) {
+        if (pl.y < feet - lift - (f.vy < 0 ? f.vy * f.vy / 2 : 0)) continue;
+        const dx = Math.max(0, pl.x + 10 - cx, cx - (pl.x + pl.w - 10));
+        if (dx < best) { best = dx; deck = pl; }
+      }
+      if (!deck) return out(null);
+      const tx = Math.max(deck.x + 20, Math.min(deck.x + deck.w - 20, cx));
+      return out({ move: Math.abs(tx - cx) > 4 ? Math.sign(tx - cx) : 0,
+                   jump: f.canDoubleJump && f.vy > 0 && feet > deck.y - 10 });
+    }
+    // Grounded on the doomed floor: pick a deck once and keep it while it stays reachable.
+    let deck = k.deck && decks.indexOf(k.deck) >= 0 && k.deck.y >= feet - 285 ? k.deck : null;
+    if (!deck) {
+      // A single jump lifts ~150px, a double ~235.
+      let best = Infinity;
+      for (const pl of decks) {
+        if (pl.y > feet + 40 || pl.y < feet - 235) continue;
+        const s = Math.abs(pl.x + pl.w / 2 - cx) + (feet - pl.y) * 0.35;
+        if (s < best) { best = s; deck = pl; }
+      }
+    }
+    if (deck) {
+      k.deck = deck;
+      const goal = { health: 1, h: f.h, y: deck.y - f.h, cx: () => deck.x + deck.w / 2 };
+      const nav = typeof btKeyNav === 'function' ? btKeyNav(f, goal) : null;
+      if (nav) { k.held = false; return nav; }
+      // Platforms are solid from below: walk out past the nearer end, then jump in.
+      const bcx = deck.x + deck.w / 2, fromLeft = cx <= bcx;
+      if (Math.abs(cx - bcx) < deck.w / 2 + 22) {
+        const o = fromLeft ? -1 : 1;
+        return out({ move: edge(o) ? -o : o, jump: false });
+      }
+      const toStand = (fromLeft ? deck.x - 34 : deck.x + deck.w + 34) - cx;
+      if (Math.abs(toStand) > 14 && !edge(Math.sign(toStand))) return out({ move: Math.sign(toStand), jump: false });
+      return out({ move: fromLeft ? 1 : -1, jump: true });
+    }
+  }
+
+  return out(null);
+}
+
 function _btMove(f, dir, v) {
   if (dir === 0) { f.vx *= 0.6; return true; }
   if (f.isEdgeDanger(dir)) { f.vx = 0; return false; }
@@ -476,7 +692,7 @@ function _btSwing(f, t, dir, free) {
   f.facing = dir;
   f.attack(t);
   if (!(f.attackTimer > 0)) return false;
-  const hes = (typeof f._botIQ === 'number' ? 0 : BOT_TACTICS.hesitate[f.aiDiff]) || 0;
+  const hes = (typeof f._botIQ === 'number' ? 0 : f._btTune ? f._btTune.hesitate : BOT_TACTICS.hesitate[f.aiDiff]) || 0;
   f._btSwingAt = fc + (f.cooldown || 0) + Math.floor(Math.random() * (hes + 1));
   return true;
 }
@@ -560,7 +776,7 @@ function botTacticsFrame(f) {
   if (d > TAC_RANGE || Math.abs((f.y + f.h) - (t.y + t.h)) > TAC_LEVEL) { f._btPlan = null; return; }
   // Wander is cleared too: it returns before the chase that makes the jump.
   if (_btPitBetween(f, t)) { f._btPlan = null; f._wanderTimer = 0; return; }
-  const think = (typeof f._botIQ === 'number' ? 0 : BOT_TACTICS.think[f.aiDiff]) || 1;
+  const think = (typeof f._botIQ === 'number' ? 0 : f._btTune ? f._btTune.think : BOT_TACTICS.think[f.aiDiff]) || 1;
   if (think > 1) {
     if (f._btPhase === undefined) f._btPhase = Math.floor(Math.random() * think);
     if (fc % think !== f._btPhase) { f._wanderTimer = 0; return; }

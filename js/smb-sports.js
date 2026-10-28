@@ -538,7 +538,8 @@ function _sportsBallVsPlayers(b) {
     const ox = b.x - p.cx(), oy = b.y - p.cy();
     const d  = Math.hypot(ox, oy);
     const minD = p.w / 2 + b.r + 4;
-    if (d < minD && d > 0.1 && !(b.fx && b.fx.owner === p)) {
+    // A burning or charged ball that already bowled this fighter passes on through them.
+    if (d < minD && d > 0.1 && !(b.fx && b.fx.owner === p) && !((b.fire > 0 || b.charged > 0) && b.bowled.has(p))) {
       const nx = ox / d, ny = oy / d;
       const bx = nx * 0.45 + (p.facing || 1) * 0.55, by = ny * 0.45 - 0.15;
       const bl = Math.hypot(bx, by) || 1;
@@ -781,6 +782,8 @@ function updateSports() {
   if (!isSportsMode() || !gameRunning) return;
   // Public Server: only the authority simulates the ball; everyone else mirrors it.
   if (typeof PubHub !== 'undefined' && PubHub.active && !PubHub.isAuthority()) { PubHub.sportsFollow(); return; }
+  // Duel room: the host simulates the ball; guests mirror it (NetMG in smb-network.js).
+  if (typeof NetMG !== 'undefined' && NetMG.follower()) { NetMG.sportsStep(); return; }
   if (sportsBanner && --sportsBanner.t <= 0) sportsBanner = null;
 
   // Detect abilities / supers the moment they fire (humans and bots alike)
@@ -815,6 +818,7 @@ function updateSports() {
       _sportsServe(sportsType === 'volleyball' ? sportsServeTeam : -1);
       // Public Server: tells the other players to reset their own fighters
       if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.sportsKickoff();
+      if (typeof NetMG !== 'undefined' && NetMG.host()) NetMG.noteKickoff();
     }
     return;
   }

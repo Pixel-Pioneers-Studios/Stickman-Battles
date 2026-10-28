@@ -130,6 +130,10 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
     holes:   (typeof tfBlackHoles !== 'undefined' ? tfBlackHoles.length : 0),
     wells:   (typeof tfGravityWells!=='undefined' ? tfGravityWells.length:0),
     clones:  (typeof tfClones     !== 'undefined' ? tfClones.length     : 0),
+    warns:   (typeof bossWarnings !== 'undefined' ? bossWarnings.length : 0),
+    projs:   (typeof projectiles  !== 'undefined' ? projectiles.length  : 0),
+    portals: (typeof backstagePortals !== 'undefined' ? backstagePortals.length : 0),
+    texts:   (typeof damageTexts  !== 'undefined' ? damageTexts.length  : 0),
     shakes:  (typeof screenShake  !== 'undefined' ? screenShake         : 0),
     gamma:   !!(typeof tfGammaBeam    !== 'undefined' && tfGammaBeam),
     neutron: !!(typeof tfNeutronStar  !== 'undefined' && tfNeutronStar),
@@ -141,6 +145,7 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
   let threw = false;
   try {
     entry.fn(ctx, tgt, opts || { damageScale: _atkDamageScale, safeMode: _atkSafeMode });
+    _atkTrackPendingCtx(ctx);
   } catch (err) {
     threw = true;
     console.warn('[Attack Debug]', {
@@ -157,6 +162,10 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
       (typeof tfBlackHoles!=='undefined'  && tfBlackHoles.length !== snap.holes)  ||
       (typeof tfGravityWells!=='undefined'&& tfGravityWells.length!==snap.wells)  ||
       (typeof tfClones    !== 'undefined' && tfClones.length     !== snap.clones) ||
+      (typeof bossWarnings!== 'undefined' && bossWarnings.length !== snap.warns)  ||
+      (typeof projectiles !== 'undefined' && projectiles.length  !== snap.projs)  ||
+      (typeof backstagePortals !== 'undefined' && backstagePortals.length !== snap.portals) ||
+      (typeof damageTexts !== 'undefined' && damageTexts.length  !== snap.texts)  ||
       (typeof screenShake !== 'undefined' && screenShake         > snap.shakes)   ||
       (typeof tfGammaBeam !== 'undefined' && !!tfGammaBeam       !== snap.gamma)  ||
       (typeof tfNeutronStar!=='undefined' && !!tfNeutronStar     !== snap.neutron)||
@@ -170,7 +179,7 @@ function forceExecuteAttack(entry, classKey, ctx, tgt, opts) {
       'chain_slam','shockwave','phase_shift','teleport_combo','gravity_crush',
       'gamma_beam','neutron_star','galaxy_sweep','multiverse_fracture','supernova',
       'collapse_strike','reality_override','gravity_invert','controls_invert',
-      'floor_remove','size_shift','arena_warp','portal_teleport',
+      'floor_remove','size_shift','arena_warp','portal_teleport','gun_rapidfire',
     ].includes(attackName);
 
     if (!changed && !usesSingleton) {

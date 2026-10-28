@@ -50,11 +50,6 @@ function startTFOpeningFight(tf) {
       if (typeof CinFX !== 'undefined') CinFX.flash('#00ffff', 0.22, 14);
       if (typeof showBossDialogue === 'function')
         showBossDialogue('Two of you? How desperate.', 270);
-      // Enable cinematic camera
-      cinematicCamOverride = true;
-      cinematicZoomTarget  = 1.1;
-      cinematicFocusX      = tf ? tf.cx() : GAME_W / 2;
-      cinematicFocusY      = GAME_H / 2 - 20;
     });
 
     // t=3s: phase 1 (250 dmg equiv). Paradox closes in.
@@ -73,9 +68,7 @@ function startTFOpeningFight(tf) {
       screenShake = Math.max(screenShake, 18);
       if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.18, 10);
       if (typeof showBossDialogue === 'function')
-        showBossDialogue("...you're stronger than you look.", 220);
-      // Zoom in tighter for climax
-      cinematicZoomTarget = 1.3;
+        showBossDialogue('Two of you. Still not enough.', 220);
     }, [], 6);
 
     // t=9s: threshold. Pin TF HP to exactly 1000 below its start, then hand off to the kicks-out cinematic.
@@ -84,9 +77,9 @@ function startTFOpeningFight(tf) {
       const _tf9 = _tfOpeningTFRef;
       if (_tf9) {
         // Always land on exactly startHP - 1000, regardless of free-phase damage
-        _tf9.health = Math.max(1, _tfOpeningTFStartHealth - TF_OPENING_DAMAGE_THRESHOLD);
+        _tf9.health = Math.max(1, _tfOpeningTFStartHealth - _tfOpeningDamageThreshold());
       }
-      tfOpeningDamageDealt = TF_OPENING_DAMAGE_THRESHOLD;
+      tfOpeningDamageDealt = _tfOpeningDamageThreshold();
     }, [], 9);
 
   } else {
@@ -246,7 +239,7 @@ function updateTFOpeningFight() {
 
   // At the threshold TF teleports behind Paradox and punches them out. The fight continues,
   // and Paradox returns later at 1000 HP.
-  if (tfOpeningDamageDealt >= TF_OPENING_DAMAGE_THRESHOLD) {
+  if (tfOpeningDamageDealt >= _tfOpeningDamageThreshold()) {
     tfOpeningFightActive = false;
     _tfOpeningTFRef      = null;
     // Kill GSAP timeline so it doesn't fire any more callbacks

@@ -1,9 +1,9 @@
 'use strict';
 // smb-finisher-reality: Depends on: smb-finisher-helpers.js
-// Boss finisher 2, dimensional punch. TrueForm punches the player flat through
-// several realms and into the code realm, which sets up the backstage phase.
+// Boss finisher 2, reality break. TrueForm punches the player flat through
+// several realms until the last one fractures under the impact.
 const FIN_REALITY_BREAK = {
-  name: 'DIMENSIONAL PUNCH',
+  name: 'REALITY BREAK',
   accentColor: 'rgba(0,220,180,1)',
   duration: 270,
   impact: 16,
@@ -83,14 +83,14 @@ const FIN_REALITY_BREAK = {
       { frame: 105, fn() { data.bgStickmen[0].looking = true; data.bgStickmen[3].looking = true; } },
       { frame: 125, fn() { data.bgStickmen[1].looking = true; data.bgStickmen[4].looking = true; } },
       { frame: 145, fn() { data.bgStickmen[2].looking = true; data.bgStickmen[5].looking = true; } },
-      // Act 5: code realm crash
+      // Act 5: crash into the fracture
       { frame: 190, fn() {
           data.bgPhase = 6;
           data.realmFadeT = 0;
           data.tearAlpha = 0;
           CinCam.shake(35);
-          spawnParticles(data.launchX + tgt.w/2, data.launchY + tgt.h/2, '#00ff44', 50);
-          spawnParticles(data.launchX + tgt.w/2, data.launchY + tgt.h/2, '#44ff88', 28);
+          spawnParticles(data.launchX + tgt.w/2, data.launchY + tgt.h/2, '#b878ff', 50);
+          spawnParticles(data.launchX + tgt.w/2, data.launchY + tgt.h/2, '#ffffff', 28);
       }},
       { frame: 200, fn() {
           data.codeRealm = true;
@@ -98,7 +98,7 @@ const FIN_REALITY_BREAK = {
           CinCam.zoomTo(1.1);
           CinCam.focusOn(tgt);
       }},
-      // Act 6: hold on the code realm, fade out
+      // Act 6: hold on the fracture, fade out
       { frame: 248, fn() { CinCam.zoomTo(1.0); CinCam.restore(); } },
       { frame: 258, fn() { data.bars = 0; } },
     ]);
@@ -187,9 +187,9 @@ const FIN_REALITY_BREAK = {
         // 5: Ice
         { sky1:'#0a1e3a', sky2:'#040e1e', gnd:'#0e2a4c',
           label:'ICE REALM',    lc:'#88eeff' },
-        // 6: Code Realm
-        { sky1:'#000000', sky2:'#000a00', gnd:'#001200',
-          label:'CODE REALM',   lc:'#00ff44' },
+        // 6: The Fracture
+        { sky1:'#05000c', sky2:'#0c0018', gnd:'#14002a',
+          label:'THE FRACTURE', lc:'#d8b8ff' },
       ];
 
       const realm = REALMS[Math.min(data.bgPhase, REALMS.length - 1)];
@@ -205,18 +205,23 @@ const FIN_REALITY_BREAK = {
         ctx.fillRect(0, H * 0.76, W, H * 0.24);
         ctx.globalAlpha = 1;
 
-        // Code realm: matrix rain
+        // The fracture: the sky is split by fixed white-violet cracks.
         if (data.bgPhase >= 6) {
-          ctx.globalAlpha = fa * 0.6;
-          ctx.fillStyle = '#00ff44';
-          const fz = Math.max(10, Math.floor(14 * W / 900));
-          ctx.font = `${fz}px monospace`;
-          const chars = '01{}[]<>()アイウエオカキクケコ';
-          for (let c = 0; c < 32; c++) {
-            const cx2 = ((c * 31 + timer * 4) % W);
-            const cy2 = ((c * 53 + timer * 7) % (H * 0.74));
-            ctx.fillText(chars[(timer + c * 7) % chars.length], cx2, cy2);
+          ctx.globalAlpha = fa * 0.8;
+          ctx.strokeStyle = '#d8b8ff';
+          ctx.shadowColor = '#b878ff'; ctx.shadowBlur = 14;
+          ctx.lineWidth = Math.max(1.5, 2 * W / 900);
+          for (let c = 0; c < 9; c++) {
+            let x = W * ((c * 0.137 + 0.06) % 1), y = 0;
+            ctx.beginPath(); ctx.moveTo(x, y);
+            for (let k = 1; k <= 5; k++) {
+              x += Math.sin(c * 3.1 + k * 1.7) * W * 0.04;
+              y = H * 0.74 * k / 5 * (0.5 + 0.5 * ((c * 7 + k) % 3) / 2);
+              ctx.lineTo(x, y);
+            }
+            ctx.stroke();
           }
+          ctx.shadowBlur = 0;
           ctx.globalAlpha = 1;
         }
 
@@ -397,17 +402,17 @@ const FIN_REALITY_BREAK = {
       const cr  = age * 4;
       const ca  = Math.max(0, 0.9 - age * 0.035);
       if (ca > 0) {
-        ctx.strokeStyle = `rgba(0,255,68,${ca})`;
+        ctx.strokeStyle = `rgba(200,150,255,${ca})`;
         ctx.lineWidth   = 3;
-        ctx.shadowColor = '#00ff44'; ctx.shadowBlur = 22;
+        ctx.shadowColor = '#b878ff'; ctx.shadowBlur = 22;
         ctx.beginPath(); ctx.arc(data.launchX + tgt.w/2, data.launchY + tgt.h/2, cr, 0, Math.PI*2); ctx.stroke();
-        _finImpactLines(ctx, data.launchX + tgt.w/2, data.launchY + tgt.h/2, 10, cr * 0.65, '#00ff44', 2);
+        _finImpactLines(ctx, data.launchX + tgt.w/2, data.launchY + tgt.h/2, 10, cr * 0.65, '#d8b8ff', 2);
       }
-      // Floor crack lines (green)
+      // Floor crack lines
       if (age < 30) {
         const cra = Math.max(0, 1 - age / 30);
-        ctx.strokeStyle = `rgba(0,220,50,${cra * 0.7})`;
-        ctx.lineWidth = 1.5; ctx.shadowColor = '#00ff44'; ctx.shadowBlur = 10;
+        ctx.strokeStyle = `rgba(216,184,255,${cra * 0.7})`;
+        ctx.lineWidth = 1.5; ctx.shadowColor = '#b878ff'; ctx.shadowBlur = 10;
         for (let i = 0; i < 6; i++) {
           const ang = (i / 6) * Math.PI * 2 + Math.PI * 0.1;
           const len = (30 + i * 12) * Math.min(1, age / 10);
@@ -425,7 +430,7 @@ const FIN_REALITY_BREAK = {
       _finFlash(ctx, data.whiteAlpha, 220, 255, 240);
     }
 
-    _finTitle(ctx, 'DIMENSIONAL PUNCH', t, 'rgba(0,220,180,1)');
+    _finTitle(ctx, 'REALITY BREAK', t, 'rgba(0,220,180,1)');
     if (timer > 38 && timer < 170) _finSubtitle(ctx, `"${data.dialogue}"`, t);
   }
 };

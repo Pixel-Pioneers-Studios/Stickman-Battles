@@ -120,6 +120,9 @@ const PORTAL_ORIGINS = [
   /^https:\/\/(?:[a-z0-9-]+\.)?newgrounds\.com$/i,
   /^https:\/\/(?:[a-z0-9-]+\.)?gamejolt\.net$/i,
   /^https:\/\/(?:[a-z0-9-]+\.)?gamejolt\.com$/i,
+  // GitHub Pages deployments of both repos (school play).
+  /^https:\/\/guptaaarush2018-prog\.github\.io$/i,
+  /^https:\/\/pixel-pioneers-studios\.github\.io$/i,
 ];
 const BUILD_VERSION = process.env.RENDER_GIT_COMMIT || process.env.npm_package_version || 'dev';
 

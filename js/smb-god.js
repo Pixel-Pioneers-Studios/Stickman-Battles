@@ -43,6 +43,7 @@ let _godWasAlive          = false;
 
 function _isGodPhase2() {
   return (typeof godEncountered !== 'undefined' && godEncountered) ||
+         (typeof godDefeated    !== 'undefined' && godDefeated) ||
          (typeof sovereignBeaten !== 'undefined' && sovereignBeaten);
 }
 
@@ -153,8 +154,6 @@ function _checkGodDeath() {
 }
 
 function _onGodDefeated() {
-  const _storyGod = typeof storyModeActive !== 'undefined' && storyModeActive &&
-    typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter && !!_activeStory2Chapter.isGodFight;
   // Unlock flag + achievement fire once (first defeat only).
   if (!(typeof godDefeated !== 'undefined' && godDefeated)) {
     if (typeof setAccountFlagWithRuntime === 'function') {
@@ -164,10 +163,8 @@ function _onGodDefeated() {
     }
     if (typeof unlockAchievement === 'function') unlockAchievement('god_slayer');
   }
-  // Story God fight: finish via endGame. Runs even when already unlocked, so a replay completes.
-  if (_storyGod) {
-    setTimeout(() => { if (typeof endGame === 'function') endGame(); }, 900);
-  }
+  // Finish via endGame, story or standalone (the refight). Runs even when already unlocked, so a replay completes.
+  setTimeout(() => { if (typeof endGame === 'function' && gameRunning) endGame(); }, 900);
 }
 
 // Fake crash screen

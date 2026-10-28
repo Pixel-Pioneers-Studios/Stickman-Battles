@@ -546,7 +546,7 @@ function showBanScreen(banRecord) {
       '</div>',
 
       '<div style="font-size:0.82rem;color:rgba(255,150,150,0.5);letter-spacing:2px;margin-bottom:32px;text-transform:uppercase;">',
-        'Access to Stickman Clash has been restricted',
+        'Access to Stickman Evolution has been restricted',
       '</div>',
 
       '<div style="background:rgba(255,30,30,0.07);border:1px solid rgba(255,60,60,0.25);border-radius:10px;',
@@ -569,7 +569,7 @@ function showBanScreen(banRecord) {
       '<div style="background:rgba(80,60,20,0.18);border:1px solid rgba(255,180,40,0.25);border-radius:10px;padding:16px 22px;margin-bottom:24px;text-align:left;">',
         '<div style="font-size:0.68rem;color:rgba(255,200,80,0.55);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;">Think this is a mistake?</div>',
         '<div style="font-size:0.82rem;color:rgba(255,220,140,0.8);margin-bottom:12px;">',
-          'You can appeal your ban in the official Stickman Clash Discord server.',
+          'You can appeal your ban in the official Stickman Evolution Discord server.',
           ' Join the <strong>#ban-appeals</strong> channel and provide your account ID.',
         '</div>',
         '<a href="' + APPEAL_DISCORD_URL + '" target="_blank" rel="noopener" ',

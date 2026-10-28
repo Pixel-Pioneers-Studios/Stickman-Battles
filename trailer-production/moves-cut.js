@@ -99,6 +99,158 @@ const SPECS = {
   },
 };
 
+// Edge: a story Short in the Conviction form. One hit into the pit; Varek comes to watch; Shadow Step.
+SPECS.edge = () => {
+  const look = fr(M.look), step = fr(M.step), fin = fr(M.fin);
+  const L = timeline([
+    { at: 2, to: look },
+    { at: look, to: step },
+    { at: step, to: fin + 2, speed: 0.6 },          // the vanish and the reappearance behind him: slower
+    { at: fin + 2, to: Math.min(J.frames - 1, fin + 140) },
+  ]);
+  return {
+    n: 14, L, music: { file: 'audio/music/boss-threshold.mp3', at: 0, from: 40.0, gain: 0.75, fadeIn: 0.2, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(0, L.out(look), ['ONE HIT.', 'INTO THE PIT.'], 0.15, 104, { bar: false }),
+      slam(L.out(look) + 6, L.out(step) + 8, ['HE CAME OVER', 'TO WATCH.'], 0.15, 100, { bar: false }),
+      slam(L.out(step) + 8, L.out(fin) + 50, 'WRONG WAY.', 0.15, 116, { bar: false, fill: '#7ff3ff' }),
+      tag(L.out(fin) + 4, L.T, 'THOUSAND STEPS', 0.27),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+// Guard: a story Short. Three thrusts off the shield; Lance Charge breaks the guard; LAST CHARGE.
+SPECS.guard = () => {
+  const p3 = fr(M.poke3), charge = fr(M.charge), fin = fr(M.fin);
+  const L = timeline([
+    { at: 2, to: charge - 4 },
+    { at: charge - 4, to: fin + 2, speed: 0.6 },    // the break and the carry: slower
+    { at: fin + 2, to: Math.min(J.frames - 1, fin + 150) },
+  ]);
+  return {
+    n: 15, L, music: { file: 'audio/music/battle-royale.mp3', at: 0, from: 25.6, gain: 0.7, fadeIn: 0.15, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(0, L.out(p3), ['HE BLOCKED', 'EVERYTHING.'], 0.15, 104, { bar: false }),
+      slam(L.out(p3), L.out(charge) - 2, 'EVERYTHING.', 0.15, 112, { bar: false }),
+      slam(L.out(charge) - 2, L.out(fin) + 40, 'ALMOST.', 0.15, 120, { bar: false, fill: '#7ff3ff' }),
+      tag(L.out(fin) + 4, L.T, 'LAST CHARGE', 0.27),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+// Pan: a story Short. A frying pan against an axe; Varek laughs and lands the axe; Grand Slam, HOLE IN ONE.
+SPECS.pan = () => {
+  const hit = fr(M.hit), bonk = fr(M.slam), fin = fr(M.fin);
+  const L = timeline([
+    { at: 4, to: hit + 2 },
+    { at: hit + 2, to: bonk },
+    { at: bonk, to: fin + 2, speed: 0.7 },          // the bonk and the wind-up: a touch slower
+    { at: fin + 2, to: Math.min(J.frames - 1, fin + 108) },
+  ]);
+  return {
+    n: 18, L, music: { file: 'audio/music/battle-royale.mp3', at: 0, from: 25.6, gain: 0.7, fadeIn: 0.15, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(0, L.out(hit), ['HE BROUGHT', 'A FRYING PAN', 'TO AN AXE FIGHT.'], 0.15, 88, { bar: false }),
+      slam(L.out(hit), L.out(bonk), ['THE AXE', 'HIT FIRST.'], 0.15, 104, { bar: false }),
+      slam(L.out(bonk), L.out(fin) + 70, ['THE PAN', 'HIT HARDER.'], 0.15, 104, { bar: false, fill: '#ffdd44' }),
+      tag(L.out(fin) + 4, L.T, 'HOLE IN ONE', 0.27),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+// Arena: a story Short. Varek one swing from the win over a kneeling Kael; a city car takes him out of it;
+// Kael gets up bare-handed: HUNDRED FISTS.
+SPECS.arena = () => {
+  const car = fr(M.car), hit = fr(M.hit), strike = fr(M.strike), fin = fr(M.fin);
+  const L = timeline([
+    { at: 8, to: car },
+    { at: car, to: hit - 22, speed: 1.6 },          // the car's approach off-frame, quicker
+    { at: hit - 22, to: hit + 4, speed: 0.4 },      // in frame: slow, so the car reads on a phone
+    { at: hit + 4, to: strike, speed: 0.8 },
+    { at: strike, to: Math.min(J.frames - 1, fin + 200) },
+  ]);
+  return {
+    n: 19, L, music: { file: 'audio/music/battle-royale.mp3', at: 0, from: 25.6, gain: 0.7, fadeIn: 0.15, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(0, L.out(hit) - 2, ['ONE SWING', 'FROM WINNING.'], 0.15, 104, { bar: false }),
+      slam(L.out(hit) - 2, L.out(fin) + 60, ['THE CITY HAD', 'OTHER PLANS.'], 0.15, 100, { bar: false, fill: '#ffcc33' }),
+      tag(L.out(fin) + 4, L.T, 'HUNDRED FISTS', 0.27),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+// Dodge: a story Short. The hammer at point blank; he goes over it and over Varek; Soul Reap, HARVEST.
+SPECS.dodge = () => {
+  const swing = fr(M.swing), land = fr(M.land), fin = fr(M.fin);
+  const L = timeline([
+    { at: 8, to: swing, speed: 0.55 },              // hold the stake: hammer up, nowhere to go
+    { at: swing, to: land + 4 },                    // the jump is already in the game's slow motion
+    { at: land + 4, to: Math.min(J.frames - 1, fin + 190) },
+  ]);
+  return {
+    n: 20, L, music: { file: 'audio/music/boss-threshold.mp3', at: 0, from: 40.0, gain: 0.75, fadeIn: 0.2, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(0, L.out(swing) + 8, ['NOWHERE', 'TO GO.'], 0.15, 112, { bar: false }),
+      slam(L.out(swing) + 8, L.out(fin) + 40, ['SO HE WENT', 'OVER IT.'], 0.15, 104, { bar: false, fill: '#7ff3ff' }),
+      tag(L.out(fin) + 4, L.T, 'HARVEST', 0.27),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+// Axe vs Katana: a staged duel in the game's own fighters. The lock gives, Kael charges, the ground throws him up,
+// Varek meets him above and spikes him into a crater. In the dust: the katana still shines.
+SPECS.axeslam = () => {
+  const launch = fr(M.launch), spike = fr(M.spike), glint = fr(M.glintAt);
+  const L = timeline([
+    { at: 0, to: launch - 2 },
+    { at: launch - 2, to: launch + 16, speed: 0.55 },   // the rock throws him: let it read
+    { at: launch + 16, to: spike - 4 },
+    { at: spike - 4, to: spike + 14, speed: 0.45 },     // the spike
+    { at: spike + 14, to: Math.min(J.frames - 1, glint + 70) },
+  ]);
+  return {
+    n: 26, L, music: { file: 'audio/music/boss-threshold.mp3', at: 0, from: 40.0, gain: 0.75, fadeIn: 0.1, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(-4, L.out(launch), ['AXE', 'VS KATANA.'], 0.15, 112, { bar: false }),
+      slam(L.out(glint) - 6, L.T, ['PART 2?'], 0.15, 120, { bar: false, fill: '#7ff3ff' }),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+SPECS.beast = () => {
+  const cut = fr(M.beastCut), grant = fr(M.grant), s3 = fr(M.s3), thud = fr(M.thud);
+  const L = timeline([
+    { at: 0, to: cut - 6 },
+    { at: cut - 6, to: cut + 14, speed: 0.5 },          // the cut through the beast
+    { at: cut + 14, to: grant + 30 },
+    { at: grant + 30, to: s3 - 4 },
+    { at: s3 - 4, to: s3 + 14, speed: 0.5 },            // the throw
+    { at: s3 + 14, to: Math.min(J.frames - 1, thud + 60) },
+  ]);
+  return {
+    n: 30, L, music: { file: 'audio/music/boss-threshold.mp3', at: 0, from: 52.0, gain: 0.75, fadeIn: 0.1, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(-4, L.out(grant), ['KILL THE BEAST.', 'BECOME THE BEAST.'], 0.15, 80, { bar: false }),
+      slam(L.out(grant) + 8, L.out(s3), ['HE KEPT', 'THE KATANA.'], 0.15, 104, { bar: false, fill: '#7ff3ff' }),
+      slam(L.out(thud) - 4, L.T, ['BEAST + KATANA.'], 0.15, 104, { bar: false, fill: '#7ff3ff' }),
+      ...endCard(L.T),
+    ],
+  };
+};
+
 (async () => {
   const spec = SPECS[NAME] && SPECS[NAME]();
   if (!spec) throw new Error('usage: node moves-cut.js <' + Object.keys(SPECS).join('|') + '> [profile]');

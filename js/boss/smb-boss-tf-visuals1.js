@@ -100,11 +100,25 @@ function drawBossWarnings() {
       ctx.moveTo(w.x + s, w.y - s); ctx.lineTo(w.x - s, w.y + s);
       ctx.stroke();
     } else if (w.type === 'spike_warn') {
-      ctx.fillStyle   = w.color;
+      // The floor splits across the spike's full hit width, wider as it gets closer.
+      const near = 1 - prog;
+      const hw = 6 + near * 16;
+      const a0 = ctx.globalAlpha;
+      ctx.globalAlpha = a0 * (0.15 + near * 0.35);
+      const col = ctx.createLinearGradient(0, w.y, 0, w.y - 90);
+      col.addColorStop(0, w.color); col.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = col;
+      ctx.fillRect(w.x - 20, w.y - 90, 40, 90);
+      ctx.globalAlpha = Math.min(1, a0 + 0.25);
+      ctx.strokeStyle = w.color;
       ctx.shadowColor = w.color;
       ctx.shadowBlur  = 14;
-      ctx.beginPath(); ctx.arc(w.x, w.y, w.r * (1 - prog * 0.5), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.lineWidth   = 2 + near * 1.5;
+      ctx.beginPath();
+      ctx.moveTo(w.x - hw, w.y - 1);
+      ctx.lineTo(w.x - hw * 0.45, w.y - 3); ctx.lineTo(w.x - hw * 0.1, w.y);
+      ctx.lineTo(w.x + hw * 0.3, w.y - 3); ctx.lineTo(w.x + hw, w.y - 1);
+      ctx.stroke();
     }
 
     if (w.label && prog < 0.7) {
@@ -246,7 +260,7 @@ function updateTFRealityTear() {
         : players.find(p => !p.isBoss && p.health > 0);
       if (tf && tgt) {
         const behindDir = tgt.facing || (tgt.cx() > GAME_W / 2 ? 1 : -1);
-        const landed = _bossTeleportActor(tf, tgt.cx() - behindDir * 55, tgt.y, { preferRaised: true, sideBias: -behindDir });
+        const landed = _bossTeleportActor(tf, tgt.cx() - behindDir * 55, tgt.y, { nearFeetY: tgt.y + tgt.h, aroundX: tgt.cx(), sideBias: -behindDir });
         if (!landed) {
           tf._finishAttackState && tf._finishAttackState('realityTear');
           return;
@@ -355,9 +369,10 @@ function updateTFCalcStrike() {
     const tf = players.find(p => p.isTrueForm);
     const target = cs.targetRef && cs.targetRef.health > 0 ? cs.targetRef : players.find(p => !p.isBoss && p.health > 0);
     if (tf) {
-      const desiredX = target ? target.cx() - tf.w / 2 : cs.predictX;
+      // The STRIKE cross marks the predicted spot, so that is where he lands; moving off it dodges.
+      const desiredX = cs.predictX;
       const desiredY = target ? target.y : cs.predictY;
-      const landed = _bossTeleportActor(tf, desiredX, desiredY, { preferRaised: true, sideBias: tf.facing || 1 });
+      const landed = _bossTeleportActor(tf, desiredX, desiredY, { nearFeetY: cs.predictY + (target ? target.h / 2 : 0), sideBias: tf.facing || 1 });
       if (!landed) {
         tfCalcStrike = null;
         tf._finishAttackState && tf._finishAttackState('calcStrike');
@@ -368,7 +383,7 @@ function updateTFCalcStrike() {
       screenShake = Math.max(screenShake, 14);
       spawnParticles(tf.cx(), tf.cy(), '#ffffff', 16);
       spawnParticles(tf.cx(), tf.cy(), '#aaddff', 10);
-      if (target) {
+      if (target && Math.abs(target.cx() - cs.predictX) < 44 + target.w / 2 && Math.abs(target.cy() - cs.predictY) < 70) {
         if (target.shielding) {
           target.shielding = false; target.shieldHoldTimer = 0;
           target.shieldCooldown = Math.max(target.shieldCooldown || 0, typeof SHIELD_CD !== 'undefined' ? Math.round(SHIELD_CD * 0.55) : 180);

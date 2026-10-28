@@ -196,7 +196,7 @@ function pickSafeSpawn(sideHint, avoidX) {
   // Story arenas: limit candidates to the visible start section, so no one spawns 3000px from the action.
   // Use the camera position if set, else the first screen near mapLeft.
   let _storyPool = null;
-  if (storyModeActive && currentArena.worldWidth) {
+  if ((storyModeActive || gameMode === 'endless') && currentArena.worldWidth) {
     const viewCX = (typeof camX === 'number' ? camX : (currentArena.mapLeft || 0)) + GAME_W / 2;
     const viewHalf = GAME_W * 0.75;
     const nearby = raised.filter(pl => Math.abs(pl.x + pl.w / 2 - viewCX) < viewHalf);
