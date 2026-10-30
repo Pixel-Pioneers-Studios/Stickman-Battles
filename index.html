@@ -1770,8 +1770,14 @@
   </div>
 </div>
 
-  <!-- CrazyGames SDK v3 — must load before game scripts -->
-  <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+  <!-- CrazyGames SDK v3 — must load before game scripts. Only on CrazyGames hosts
+       (same pattern as smb-sitelock.js): school filters block sdk.crazygames.com and
+       swap in a block page, which then throws as a script error on every load. -->
+  <script>
+    if (/(^|\.)crazygames\.(com|com\.[a-z]{2}|co\.[a-z]{2}|[a-z]{2,3})$/i.test(location.hostname)) {
+      document.write('<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"><\/script>');
+    }
+  </script>
   <!-- GSAP — timeline/tweening library used for cinematic sequencing -->
   <script src="./js/vendor/gsap-3.12.5.min.js"></script>
   <!-- PeerJS — serverless WebRTC peer-to-peer multiplayer. Both libraries ship
@@ -1780,7 +1786,7 @@
   <!-- Error boundary — must be FIRST so it catches all other module errors -->
   <!-- Host allowlist — must be the first game script -->
   <script src="./js/smb-sitelock.js?v=4.9.48"></script>
-  <script src="./js/smb-errorboundary.js?v=4.3.8"></script>
+  <script src="./js/smb-errorboundary.js?v=4.9.120"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.7.1"></script>
   <script src="./js/smb-globals.js?v=4.9.112"></script>
@@ -2294,13 +2300,6 @@
     })();
   </script>
 
-  <script>
-    if (location.protocol !== 'file:') {
-      const _ytScript = document.createElement('script');
-      _ytScript.src = 'https://www.youtube.com/iframe_api';
-      document.head.appendChild(_ytScript);
-    }
-  </script>
 
   <!-- ============================================================
        CRASH / ERROR OVERLAY
@@ -2380,6 +2379,8 @@
       function _showCrash(msg, src, line, col, errObj) {
         // Ignore SDK/third-party noise — these are not game crashes
         if (_isNoise(msg) || _isNoise(src)) return;
+        // School filters / extensions injecting scripts that fail (smb-errorboundary.js)
+        if (typeof ErrorBoundary !== 'undefined' && ErrorBoundary.isForeign(msg, src)) return;
 
         // Throttle: only show first real game error (don't cascade)
         if (document.getElementById('crashOverlay').style.display === 'flex') return;

@@ -25,6 +25,20 @@ const ErrorBoundary = (() => {
   const _errorCounts = {};
   const ESCALATE_AFTER = 3;
 
+  // Not ours: school filters and browser extensions inject scripts (often a block page
+  // inserted as script text) that fail to parse. The game never injects script text,
+  // so an appendChild/insertBefore parse error, or a source on another origin or an
+  // extension, is never a game crash.
+  function isForeign(message, source) {
+    if (/Failed to execute '(appendChild|insertBefore)' on 'Node'/i.test(String(message || ''))) return true;
+    const src = String(source || '');
+    if (/^(chrome|moz|safari(-web)?)-extension:/i.test(src)) return true;
+    if (/^https?:/i.test(src) && location.protocol !== 'file:') {
+      try { return new URL(src).origin !== location.origin; } catch (e) {}
+    }
+    return false;
+  }
+
   let _majorShown  = false;
   let _minorActive = false;
 
@@ -153,6 +167,7 @@ const ErrorBoundary = (() => {
   function handle(message, source, lineno, colno, errorObj) {
     // Ignore cross-origin errors we can't inspect
     if (!message || message === 'Script error.') return false;
+    if (isForeign(message, source)) return false;
     const stack = errorObj && errorObj.stack ? errorObj.stack : '';
     const level = classify(message, source || '', stack);
     if (level === 'major') {
@@ -209,7 +224,7 @@ const ErrorBoundary = (() => {
     return safeFrame;
   }
 
-  return { handle, hardReset, reloadPage, showMajor, showMinor, wrapLoop, classify };
+  return { handle, hardReset, reloadPage, showMajor, showMinor, wrapLoop, classify, isForeign };
 })();
 
 window.onerror = function(message, source, lineno, colno, errorObj) {
