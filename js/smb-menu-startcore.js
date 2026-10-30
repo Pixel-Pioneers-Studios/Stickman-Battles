@@ -281,6 +281,7 @@ function _startGameCore() {
   if (typeof resetBossWarnings === 'function') resetBossWarnings();
   if (typeof resetTFState === 'function') resetTFState();
   if (typeof DomainManager !== 'undefined') DomainManager.reset();
+  if (typeof ComboDomain !== 'undefined') ComboDomain.reset();
   trainingDummies    = [];
   bossDialogue       = { text: '', timer: 0 };
   backstagePortals   = [];

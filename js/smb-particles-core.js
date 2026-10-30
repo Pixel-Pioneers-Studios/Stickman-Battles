@@ -156,7 +156,7 @@ function spawnBullet(user, speed, color, overrideDmg = null) {
   const _spread   = (_ownerSpd > 0.8 ? (_ownerSpd / 5.2) * (_isRapid ? 3.1 : 2.0) : 0)
                   + _shotHeat * (_isRapid ? 0.30 : 0.20)
                   + _pointBlankT * (_isRapid ? 1.35 : 0.92);
-  const _vy       = _spread > 0 ? (Math.random() - 0.5) * _spread : 0;
+  const _vy       = _spread > 0 && !user._comboDomain ? (Math.random() - 0.5) * _spread : 0;
 
   const _proj = new Projectile(
     user.cx() + user.facing * 12, user.y + 22,
@@ -310,7 +310,7 @@ class Projectile {
       if (p !== this.owner && p.isAI && !p.isBoss && (!p.weapon || p.weapon.type !== 'ranged')) {
         const _aiProjD = Math.hypot(this.x - p.cx(), this.y - p.cy());
         const _towardAI = Math.sign(this.vx || 0) === Math.sign(p.cx() - this.x);
-        if (_towardAI && _aiProjD < 72 && (p.attackTimer > 0 || Math.abs(p.vx) > 3.4) && Math.random() < 0.18) {
+        if (_towardAI && _aiProjD < 72 && (p.attackTimer > 0 || Math.abs(p.vx) > 3.4) && !(this.owner && this.owner._comboDomain) && Math.random() < 0.18) {
           p.invincible = Math.max(p.invincible || 0, 6);
           p.vx += Math.sign(this.vx || 1) * 2.2;
           spawnParticles(p.cx(), p.cy(), '#ddeeff', 4);
@@ -320,7 +320,7 @@ class Projectile {
       }
       if (p.isBoss && this.owner && this.owner.weapon && this.owner.weapon.type === 'ranged') {
         const _bossD = Math.hypot(this.x - p.cx(), this.y - p.cy());
-        if (_bossD < 88 && Math.random() < 0.05 && !(p._projDeflectCd > 0)) {
+        if (_bossD < 88 && !this.owner._comboDomain && Math.random() < 0.05 && !(p._projDeflectCd > 0)) {
           p._projDeflectCd = 16;
           this.owner = p;
           this.vx = (this.x < p.cx() ? -1 : 1) * Math.max(8, Math.abs(this.vx) * 1.05);

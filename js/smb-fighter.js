@@ -1588,9 +1588,10 @@ class Fighter {
           if (!_survFFM && gameMode === 'boss' && !this.isBoss && !tgt.isBoss) continue;
           // Survival team mode also blocks friendly fire.
           if (gameMode === 'minigames' && minigameType === 'survival' && !_survFFM && !this.isBoss && !tgt.isBoss && !tgt.isAI && !this.isAI) continue;
-          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, this.weaponKey === 'whip' ? 4 : 0)) {
+          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, (this.weaponKey === 'whip' ? 4 : 0) + (this._comboDomain ? COMBO_DOMAIN_MELEE_PAD : 0))) {
             // Trade: if the target is mid-swing too, the earlier start lands and the later swing is cancelled.
-            if (!this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
+            // A Combo Domain owner's swing always lands; trades and clashes don't cancel it.
+            if (!this._comboDomain && !this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
               const _myStart  = this._attackStartFrame  || 0;
               const _tgtStart = tgt._attackStartFrame   || 0;
               // Only equal-strength actions meet. A weaker action breaks outright and the stronger one lands.
