@@ -158,7 +158,7 @@ function storyUpdateBoundaries() {
       ? currentArena.platforms.filter(pl => !pl.isFloorDisabled && pl.w > 40)
       : [];
     // For worldWidth arenas, pick platforms near the current camera view
-    const viewCX = (typeof camX === 'number' ? camX : 0) + GAME_W / 2;
+    const viewCX = typeof camXCur === 'number' ? camXCur : GAME_W / 2;
     const viewHalf = GAME_W * 0.8;
     const nearby = pls.filter(pl => !pl.isFloor && Math.abs(pl.x + pl.w / 2 - viewCX) < viewHalf);
     const usable = nearby.length ? nearby : pls.filter(pl => !pl.isFloor);

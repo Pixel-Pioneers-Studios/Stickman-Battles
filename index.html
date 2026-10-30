@@ -61,7 +61,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.9.100">
+  <link rel="stylesheet" href="SMB.css?v=4.9.118">
 </head>
 <body>
 
@@ -1529,35 +1529,36 @@
      SETTINGS MODAL
      ============================================================ -->
 <div id="settingsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;align-items:center;justify-content:center;" onclick="if(event.target===this)closeSettingsModal()">
-  <div class="smb-modal-box" style="width:min(560px,96vw);max-height:90vh;overflow-y:auto;">
+  <div class="smb-modal-box" style="width:min(640px,96vw);max-height:90vh;overflow-y:auto;">
     <div class="smb-modal-header">
       <span><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-gear"/></svg> SETTINGS</span>
       <button class="smb-modal-close" onclick="closeSettingsModal()">&#x2715;</button>
     </div>
 
-    <!-- GRAPHICS -->
-    <div class="settings-modal-section" id="settingsPanel">
-      <div class="settings-modal-label">Graphics</div>
+    <div class="settings-tabs" role="tablist">
+      <button class="settings-tab active" data-tab="gameplay" onclick="switchSettingsTab('gameplay')">Gameplay</button>
+      <button class="settings-tab" data-tab="controls" onclick="switchSettingsTab('controls')">Controls</button>
+      <button class="settings-tab" data-tab="graphics" onclick="switchSettingsTab('graphics')">Graphics</button>
+      <button class="settings-tab" data-tab="audio" onclick="switchSettingsTab('audio')">Audio</button>
+      <button class="settings-tab" data-tab="data" onclick="switchSettingsTab('data')">Account</button>
+      <button class="settings-tab" data-tab="advanced" onclick="switchSettingsTab('advanced')">Advanced</button>
+    </div>
+
+    <!-- GAMEPLAY -->
+    <div class="settings-modal-section" data-settings-tab="gameplay">
+      <div class="settings-modal-label">Gameplay</div>
       <div class="settings-grid">
         <label class="setting-item">
-          <input type="checkbox" id="settingParticles" checked onchange="updateSettings()">
-          <span>Particles</span>
-        </label>
-        <label class="setting-item">
-          <input type="checkbox" id="settingShake" checked onchange="updateSettings()">
-          <span>Screen Shake</span>
+          <input type="checkbox" id="settingFinishers" checked onchange="updateSettings()">
+          <span>Finishers</span>
         </label>
         <label class="setting-item">
           <input type="checkbox" id="settingDmgNums" checked onchange="updateSettings()">
           <span>Damage Numbers</span>
         </label>
-        <label class="setting-item">
-          <input type="checkbox" id="settingLandDust" checked onchange="updateSettings()">
-          <span>Landing Dust</span>
-        </label>
-        <label class="setting-item">
-          <input type="checkbox" id="settingFinishers" checked onchange="updateSettings()">
-          <span>Finishers</span>
+        <label class="setting-item" title="Eases fights for new players, then fades out as you improve">
+          <input type="checkbox" id="settingMentor" checked onchange="mentorSetOff(!this.checked)">
+          <span>Learning Assist</span>
         </label>
         <label class="setting-item">
           <input type="checkbox" id="settingHideHud" onchange="updateSettings()">
@@ -1571,42 +1572,77 @@
           <input type="checkbox" id="settingQuickFightHazards" onchange="updateSettings()">
           <span>Quick Fight Hazards</span>
         </label>
+      </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="settings-modal-section" data-settings-tab="controls" style="display:none;">
+      <div class="settings-modal-label">Keybinds</div>
+      <div class="keybind-hint">Click a key, then press the new one. Esc cancels. A key already in use swaps places. P, Esc, Tab and 1-5 are reserved.</div>
+      <div id="keybindPanel" class="keybind-panel"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
+        <button class="btn settings-toggle" onclick="resetKeybinds(); renderKeybindPanel();">Reset to Defaults</button>
+      </div>
+      <div id="settingsPanel"></div>
+    </div>
+
+    <!-- GRAPHICS -->
+    <div class="settings-modal-section" data-settings-tab="graphics" style="display:none;">
+      <div class="settings-modal-label">Graphics</div>
+      <div class="settings-grid">
+        <label class="setting-item">
+          <input type="checkbox" id="settingParticles" checked onchange="updateSettings()">
+          <span>Particles</span>
+        </label>
+        <label class="setting-item">
+          <input type="checkbox" id="settingShake" checked onchange="updateSettings()">
+          <span>Screen Shake</span>
+        </label>
+        <label class="setting-item">
+          <input type="checkbox" id="settingLandDust" checked onchange="updateSettings()">
+          <span>Landing Dust</span>
+        </label>
+        <label class="setting-item">
+          <input type="checkbox" id="settingAnimQuality" checked onchange="updateSettings()">
+          <span>High-Detail Animation</span>
+        </label>
         <label class="setting-item" title="Turn Performance Mode on automatically when the frame rate drops. Off = never switch it on for you">
           <input type="checkbox" id="settingAutoPerf" checked onchange="updateSettings()">
           <span>Auto Performance Mode</span>
         </label>
       </div>
-      <!-- Performance mode -->
       <div style="margin-top:8px;">
         <button id="perfModeBtn" class="btn settings-toggle" onclick="togglePerformanceMode()" title="Disable all visual effects for max FPS"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg> Performance Mode: Off</button>
       </div>
     </div>
 
     <!-- AUDIO -->
-    <div class="settings-modal-section">
+    <div class="settings-modal-section" data-settings-tab="audio" style="display:none;">
       <div class="settings-modal-label">Audio</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <button id="sfxMuteBtn" class="btn settings-toggle" onclick="toggleSfxMute()" style="min-width:130px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-chat"/></svg> Sound: On</button>
-        <label style="font-size:0.78rem;color:#aaa;display:flex;align-items:center;gap:6px;">
-          Vol <input type="range" min="0" max="1" step="0.05" value="0.35" style="width:80px;accent-color:#8866ff;"
-            oninput="setSfxVolume(parseFloat(this.value))">
-        </label>
         <button id="musicMuteBtn" class="btn settings-toggle" onclick="_toggleMusicBtn(this)" style="min-width:130px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-play"/></svg> Music: On</button>
+      </div>
+      <div class="settings-sliders">
+        <label class="setting-slider">
+          <span>Sound Volume</span>
+          <input type="range" min="0" max="1" step="0.05" value="0.35" oninput="setSfxVolume(parseFloat(this.value))">
+        </label>
+        <label class="setting-slider">
+          <span>Music Volume</span>
+          <input type="range" id="settingMusicVol" min="0" max="1" step="0.05" value="1" oninput="MusicManager.setVolume(parseFloat(this.value))">
+        </label>
       </div>
       <div class="settings-grid" style="margin-top:8px;">
         <label class="setting-item">
           <input type="checkbox" id="settingStoryVoice" checked onchange="updateSettings()">
           <span>Story Voices</span>
         </label>
-        <label class="setting-item">
-          <input type="checkbox" id="settingAnimQuality" checked onchange="updateSettings()">
-          <span>High-Detail Animation</span>
-        </label>
       </div>
     </div>
 
     <!-- ACCOUNT & DATA -->
-    <div class="settings-modal-section">
+    <div class="settings-modal-section" data-settings-tab="data" style="display:none;">
       <div class="settings-modal-label">Account &amp; Data</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
         <button class="btn settings-toggle" onclick="showAchievementsModal()"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> Achievements</button>
@@ -1620,10 +1656,9 @@
     </div>
 
     <!-- ADVANCED -->
-    <div class="settings-modal-section">
+    <div class="settings-modal-section" data-settings-tab="advanced" style="display:none;">
       <div class="settings-modal-label">Advanced</div>
-      <button class="btn settings-toggle" onclick="toggleAdvanced()">Show Advanced</button>
-      <div id="advancedPanel" class="settings-panel" style="display:none;margin-top:8px;">
+      <div id="advancedPanel">
         <div class="settings-grid">
           <label class="setting-item">
             <input type="checkbox" id="settingBossAura" checked onchange="updateSettings()">
@@ -1638,11 +1673,18 @@
             <span>Screen Flashes</span>
           </label>
         </div>
+        <div class="settings-sliders">
+          <label class="setting-slider" title="How hard the camera shakes on big hits. Screen Shake (Graphics) turns it off entirely">
+            <span>Shake Strength <b id="settingShakeScaleVal">100%</b></span>
+            <input type="range" id="settingShakeScale" min="0" max="1.5" step="0.1" value="1" oninput="updateSettings()">
+          </label>
+        </div>
       </div>
     </div>
 
     <!-- RESET -->
-    <div class="settings-modal-section" style="border-bottom:none;">
+    <div class="settings-modal-section" data-settings-tab="advanced" style="display:none;border-bottom:none;">
+      <div class="settings-modal-label">Danger Zone</div>
       <div id="resetConfirmRow" style="display:none;padding:8px;background:rgba(255,50,50,0.12);border-radius:6px;border:1px solid rgba(255,80,80,0.3);margin-bottom:6px;">
         <span style="font-size:0.75rem;color:#ff8888;">Reset all progress (boss beaten, letters, Cosmic Axiom)?</span>
         <div style="display:flex;gap:6px;margin-top:6px;">
@@ -1741,7 +1783,7 @@
   <script src="./js/smb-errorboundary.js?v=4.3.8"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.7.1"></script>
-  <script src="./js/smb-globals.js?v=4.9.111"></script>
+  <script src="./js/smb-globals.js?v=4.9.112"></script>
   <script src="./js/smb-palette.js?v=4.9.52"></script>
   <!-- Hand-drawn weapon sprite art (must follow smb-globals.js, precede smb-fighter.js) -->
   <script src="./js/smb-weapon-sprites.js?v=4.9.72"></script>
@@ -1753,7 +1795,7 @@
   <script src="./js/smb-liveops.js?v=4.3.8"></script>
   <script src="./js/smb-admin-session.js?v=4.3.8"></script>
   <!-- Sound system -->
-  <script src="./js/smb-audio.js?v=4.9.54"></script>
+  <script src="./js/smb-audio.js?v=4.9.112"></script>
   <!-- Game Director: pacing, intensity, dynamic events -->
   <script src="./js/smb-director.js?v=4.9.59"></script>
   <!-- Achievement system -->
@@ -1768,7 +1810,7 @@
   <script src="./js/smb-data-weapons.js?v=4.9.90"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.9.99"></script>
+  <script src="./js/smb-combat.js?v=4.9.119"></script>
   <script src="./js/smb-particles-core.js?v=4.9.93"></script>
   <script src="./js/smb-destruction.js?v=4.9.114"></script>
   <script src="./js/smb-world-react.js?v=4.9.10"></script>
@@ -1836,7 +1878,7 @@
   <!-- Domain Expansion system -->
   <script src="./js/smb-domain.js?v=4.9.114"></script>
   <!-- Boss and True Form -->
-  <script src="./js/boss/smb-boss.js?v=4.9.111"></script>
+  <script src="./js/boss/smb-boss.js?v=4.9.115"></script>
   <script src="./js/boss/smb-boss-cinematics.js?v=4.9.110"></script>
   <script src="./js/boss/smb-boss-tf-misc.js?v=4.9.111"></script>
   <script src="./js/boss/smb-boss-phase-cin.js?v=4.9.110"></script>
@@ -1902,15 +1944,15 @@
   <script src="./js/smb-minigames.js?v=4.9.92"></script>
   <script src="./js/smb-sports.js?v=4.9.92"></script>
   <script src="./js/smb-trials.js?v=4.9.57"></script>
-  <script src="./js/smb-battleroyale.js?v=4.9.88"></script>
+  <script src="./js/smb-battleroyale.js?v=4.9.118"></script>
   <script src="./js/smb-br-structures.js?v=4.9.114"></script>
-  <script src="./js/smb-br-forms.js?v=4.9.102"></script>
-  <script src="./js/smb-endless.js?v=4.9.114"></script>
+  <script src="./js/smb-br-forms.js?v=4.9.118"></script>
+  <script src="./js/smb-endless.js?v=4.9.118"></script>
   <script src="./js/smb-sewer.js?v=4.9.53"></script>
   <!-- True-Form QTE system -->
   <script src="./js/smb-qte-core.js?v=4.9.111"></script>
   <script src="./js/smb-qte-engine.js?v=4.3.8"></script>
-  <script src="./js/smb-qte-draw.js?v=4.9.49"></script>
+  <script src="./js/smb-qte-draw.js?v=4.9.112"></script>
   <!-- Impact cinematic system: playCinematicAttack, CINEMATIC_PRESETS, updateCinematicSystem -->
   <script src="./js/smb-cinematic.js?v=4.3.8"></script>
   <!-- Deterministic step-based cutscene system -->
@@ -1919,13 +1961,13 @@
   <script src="./js/smb-camera.js?v=4.9.95"></script>
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.9.58"></script>
-  <script src="./js/smb-loop-core.js?v=4.9.111"></script>
-  <script src="./js/smb-input.js?v=4.9.111"></script>
+  <script src="./js/smb-loop-core.js?v=4.9.119"></script>
+  <script src="./js/smb-input.js?v=4.9.118"></script>
   <script src="./js/smb-cheats.js?v=4.9.82"></script>
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=4.9.104"></script>
   <script src="./js/smb-home-art.js?v=4.9.67"></script>
-  <script src="./js/smb-menu-select.js?v=4.9.72"></script>
+  <script src="./js/smb-menu-select.js?v=4.9.118"></script>
   <script src="./js/smb-menu-config.js?v=4.9.112"></script>
   <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
   <script src="./js/smb-menu-spawn.js?v=4.9.94"></script>
@@ -1973,9 +2015,9 @@
   <script src="./js/story/smb-story-registry.js?v=4.3.8"></script>
   <script src="./js/story/acts/act0/smb-act0-arc1.js?v=4.9.22"></script>
   <script src="./js/story/acts/act0/smb-act0-arc2.js?v=4.9.69"></script>
-  <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.9.24"></script>
+  <script src="./js/story/acts/act1/smb-act1-arc1.js?v=4.9.115"></script>
   <script src="./js/story/acts/act1/smb-act1-arc2.js?v=4.9.22"></script>
-  <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.9.82"></script>
+  <script src="./js/story/acts/act2/smb-act2-arc1.js?v=4.9.115"></script>
   <script src="./js/story/acts/act2/smb-act2-arc2.js?v=4.9.23"></script>
   <script src="./js/story/acts/act2/smb-act2-arc3.js?v=4.9.82"></script>
   <script src="./js/story/acts/act3/smb-act3-arc1.js?v=4.9.82"></script>
@@ -1993,7 +2035,7 @@
   <script src="./js/story/acts/act4mv/smb-act4mv-vael.js?v=4.3.8"></script>
   <script src="./js/story/acts/act4mv/smb-act4mv-thresh.js?v=4.3.8"></script>
   <script src="./js/story/acts/act4mv/smb-act4mv-arc3.js?v=4.9.82"></script>
-  <script src="./js/story/acts/act4/smb-act4-arc1.js?v=4.9.82"></script>
+  <script src="./js/story/acts/act4/smb-act4-arc1.js?v=4.9.117"></script>
   <script src="./js/story/acts/act4/smb-act4-arc2.js?v=4.9.82"></script>
   <script src="./js/story/acts/act5/smb-act5-arc1.js?v=4.9.16"></script>
   <script src="./js/story/acts/act5/smb-act5-arc2.js?v=4.9.16"></script>
@@ -2008,7 +2050,7 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.9.50"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.9.50"></script>
-  <script src="./js/story/smb-story-config.js?v=4.9.79"></script>
+  <script src="./js/story/smb-story-config.js?v=4.9.116"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-ui.js?v=4.9.63"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.8"></script>
@@ -2027,11 +2069,11 @@
   <script src="./js/story/scenes/actvoidmind.js?v=4.9.69"></script>
   <script src="./js/story/scenes/side.js?v=4.3.8"></script>
   <script src="./js/smb-figure-rig.js?v=4.9.68"></script>
-  <script src="./js/smb-story-narrative-scene.js?v=4.9.74"></script>
-  <script src="./js/story/smb-story-engine-flow.js?v=4.9.82"></script>
+  <script src="./js/smb-story-narrative-scene.js?v=4.9.116"></script>
+  <script src="./js/story/smb-story-engine-flow.js?v=4.9.115"></script>
   <script src="./js/story/smb-story-engine-match.js?v=4.9.53"></script>
-  <script src="./js/story/smb-story-engine-events.js?v=4.9.82"></script>
-  <script src="./js/story/smb-story-engine-frame.js?v=4.9.82"></script>
+  <script src="./js/story/smb-story-engine-events.js?v=4.9.115"></script>
+  <script src="./js/story/smb-story-engine-frame.js?v=4.9.115"></script>
   <script src="./js/story/smb-story-levels.js?v=4.9.66"></script>
   <script src="./js/story/levels/ch00.js?v=4.9.66"></script>
   <script src="./js/story/levels/ch01.js?v=4.9.22"></script>
@@ -2195,10 +2237,12 @@
   <!-- Test harness — only active when window.DEBUG_MODE = true -->
   <script src="./js/smb-test-tools.js?v=4.9.16"></script>
   <!-- Guided onboarding tutorial — runs on top of training mode -->
-  <script src="./js/smb-ladder.js?v=4.9.114"></script>
+  <script src="./js/smb-ladder.js?v=4.9.119"></script>
   <!-- Weekly Challenge: takes over the ladder card once the ladder is cleared. -->
   <script src="./js/smb-weekly.js?v=4.9.60"></script>
-  <script src="./js/smb-tutorial.js?v=4.9.53"></script>
+  <script src="./js/smb-tutorial.js?v=4.9.119"></script>
+  <!-- Mentor: learning assist that fades out over a new player's first matches -->
+  <script src="./js/smb-mentor.js?v=4.9.119"></script>
   <script src="./js/smb-move-preview.js?v=4.9.52"></script>
   <!-- Replay system — recording, IndexedDB storage, download, and viewer -->
   <script src="./js/smb-replay.js?v=4.9.114"></script>
@@ -2208,7 +2252,7 @@
   <script src="./js/smb-whatsnew.js?v=4.3.8"></script>
   <script src="./js/smb-ui-controls.js?v=4.3.8"></script>
   <!-- StoryVoice — speaks story dialogue lines via the Web Speech API -->
-  <script src="./js/smb-voice-manifest.js?v=4.9.82"></script>
+  <script src="./js/smb-voice-manifest.js?v=4.9.117"></script>
   <script src="./js/smb-storyvoice.js?v=4.9.74"></script>
   <!-- Render-only presentation pass: does not alter gameplay or saves. -->
   <script src="./js/smb-visual-polish.js?v=4.9.52"></script>

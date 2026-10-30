@@ -225,11 +225,12 @@ function _drawQTEGlyph(ctx, key, x, y, device, color) {
     if (dir && key !== 's') tri(x, y, dir[0], dir[1], 8);
     else { ctx.font = 'bold 10px Arial'; ctx.fillText(key === ' ' ? 'ATK' : key === 'q' ? 'Q' : key === 'e' ? 'SUP' : 'SHD', x, y + 1); }
   } else {       // keyboard keycap
-    const w = key === ' ' ? 40 : 28;
+    const w = ((typeof keyLabelFor === 'function') ? keyLabelFor(key) : caps[key]).length > 1 ? 40 : 28;
     ctx.fillStyle = 'rgba(20,20,40,0.85)'; ctx.strokeStyle = color; ctx.lineWidth = 2;
     pill(x, y - 3, w, 28, 5); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = color; ctx.font = `bold ${key === ' ' ? 12 : 17}px "Segoe UI", Arial, sans-serif`;
-    ctx.fillText(caps[key], x, y - 3);
+    const cap = (typeof keyLabelFor === 'function') ? keyLabelFor(key) : caps[key];
+    ctx.fillStyle = color; ctx.font = `bold ${cap.length > 1 ? 12 : 17}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillText(cap === 'Space' ? 'SPC' : cap.length > 5 ? cap.slice(0, 5) : cap, x, y - 3);
     ctx.font = 'bold 9px Arial'; ctx.fillStyle = color; ctx.globalAlpha *= 0.8;
     ctx.fillText(({ a: 'LEFT', d: 'RIGHT', w: 'UP', s: 'DOWN', ' ': 'ATTACK', q: 'ABILITY', e: 'SUPER' })[key], x, y + 19);
   }

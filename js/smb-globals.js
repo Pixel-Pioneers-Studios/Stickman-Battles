@@ -1092,7 +1092,7 @@ let camDramaTimer  = 0;
 let camDramaTarget = null;
 let camDramaZoom   = 1.0;
 
-const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') !== '0'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high'), quickFightHazards: (localStorage.getItem('smc_qfHazards') === '1'), autoPerf: (localStorage.getItem('smc_autoPerf') !== '0') };
+const settings = { particles: true, screenShake: true, dmgNumbers: true, landingDust: true, bossAura: true, botPortal: true, phaseFlash: true, ragdollEnabled: (localStorage.getItem('smc_ragdoll') === '1'), finishers: true, view3D: (localStorage.getItem('smc_view3D') === '1'), experimental3D: (localStorage.getItem('smc_experimental3D') === '1'), hideHud: false, storyVoice: (localStorage.getItem('smc_storyVoice') !== '0'), replayMode: (localStorage.getItem('smc_replayMode') !== '0'), animQuality: (localStorage.getItem('smc_animQuality') === 'classic' ? 'classic' : 'high'), quickFightHazards: (localStorage.getItem('smc_qfHazards') === '1'), autoPerf: (localStorage.getItem('smc_autoPerf') !== '0'), shakeScale: Math.max(0, Math.min(1.5, parseFloat(localStorage.getItem('smc_shakeScale') || '1') || 0)) };
 
 // Active finisher state: set by triggerFinisher(), cleared when animation completes or on backToMenu
 let activeFinisher = null;

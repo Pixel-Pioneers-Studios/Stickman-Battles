@@ -441,7 +441,7 @@ function gameLoop(timestamp) {
   const _cinOX = typeof _cinCamOffX !== 'undefined' ? _cinCamOffX : 0;
   const _cinOY = typeof _cinCamOffY !== 'undefined' ? _cinCamOffY : 0;
   // Skip shake below a threshold to avoid micro-jitter.
-  const _shakeAmt = screenShake > 1.0 ? screenShake : 0;
+  const _shakeAmt = screenShake > 1.0 ? screenShake * (settings.shakeScale != null ? settings.shakeScale : 1) : 0;
   // First N frames bias the shake one direction, then fall back to random. The timer ticks in updateCinematicEnhancements().
   let _sdx = 0, _sdy = 0;
   if (typeof cinShakeDir !== 'undefined' && cinShakeDir && cinShakeDir.timer > 0) {
@@ -1156,6 +1156,7 @@ function gameLoop(timestamp) {
   if (typeof updateFractureBranch === 'function') updateFractureBranch();
   if (typeof updateLadder === 'function') updateLadder();
   if (typeof updateTutorial === 'function') updateTutorial();
+  if (typeof updateMentor === 'function') updateMentor();
   if (typeof updateMovePreview === 'function') updateMovePreview();
   if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 

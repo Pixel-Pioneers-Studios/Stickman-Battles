@@ -1815,7 +1815,10 @@
     // Chapter label
     _ctx.save(); _ctx.globalAlpha=0.65; _ctx.fillStyle='#8899bb'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif';
     _ctx.fillText((_chapter&&_chapter.world)||'',18,26); _ctx.fillStyle='#ffcc88'; _ctx.font='bold 14px \'Segoe UI\', Arial, sans-serif';
-    _ctx.fillText(_cinLabel || (_chapter&&_chapter.title) || '',18,44); _ctx.restore();
+    _ctx.fillText(_cinLabel || (_chapter&&_chapter.title) || '',18,44);
+    var _when = _chapter && (_chapter.when || (typeof storyChapterWhen === 'function' ? storyChapterWhen(_chapter.id) : ''));
+    if (_when) { _ctx.fillStyle='#cfd6e6'; _ctx.font='italic 12px \'Segoe UI\', Arial, sans-serif'; _ctx.fillText(_when,18,62); }
+    _ctx.restore();
 
     var done = _typedLen >= totalText.length;
 

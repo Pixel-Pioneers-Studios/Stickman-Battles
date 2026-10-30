@@ -171,6 +171,7 @@ function ladderOnOut(p) {
   if (!bot || (p !== bot && p !== players[0])) return false;
   _ladderOver = true;
   _ladderWon  = p === bot;
+  if (typeof mentorResult === 'function') mentorResult(_ladderWon);
   // Let the KO land (death animation, finisher) before the card covers it.
   setTimeout(_ladderFinish, 1400);
   return true;

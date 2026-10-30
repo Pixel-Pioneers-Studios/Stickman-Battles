@@ -901,7 +901,7 @@ function _launchChapter2FightImmediate(ch) {
             setCameraDrama('wideshot', 100);
             setTimeout(() => setCameraDrama('focus', 70, _boss, 1.30), 1000);
           }
-          if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = Math.max(screenShakeIntensity || 0, 10);
+          screenShake = Math.max(screenShake, 10);
           if (typeof showBossDialogue === 'function') showBossDialogue('"Half gone. You\'re better than I expected."', 160);
           if (typeof slowMotionFor === 'function') slowMotionFor(0.40, 900);
           if (director) director._worldState = 'boss';
@@ -915,7 +915,7 @@ function _launchChapter2FightImmediate(ch) {
           if (typeof setCameraDrama === 'function') setCameraDrama('wideshot', 160);
           if (typeof slowMotionFor === 'function') slowMotionFor(0.42, 1300);
           if (typeof showBossDialogue === 'function') showBossDialogue('"You weren\'t in the design. Yet here you are."', 210);
-          if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = Math.max(screenShakeIntensity || 0, 13);
+          screenShake = Math.max(screenShake, 13);
           if (typeof directorSchedule === 'function') {
             directorSchedule([{
               id: 'boss_fp_focus', delay: 130,

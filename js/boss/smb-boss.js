@@ -618,7 +618,7 @@ class Boss extends Fighter {
           action: () => {
             if (typeof setCameraDrama === 'function') setCameraDrama('impact', 22);
             _self.attack(target);
-            if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = 9;
+            screenShake = Math.max(screenShake, 9);
           }
         },
         {

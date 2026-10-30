@@ -773,7 +773,7 @@ function drawEndlessWorld() {
       var wn = (WEAPONS[d.weaponKey] && WEAPONS[d.weaponKey].name) || d.weaponKey;
       ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
       ctx.fillStyle = '#ffe9a8';
-      ctx.fillText(d._near ? '[F] ' + wn : wn, d.x, d.y - 16);
+      ctx.fillText(d._near ? '[' + (typeof keyLabelFor === 'function' ? keyLabelFor('f') : 'F') + '] ' + wn : wn, d.x, d.y - 16);
     }
     ctx.globalAlpha = 1;
   });

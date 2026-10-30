@@ -30,7 +30,7 @@ function _normKey(k) {
 
 // Letter bindings use the physical key (e.code), so WASD is the same keys on every layout.
 // Portals serve every European locale. Non-letter keys still come from e.key.
-function _eventKey(e) {
+function _rawEventKey(e) {
   const c = e.code;
   if (c && c.length === 4 && c.slice(0, 3) === 'Key') {
     const ch = c.charAt(3);
@@ -38,6 +38,92 @@ function _eventKey(e) {
   }
   if (c === 'Semicolon') return ';';   // P2 attack: the key right of L on any layout
   return _normKey(e.key);
+}
+
+// Custom keybinds are applied here, at the event: a bound key is reported as the default key of
+// its action, so every Fighter.controls table, touch button, gamepad and hint keeps the defaults.
+// Synthetic events (touch, gamepad) already send defaults and are never remapped.
+const KEYBIND_ACTIONS  = ['left', 'right', 'jump', 'shield', 'attack', 'ability', 'super'];
+// Battle Royale / Endless item keys. Shared by both players; pickup/drop also accept/decline a creature form.
+const KEYBIND_ITEM_ACTIONS = ['pickup', 'drop', 'use'];
+const KEYBIND_SLOT_ACTIONS = { p1: KEYBIND_ACTIONS, p2: KEYBIND_ACTIONS, items: KEYBIND_ITEM_ACTIONS };
+const KEYBIND_DEFAULTS = {
+  p1: { left: 'a', right: 'd', jump: 'w', attack: ' ', shield: 's', ability: 'q', super: 'e' },
+  p2: { left: 'j', right: 'l', jump: 'i', attack: ';', shield: 'k', ability: 'o', super: 'u' },
+  items: { pickup: 'f', drop: 'g', use: 'r' },
+};
+// Pause, menus and the dev F-keys own these. 1-5 are Battle Royale inventory slots, read from e.key before any binding.
+const KEYBIND_RESERVED = new Set(['Escape', 'p', 'Tab', '1', '2', '3', '4', '5', 'Control', 'Meta', 'Alt', 'AltGraph', 'CapsLock', 'ContextMenu',
+  'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'Unidentified', 'Dead', 'Process']);
+let keybinds = null;
+const _keybindRemap = new Map();   // pressed key -> default key it stands for
+
+function _keybindsEach(fn) {
+  for (const slot in KEYBIND_SLOT_ACTIONS) for (const a of KEYBIND_SLOT_ACTIONS[slot]) fn(slot, a);
+}
+function _keybindsRebuild() {
+  _keybindRemap.clear();
+  _keybindsEach((slot, a) => {
+    const k = keybinds[slot][a], d = KEYBIND_DEFAULTS[slot][a];
+    if (k && k !== d) _keybindRemap.set(k, d);
+  });
+}
+function _keybindsLoad() {
+  keybinds = {};
+  for (const slot in KEYBIND_DEFAULTS) keybinds[slot] = { ...KEYBIND_DEFAULTS[slot] };
+  try {
+    const s = JSON.parse(localStorage.getItem('smc_keybinds') || 'null');
+    if (s) {
+      _keybindsEach((slot, a) => {
+        const k = s[slot] && s[slot][a];
+        if (typeof k === 'string' && k && !KEYBIND_RESERVED.has(k)) keybinds[slot][a] = k;
+      });
+      // A hand-edited or older save can bind one key twice; fall back to defaults rather than guess.
+      const used = new Set();
+      let dup = false;
+      _keybindsEach((slot, a) => { const k = keybinds[slot][a]; if (used.has(k)) dup = true; used.add(k); });
+      if (dup) for (const slot in KEYBIND_DEFAULTS) keybinds[slot] = { ...KEYBIND_DEFAULTS[slot] };
+    }
+  } catch (e) {}
+  _keybindsRebuild();
+}
+function _keybindsSave() {
+  try { localStorage.setItem('smc_keybinds', JSON.stringify(keybinds)); } catch (e) {}
+  _keybindsRebuild();
+}
+// Bind an action. A key already held by another action (any table) is swapped onto it, so no key does two things.
+function setKeybind(slot, action, key) {
+  if (!keybinds[slot] || !KEYBIND_SLOT_ACTIONS[slot].includes(action) || !key || KEYBIND_RESERVED.has(key)) return false;
+  const old = keybinds[slot][action];
+  _keybindsEach((s, a) => {
+    if ((s !== slot || a !== action) && keybinds[s][a] === key) keybinds[s][a] = old;
+  });
+  keybinds[slot][action] = key;
+  _keybindsSave();
+  return true;
+}
+function resetKeybinds(slot) {
+  for (const s of (slot ? [slot] : Object.keys(KEYBIND_DEFAULTS))) keybinds[s] = { ...KEYBIND_DEFAULTS[s] };
+  _keybindsSave();
+}
+// Display name for a key, or for the key currently bound to a default key (keyLabelFor(' ') -> 'Space').
+function keyLabel(k) {
+  if (k === ' ') return 'Space';
+  const arrows = { ArrowLeft: '←', ArrowRight: '→', ArrowUp: '↑', ArrowDown: '↓' };
+  if (arrows[k]) return arrows[k];
+  return (k && k.length === 1) ? k.toUpperCase() : (k || '?');
+}
+function keyLabelFor(defaultKey) {
+  for (const slot in KEYBIND_SLOT_ACTIONS) for (const a of KEYBIND_SLOT_ACTIONS[slot]) {
+    if (KEYBIND_DEFAULTS[slot][a] === defaultKey) return keyLabel(keybinds[slot][a]);
+  }
+  return keyLabel(defaultKey);
+}
+_keybindsLoad();
+
+function _eventKey(e) {
+  const k = _rawEventKey(e);
+  return (e.isTrusted && _keybindRemap.has(k)) ? _keybindRemap.get(k) : k;
 }
 
 // Who a human's attack/Q/E aims at. With no second player (Battle Royale), use the nearest foe.
@@ -154,7 +240,7 @@ document.addEventListener('keydown', e => {
     }
   }
   const _nk = _eventKey(e);
-  if (SCROLL_BLOCK.has(_nk)) e.preventDefault();
+  if (SCROLL_BLOCK.has(_nk) || (gameRunning && e.isTrusted && _keybindRemap.has(_rawEventKey(e)))) e.preventDefault();
   if (keysDown.has(_nk)) return; // already tracked: let held-frame counter run
   keysDown.add(_nk);
 
@@ -256,7 +342,7 @@ document.addEventListener('keyup', e => {
   delete keyHeldFrames[_nk];
   // Release the printed character too, so a key tracked under e.key can't stick down.
   const _pk = _normKey(e.key);
-  if (_pk !== _nk) { keysDown.delete(_pk); delete keyHeldFrames[_pk]; }
+  if (_pk !== _nk && !(e.isTrusted && _keybindRemap.has(_rawEventKey(e)))) { keysDown.delete(_pk); delete keyHeldFrames[_pk]; }
 });
 
 // Tab lost focus: clear held keys so nothing stays held (floating, invincibility timer freeze).
@@ -480,8 +566,8 @@ function processInput() {
 //   Start = Esc. Outside a match the D-pad moves a focus ring and A clicks it; in a story scene A advances (Enter).
 // Only keys the pad itself pressed get released by the pad, so it never fights the keyboard.
 const _GP_ON = 0.35, _GP_OFF = 0.25;
-const _GP_P2_KEYS = { left: 'j', right: 'l', jump: 'i', attack: ';', shield: 'k', ability: 'o', super: 'u' };
-const _GP_P1_KEYS = { left: 'a', right: 'd', jump: 'w', attack: ' ', shield: 's', ability: 'q', super: 'e' };
+const _GP_P2_KEYS = KEYBIND_DEFAULTS.p2;
+const _GP_P1_KEYS = KEYBIND_DEFAULTS.p1;
 const _gpHeld = [{}, {}];        // per pad: action -> key we sent keydown for
 const _gpAct  = [{}, {}];        // per pad: action -> latched on/off (hysteresis)
 const _gpPrev = [{}, {}];        // per pad: button index -> was pressed (menu edges)

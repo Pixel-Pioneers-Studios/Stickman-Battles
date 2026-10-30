@@ -2450,7 +2450,7 @@ function drawBattleRoyaleHUD() {
       ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
       ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
       var _invFull = brInventory.indexOf(null) === -1;
-      var _pMsg = _invFull ? '[Bag full] ' + (_nearItem.label || _nearItem.type) : '[F] Pick up  ' + (_nearItem.label || _nearItem.type);
+      var _pMsg = _invFull ? '[Bag full] ' + (_nearItem.label || _nearItem.type) : '[' + (typeof keyLabelFor === 'function' ? keyLabelFor('f') : 'F') + '] Pick up  ' + (_nearItem.label || _nearItem.type);
       ctx.fillText(_pMsg, GAME_W / 2, GAME_H / 2 + 60);
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;
     }
@@ -2480,7 +2480,7 @@ function drawBattleRoyaleHUD() {
     if (sel && item) {
       ctx.font = '7px Arial'; ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255,200,80,0.7)';
-      ctx.fillText(item.type === 'weapon' ? 'EQUIP' : 'R:USE  G:DROP', sx + slotW / 2, iby + slotH + 10);
+      ctx.fillText(item.type === 'weapon' ? 'EQUIP' : (typeof keyLabelFor === 'function' ? keyLabelFor('r') : 'R') + ':USE  ' + (typeof keyLabelFor === 'function' ? keyLabelFor('g') : 'G') + ':DROP', sx + slotW / 2, iby + slotH + 10);
     }
   }
 

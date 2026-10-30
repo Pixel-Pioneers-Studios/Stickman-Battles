@@ -66,6 +66,14 @@ async function render(spec) {
       events.push({ f: s.t0 + (e.f - s.at) / s.speed, k: e.k, r: e.r * (s.speed < 1 ? 0.8 : 1), g: e.g * (s.sg === undefined ? 1 : s.sg), pan: e.pan });
     }
   }
+  // A shot that cuts to black (log.silenceFrom, a source frame) is silent from there to its end: no effect
+  // started before the cut rings on across it.
+  const mutes = [];
+  for (const s of segs) {
+    if (!s.shot) continue;
+    const lg = shotLog(s.profile || spec.profile, s.shot);
+    if (lg.silenceFrom && lg.silenceFrom >= s.at && lg.silenceFrom < s.at + s.len * s.speed) mutes.push([(s.t0 + (lg.silenceFrom - s.at) / s.speed) / FPS, (s.t0 + s.len) / FPS]);
+  }
   for (const e of (spec.stingers || [])) events.push({ f: e.at, k: e.k, r: e.r || 1, g: 0.35 * (e.g || 1), pan: 0 });
   const sfxWav = path.join(tmp, 'sfx.wav');
   mixSfx(events, total / FPS, FPS, sfxWav);
@@ -128,7 +136,7 @@ async function render(spec) {
   const dur = total / FPS;
   const out = path.join(outDir, name + '.mp4');
   const a = ['-loglevel', 'error', '-y', '-i', silent, '-i', sfxWav];
-  let af = `[1:a]volume=${spec.sfxGain || 1.0}[sfx]`;
+  let af = `[1:a]volume=${spec.sfxGain || 1.0}${mutes.map(([a, b]) => `,volume=0:enable='between(t,${a.toFixed(3)},${b.toFixed(3)})'`).join('')}[sfx]`;
   if (m) {
     // The tracks are loops, so the bed can run on under the end card and fade.
     a.push('-stream_loop', '-1', '-ss', String(m.from || 0), '-i', path.join(ROOT, m.file));

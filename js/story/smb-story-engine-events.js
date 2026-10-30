@@ -108,7 +108,7 @@ function _handleBuiltinEvent(name, data) {
       // Visual distortion ramp (drawn in smc-drawing.js)
       const targetDistort = Math.min(1.0, 0.25 + (storyState.chapter - 7) * 0.08);
       storyDistortLevel = Math.max(storyDistortLevel, targetDistort);
-      if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = Math.max(screenShakeIntensity || 0, 6);
+      screenShake = Math.max(screenShake, 6);
       // Full reality-break moment runs as a director sequence.
       if (typeof directorSchedule === 'function') {
         directorSchedule([
@@ -117,7 +117,7 @@ function _handleBuiltinEvent(name, data) {
             condition: () => gameRunning,
             action: () => {
               if (typeof hitStopFrames !== 'undefined') hitStopFrames = Math.max(hitStopFrames, 10);
-              if (typeof screenShakeIntensity !== 'undefined') screenShakeIntensity = Math.max(screenShakeIntensity || 0, 7);
+              screenShake = Math.max(screenShake, 7);
             }
           },
           {

@@ -23,6 +23,8 @@
  *                          [--tune=0.2,10,70]   the bot's _btTune: skill, think, hesitate (as a ladder rung sets it)
  *                          [--mehp=1.5]   the proxy's max HP multiplier (a ladder rung's p1HpMul)
  *                          [--params=file.json]   proxy params instead of human-proxy-params-v4.json
+ *                          [--mentor=1]   the proxy gets the Mentor learning assist at this level (smb-mentor.js)
+ *                          [--mentoroff=botPause,ledgeSave]   drop those crutches from --mentor, for an A/B
  */
 const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = path.resolve(__dirname, '..');
@@ -69,6 +71,9 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
     for (const k of O.off) BOT_TACTICS[k] = false;
     const seen = new WeakSet();
     let me = null, bot = null, pMe = 0, pBot = 0, wasLock = false, gap = -1;
+    const mst = { airSaved: false, prevCd: new Map() };
+    if (args.mentoroff && typeof MENTOR_CRUTCHES !== 'undefined')
+      for (const c of MENTOR_CRUTCHES) if (String(args.mentoroff).split(',').includes(c.id)) c.at = 9;
     const up = Fighter.prototype.update, ab = Fighter.prototype.ability, su = Fighter.prototype.useSuper;
     Fighter.prototype.ability = function () {
       const c0 = this.abilityCooldown || 0; const out = ab.apply(this, arguments);
@@ -92,6 +97,10 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
             this.aiTickInterval = 1; this._noWhiffGuard = true;
           }
         } else { bot = this; pBot = this.health; wasLock = false; gap = -1; if (O.tune) this._btTune = O.tune; }
+      }
+      if (this === me && bot && args.mentor && typeof mentorAssistFrame === 'function') {
+        const fl = currentArena && currentArena.platforms && currentArena.platforms.find(q => q && q.isFloor);
+        mentorAssistFrame(me, [bot], Number(args.mentor), mst, fl);
       }
       const out = up.apply(this, arguments);
       if (this === bot && me && bot.health > 0 && me.health > 0) {
@@ -136,7 +145,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 
   const pc = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '-';
   const g = r.gaps.slice().sort((a, b) => a - b), med = g.length ? g[g.length >> 1] : 0;
-  console.log(`${O.diff} ${O.bot}/${O.botw} bot vs ${O.vs} ${O.me}/${O.mew}, ${r.n} matches on ${O.arena}` + (O.off.length ? '  [off: ' + O.off.join(',') + ']' : '') + (O.tune ? '  [tune: ' + args.tune + ']' : '') + (args.mehp ? '  [mehp: ' + args.mehp + ']' : '') + (args.params ? '  [params: ' + path.basename(String(args.params)) + ']' : ''));
+  console.log(`${O.diff} ${O.bot}/${O.botw} bot vs ${O.vs} ${O.me}/${O.mew}, ${r.n} matches on ${O.arena}` + (O.off.length ? '  [off: ' + O.off.join(',') + ']' : '') + (O.tune ? '  [tune: ' + args.tune + ']' : '') + (args.mehp ? '  [mehp: ' + args.mehp + ']' : '') + (args.params ? '  [params: ' + path.basename(String(args.params)) + ']' : '') + (args.mentor ? '  [mentor: ' + args.mentor + ']' : ''));
   console.log(`  proxy wins ${r.meWins}  bot wins ${r.botWins}  timeouts ${r.timeouts}   stocks taken: proxy ${r.stocksMe}, bot ${r.stocksBot}   avg ${(r.frames / r.n / 60).toFixed(0)}s`);
   console.log(`  tactics layer active ${pc(r.tac, r.live)} of bot frames`);
   console.log(`  bot guard up ${pc(r.shield, r.live)}   airborne ${pc(r.air, r.live)}   in reach ${pc(r.reach, r.live)}, of that free and idle ${pc(r.idleReach, r.reach)}`);

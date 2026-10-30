@@ -1394,6 +1394,248 @@ SCENES.beast = {
   },
 };
 
+// MINES — "He's not running." Three chase him across the floor; six of his sticky bombs already lie
+// on it. He stops past the last one, turns round, and holds Q: the game's own Remote Detonation sets
+// them all off under the three (the blasts chain on their own, smb-weapons-ext.js _wxResolveBlasts).
+SCENES.mines = {
+  arena: 'grass', frames: 330,
+  match: { p1: 'bomb', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'none', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    settings.finishers = false;   // three at once: a finisher on the first would make the game refuse the other two
+    const extra = [['spear', '#ff9a2a'], ['sword', '#ffe03a']].map(([wk, col]) => {
+      const f = new Fighter(0, fl.y - 60, col, wk, { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, 'easy');
+      f.updateAI = function () {}; f.aiTickInterval = 1;
+      f.lives = 3; f.playerNum = players.length + 1; f.name = '';
+      players.push(f);
+      return f;
+    });
+    D.foes = [p2, ...extra];
+    for (const f of D.foes) { f.target = p1; f._domainSuperCount = 0; }
+    // The field: six stickies already on the ground, close enough that one blast reaches the next.
+    D.field = [0, 1, 2, 3, 4, 5].map(i => 312 + i * 34);
+    p1._wxBombs = [];
+    for (const x of D.field) _wxNewBomb(p1, { sticky: true, fuse: Infinity, armed: 0, r: 6, dmg: 14, kb: 20, blastR: 62, x, y: fl.y - 6, py: fl.y - 6, vx: 0, vy: 0, onSurface: true });
+    H.place(p1, 430, fl.y, -1);
+    D.foes.forEach((f, i) => H.place(f, 690 + i * 44, fl.y, -1));
+    p1.health = p1.maxHealth;
+    H.snap(420, p1.cy() - 40, 1.05);
+    // Bombs are dark 6px balls on a phone: a red blink and a ground ring on each one that's armed.
+    const d1 = p1.draw.bind(p1);
+    p1.draw = function () {
+      const w = p1.weapon, t = w && w.type;
+      if (w) w.type = 'thrown';   // no cooldown bar / READY over his head
+      try { d1(); } finally { if (w) w.type = t; }
+      ctx.save();
+      for (const bm of (p1._wxBombs || [])) {
+        if (bm.dead || !bm.sticky) continue;
+        const ph = (H.D.f + Math.round(bm.x / 34) * 5) % 24, on = ph < 12;
+        ctx.globalAlpha = on ? 0.55 : 0.2; ctx.strokeStyle = '#ff2a2a'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.ellipse(bm.x, bm.y + 5, 13 + (on ? ph * 0.5 : 0), 3.2, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = on ? 1 : 0.35; ctx.fillStyle = '#ff3030';
+        ctx.beginPath(); ctx.arc(bm.x, bm.y - bm.r - 1.5, 2.6, 0, Math.PI * 2); ctx.fill();
+        if (on) { ctx.globalAlpha = 0.35; ctx.beginPath(); ctx.arc(bm.x, bm.y - bm.r - 1.5, 6, 0, Math.PI * 2); ctx.fill(); }
+      }
+      ctx.restore();
+    };
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], foes = D.foes;
+    const lead = foes[0];
+    switch (D.phase) {
+      case 'start': H.go('run'); break;
+      case 'run': {
+        // Running from them, across his own field. They're faster.
+        p1.facing = -1; p1.vx = -3.2;
+        for (const f of foes) { f.facing = -1; f.vx = -4.6; }
+        if (p1.cx() <= 262) { p1.vx = 0; H.go('turn'); }
+        break;
+      }
+      case 'turn': {
+        p1.vx = 0;
+        if (D.t === 6) p1.facing = 1;
+        for (const f of foes) { f.facing = -1; f.vx = -4.6; }
+        // All three on the field: the last one past the far bomb.
+        const last = foes[foes.length - 1];
+        if (last.cx() < D.field[5] + 10) {
+          for (const f of foes) { f.lives = 1; f.health = 12; f.invincible = 0; f.shielding = false; }
+          slowMotion = 0.3;
+          p1.stunTimer = 0;
+          _wxDetonateStickies(p1);
+          D.log.boom = D.f;
+          H.go('boom');
+        }
+        break;
+      }
+      case 'boom': {
+        if (D.t > 40 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.02);
+        break;
+      }
+    }
+    if (D.phase !== 'boom') for (const f of foes) { f.lives = 3; if (f.health < f.maxHealth * 0.5) f.health = f.maxHealth; }
+    for (const f of foes) f.cooldown = Math.max(f.cooldown, 2);
+    p1.lives = 3; p1.cooldown = Math.max(p1.cooldown, 2);
+    const cx = D.phase === 'boom' ? 372 : Math.max(372, Math.min(440, (p1.cx() + lead.cx()) / 2));
+    CinCam.setFocus(cx, p1.cy() - 40, 1.05);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(cx);
+  },
+};
+
+// MIRROR — "1 HP. 3 guns." He is one hit from gone and three gunners open up. Mirrorwall (the Glass
+// Blade's own E) goes up in front of him; each shot comes straight back down its own line. They fire
+// front to back, so each return passes the ones already down and finds its shooter.
+SCENES.mirror = {
+  arena: 'city', frames: 300,
+  match: { p1: 'glassblade', p1Class: 'none', p1Color: '#00d4ff', p2: 'gun', p2Class: 'none', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    settings.finishers = false;
+    const extra = [['gun', '#ff9a2a'], ['gun', '#ffe03a']].map(([wk, col]) => {
+      const f = new Fighter(0, fl.y - 60, col, wk, { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, 'easy');
+      f.updateAI = function () {}; f.aiTickInterval = 1;
+      f.lives = 3; f.playerNum = players.length + 1; f.name = '';
+      players.push(f);
+      return f;
+    });
+    D.foes = [p2, ...extra];
+    p1._teamId = 1;
+    for (const f of D.foes) { f.target = p1; f._domainSuperCount = 0; f._teamId = 2; }
+    H.place(p1, 330, fl.y, 1);
+    D.foes.forEach((f, i) => H.place(f, 480 + i * 48, fl.y, -1));
+    p1.health = 1;
+    H.bleed(p1, fl.y);
+    H.snap(450, p1.cy() - 40, 1.0);
+    // Ranged HUD over the gunners' heads (cooldown bar, READY, ammo) is not the fighter.
+    for (const f of D.foes) {
+      const d = f.draw.bind(f);
+      f.draw = function () { const w = f.weapon, t = w && w.type, cs = w && w.clipSize; if (w) { w.type = 'thrown'; if (cs) w.clipSize = 0; } try { d(); } finally { if (w) { w.type = t; if (cs) w.clipSize = cs; } } };
+    }
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], foes = D.foes;
+    switch (D.phase) {
+      case 'start': H.go('wall'); break;
+      case 'wall': {
+        if (D.t === 1) { H.press(p1, 'e', foes[0]); D.log.wall = D.f; }
+        // Front to back, so each return passes the ones already down.
+        foes.forEach((f, i) => {
+          if (D.t === 4 + i * 26 && f.health > 0) {
+            f.cooldown = 0; f.attackEndlag = 0; f.facing = -1;
+            if (f.weapon) { f.ammo = f.weapon.clipSize || 99; f.reloading = 0; }
+            f.attack(p1);
+            (D.log.shots || (D.log.shots = [])).push(D.f);
+            if (i === 0) for (const g of foes) { g.lives = 1; g.health = 10; g.invincible = 0; g.shielding = false; }
+          }
+        });
+        if (D.t > 4 + 2 * 26 && foes.every(f => f.health <= 0) && !D.log.clear) { D.log.clear = D.f; H.go('after'); }
+        if (D.t > 200) H.go('after');
+        break;
+      }
+      case 'after': break;
+    }
+    for (const f of foes) { if (f.health > 0) { f.vx = 0; f.facing = -1; } f.cooldown = Math.max(f.cooldown, 2); }
+    for (const f of foes) if (f.health > 0 && !D.log.shots) { f.lives = 3; }
+    p1.lives = 3; p1.health = 1; p1.facing = 1; p1.cooldown = Math.max(p1.cooldown, 2);
+    for (const f of foes) if (f.health <= 0 && !(D.log.dead || (D.log.dead = {}))[foes.indexOf(f)]) D.log.dead[foes.indexOf(f)] = D.f;
+    const cx = 450;
+    CinCam.setFocus(cx, p1.cy() - 40, 1.0);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(cx);
+  },
+};
+
+// SHATTER — "One more crack and it shatters." The axe lands and the Glass Blade goes to 2 of 3 cracks
+// (the game's own Fragile count, logged as D.log.cracks). Three close round him: axe on the right, spear
+// on the left, sword leaping in from above. He lets the axe land the third crack, and the shatter's own
+// ring of shards (_wxUpdateGlass at 3 cracks) finds all three.
+SCENES.shatter = {
+  arena: 'city', frames: 220,
+  match: { p1: 'glassblade', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'none', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    settings.finishers = false;
+    const extra = [['spear', '#ff9a2a'], ['sword', '#ffe03a']].map(([wk, col]) => {
+      const f = new Fighter(0, fl.y - 60, col, wk, { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, 'easy');
+      f.updateAI = function () {}; f.aiTickInterval = 1;
+      f.lives = 3; f.playerNum = players.length + 1; f.name = '';
+      players.push(f);
+      return f;
+    });
+    D.foes = [p2, ...extra];
+    D.spear = extra[0]; D.sword = extra[1];
+    for (const f of D.foes) { f.target = p1; f._domainSuperCount = 0; }
+    H.place(p1, 440, fl.y, 1);
+    H.place(p2, 486, fl.y, -1);
+    H.place(D.spear, 290, fl.y, 1);
+    H.place(D.sword, 640, fl.y, -1);
+    p1.health = p1.maxHealth;
+    // One crack already in it; the axe makes it two.
+    _wxGlass(p1).cracks = 1; _wxGlass(p1).hp = p1.health;
+    D.log.cracks = [[0, 1]];
+    H.snap(450, p1.cy() - 40, 1.5);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], foes = D.foes, p2 = foes[0];
+    const g = _wxGlass(p1);
+    const swing = f => { f.cooldown = 0; f.attackEndlag = 0; f.stunTimer = 0; f.facing = p1.cx() > f.cx() ? 1 : -1; f.attack(p1); };
+    switch (D.phase) {
+      case 'start': H.go('axe'); break;
+      case 'axe': {
+        if (D.t === 1) swing(p2);
+        // The other two close in while he recovers.
+        D.spear.vx = 2.4; D.spear.facing = 1;
+        D.sword.vx = -2.2; D.sword.facing = -1;
+        if (D.t > 40) H.go('ring');
+        break;
+      }
+      case 'ring': {
+        // Spear walks up on his left; the sword leaps in over his right shoulder; the axe winds up again.
+        if (D.spear.cx() < p1.cx() - 84) { D.spear.vx = 2.4; D.spear.facing = 1; } else D.spear.vx = 0;
+        if (D.t === 1) { D.from = { x: D.sword.cx(), y: D.sword.y + D.sword.h }; D.log.leap = D.f; }
+        const u = Math.min(1, D.t / 30);
+        const to = { x: p1.cx() + 38, y: p1.cy() - 12 };
+        const pt = H.arc(D.from, to, 40, H.ease(u));
+        D.sword.x = pt.x - D.sword.w / 2; D.sword.y = pt.y - D.sword.h; D.sword.vx = 0; D.sword.vy = 0; D.sword.onGround = false; D.sword.facing = -1;
+        if (p2.cx() - p1.cx() > 54) { p2.vx = -1.6; p2.facing = -1; } else p2.vx = 0;
+        if (D.t === 18) {
+          // The spear stands in the axe's splash: he only goes low once the blade has broken, so the shards take him.
+          for (const f of foes) { if (f === D.spear) continue; f.lives = 1; f.health = 5; f.invincible = 0; f.shielding = false; }
+          swing(p2);
+          D.log.swing2 = D.f;
+        }
+        if (D.t > 18 && D.spear.health > 0 && g.broken <= 0) D.spear.health = D.spear.maxHealth;
+        if (g.broken > 0) { D.spear.lives = 1; D.spear.health = 5; D.spear.shielding = false; slowMotion = 0.3; D.log.boom = D.f; H.go('boom'); }
+        if (D.t > 80) H.go('boom');
+        break;
+      }
+      case 'boom': {
+        // The extras were made after helpersInstall, so they keep real i-frames: the axe's splash would shield the spear.
+        for (const f of foes) f.invincible = 0;
+        if (D.t < 4 && D.sword.health > 0) { D.sword.vy = 0; D.sword.y = Math.min(D.sword.y, p1.cy() - 12 - D.sword.h); }
+        if (D.t > 50 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.025);
+        break;
+      }
+    }
+    if (D.phase === 'axe') for (const f of foes) { f.lives = 3; if (f.health < f.maxHealth * 0.5) f.health = f.maxHealth; }
+    for (const f of foes) if (!(D.phase === 'axe' && f === p2 && D.t < 3) && !(D.phase === 'ring' && f === p2 && D.t === 18)) f.cooldown = Math.max(f.cooldown, 2);
+    p1.lives = 3; p1.cooldown = Math.max(p1.cooldown, 2); p1.vx *= 0.8; p1.facing = 1;
+    if (g.broken <= 0 && D.log.cracks[D.log.cracks.length - 1][1] !== g.cracks) D.log.cracks.push([D.f, g.cracks]);
+    if (g.broken > 0 && !D.log.broke) D.log.broke = D.f;
+    for (const f of foes) if (f.health <= 0 && !(D.log.dead || (D.log.dead = {}))[foes.indexOf(f)]) D.log.dead[foes.indexOf(f)] = D.f;
+    const cx = 450;
+    CinCam.setFocus(cx, p1.cy() - 50, 1.5);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(cx);
+  },
+};
+
 const probe = () => {
   const D = window.__dir || {};
   const p1 = players[0], p2 = players[1];

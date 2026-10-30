@@ -526,6 +526,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (target && typeof target._damageTakenMult === 'number') {
     actualDmg = Math.max(1, Math.round(actualDmg * clamp(target._damageTakenMult, 0.25, 3)));
   }
+  // Mentor learning assist (smb-mentor.js), new players only.
+  if (target && target._assistTaken > 0 && target._assistTaken < 1) {
+    actualDmg = Math.max(1, Math.round(actualDmg * target._assistTaken));
+  }
   // Evolution difficulty: enemies adapt to repeated moves.
   if (storyModeActive && attacker && !attacker.isAI && !attacker.isBoss && target !== attacker &&
       (target.isAI || target.isBoss) && typeof _storyDifficulty === 'function' && _storyDifficulty() === 'evolution') {
@@ -738,6 +742,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   if (attacker && attacker.kbBonus) actualKb = Math.round(actualKb * attacker.kbBonus);
   if (target.kbResist)  actualKb = Math.round(actualKb * target.kbResist);
+  if (target._assistKb > 0 && target._assistKb < 1) actualKb = Math.round(actualKb * target._assistKb);
   if (typeof wxKnockbackMods === 'function') actualKb = wxKnockbackMods(attacker, target, actualKb);
   // Affinity scales knockback a little.
   if (attacker && attacker.charClass && attacker.weapon && typeof CLASS_AFFINITY !== 'undefined') {

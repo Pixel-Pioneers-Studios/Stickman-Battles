@@ -494,9 +494,90 @@ function openSettingsModal() {
   if (apEl) apEl.checked = settings.autoPerf !== false;
   const aqEl = document.getElementById('settingAnimQuality');
   if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
+  const ssEl = document.getElementById('settingShakeScale');
+  if (ssEl) ssEl.value = settings.shakeScale;
+  const ssVal = document.getElementById('settingShakeScaleVal');
+  if (ssVal) ssVal.textContent = Math.round(settings.shakeScale * 100) + '%';
+  const mvEl = document.getElementById('settingMusicVol');
+  if (mvEl && typeof MusicManager !== 'undefined' && MusicManager.getVolume) mvEl.value = MusicManager.getVolume();
+  renderKeybindPanel();
+}
+
+function switchSettingsTab(tab) {
+  document.querySelectorAll('#settingsModal [data-settings-tab]').forEach(el => {
+    el.style.display = el.dataset.settingsTab === tab ? '' : 'none';
+  });
+  document.querySelectorAll('#settingsModal .settings-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  if (tab !== 'controls') _keybindCancelCapture();
+}
+
+const _KEYBIND_NAMES = { left: 'Move Left', right: 'Move Right', jump: 'Jump', shield: 'Shield / Fast Fall', attack: 'Attack', ability: 'Ability', super: 'Super',
+  pickup: 'Pick Up / Accept Form', drop: 'Drop / Decline Form', use: 'Use Item' };
+let _keybindCapture = null;   // { slot, action, btn }
+
+function renderKeybindPanel() {
+  const panel = document.getElementById('keybindPanel');
+  if (!panel || typeof keybinds === 'undefined' || !keybinds) return;
+  _keybindCancelCapture();
+  let html = '<div class="keybind-head"></div><div class="keybind-head">Player 1</div><div class="keybind-head">Player 2</div>';
+  for (const a of KEYBIND_ACTIONS) {
+    html += '<div class="keybind-name">' + _KEYBIND_NAMES[a] + '</div>';
+    for (const slot of ['p1', 'p2']) {
+      const changed = keybinds[slot][a] !== KEYBIND_DEFAULTS[slot][a];
+      html += '<button class="keybind-key' + (changed ? ' changed' : '') + '" data-slot="' + slot + '" data-action="' + a + '">' +
+        keyLabel(keybinds[slot][a]) + '</button>';
+    }
+  }
+  html += '<div class="keybind-group">Items: Battle Royale &amp; Endless</div>';
+  for (const a of KEYBIND_ITEM_ACTIONS) {
+    const changed = keybinds.items[a] !== KEYBIND_DEFAULTS.items[a];
+    html += '<div class="keybind-name">' + _KEYBIND_NAMES[a] + '</div>' +
+      '<button class="keybind-key' + (changed ? ' changed' : '') + '" data-slot="items" data-action="' + a + '">' +
+      keyLabel(keybinds.items[a]) + '</button><div></div>';
+  }
+  panel.innerHTML = html;
+  panel.querySelectorAll('.keybind-key').forEach(b => {
+    b.onclick = () => _keybindStartCapture(b.dataset.slot, b.dataset.action, b);
+  });
+}
+
+function _keybindStartCapture(slot, action, btn) {
+  _keybindCancelCapture();
+  _keybindCapture = { slot, action, btn };
+  btn.classList.add('listening');
+  btn.textContent = 'Press a key…';
+  window.addEventListener('keydown', _keybindOnKey, true);
+}
+
+function _keybindCancelCapture() {
+  window.removeEventListener('keydown', _keybindOnKey, true);
+  if (!_keybindCapture) return;
+  const { slot, action, btn } = _keybindCapture;
+  _keybindCapture = null;
+  btn.classList.remove('listening');
+  btn.textContent = keyLabel(keybinds[slot][action]);
+}
+
+// Window capture runs before every document listener, so the press never reaches pause, menus or the game.
+function _keybindOnKey(e) {
+  if (!_keybindCapture || !e.isTrusted) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (e.key === 'Escape') { _keybindCancelCapture(); return; }
+  const k = _rawEventKey(e);
+  const { slot, action, btn } = _keybindCapture;
+  if (KEYBIND_RESERVED.has(k)) {
+    btn.textContent = keyLabel(k) + ' is reserved';
+    return;
+  }
+  setKeybind(slot, action, k);
+  renderKeybindPanel();
 }
 
 function closeSettingsModal() {
+  _keybindCancelCapture();
   const m = document.getElementById('settingsModal');
   if (m) m.style.display = 'none';
 }
@@ -573,6 +654,13 @@ function updateSettings() {
   if (bossAuraEl)   settings.bossAura   = bossAuraEl.checked;
   if (botPortalEl)  settings.botPortal  = botPortalEl.checked;
   if (phaseFlashEl) settings.phaseFlash = phaseFlashEl.checked;
+  const shakeScaleEl = document.getElementById('settingShakeScale');
+  if (shakeScaleEl) {
+    settings.shakeScale = parseFloat(shakeScaleEl.value);
+    localStorage.setItem('smc_shakeScale', String(settings.shakeScale));
+    const v = document.getElementById('settingShakeScaleVal');
+    if (v) v.textContent = Math.round(settings.shakeScale * 100) + '%';
+  }
   const finishersEl = document.getElementById('settingFinishers');
   if (finishersEl) settings.finishers = finishersEl.checked;
   const storyVoiceEl = document.getElementById('settingStoryVoice');

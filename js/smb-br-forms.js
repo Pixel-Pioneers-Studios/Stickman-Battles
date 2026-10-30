@@ -488,7 +488,7 @@ function _brDrawFormOffer(p) {
   ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = def.color;
   ctx.fillText('Become the ' + def.label + '?', GAME_W / 2, y + 17);
   ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ffffff';
-  ctx.fillText('[F] Accept     [G] Decline', GAME_W / 2, y + 33);
+  ctx.fillText('[' + (typeof keyLabelFor === 'function' ? keyLabelFor('f') : 'F') + '] Accept     [' + (typeof keyLabelFor === 'function' ? keyLabelFor('g') : 'G') + '] Decline', GAME_W / 2, y + 33);
   ctx.fillStyle = def.color;
   ctx.fillRect(x + 6, y + 40, (w - 12) * left, 2);
   ctx.restore();
