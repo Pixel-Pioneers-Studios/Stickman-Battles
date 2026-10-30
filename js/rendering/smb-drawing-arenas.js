@@ -2835,7 +2835,7 @@ function drawExploreGoalObject() {
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(`Press ${_pk ? String(_pk).toUpperCase() : 'SHIELD'} to enter`, portal.x, portal.y + 46);
+      ctx.fillText(`Press ${_pk ? (typeof keyLabelFor === 'function' ? keyLabelFor(_pk) : String(_pk).toUpperCase()) : 'SHIELD'} to enter`, portal.x, portal.y + 46);
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.font = '9px Arial';
       ctx.fillText(portal.type === 'distorted_rift' ? 'Boss echo — rare reward' : 'Two elites — bonus coins', portal.x, portal.y + 59);
@@ -3903,7 +3903,7 @@ function updateHUD() {
         // Banked and a full bar: players see that holding E is what fires it (Fighter._wantsConviction).
         // The SUPER label reads "HOLD E" while it does.
         const holdHint = c >= CONVICTION_CHARGES && p.superReady && !p.isAI && p.controls && p.controls.super
-          ? 'HOLD ' + String(p.controls.super).toUpperCase() : '';
+          ? 'HOLD ' + (typeof keyLabelFor === 'function' ? keyLabelFor(p.controls.super) : String(p.controls.super).toUpperCase()) : '';
         const lbl = domEl.parentElement && domEl.parentElement.querySelector('.super-label');
         if (lbl && lbl.dataset.hint !== holdHint) {
           lbl.dataset.hint = holdHint;

@@ -1588,9 +1588,10 @@ class Fighter {
           if (!_survFFM && gameMode === 'boss' && !this.isBoss && !tgt.isBoss) continue;
           // Survival team mode also blocks friendly fire.
           if (gameMode === 'minigames' && minigameType === 'survival' && !_survFFM && !this.isBoss && !tgt.isBoss && !tgt.isAI && !this.isAI) continue;
-          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, this.weaponKey === 'whip' ? 4 : 0)) {
+          if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, (this.weaponKey === 'whip' ? 4 : 0) + (this._comboDomain ? COMBO_DOMAIN_MELEE_PAD : 0))) {
             // Trade: if the target is mid-swing too, the earlier start lands and the later swing is cancelled.
-            if (!this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
+            // A Combo Domain owner's swing always lands; trades and clashes don't cancel it.
+            if (!this._comboDomain && !this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
               const _myStart  = this._attackStartFrame  || 0;
               const _tgtStart = tgt._attackStartFrame   || 0;
               // Only equal-strength actions meet. A weaker action breaks outright and the stronger one lands.
@@ -2347,7 +2348,7 @@ class Fighter {
         this.onGround = false;
         spawnParticles(this.cx(), pl.y, '#ff88ff', 10);
       }
-      if (!this.isBoss && landVy > 5) this.squashTimer = 4;
+      if (!this.isBoss && landVy > 5) { this.squashTimer = 4; this._landVy = landVy; }
       // Heavy landings crack the surface. Cosmetic only.
       if (landVy > 11 && typeof spawnImpact === 'function') {
         spawnImpact(this.cx(), pl.y, Math.min(1.1, 0.35 + (landVy - 11) / 16), {
@@ -5395,8 +5396,23 @@ class Fighter {
 
     // Squash / stretch / idle breath
     let animScaleX = 1, animScaleY = 1, animOffY = 0;
+    // High-detail body layer (smb-anim-fighter.js): lean, turn pinch, spring landing, get-up. Null in classic mode.
+    const _layer = (typeof animBodyLayer === 'function' && !_mp && this.spinning <= 0)
+      ? animBodyLayer(this, s, (this._finPoseP !== null && this._finPoseP !== undefined) ? this._finPoseP
+                               : (this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0))
+      : null;
+    if (_layer && _layer.rot) {
+      const _guY = ty + this.h * 0.45;
+      ctx.translate(cx, _guY);
+      ctx.rotate(_layer.rot);
+      ctx.translate(-cx, -_guY);
+    }
     if (!this.isBoss) {
-      if (this.squashTimer > 0) {
+      if (_layer) {
+        animScaleX = _layer.sx;
+        animScaleY = _layer.sy;
+        if (this.onGround && s === 'idle') animOffY = Math.sin(t * 0.04) * 1;
+      } else if (this.squashTimer > 0) {
         // Landing squash: compress vertically
         const sq = this.squashTimer / 4;
         animScaleX = 1 + sq * 0.15;
@@ -5453,7 +5469,8 @@ class Fighter {
                           : (_inAir ? f * (-_spr * 4.5) : 0));   // matches the run so takeoff doesn't pop
     // Render-only forward lean for showcase captures. Opt-in, so gameplay poses are unchanged.
     const _coverLean = (Number(this._coverLean) || 0) + (_mp ? (_mp.lean || 0) : 0);
-    const shoulderX = cx - _pelvis * 0.8 + f * _coverLean;
+    const _bodyLean = _layer ? _layer.lean : 0;
+    const shoulderX = cx - _pelvis * 0.8 + f * _coverLean + _bodyLean;
     const armLen    = FIG_ARM_LEN;
     const legLen    = FIG_LEG_LEN;
     // Two-segment limb joint: midpoint plus offset (classic rig).
@@ -5509,9 +5526,9 @@ class Fighter {
     ctx.lineJoin    = 'round';
 
     // Head lags the torso lean a few frames (follow-through).
-    const headCX = (_spr <= 0.10 && typeof animHeadLag === 'function' && !this.isBoss)
+    const headCX = ((_spr <= 0.10 && typeof animHeadLag === 'function' && !this.isBoss)
       ? cx + f * _coverLean * 1.20 + animHeadLag(this, (hipX - cx) * -0.35, 4, 2)
-      : cx + f * _coverLean * 1.20;
+      : cx + f * _coverLean * 1.20) + _bodyLean * 1.1 + (_layer ? _layer.head : 0);
 
     // One silhouette: parts accumulate into two masses (far-side limbs, everything else) and are filled once.
     // Painting parts separately made the figure look assembled.
@@ -5635,6 +5652,10 @@ class Fighter {
     } else if (s === 'shielding') {
       rAng = f > 0 ? -0.25 : Math.PI + 0.25;
       lAng = f > 0 ? -0.55 : Math.PI + 0.55;
+    } else if (_hiQ && this._rd && (s === 'hurt' || s === 'stunned' || s === 'ragdoll')) {
+      // Limb springs (smb-verlet.js) carry the hit impulse, so the struck arm flies and swings back.
+      rAng = this._rd.rArm.angle;
+      lAng = this._rd.lArm.angle;
     } else {
       const b = Math.sin(t * 0.045) * 0.045;
       const _ci = (!this.isBoss && typeof WEAPON_SWINGS !== 'undefined' && WEAPON_SWINGS[this.weaponKey]) ? WEAPON_SWINGS[this.weaponKey].carry : null;
@@ -5680,6 +5701,9 @@ class Fighter {
     const _lRun = _runArmL ? _runArmFK(_runPh + 0.5) : null;
     if (_rRun) { rAng = _rRun.ang; _rArmLen = _rRun.len; }
     if (_lRun) { lAng = _lRun.ang; _lArmLen = _lRun.len; }
+    if (typeof animArmBlend === 'function') {
+      [rAng, lAng] = animArmBlend(this, s, rAng, lAng, !!(_mp || this.spinning > 0 || _rRun || _lRun));
+    }
     const rEx = shoulderX + Math.cos(rAng) * _rArmLen;
     const rEy = shoulderY + Math.sin(rAng) * _rArmLen;
     const lEx = shoulderX + Math.cos(lAng) * _lArmLen;

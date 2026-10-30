@@ -394,12 +394,16 @@ class PlayerRagdoll {
       const p = f.attackDuration > 0 ? 1 - f.attackTimer / f.attackDuration : 0;
       const _sp = (typeof swingPose === 'function' && f.charClass !== 'megaknight')
         ? swingPose(f.weaponKey, p, face, f._jabAlt) : null;
+      // Lunge: the stance opens through the strike and half closes on recovery. Either facing,
+      // widening rLeg/lLeg apart puts the front foot forward and the back foot behind.
+      const _lunge = (typeof animHiQ === 'function' && animHiQ())
+        ? Math.sin(Math.min(1, p / 0.5) * Math.PI / 2) * (1 - 0.45 * Math.max(0, (p - 0.6) / 0.4)) * 0.11 : 0;
       return face > 0
         ? { rArm: _sp ? _sp.ang : lerp(-0.45, 1.1, p), lArm: lerp(Math.PI * 0.80, Math.PI * 0.55, p),
-            rLeg: Math.PI * 0.55,      lLeg: Math.PI * 0.45,
+            rLeg: Math.PI * (0.55 + _lunge), lLeg: Math.PI * (0.45 - _lunge),
             head: -0.08, torso: -0.06 * p }
         : { rArm: _sp ? _sp.ang : lerp(Math.PI + 0.45, Math.PI - 1.1, p), lArm: lerp(Math.PI * 0.20, Math.PI * 0.45, p),
-            rLeg: Math.PI * 0.55, lLeg: Math.PI * 0.45,
+            rLeg: Math.PI * (0.55 + _lunge), lLeg: Math.PI * (0.45 - _lunge),
             head: -0.08, torso: 0.06 * p };
     }
 

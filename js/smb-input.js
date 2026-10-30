@@ -119,6 +119,10 @@ function keyLabelFor(defaultKey) {
   }
   return keyLabel(defaultKey);
 }
+// A Fighter controls table. Always the defaults: bindings are remapped at the event, not per fighter.
+function getKeybinds(slot) {
+  return { ...KEYBIND_DEFAULTS[slot === 'p2' ? 'p2' : 'p1'] };
+}
 _keybindsLoad();
 
 function _eventKey(e) {

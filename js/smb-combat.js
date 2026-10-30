@@ -441,7 +441,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Combat Q counter: absorb the hit, teleport behind the attacker next frame.
   // Bosses are countered too.
-  if (!isDot && target._counterStance > 0 && attacker && attacker !== target) {
+  if (!isDot && target._counterStance > 0 && attacker && attacker !== target && !attacker._comboDomain) {
     target._counterStance    = 0;
     target._counterAttacker  = attacker;
     spawnParticles(target.cx(), target.cy(), '#ff4444', 14);
@@ -583,7 +583,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     directorAddIntensity(actualDmg * 0.02);
   }
   // Sampled before the overflow break below clears `shielding`. A DoT tick never counts as guarded.
-  let _guardUp = !!target.shielding && !isDot;
+  // Combo Domain owners land direct hits: no parry, no guard (smb-combo-domain.js).
+  let _guardUp = !!target.shielding && !isDot && !(attacker && attacker._comboDomain);
   let _shieldedHit = _guardUp;
   let _parried = false;
   if (_guardUp) {
@@ -863,6 +864,15 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   target.health    = Math.max(0, target.health - _bodyDmg);
   if (attacker && attacker._brForm && typeof brFormOnHit === 'function') brFormOnHit(attacker, target, actualDmg);
   if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
+  // Combo Domain streak (smb-combo-domain.js): landed hits inside the on-screen COMBO window.
+  // DoT and splash don't count, so they can't open it on their own.
+  if (attacker && attacker !== target && _bodyDmg > 0 && !isDot && !isSplash && typeof frameCount !== 'undefined') {
+    if (frameCount - (attacker._cdomLast || 0) > COMBO_DOMAIN_WINDOW) attacker._cdomHits = 0;
+    attacker._cdomHits = (attacker._cdomHits || 0) + 1;
+    attacker._cdomLast = frameCount;
+  }
+  if (attacker && attacker._comboDomain && _bodyDmg > 0 && typeof comboDomainOnHit === 'function')
+    comboDomainOnHit(attacker, target, _bodyDmg, isDot, isSplash);
   // Scythe lifesteal on basic swings, splash included.
   if (attacker && attacker.weaponKey === 'scythe' && _bodyDmg > 0 && attacker !== target && !isDot &&
       _moveTierOverride === null && attacker._attackKindTier === CLASH_TIER_ATTACK && attacker.health > 0) {

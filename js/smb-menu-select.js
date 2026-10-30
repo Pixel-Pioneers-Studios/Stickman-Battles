@@ -580,6 +580,7 @@ function closeSettingsModal() {
   _keybindCancelCapture();
   const m = document.getElementById('settingsModal');
   if (m) m.style.display = 'none';
+  if (typeof _keybindListen !== 'undefined') _keybindListen = null;
 }
 
 function openReplayBrowser() {

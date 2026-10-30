@@ -736,7 +736,7 @@ function _brUpdatePlane() {
     }
     // Drop input is edge-triggered (a SPACE held from the menu must not drop you) and only counts over the map.
     // The plane starts off the world at x=-300, so an early drop got clamped to the left edge.
-    var _dropKeyDown = (typeof keysDown !== 'undefined') && (keysDown.has('w') || keysDown.has(' '));
+    var _dropKeyDown = (typeof keysDown !== 'undefined') && (p1 && p1.controls ? (keysDown.has(p1.controls.jump) || keysDown.has(p1.controls.attack)) : (keysDown.has('w') || keysDown.has(' ')));
     if (!_dropKeyDown) brDropKeyReleased = true;
     if (p1 && _dropKeyDown && brDropKeyReleased && brPlaneX > 120) {
       brJumped = true;

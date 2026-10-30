@@ -208,3 +208,137 @@ function animCapeDrive(f) {
     lift:  -fall * 12,
   };
 }
+
+/**
+ * Body layer on top of the state rig: torso lean and head offset (world-space px), and
+ * extra scale. Everything here is render-only and decays on its own, so a dropped frame or a
+ * skipped state never leaves the figure stuck in a pose.
+ */
+function animBodyLayer(f, s, atkP) {
+  if (!animHiQ() || f.isBoss) return null;
+  const out = { lean: 0, head: 0, sx: 1, sy: 1, rot: 0 };
+  const face = f.facing || 1;
+  const prevS = f._layerS;
+  f._layerS = s;
+
+  // Attack: rock back on the wind-up, drive the shoulders through the strike, settle half way.
+  if (s === 'attacking') {
+    const p = animClamp(atkP || 0, 0, 1);
+    const drive = animEase.anticipate(Math.min(1, p / 0.6), 0.5) * (1 - 0.5 * Math.max(0, (p - 0.6) / 0.4));
+    out.lean += face * 5.5 * drive;
+    out.head += face * 2.0 * drive;
+  }
+  if (f._finAnticip) out.lean -= face * f._finAnticip * 7;
+
+  // Hit reaction: the feet go with the knockback and the shoulders lag behind, head last.
+  // Read from velocity, not the torso spring, which carries a running lean into the hit.
+  if (s === 'hurt') {
+    const kb = animClamp(f.vx || 0, -12, 12);
+    out.lean -= kb * 1.3;
+    out.head -= kb * 0.7;
+  } else if (s === 'stunned') {
+    const w = (f.animTimer || 0) * 0.06;
+    out.lean += Math.sin(w) * 3;
+    out.head += Math.sin(w - 0.7) * 2.5;
+  }
+
+  // Walk-to-stop: the body carries on a little past the feet, then rocks back upright.
+  if (prevS === 'walking' && s === 'idle') f._settle = { t: 0, dir: Math.sign(f._layerVx || face) };
+  if (s !== 'idle') f._settle = null;
+  if (f._settle) {
+    const u = f._settle.t++ / 16;
+    if (u >= 1) f._settle = null;
+    else {
+      const k = Math.sin(u * Math.PI * 1.6) * (1 - u) * (1 - u);
+      out.lean += f._settle.dir * 4.5 * k;
+      out.head += f._settle.dir * 2.5 * k;
+    }
+  }
+  f._layerVx = f.vx;
+
+  // Idle weight shift, slow enough to read as breathing rather than fidgeting.
+  if (s === 'idle') out.lean += Math.sin((f.animTimer || 0) * 0.021) * 0.9;
+
+  // Turnaround: pinch through the side view and spring back out, instead of a one-frame mirror.
+  if (f._layerFace !== undefined && f._layerFace !== face &&
+      (s === 'idle' || s === 'walking' || s === 'jumping' || s === 'falling' || s === 'shielding')) f._turnT = 8;
+  f._layerFace = face;
+  if (f._turnT > 0) {
+    const k = 1 - f._turnT / 8;
+    out.sx *= 0.6 + 0.4 * animEase.outBack(k, 2.2);
+    f._turnT--;
+  }
+
+  // Air: stretch with rising speed, a slight stretch on a fast fall, nothing at the apex.
+  if (!f.onGround && s !== 'ragdoll') {
+    const st = animClamp(-(f.vy || 0) / 14, 0, 1) * 0.12 + animClamp(((f.vy || 0) - 7) / 10, 0, 1) * 0.05;
+    out.sy *= 1 + st;
+    out.sx *= 1 - st * 0.6;
+  }
+
+  // Landing: squash scaled by impact speed, then one small rebound stretch. Anything else that
+  // sets the legacy squashTimer (smb-death-anim.js) gets a mid-sized landing.
+  if (f.squashTimer > 0) {
+    if (!f._landVy) f._landVy = 10;
+    f.squashTimer = 0;
+  }
+  if (f._landVy) {
+    f._land = { t: 0, amt: animClamp(0.06 + (f._landVy - 5) * 0.014, 0.06, 0.24) };
+    f._landVy = 0;
+  }
+  if (f._land) {
+    const u = f._land.t++ / 16;
+    if (u >= 1) f._land = null;
+    else {
+      const k = Math.exp(-u * 4.2) * Math.cos(u * Math.PI * 2.1) * f._land.amt;
+      out.sx *= 1 + k * 1.1;
+      out.sy *= 1 - k;
+    }
+  }
+
+  // Getting up from a ragdoll: tip back upright with a small overshoot rather than snapping.
+  if (f.ragdollTimer > 0) {
+    f._ragLast = f.ragdollAngle || 0;
+    f._getUp = null;
+  } else if (f._ragLast) {
+    const a = Math.atan2(Math.sin(f._ragLast), Math.cos(f._ragLast));
+    if (Math.abs(a) > 0.08) f._getUp = { t: 0, a };
+    f._ragLast = 0;
+  }
+  if (f._getUp) {
+    const u = f._getUp.t++ / 18;
+    if (u >= 1) f._getUp = null;
+    else {
+      out.rot = f._getUp.a * (1 - animEase.outBack(u, 1.4));
+      const c = Math.sin(u * Math.PI) * 0.10;
+      out.sy *= 1 - c;
+      out.sx *= 1 + c * 0.6;
+    }
+  }
+  return out;
+}
+
+/**
+ * Arm blend across state changes, so leaving a swing, a flinch or a guard eases out instead of
+ * popping to the next pose. Entering an attack is never blended: the wind-up has to read at once.
+ * Returns the blended [rAng, lAng].
+ */
+function animArmBlend(f, s, rAng, lAng, skip = false, frames = 7) {
+  if (!animHiQ() || f.isBoss) return [rAng, lAng];
+  // Authored poses (spins, move scenes, the run's own FK) own the arms outright; just track them.
+  if (skip) { f._armBlend = null; f._armS = s; f._armR = rAng; f._armL = lAng; return [rAng, lAng]; }
+  if (f._armS !== undefined && f._armS !== s && s !== 'attacking' && f._armR !== undefined) {
+    f._armBlend = { t: 0, r: f._armR, l: f._armL };
+  }
+  f._armS = s;
+  if (f._armBlend) {
+    const b = f._armBlend;
+    const k = animEase.outCubic(Math.min(1, ++b.t / frames));
+    rAng = animLerpAngle(b.r, rAng, k);
+    lAng = animLerpAngle(b.l, lAng, k);
+    if (k >= 1) f._armBlend = null;
+  }
+  f._armR = rAng;
+  f._armL = lAng;
+  return [rAng, lAng];
+}

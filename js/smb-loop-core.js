@@ -463,6 +463,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'endless' && typeof drawEndlessBack === 'function') drawEndlessBack();
   // Conviction tint: screen space, before world entities.
   if (typeof DomainManager !== 'undefined') DomainManager.draw();
+  if (typeof ComboDomain !== 'undefined') ComboDomain.draw();
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
   drawPlatforms();
@@ -476,6 +477,7 @@ function gameLoop(timestamp) {
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
   // Domain hazards (world-space, above platforms, below entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawHazards();
+  if (typeof ComboDomain !== 'undefined') ComboDomain.drawWorld();
   if (typeof drawSuddenDeathFloor === 'function') drawSuddenDeathFloor();
   if (typeof drawDepthFloorGrid === 'function') drawDepthFloorGrid();
   if (typeof drawCinematicImpactWorldEffects === 'function') drawCinematicImpactWorldEffects();
@@ -729,6 +731,7 @@ function gameLoop(timestamp) {
   if (typeof DomainManager !== 'undefined' && !gameFrozen && !tfAbsorptionScene) {
     DomainManager.update();
   }
+  if (typeof ComboDomain !== 'undefined' && !gameFrozen && !tfAbsorptionScene) ComboDomain.update();
   // Players. Remote (network) players skip physics, as do hard freezes and absorption.
   if (!gameFrozen && !tfAbsorptionScene) {
     // BR: array order decides mirror fights (the later updater reacts to the same
@@ -1250,6 +1253,7 @@ function gameLoop(timestamp) {
 
   // Conviction HUD: timer bars (screen-space, above game HUD)
   if (typeof DomainManager !== 'undefined') DomainManager.drawHUD();
+  if (typeof ComboDomain !== 'undefined') ComboDomain.drawHUD();
 
   // Critical status overlays: screen space, always on top. The legacy DOM banner is hidden.
   { const _b = document.getElementById('ctrlInvertedBanner'); if (_b) _b.style.display = 'none'; }
