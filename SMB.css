@@ -7675,6 +7675,56 @@ input[type="color"] {
   #settingsModal .settings-grid { grid-template-columns: repeat(2, max-content); column-gap: 18px; }
 }
 
+/* ---- Keybinds ---- */
+#settingsModal .keybind-panel {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: center;
+  column-gap: 32px;
+  text-align: left;
+}
+.keybind-col-head {
+  font-family: var(--sh-font-head, inherit);
+  font-size: 0.78rem;
+  letter-spacing: 2px;
+  color: var(--sh-gold, #e2b255);
+  margin-bottom: 6px;
+}
+.keybind-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 5px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--sh-bone, var(--text));
+}
+.keybind-key {
+  min-width: 64px;
+  padding: 4px 10px;
+  font: 700 0.78rem var(--font-ui, inherit);
+  color: var(--sh-bone, #fff);
+  background: rgba(7,6,12,0.6);
+  border: 1px solid var(--sh-gold-deep, rgba(255,255,255,0.25));
+  border-radius: 2px;
+  cursor: pointer;
+}
+.keybind-key:hover, .keybind-key:focus-visible { border-color: var(--sh-gold, #e2b255); outline: none; }
+.keybind-key.listening { color: var(--sh-ink, #111); background: var(--sh-gold, #e2b255); }
+.keybind-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.keybind-msg { font-size: 0.74rem; color: var(--ui-faint, #aaa); }
+@media (max-width: 560px) {
+  #settingsModal .keybind-panel { grid-template-columns: max-content; row-gap: 12px; }
+}
+
 /* ---- Cosmetic store ---- */
 #cosmeticStore > div {
   background:

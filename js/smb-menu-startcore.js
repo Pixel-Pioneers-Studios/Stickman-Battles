@@ -341,8 +341,8 @@ function _startGameCore() {
     currentArena.deathY  = 640;
   }
 
-  // Player 1  (W/A/D move · S=shield · Space=attack · Q=ability)
-  const p1 = new Fighter(160, 300, c1, w1, { left:'a', right:'d', jump:'w', attack:' ', shield:'s', ability:'q', super:'e' }, p1IsBot, p1Diff);
+  // Player 1  (defaults W/A/D move · S=shield · Space=attack · Q=ability; rebindable in Settings)
+  const p1 = new Fighter(160, 300, c1, w1, getKeybinds('p1'), p1IsBot, p1Diff);
   p1.playerNum = 1; p1.name = p1IsBot ? 'BOT1' : 'P1'; p1.lives = chosenLives;
   // Story worlds start at the world's left edge. pickSafeSpawn picks the highest ledge near a stale
   // camera, which could drop the player most of the way to the exit. Compact arenas (defense) keep the old pick.
@@ -416,7 +416,7 @@ function _startGameCore() {
       const w2b  = _p2ResolvedClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[_p2ResolvedClass]?.weapon
                    ? CLASSES[_p2ResolvedClass].weapon : w2;
       const c2b  = document.getElementById('p2Color').value;
-      const p2h  = new Fighter(720, 300, c2b, w2b, { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, p2IsBot, diff);
+      const p2h  = new Fighter(720, 300, c2b, w2b, getKeybinds('p2'), p2IsBot, diff);
       p2h.playerNum = 2; p2h.name = p2IsBot ? 'BOT' : 'P2'; p2h.lives = chosenLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2h.spawnX = _sp2.x; p2h.spawnY = _sp2.y; p2h.x = _sp2.x; p2h.y = _sp2.y - p2h.h; }
@@ -571,7 +571,7 @@ function _startGameCore() {
   } else if (isTrainingMode) {
     if (training2P) {
       // 2P training: both fighters present, shared dummy
-      p2 = new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, p2IsBot, diff);
+      p2 = new Fighter(720, 300, c2, w2, getKeybinds('p2'), p2IsBot, diff);
       p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = 999;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
         p2.spawnX = _sp2.x; p2.spawnY = _sp2.y; p2.x = _sp2.x; p2.y = _sp2.y - p2.h; }
@@ -599,7 +599,7 @@ function _startGameCore() {
     p1.lives = _mgLives; p1._maxLives = _mgLives;
     if (minigameType === 'koth' || minigameType === 'chaos' || minigameType === 'sports' || ((minigameType === 'survival' || minigameType === 'defense') && !p2IsNone)) {
       const p2mg = new Fighter(720, 300, c2, w2,
-        { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, p2IsBot, p2Diff);
+        getKeybinds('p2'), p2IsBot, p2Diff);
       p2mg.playerNum = 2; p2mg.name = p2IsBot ? 'BOT' : 'P2';
       p2mg.lives = _mgLives; p2mg._maxLives = _mgLives;
       { const _sp2 = pickSafeSpawn('right', _p1SpawnPos.x) || { x: 720, y: 300 };
@@ -687,7 +687,7 @@ function _startGameCore() {
         const _sad = storyAllyDef;
         const _spA = pickSafeSpawn('left', p1.x) || { x: 250, y: 300 };
         const pA = new Fighter(_spA.x, _spA.y, _sad.color || '#ffd27f', _sad.weaponKey || 'sword',
-          { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, true, _sad.aiDiff || 'expert');
+          getKeybinds('p2'), true, _sad.aiDiff || 'expert');
         pA.playerNum = 4; pA.name = _sad.name || 'Ally'; pA.lives = 1;
         pA.spawnX = _spA.x; pA.spawnY = _spA.y; pA.y = _spA.y - pA.h;
         if (_sad.classKey) applyClass(pA, _sad.classKey);
@@ -756,7 +756,7 @@ function _startGameCore() {
       && (!!storyOpponentName || _l2ElitePhase);
     p2 = _storyAdaptiveElite
       ? new AdaptiveAI(720, 300, c2, w2)
-      : new Fighter(720, 300, c2, w2, { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' }, isBot, diff);
+      : new Fighter(720, 300, c2, w2, getKeybinds('p2'), isBot, diff);
     // In story two-enemy fights, cap p2 lives so total enemy lives ≤ player lives
     const _p2StoryLives = (storyModeActive && storyTwoEnemies) ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
     p2.playerNum = 2; p2.name = p2IsBot ? 'BOT' : 'P2'; p2.lives = _p2StoryLives;
@@ -804,7 +804,7 @@ function _startGameCore() {
       const _p3c = _sed.color || '#cc5500';
       const _p3d = _sed.aiDiff || diff;
       const p3 = new Fighter(_sp3.x, _sp3.y, _p3c, _p3w,
-        { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' },
+        getKeybinds('p2'),
         true, _p3d);
       // Two-enemy fights need player lives >= total enemy lives, so each enemy is capped at floor(playerLives/2).
       const _p3Lives = storyModeActive ? Math.max(1, Math.floor(chosenLives / 2)) : chosenLives;
@@ -835,7 +835,7 @@ function _startGameCore() {
       const _sad = storyAllyDef;
       const _spA = pickSafeSpawn('left', p2.x) || { x: 250, y: 300 };
       const pA = new Fighter(_spA.x, _spA.y, _sad.color || '#ffd27f', _sad.weaponKey || 'sword',
-        { left:'j', right:'l', jump:'i', attack:';', shield:'k', ability:'o', super:'u' },
+        getKeybinds('p2'),
         true, _sad.aiDiff || 'expert');
       pA.playerNum = 4; pA.name = _sad.name || 'Ally'; pA.lives = 1;
       pA.spawnX = _spA.x; pA.spawnY = _spA.y; pA.y = _spA.y - pA.h;
@@ -868,10 +868,7 @@ function _startGameCore() {
     const remoteIdx = 1 - localIdx;
     if (humanPlayers[localIdx]) {
       humanPlayers[localIdx].isRemote = false;
-      humanPlayers[localIdx].controls = {
-        left: 'a', right: 'd', jump: 'w', attack: ' ',
-        shield: 's', ability: 'q', super: 'e',
-      };
+      humanPlayers[localIdx].controls = getKeybinds('p1');
       humanPlayers[localIdx].isAI = false;
     }
     if (humanPlayers[remoteIdx]) {

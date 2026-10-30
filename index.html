@@ -61,7 +61,7 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.9.100">
+  <link rel="stylesheet" href="SMB.css?v=4.9.112">
 </head>
 <body>
 
@@ -755,8 +755,8 @@
     <details open style="width:100%;max-width:600px;">
       <summary style="cursor:pointer;font-size:0.72rem;color:var(--ui-faint);letter-spacing:2px;text-transform:uppercase;list-style:none;text-align:center;padding:4px 0;">Controls ▾</summary>
       <div class="controls-info" style="margin-top:6px;">
-        <div><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump/double-jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
-        <div><strong>P2:</strong> <strong>J/L</strong> move · <strong>I</strong> jump/double-jump · <strong>K</strong> shield · <strong>;</strong> attack · <strong>O</strong> ability · <strong>U</strong> super</div>
+        <div id="controlsHelpP1"><strong>P1:</strong> <strong>A/D</strong> move · <strong>W</strong> jump/double-jump · <strong>S</strong> shield · <strong>Space</strong> attack · <strong>Q</strong> ability · <strong>E</strong> super</div>
+        <div id="controlsHelpP2"><strong>P2:</strong> <strong>J/L</strong> move · <strong>I</strong> jump/double-jump · <strong>K</strong> shield · <strong>;</strong> attack · <strong>O</strong> ability · <strong>U</strong> super</div>
         <div><strong>Esc</strong> = pause &nbsp;|&nbsp; Shield has a cooldown after use</div>
       </div>
     </details>
@@ -1605,6 +1605,16 @@
       </div>
     </div>
 
+    <!-- CONTROLS -->
+    <div class="settings-modal-section">
+      <div class="settings-modal-label">Controls</div>
+      <div id="keybindPanel" class="keybind-panel"></div>
+      <div class="keybind-foot">
+        <span id="keybindMsg" class="keybind-msg">Click a key, then press the new one. Esc cancels.</span>
+        <button class="btn settings-toggle" type="button" onclick="resetKeybinds()">Reset to Defaults</button>
+      </div>
+    </div>
+
     <!-- ACCOUNT & DATA -->
     <div class="settings-modal-section">
       <div class="settings-modal-label">Account &amp; Data</div>
@@ -1773,10 +1783,10 @@
   <script src="./js/smb-destruction.js?v=4.9.114"></script>
   <script src="./js/smb-world-react.js?v=4.9.10"></script>
   <script src="./js/smb-heatmap.js?v=4.3.8"></script>
-  <script src="./js/smb-verlet.js?v=4.9.54"></script>
+  <script src="./js/smb-verlet.js?v=4.9.112"></script>
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.3.8"></script>
-  <script src="./js/smb-anim-fighter.js?v=4.8.2"></script>
+  <script src="./js/smb-anim-fighter.js?v=4.9.112"></script>
   <script src="./js/smb-figure-skin.js?v=4.9.54"></script>
   <script src="./js/smb-cin-figure.js?v=4.9.49"></script>
   <script src="./js/smb-cin-perf.js?v=4.9.111"></script>
@@ -1802,13 +1812,13 @@
   <script src="./js/smb-finisher-weapon2.js?v=4.3.8"></script>
   <script src="./js/smb-finisher-weapon3.js?v=4.8.0"></script>
   <script src="./js/smb-finisher-rivals.js?v=4.9.114"></script>
-  <script src="./js/smb-finisher-engine.js?v=4.9.111"></script>
+  <script src="./js/smb-finisher-engine.js?v=4.9.112"></script>
   <!-- Platform graph + A* pathfinding (must load before smb-fighter.js) -->
   <script src="./js/smb-pathfinding.js?v=4.9.88"></script>
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.3.9"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.9.111"></script>
+  <script src="./js/smb-fighter.js?v=4.9.112"></script>
   <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
   <script src="./js/smb-weapons-ext.js?v=4.9.99"></script>
   <!-- Abilities and supers as scripted, uninterruptible move scenes (must follow smb-weapons-ext.js) -->
@@ -1902,7 +1912,7 @@
   <script src="./js/smb-minigames.js?v=4.9.92"></script>
   <script src="./js/smb-sports.js?v=4.9.92"></script>
   <script src="./js/smb-trials.js?v=4.9.57"></script>
-  <script src="./js/smb-battleroyale.js?v=4.9.88"></script>
+  <script src="./js/smb-battleroyale.js?v=4.9.112"></script>
   <script src="./js/smb-br-structures.js?v=4.9.114"></script>
   <script src="./js/smb-br-forms.js?v=4.9.102"></script>
   <script src="./js/smb-endless.js?v=4.9.114"></script>
@@ -1920,16 +1930,16 @@
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.9.58"></script>
   <script src="./js/smb-loop-core.js?v=4.9.111"></script>
-  <script src="./js/smb-input.js?v=4.9.111"></script>
+  <script src="./js/smb-input.js?v=4.9.112"></script>
   <script src="./js/smb-cheats.js?v=4.9.82"></script>
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=4.9.104"></script>
   <script src="./js/smb-home-art.js?v=4.9.67"></script>
-  <script src="./js/smb-menu-select.js?v=4.9.72"></script>
+  <script src="./js/smb-menu-select.js?v=4.9.112"></script>
   <script src="./js/smb-menu-config.js?v=4.9.112"></script>
   <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
   <script src="./js/smb-menu-spawn.js?v=4.9.94"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.9.103"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.9.112"></script>
   <script src="./js/smb-menu-utils.js?v=4.9.60"></script>
   <!-- Network / online multiplayer -->
   <script src="./js/smb-network.js?v=4.9.92"></script>
@@ -2663,9 +2673,10 @@ function _renderFightersLog() {
   // ------------------------------------------------------------------
   // Bind pointer events to every .mc-btn
   // ------------------------------------------------------------------
+  // The key is read at press time, since custom keybinds rewrite data-key; release sends the same key that was pressed.
   function bindButton(btn) {
-    const key = btn.dataset.key;
-    if (!key) return;
+    if (!btn.dataset.key) return;
+    let key = btn.dataset.key;
 
     btn.addEventListener('pointerdown', e => {
       e.preventDefault();
@@ -2674,6 +2685,7 @@ function _renderFightersLog() {
       // swallowed the input and the button did nothing.
       try { btn.setPointerCapture(e.pointerId); } catch (err) {}
       btn.classList.add('pressed');
+      key = btn.dataset.key || key;
       pressKey(key);
     }, { passive: false });
 

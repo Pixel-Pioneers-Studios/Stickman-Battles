@@ -59,6 +59,7 @@ const FIN_RECOVER_IFRAMES = 48;  // 0.8s of i-frames when a finisher hands contr
 const FIN_HEAL = 25;             // paid to a non-boss attacker when the finisher completes (matches SUPER_HEAL)
 const FIN_BRACE_FRAMES = 4;
 const FIN_HURT_FRAMES  = 10;
+const FIN_FOLLOW_FRAMES = 4;   // end-of-swing hold before the arm returns
 const FIN_SQUASH_FRAMES = 7;
 // Limb smear for finisher swings. Fighter.draw() only smears in 'attacking'/'ragdoll', and finisher poses never set attackTimer
 // (that re-arms the melee hit-scan and lets a finisher hit bystanders). So these drive an opt-out smear over every def.swing.
@@ -120,6 +121,14 @@ function _finApplyPose(att, tgt, def, timer) {
         break;
       }
     }
+    // Follow-through: hold the end of the swing a beat before the arm eases home (animArmBlend).
+    if (att._finPoseP === null) {
+      for (const w of list) {
+        const end = w.at + (w.dur || 12);
+        const fol = (w.follow === undefined) ? FIN_FOLLOW_FRAMES : w.follow;
+        if (timer >= end && timer < end + fol) { att._finPoseP = 1; break; }
+      }
+    }
   }
   tgt._finPoseState = _finVictimBeat(def, timer);
   att._finSmear     = _finSmearAt(def, timer);
@@ -155,7 +164,8 @@ function _finApplyDeform(att, tgt, def, timer) {
     att._finSquash = { x: 1 + u * 0.09, y: 1 - u * 0.09 };
   } else if (att._finPoseP !== null && att._finPoseP !== undefined) {
     const p = att._finPoseP;
-    const drive = Math.sin(Math.min(1, p) * Math.PI);
+    // Snaps out fast and relaxes slowly, so the stretch peaks on the hit rather than mid-swing.
+    const drive = p < 0.3 ? 1 - Math.pow(1 - p / 0.3, 3) : Math.max(0, 1 - (p - 0.3) / 0.7) ** 2;
     att._finStretch = 1 + drive * 0.42;
     att._finSquash  = { x: 1 - drive * 0.07, y: 1 + drive * 0.10 };
   }
@@ -164,7 +174,9 @@ function _finApplyDeform(att, tgt, def, timer) {
   if (!imp) return;
   const dt = timer - imp;
   if (dt >= 0 && dt < FIN_SQUASH_FRAMES) {
-    const k = 1 - dt / FIN_SQUASH_FRAMES;
+    // Damped wobble: flattened on contact, a rebound stretch, then still.
+    const u = dt / FIN_SQUASH_FRAMES;
+    const k = Math.exp(-u * 3.2) * Math.cos(u * Math.PI * 2.4) * (1 - u);
     tgt._finSquash = { x: 1 + k * 0.24, y: 1 - k * 0.20 };
   }
 }

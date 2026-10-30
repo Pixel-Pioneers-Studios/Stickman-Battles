@@ -494,11 +494,41 @@ function openSettingsModal() {
   if (apEl) apEl.checked = settings.autoPerf !== false;
   const aqEl = document.getElementById('settingAnimQuality');
   if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
+  renderKeybindPanel();
+}
+
+// Settings > Controls. Rebuilt whenever a binding changes (syncKeybindLabels in smb-input.js).
+function renderKeybindPanel() {
+  const panel = document.getElementById('keybindPanel');
+  if (!panel || typeof keybinds === 'undefined') return;
+  const esc = v => String(v).replace(/[&<>"]/g, c => '&#' + c.charCodeAt(0) + ';');
+  panel.innerHTML = ['p1', 'p2'].map(slot =>
+    '<div><div class="keybind-col-head">Player ' + slot.charAt(1) + '</div>' +
+    KEYBIND_ACTIONS.map(a =>
+      '<div class="keybind-row"><span>' + KEYBIND_NAMES[a] + '</span>' +
+      '<button type="button" class="keybind-key" data-slot="' + slot + '" data-act="' + a + '">' + esc(keyLabel(keybinds[slot][a])) + '</button></div>'
+    ).join('') + '</div>'
+  ).join('');
+  panel.querySelectorAll('.keybind-key').forEach(btn => btn.addEventListener('click', () => {
+    panel.querySelectorAll('.keybind-key.listening').forEach(b => {
+      b.classList.remove('listening');
+      b.textContent = keyLabel(keybinds[b.dataset.slot][b.dataset.act]);
+    });
+    btn.classList.add('listening');
+    btn.textContent = 'Press a key…';
+    const msg = document.getElementById('keybindMsg');
+    listenForKeybind(btn.dataset.slot, btn.dataset.act, (ok, why) => {
+      btn.blur();
+      if (msg) msg.textContent = ok ? 'Saved. Keys already in use swap places.' : (why === 'cancelled' ? 'Cancelled.' : why + '. Pick another key.');
+      renderKeybindPanel();
+    });
+  }));
 }
 
 function closeSettingsModal() {
   const m = document.getElementById('settingsModal');
   if (m) m.style.display = 'none';
+  if (typeof _keybindListen !== 'undefined') _keybindListen = null;
 }
 
 function openReplayBrowser() {
