@@ -34,11 +34,28 @@ const SERVER_CONFIG = {
 
 const CHANGELOG = [
   {
+    version: '4.7.3',
+    title: 'YOUR KEYS, YOUR STREAK',
+    date: '2026-10-30',
+    flavor: 'Rebind every key, chain ten hits to open a Combo Domain, and new players get a hand that lets go as they improve.',
+    isLatest: true,
+    changes: [
+      { cat: 'Combat',  text: 'Combo Domain: land 10 hits in a row and your weapon opens a domain for 5 seconds. Your hits ignore guards and parries, shots fly straight, and each weapon adds its own boost' },
+      { cat: 'Visual',  text: 'Fighters animate with bending arms and legs. Settings can switch back to the classic look' },
+      { cat: 'Setting', text: 'Settings are split into tabs: Gameplay, Controls, Graphics, Audio, Account and Advanced' },
+      { cat: 'Setting', text: 'Rebind every key for Player 1, Player 2 and items. Picking a key that is already used swaps the two. Music volume and screen shake strength have their own sliders' },
+      { cat: 'Mode',    text: 'Learning Assist: new players take a little less damage and face slower bots, and each help switches off as they start winning. It can be turned off in Settings > Gameplay' },
+      { cat: 'Balance', text: 'Fight Ladder: rung 3 was a wall for new players. The middle rungs were retuned, and every loss on a rung adds 15% health for your next try there (up to 60%)' },
+      { cat: 'Story',   text: 'The end of the Cosmic Axiom fight now plays out the way the story intends', spoilerLevel: 2 },
+      { cat: 'Network', text: 'School and other filtered networks: the game no longer loads services it does not use, so it starts where it was blocked before' },
+    ],
+  },
+  {
     version: '4.7.2',
     title: 'NO FREE DODGES',
     date: '2026-10-27',
     flavor: 'Abilities and supers still can\'t be interrupted, but they no longer make you untouchable.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Balance', text: 'Abilities and supers no longer make you invincible once they connect. You still can\'t be knocked out of them, but every hit on you lands. Katana\'s Shadow Step and Iaijutsu could pass through whole supers' },
       { cat: 'Balance', text: 'Starting a super gives a short moment of protection instead of three quarters of a second, so pressing super is no longer a way to dodge the other player\'s super' },
@@ -1266,7 +1283,7 @@ let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-const GAME_VERSION = '4.7.2';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.7.3';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 let debugMode          = false;
