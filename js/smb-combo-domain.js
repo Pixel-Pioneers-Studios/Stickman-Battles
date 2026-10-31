@@ -91,6 +91,7 @@ const ComboDomain = (() => {
     spawnParticles(owner.cx(), owner.cy(), def.color, 30);
     spawnParticles(owner.cx(), owner.cy(), '#ffffff', 14);
     screenShake = Math.max(screenShake, 10);
+    if (typeof pixelDomainOpenFX === 'function') pixelDomainOpenFX(owner, def.color, false);
     if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
     if (typeof queueAnnouncement === 'function') queueAnnouncement(def.name.toUpperCase() + ': DOMAIN OPEN', def.color);
   }

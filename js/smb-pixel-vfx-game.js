@@ -80,6 +80,66 @@ function pixelBlackHoleFX(bh) {
   return PixelVFX.spawn('blackHole', { x: bh.x, y: bh.y, radius: Math.round((bh.r || 52) * 0.5), life: (bh.maxTimer || 360) / 60, shake: _pvQuiet });
 }
 
+// The pack's palettes are fixed per effect; these re-tint them to a fighter or domain colour,
+// white-hot at index 0 down to near-black, the order every ramp in js/vfx/ uses.
+const _PV_RAMP_STOPS = [[1, 0.85], [0.75, 0.5], [0.4, 0.15], [0, 0], [0, -0.25], [0, -0.45], [0, -0.65], [0, -0.8]];
+function _pvShades(hex) {
+  const v = parseInt(String(hex || '#ffffff').replace('#', '').slice(0, 6), 16) || 0xffffff;
+  const c = [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  return _PV_RAMP_STOPS.map(([w, d]) => c.map(k => Math.round(d >= 0 ? k + (255 - k) * Math.max(w, d) : k * (1 + d))));
+}
+function _pvRamp(hex) { return _pvShades(hex).map(([r, g, b]) => ((255 << 24) | (b << 16) | (g << 8) | r) >>> 0); }
+function _pvRampHex(hex) { return _pvShades(hex).slice(0, 7).map(c => '#' + c.map(k => k.toString(16).padStart(2, '0')).join('')); }
+function _pvColor(f) {
+  const d = f && f._comboDomain;
+  return (d && d.def && d.def.color) || (f && f.color) || '#8ff0ff';
+}
+
+/** Super: the fighter's colour bursts out of them, with a thin pillar and a ring. */
+function pixelSuperFX(f) {
+  if (!_pvOn() || !f || f.isBoss) return false;
+  const col = _pvColor(f), feet = f.y + f.h;
+  PixelVFX.on(f, 'powerUp', { size: 1.15, palette: _pvRampHex(col), shake: _pvQuiet });
+  PixelVFX.spawn('holyLight', { x: f.cx(), y: feet, width: 5, hold: 0.12, colors: _pvRamp(col), shake: _pvQuiet, darken: _pvQuiet });
+  PixelVFX.spawn('explosion', { x: f.cx(), y: feet - 4, size: 0.35, chunks: 0, shockwave: 120, shake: _pvQuiet });
+  return true;
+}
+
+/** Q ability: a short charge spark at the weapon, and a backhand arc for melee weapons. */
+function pixelAbilityFX(f) {
+  if (!_pvOn() || !f || f.isBoss || !f.weapon) return false;
+  const col = _pvColor(f), ramp = _pvRamp(col);
+  PixelVFX.on(f, 'energy', { kind: 'charge', charge: 0.22, radius: 18, colors: ramp, shake: _pvQuiet, flash: _pvQuiet });
+  if (f.weapon.type === 'melee') {
+    const g = typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[f.weaponKey] : null;
+    PixelVFX.spawn('slash', {
+      x: f.cx(), y: f.y + FIG_HEAD_R * 2 + 2 + FIG_NECK, facing: f.facing || 1,
+      radius: FIG_ARM_LEN + ((g && g.tipLen) || 26) * 1.9, width: 20,
+      from: g ? g.a1 : 1.2, to: g ? g.a0 - 0.9 : -2.2,    // reversed and over-rotated: reads apart from a basic swing
+      squash: 0.8, tilt: 0, sweep: 0.11, hold: 0.04, trail: 0.24, sparks: 6,
+      ramp, sparkRamp: ramp, shake: _pvQuiet,
+    });
+  }
+  return true;
+}
+
+/** Domain charge-up: energy gathers on the rising fighter for the whole rise. */
+function pixelDomainRiseFX(f, color, secs) {
+  if (!_pvOn() || !f) return null;
+  return PixelVFX.on(f, 'energy', { kind: 'charge', charge: secs || 5, radius: 46, colors: _pvRamp(color || _pvColor(f)), shake: _pvQuiet });
+}
+
+/** Domain open: a pillar, a ground shockwave and a burst, all in the domain's colour. Combo domains are the small one. */
+function pixelDomainOpenFX(f, color, big) {
+  if (!_pvOn() || !f) return false;
+  const col = color || _pvColor(f), feet = f.y + f.h, k = big ? 1 : 0.6;
+  PixelVFX.spawn('holyLight', { x: f.cx(), y: feet, width: Math.round(22 * k), hold: big ? 0.7 : 0.25, colors: _pvRamp(col), shake: _pvQuiet });
+  PixelVFX.spawn('explosion', { x: f.cx(), y: feet - 4, size: 0.5 * k, chunks: 0, shockwave: Math.round(220 * k), shake: _pvQuiet });
+  PixelVFX.on(f, 'powerUp', { size: 1.4 * k, palette: _pvRampHex(col), shake: _pvQuiet });
+  f._pvAuraT = 150;
+  return true;
+}
+
 // Per-frame state watcher. Each fighter carries its last-seen values in _pv.
 function pixelVfxWatch() {
   if (!_pvOn() || typeof players === 'undefined') return;
@@ -106,7 +166,14 @@ function pixelVfxWatch() {
     }
     if (now.hp <= 0) continue;
     if (now.hp - prev.hp >= 5) PixelVFX.on(f, 'heal', { count: Math.min(18, 6 + Math.round((now.hp - prev.hp) / 4)) });
-    if (prev.sm >= 90 && now.sm < 30) PixelVFX.on(f, 'powerUp', { size: 0.75, shake: _pvQuiet });
+    // Domain aura: a faint tinted power-up pulse every 2.4 s for as long as the fighter holds a domain.
+    const _dom = f._comboDomain || (typeof DomainManager !== 'undefined' && DomainManager.ownsDomain && DomainManager.ownsDomain(f));
+    if (!_dom) f._pvAuraT = 0;
+    else if (f._pvAuraT > 0) f._pvAuraT--;
+    else {
+      f._pvAuraT = 144;
+      PixelVFX.on(f, 'powerUp', { size: 0.5, palette: _pvRampHex(_pvColor(f)), shake: _pvQuiet, flash: _pvQuiet });
+    }
 
     // Teleport: a horizontal jump no run or knockback covers in one frame.
     const dx = now.x - prev.x, dy = now.y - prev.y;

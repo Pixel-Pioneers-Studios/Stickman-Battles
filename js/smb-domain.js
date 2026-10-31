@@ -2595,6 +2595,7 @@ const DomainManager = (() => {
 
 
     _domains.push(domain);
+    if (typeof pixelDomainOpenFX === 'function') pixelDomainOpenFX(fighter, def.color, true);
 
     if (!suppressAnnounce && typeof queueAnnouncement === 'function') {
       // Sovereign is not a class bearer and never gets this.
@@ -3208,6 +3209,7 @@ const DomainManager = (() => {
     fighter.vy = -5;  // initial upward impulse
 
     _rising.push({ fighter, timer: RISE_FRAMES, animData: {} });
+    if (typeof pixelDomainRiseFX === 'function') pixelDomainRiseFX(fighter, DOMAIN_DEFS[_key].color, RISE_FRAMES / 60);
     if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
   }
 

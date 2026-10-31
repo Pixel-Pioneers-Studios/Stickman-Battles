@@ -3140,6 +3140,7 @@ class Fighter {
     // A scene poses the body itself; a live attackTimer would also arm the swing hitbox.
     this.attackTimer     = _scene ? 0 : this.attackDuration * 2;
     abilityFlashTimer = 14; abilityFlashPlayer = this;
+    if (typeof pixelAbilityFX === 'function') pixelAbilityFX(this);
   }
 
   // Dedicated super / ultimate activation (separate button from Q)
@@ -3280,6 +3281,7 @@ class Fighter {
       DomainManager.triggerExpansion(this);
       return;
     }
+    if (typeof pixelSuperFX === 'function') pixelSuperFX(this);
 
     // KNIGHT super: Mega Jump, massive leap into the sky, shockwave on landing
     if (this.charClass === 'megaknight') {
