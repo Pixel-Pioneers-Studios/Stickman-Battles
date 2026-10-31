@@ -3050,6 +3050,7 @@ class Fighter {
     this._attackKindTier   = CLASH_TIER_ATTACK; // see _clashTier()
     this._blockedEndlag    = 0;                 // a cut-off swing's block penalty never carries over
     this.attackTimer = this.attackDuration;
+    if (typeof pixelSwingFX === 'function') pixelSwingFX(this);
 
     // Melee lunge: a small forward carry so swings have weight. Grounded only, and never over a ledge.
     if (this.weapon && this.weapon.type === 'melee' && this.onGround &&
@@ -5978,13 +5979,16 @@ class Fighter {
         else if (_shStacks === 2) { _shStroke = 'rgba(222,190,92,0.82)';  _shFill = 'rgba(222,190,92,0.13)'; }
         else if (_shStacks === 3) { _shStroke = 'rgba(220,142,72,0.82)';  _shFill = 'rgba(220,142,72,0.13)'; }
         else                      { _shStroke = 'rgba(214,88,64,0.82)';   _shFill = 'rgba(214,88,64,0.10)'; }
-        ctx.beginPath();
-        ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
-        ctx.strokeStyle = _shStroke;
-        ctx.lineWidth   = 3;
-        ctx.stroke();
-        ctx.fillStyle   = _shFill;
-        ctx.fill();
+        // The pixel shield dome (smb-pixel-vfx-game.js) replaces the bubble; the HP arc below stays.
+        if (!this._pvShield) {
+          ctx.beginPath();
+          ctx.arc(cx + f * 15, shoulderY + 12, 23, 0, Math.PI * 2);
+          ctx.strokeStyle = _shStroke;
+          ctx.lineWidth   = 3;
+          ctx.stroke();
+          ctx.fillStyle   = _shFill;
+          ctx.fill();
+        }
         // HP arc for stacks 1-3: shows remaining shield health as a partial ring
         if (_shStacks <= 3 && (this.shieldHP || 0) > 0) {
           const _hpMax  = SHIELD_RULES === 'pool' ? SHIELD_POOL_MAX : ([30, 15, 5][_shStacks - 1] || 1);
@@ -6266,7 +6270,8 @@ class Fighter {
       for (let _ti = this._swingTrail.length - 1; _ti >= 0; _ti--) {
         if (--this._swingTrail[_ti].life <= 0) this._swingTrail.splice(_ti, 1);
       }
-      if (typeof settings !== 'undefined' && settings.particles && this._swingTrail.length >= 2) {
+      // A pixel slash (smb-pixel-vfx-game.js) already draws this swing's arc.
+      if (typeof settings !== 'undefined' && settings.particles && this._swingTrail.length >= 2 && !(this._pvSlashT > 0)) {
         const _stPts   = this._swingTrail;
         const _stCol   = this._swingTrailColor || '#ffffff';
         const _stHeavy = !!this._swingTrailHeavy;

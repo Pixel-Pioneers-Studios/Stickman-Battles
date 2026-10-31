@@ -108,7 +108,9 @@ let _wxStepFrame = -1;
 function _wxQueueBlast(owner, x, y, r, dmg, kb, giga) {
   if (owner && owner.charClass === 'demolitionist') r *= 1.2;
   _wxBlasts.push({ owner, x, y, r, dmg, kb, giga: !!giga });
-  if (settings.particles) {
+  // The pixel explosion carries its own fire, smoke and debris; particles are the fallback.
+  const _pvBlast = typeof pixelBlastFX === 'function' && pixelBlastFX(x, y, giga);
+  if (!_pvBlast && settings.particles) {
     spawnParticles(x, y, '#ff8a3d', giga ? 40 : 16);
     spawnParticles(x, y, '#ffd27a', giga ? 22 : 8);
     spawnParticles(x, y, '#555555', giga ? 18 : 6);

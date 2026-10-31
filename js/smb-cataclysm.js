@@ -102,6 +102,7 @@ function _cxHit(owner, f, dmg, kb, set) {
 function _cxBoom(x, y, power) {
   if (!_cxOnScreen(x, y)) return;
   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 6 + power * 5);
+  if (typeof pixelBlastFX === 'function') pixelBlastFX(x, y, power >= 1.5, Math.max(0.35, Math.min(1.1, power * 0.5)));
   var fc = _cxFrame();
   if (fc - _cxBoomAt > 5 && typeof SoundManager !== 'undefined' && SoundManager.explosion) { SoundManager.explosion(); _cxBoomAt = fc; }
 }

@@ -582,6 +582,7 @@ function endlessPickup() {
   if (!endlessActive || !p || p.health <= 0) return false;
   var d = endlessDrops.find(function (q) { return q.kind === 'weapon' && q._near; });
   if (!d || !WEAPONS[d.weaponKey]) return false;
+  if (typeof pixelPickupFX === 'function') pixelPickupFX(p, d.x, d.y, 'gem');
   var old = p.weaponKey;
   p.weaponKey = d.weaponKey;
   p.weapon    = WEAPONS[d.weaponKey];

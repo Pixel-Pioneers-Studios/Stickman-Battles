@@ -494,6 +494,8 @@ function openSettingsModal() {
   if (apEl) apEl.checked = settings.autoPerf !== false;
   const aqEl = document.getElementById('settingAnimQuality');
   if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
+  const pvEl = document.getElementById('settingPixelVfx');
+  if (pvEl) pvEl.checked = settings.pixelVfx !== false;
   renderKeybindPanel();
 }
 
@@ -615,6 +617,12 @@ function updateSettings() {
   if (animQualityEl) {
     settings.animQuality = animQualityEl.checked ? 'high' : 'classic';
     localStorage.setItem('smc_animQuality', settings.animQuality);
+  }
+  const pixelVfxEl = document.getElementById('settingPixelVfx');
+  if (pixelVfxEl) {
+    settings.pixelVfx = pixelVfxEl.checked;
+    localStorage.setItem('smc_pixelVfx', settings.pixelVfx ? '1' : '0');
+    if (!settings.pixelVfx && typeof PixelVFX !== 'undefined') PixelVFX.clear();
   }
   const replayModeEl = document.getElementById('settingReplayMode');
   if (replayModeEl) {

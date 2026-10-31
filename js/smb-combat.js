@@ -1096,8 +1096,10 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   if (_hitAudible && typeof brStructuresHit === 'function') {
     brStructuresHit(attacker, target, actualDmg, actualKb, _guardUp);
   }
+  // Pixel hit flash and blood (smb-pixel-vfx-game.js). The particle blood is the fallback when that is off.
+  const _pvBlood = typeof pixelHitFX === 'function' && pixelHitFX(attacker, target, actualDmg, _guardUp, isSplash);
   // Blood only on direct entity hits.
-  if (!_guardUp && !isSplash && attacker && !target.isBoss &&
+  if (!_pvBlood && !_guardUp && !isSplash && attacker && !target.isBoss &&
       actualDmg > 0 && typeof spawnBlood === 'function') {
     const _bDir = target.cx() > attacker.cx() ? 1 : -1;
     spawnBlood(target.cx(), target.cy() - 4, _bDir, actualDmg);

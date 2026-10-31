@@ -262,6 +262,7 @@ function _startGameCore() {
   frameCount         = 0; // reset per-game frame counter (used for yeti min-spawn delay)
   projectiles        = [];
   particles          = [];
+  if (typeof PixelVFX !== 'undefined') PixelVFX.clear();
   if (typeof resetDestruction === 'function') resetDestruction();
   if (typeof resetWorldReact === 'function') resetWorldReact();
   bloodStains        = [];

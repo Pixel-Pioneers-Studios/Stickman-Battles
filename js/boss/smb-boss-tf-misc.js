@@ -16,6 +16,7 @@ function spawnTFBlackHoles(bossRefOverride) {
       spin:     Math.random() * Math.PI * 2,
       bossRef:  ref,
     });
+    if (typeof pixelBlackHoleFX === 'function') pixelBlackHoleFX(tfBlackHoles[tfBlackHoles.length - 1]);
   }
 }
 

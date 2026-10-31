@@ -1215,6 +1215,7 @@ function _brPickupNearbyGroundItem() {
     var g = brGroundItems[i];
     if (Math.abs(p.cx() - g.x) < 52 && Math.abs((p.y + (p.h || 50) * 0.5) - g.y) < 60) {
       brInventory[slot] = g.item;
+      if (typeof pixelPickupFX === 'function') pixelPickupFX(p, g.x, g.y, g.item.type === 'medkit' ? 'orb' : 'gem');
       if (typeof DamageText !== 'undefined')
         damageTexts.push(new DamageText(p.cx(), p.y - 35, '+' + (g.item.label || g.item.type), g.item.color));
       brGroundItems.splice(i, 1);

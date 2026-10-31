@@ -1074,6 +1074,13 @@ function gameLoop(timestamp) {
   ctx.restore();
   ctx.globalAlpha = 1;
 
+  // Phase: pixel VFX (smb-pixel-vfx.js). Hit-stop returns before this, so effects freeze with the hit.
+  if (typeof PixelVFX !== 'undefined') {
+    if (typeof pixelVfxWatch === 'function') pixelVfxWatch();
+    PixelVFX.update((typeof slowMotion === 'number' && slowMotion > 0 ? Math.min(1, slowMotion) : 1) / 60);
+    PixelVFX.draw();
+  }
+
   // Battle Royale office facade: after the fighters, so it hides whoever is inside.
   if (gameMode === 'battleroyale' && typeof drawBRStructuresFront === 'function') drawBRStructuresFront();
   if (typeof drawCataclysmFX === 'function') drawCataclysmFX();
