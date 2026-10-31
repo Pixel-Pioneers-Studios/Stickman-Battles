@@ -200,6 +200,7 @@ function _finApplyHolds(att, tgt, def, timer, data) {
     const h = list[i];
     if (timer !== h.at || data._finHeld[i]) continue;
     data._finHeld[i] = true;
+    if (typeof pixelFinisherHitFX === 'function') pixelFinisherHitFX(att, tgt, i === list.length - 1);
     if (typeof animHold === 'function') animHold(h.frames || FIN_HOLD_FRAMES);
     if (h.shake !== false && typeof screenShake !== 'undefined' && typeof settings !== 'undefined' && settings.screenShake) {
       screenShake = Math.max(screenShake, h.shake || 16);

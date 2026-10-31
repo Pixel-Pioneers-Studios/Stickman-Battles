@@ -140,6 +140,19 @@ function pixelDomainOpenFX(f, color, big) {
   return true;
 }
 
+/** Finisher impact beats (smb-finisher-engine.js holds). The last beat is the kill: blood, pillar and a wide ring. */
+function pixelFinisherHitFX(att, tgt, last) {
+  if (!_pvOn() || !tgt) return false;
+  const col = _pvColor(att), dir = att ? (tgt.cx() >= att.cx() ? 1 : -1) : 1, feet = tgt.y + tgt.h;
+  PixelVFX.spawn('impact', { x: tgt.cx() - dir * 6, y: tgt.cy() - 8, angle: dir > 0 ? 0 : Math.PI, size: last ? 1.4 : 1, shake: _pvQuiet });
+  PixelVFX.spawn('explosion', { x: tgt.cx(), y: feet - 4, size: last ? 0.4 : 0.25, chunks: 0, shockwave: last ? 200 : 90, shake: _pvQuiet });
+  if (!last) return true;
+  if (!tgt.isBoss) PixelVFX.spawn('blood', { x: tgt.cx(), y: tgt.cy() - 4, angle: dir > 0 ? -0.5 : Math.PI + 0.5, amount: 1, size: 0.8, stainLife: 4, shake: _pvQuiet });
+  PixelVFX.spawn('holyLight', { x: tgt.cx(), y: feet, width: 12, hold: 0.3, colors: _pvRamp(col), shake: _pvQuiet, darken: _pvQuiet });
+  if (att) PixelVFX.on(att, 'powerUp', { size: 0.9, palette: _pvRampHex(col), shake: _pvQuiet });
+  return true;
+}
+
 // Per-frame state watcher. Each fighter carries its last-seen values in _pv.
 function pixelVfxWatch() {
   if (!_pvOn() || typeof players === 'undefined') return;
