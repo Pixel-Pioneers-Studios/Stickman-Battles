@@ -2111,3 +2111,21 @@ const STORY_ABILITIES2 = {
     lore: 'The Creator\'s domain runs on dimensional time. You learned to grip it.',
   },
 };
+
+// In-world time for each stretch of the story: [first chapter id, label].
+// A chapter's own `when:` overrides it.
+const STORY_TIMELINE = [
+  [0, 'Day 1'], [6, 'Day 2'], [13, 'Day 5'], [17, 'Week 2'], [26, 'Week 3'],
+  [32, 'Week 4'], [40, 'Week 5'], [42, 'Week 6'], [47, 'Week 7'],
+  [49, 'Month 2'], [66, 'Month 2, a few days later'],
+  [70, 'Outside time: the Loop'], [76, 'Outside time: the Void Between'],
+  [86, 'Month 3'], [90, 'Month 4'], [98, 'Month 5'], [102, 'Month 6'],
+  [113, 'Month 7'], [119, 'Month 8'], [123, 'Month 8, the Threshold'],
+  [129, 'Month 9'], [145, 'Month 9, after the Creator'], [155, 'Month 10'],
+  [172, 'Outside time: the Substrate'],
+];
+function storyChapterWhen(id) {
+  let label = '';
+  for (const [from, l] of STORY_TIMELINE) { if (id >= from) label = l; else break; }
+  return label;
+}

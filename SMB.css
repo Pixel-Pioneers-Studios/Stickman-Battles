@@ -7675,54 +7675,42 @@ input[type="color"] {
   #settingsModal .settings-grid { grid-template-columns: repeat(2, max-content); column-gap: 18px; }
 }
 
-/* ---- Keybinds ---- */
+/* Settings tabs, keybinds, sliders */
+#settingsModal .settings-tabs {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+  padding: 4px 0 10px; border-bottom: 1px solid rgba(226,178,85,0.18);
+}
+#settingsModal .settings-tab {
+  font-family: var(--font-ui); font-weight: 700; font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 7px 12px; cursor: pointer; color: var(--sh-bone); opacity: 0.6;
+  background: rgba(7,6,12,0.6); border: 1px solid rgba(226,178,85,0.22); border-radius: 2px;
+}
+#settingsModal .settings-tab:hover { opacity: 0.9; }
+#settingsModal .settings-tab.active { opacity: 1; color: var(--sh-gold); border-color: var(--sh-gold); }
+#settingsModal .keybind-hint { font-size: 0.75rem; color: var(--sh-bone); opacity: 0.65; margin-bottom: 10px; }
 #settingsModal .keybind-panel {
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
-  justify-content: center;
-  column-gap: 32px;
-  text-align: left;
+  display: grid; grid-template-columns: max-content 96px 96px; justify-content: center;
+  column-gap: 10px; row-gap: 6px; align-items: center; text-align: left;
 }
-.keybind-col-head {
-  font-family: var(--sh-font-head, inherit);
-  font-size: 0.78rem;
-  letter-spacing: 2px;
-  color: var(--sh-gold, #e2b255);
-  margin-bottom: 6px;
+#settingsModal .keybind-head { font-size: 0.66rem; letter-spacing: 2px; text-transform: uppercase; color: var(--sh-gold); text-align: center; }
+#settingsModal .keybind-group { grid-column: 1 / -1; margin-top: 10px; font-size: 0.66rem; letter-spacing: 2px; text-transform: uppercase; color: var(--sh-gold); text-align: center; }
+#settingsModal .keybind-name { font-weight: 600; font-size: 0.86rem; color: var(--sh-bone); padding-right: 6px; }
+#settingsModal .keybind-key {
+  font-family: var(--font-ui); font-weight: 700; font-size: 0.82rem; padding: 6px 4px; cursor: pointer;
+  color: var(--sh-bone); background: rgba(7,6,12,0.7); border: 1px solid rgba(226,178,85,0.3); border-radius: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.keybind-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 5px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--sh-bone, var(--text));
-}
-.keybind-key {
-  min-width: 64px;
-  padding: 4px 10px;
-  font: 700 0.78rem var(--font-ui, inherit);
-  color: var(--sh-bone, #fff);
-  background: rgba(7,6,12,0.6);
-  border: 1px solid var(--sh-gold-deep, rgba(255,255,255,0.25));
-  border-radius: 2px;
-  cursor: pointer;
-}
-.keybind-key:hover, .keybind-key:focus-visible { border-color: var(--sh-gold, #e2b255); outline: none; }
-.keybind-key.listening { color: var(--sh-ink, #111); background: var(--sh-gold, #e2b255); }
-.keybind-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 10px;
-}
-.keybind-msg { font-size: 0.74rem; color: var(--ui-faint, #aaa); }
+#settingsModal .keybind-key:hover { border-color: var(--sh-gold); }
+#settingsModal .keybind-key.changed { color: var(--sh-gold); }
+#settingsModal .keybind-key.listening { color: #fff; border-color: #fff; animation: keybindPulse 0.9s ease-in-out infinite; }
+@keyframes keybindPulse { 50% { background: rgba(226,178,85,0.25); } }
+#settingsModal .settings-sliders { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 28px; margin-top: 10px; }
+#settingsModal .setting-slider { display: flex; flex-direction: column; gap: 4px; font-family: var(--font-ui); font-weight: 600; font-size: 0.86rem; color: var(--sh-bone); }
+#settingsModal .setting-slider b { color: var(--sh-gold); font-weight: 700; }
+#settingsModal .setting-slider input[type="range"] { width: 160px; accent-color: #e2b255; }
 @media (max-width: 560px) {
-  #settingsModal .keybind-panel { grid-template-columns: max-content; row-gap: 12px; }
+  #settingsModal .keybind-panel { grid-template-columns: max-content 80px 80px; column-gap: 6px; }
+  #settingsModal .settings-tab { padding: 6px 8px; font-size: 0.66rem; }
 }
 
 /* ---- Cosmetic store ---- */

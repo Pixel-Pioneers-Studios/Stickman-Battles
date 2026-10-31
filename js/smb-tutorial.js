@@ -21,6 +21,7 @@ let _tutPrevAbilityCd = 0;     // previous-frame abilityCooldown, for rising edg
 let _tutMeterGranted  = false; // super meter topped up once for the super step
 let _tutPrevVy        = 0;     // previous-frame vy, for jump-launch detection
 let _tutFightInit     = false; // bot held for the opening steps
+let _tutActed         = false; // player has moved, jumped or swung
 
 // Each step: `need` progress units to clear. `check` runs each frame and returns progress
 // to add. Steps only prompt. They never gate the fight.
@@ -108,6 +109,7 @@ function startTutorial() {
   _tutMeterGranted  = false;
   _tutPrevVy        = 0;
   _tutFightInit     = false;
+  _tutActed         = false;
   tutorialActive    = true;
   if (typeof startLadderRung === 'function') startLadderRung(0, { firstRun: true });
 }
@@ -137,11 +139,19 @@ function _tutUpdateFight() {
 
   if (!_tutFightInit) {
     _tutFightInit = true;
-    // No hold: the bot engages at once so the first hit lands in seconds.
+    // No fixed hold: the bot engages on the first input (see below), so the first hit lands in seconds.
     _tutBotHp    = bot.health;
     _tutBotLives = bot.lives;
   }
   if (p1.health <= 0) return;
+
+  // A newcomer reading the first prompt is not cut down while reading it:
+  // the bot waits for the first move or swing, at most 5 seconds.
+  if (!_tutActed) {
+    _tutActed = (typeof keysDown !== 'undefined' && keysDown.size > 0) || Math.abs(p1.vx) > 0.5 ||
+                !p1.onGround || p1.attackTimer > 0 || _tutFrames > 300;
+    if (!_tutActed) bot._aiHoldUntil = frameCount + 2;
+  }
 
   const step = TUTORIAL_STEPS[tutorialStep];
   if (!step) return;

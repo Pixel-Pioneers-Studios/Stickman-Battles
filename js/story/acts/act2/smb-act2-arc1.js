@@ -190,7 +190,6 @@ STORY_CHAPTER_REGISTRY.push(
     world: '⚛️ Multiversal Core — Quiet Chamber',
     arena: 'storyCore',
     type: 'exploration', exploreMode: 'escape',
-    style: 'void',
     worldLength: 4600,
     objectName: 'Stable Exit',
     preText: 'The chamber is destabilizing — fracture residue cascading from behind. The wall is closing. Run.',

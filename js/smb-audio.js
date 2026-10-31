@@ -232,7 +232,9 @@ const MusicManager = (() => {
   let _localAudio = null;
   let _localCurrent = null;
 
-  function _localVolume() { return _muted ? 0 : (_ducked ? 0.035 : 0.18); }
+  let _scale = Math.max(0, Math.min(1, parseFloat(localStorage.getItem('smc_musicVol') || '1')));
+  if (!isFinite(_scale)) _scale = 1;
+  function _localVolume() { return _muted ? 0 : (_ducked ? 0.035 : 0.18) * _scale; }
 
   function _playLocal(track) {
     const src = _localSources[track];
@@ -254,7 +256,7 @@ const MusicManager = (() => {
     _localCurrent = null;
   }
 
-  function _vol() { return _ducked ? DUCK_VOL : MUSIC_VOL; }
+  function _vol() { return _ducked ? DUCK_VOL : Math.round(MUSIC_VOL * _scale); }
 
   function _applyVolume() {
     const v = _vol();
@@ -329,6 +331,13 @@ const MusicManager = (() => {
       if (!_ready || _muted) return;
       _applyVolume();
     },
+    setVolume(v) {
+      _scale = Math.max(0, Math.min(1, v));
+      try { localStorage.setItem('smc_musicVol', String(_scale)); } catch (e) {}
+      if (_localAudio) _localAudio.volume = _localVolume();
+      if (_ready && !_muted) _applyVolume();
+    },
+    getVolume() { return _scale; },
     isDucked() { return _ducked; },
     isMuted()  { return _muted; },
     toggle()   { this.setMuted(!_muted); },

@@ -1,7 +1,8 @@
 'use strict';
 // smb-axiom-finale-cin.js: the Cosmic Axiom's death, staged shot by shot. Kael's three-hit finish
-// launches him, he comes apart into stars at the top of the arc, and Sovereign takes the kernel
-// that is left before Kael can move. Hands over to the ending's 'powers' phase.
+// breaks the outer form, which stays behind as an empty shell, and Axiom walks out of it with the
+// kernel still inside him. Sovereign arrives above, marks the kernel and leaves without descending
+// (it takes the kernel only later, after the God fight; see docs/canon.md). Hands over to 'powers'.
 // Depends on smb-paradox-return-cin.js (_retActor, _retFloorY, _retHand) and smb-cin-perf.js.
 
 function _makeTFFinaleCinematic(tf, hero) {
@@ -12,7 +13,7 @@ function _makeTFFinaleCinematic(tf, hero) {
   const subs = [];
   const say = (at, who, text, color, len) => subs.push({ who, text, color, from: at, to: at + (len || 110) });
   // World-space pieces this cinematic owns.
-  const W = { cracks: 0, stars: [], kernel: null, sov: null };
+  const W = { cracks: 0, glow: 0, stars: [], husk: null, man: null, mark: null, sov: null };
   const tfChest = () => ({ x: tf.cx() - tf.facing * 6, y: tf.y + tf.h * 0.38 });
   const hit = (x, y, color, big) => {
     CinFX.shockwave(x, y, color, { count: big ? 2 : 1, maxR: big ? 120 : 70, lw: big ? 3 : 2, dur: big ? 26 : 16 });
@@ -29,7 +30,7 @@ function _makeTFFinaleCinematic(tf, hero) {
   };
 
   return {
-    durationFrames: 420,
+    durationFrames: 500,
 
     update(t) {
       if (!tf || !hero) return;
@@ -73,77 +74,76 @@ function _makeTFFinaleCinematic(tf, hero) {
         CinCam.snap(c.x, c.y - 20, 2.2);
         CinFX.impactFrame([tf, hero], { dur: 4, color: '#000000' });
         hit(c.x, c.y - 12, '#00ffff', true);
-        tf.state = 'ragdoll'; tf.ragdollTimer = 45; tf.ragdollAngle = 0;
-        tf._vy = -9;
+        tf.state = 'stunned'; tf._vx = 5;
       }
-      // Launched: he rises, turning, and slows at the top.
+      // He staggers back with the light coming through the cracks; Kael gives ground.
       if (F > 104 && F < 150) {
-        tf.y += tf._vy; tf._vy *= 0.93; tf.ragdollTimer = 45; tf.ragdollAngle -= 0.06;
-        if (F === 112) CinCam.setFocus(tf.cx(), tf.y - 20, 1.3);
-        if (F > 112) CinCam.setFocus(tf.cx(), tf.y + 30, 1.3);
+        tf.x += tf._vx; tf._vx *= 0.9; tf.state = 'stunned';
+        W.glow = Math.min(1, (F - 104) / 40);
+        if (F < 134) hero.x += (420 - hero.w / 2 - hero.x) * 0.12;
+        if (F === 112) { kael.go('guard', 12); CinCam.setFocus((hero.cx() + tf.cx()) / 2, fy - 50, 1.6); }
       }
-      if (F === 116) { kael.go('lookUp', 14); rec.exprs = [{ at: 0, expr: 'neutral' }]; }
 
-      // He breaks into stars at the top of the arc. The one white frame in the finale.
+      // The outer form breaks. The one white frame in the finale. What burns off is corruption, not him.
       if (F === 150) {
         slowMotion = 0.3;
-        const cx = tf.cx(), cy = tf.cy();
-        W.kernel = { x: cx, y: cy, r: 5 };
+        const cx = tf.cx(), cy = tf.cy(), feet = tf.x + tf.w / 2;
         for (let i = 0; i < 70; i++) {
-          const a = Math.random() * Math.PI * 2, v = 0.6 + Math.random() * 3.4;
+          const a = -Math.PI / 2 + (Math.random() - 0.5) * 2.6, v = 0.6 + Math.random() * 3.4;
           W.stars.push({ x: cx + Math.cos(a) * 6, y: cy + Math.sin(a) * 10, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
                          s: 1 + Math.random() * 2.2, warm: Math.random() < 0.3, life: 110 + Math.random() * 70 });
         }
+        W.husk = { x: feet, y: fy, facing: -1, fade: 0, act: _retActor('stagger') };
+        W.husk.act.go('kneel', 34, 'outQuad');
+        W.man = { x: feet, y: fy, facing: -1, alpha: 0, act: _retActor('kneel') };
         CinFX.impactFrame([hero], { dur: 4 });
         CinFX.shockwave(cx, cy, '#ffffff', { count: 2, maxR: 150, lw: 3, dur: 34 });
         tf.backstageHiding = true;
-        W.cracks = 0;
+        W.cracks = 0; W.glow = 0;
         screenShake = Math.max(screenShake, 34);
-        CinCam.snap(cx, cy + 40, 1.25);
+        CinCam.snap(feet, fy - 60, 1.5);
         if (typeof SoundManager !== 'undefined' && SoundManager.explosion) SoundManager.explosion();
       }
-      if (F === 160) say(F, '', 'For a moment, Axiom was there.', '#b0b8d0', 90);
+      if (W.husk) { W.husk.act.tick(); W.husk.fade = Math.min(1, W.husk.fade + 1 / 70); if (F === 200) W.husk.act.go('slump', 40); }
+      if (W.man) {
+        W.man.act.tick();
+        if (F > 158) W.man.alpha = Math.min(1, W.man.alpha + 1 / 30);
+        if (F === 196) { slowMotion = 1; W.man.act.go('stagger', 22); }
+        if (F === 220) W.man.act.go('stand', 26);
+        if (F > 214 && F < 258) W.man.x -= 1.7;   // he steps out of the shell, toward Kael
+      }
+      if (F === 165) say(F, '', 'The outer form broke. Axiom stepped out of it.', '#b0b8d0', 110);
       for (const s of W.stars) { s.x += s.vx; s.y += s.vy; s.vx *= 0.985; s.vy *= 0.985; s.life--; }
       W.stars = W.stars.filter(s => s.life > 0);
+      if (F === 230) { kael.go('stand', 16); CinCam.setFocus((hero.cx() + W.man.x) / 2, fy - 60, 1.7); }
 
-      // Sovereign arrives, takes the kernel, looks down once, leaves.
-      if (F === 228) {
-        slowMotion = 1;
-        W.sov = { x: W.kernel.x + 10, y: W.kernel.y - 260, facing: -1, alpha: 1, trail: [] };
+      // Sovereign arrives above them, reads the room, marks where the kernel is now, and does not come down.
+      if (F === 262) {
+        W.sov = { x: W.man.x + 30, y: fy - 300, facing: -1, alpha: 1, trail: [] };
         sov.go('menace', 1);
-        CinCam.setFocus(W.kernel.x, W.kernel.y + 10, 1.8);
-        say(F, '', 'Sovereign arrived in the same instant.', '#b0b8d0', 80);
+        CinCam.setFocus((hero.cx() + W.man.x) / 2, fy - 130, 1.15);
+        say(F, '', 'Sovereign arrived above them.', '#b0b8d0', 90);
       }
-      if (W.sov && F > 228 && F <= 240) {
-        const goal = W.kernel.y + 40;   // feet just below the kernel, hand on it
+      if (W.sov && F > 262 && F <= 276) {
         W.sov.trail.push({ x: W.sov.x, y: W.sov.y });
-        W.sov.y += (goal - W.sov.y) * 0.45;
+        W.sov.y += (fy - 165 - W.sov.y) * 0.4;   // stops well short of the floor
       }
-      if (F === 240) {
-        sov.go('thrust', 4, 'outCubic');
-        CinCam.snap(W.kernel.x, W.kernel.y, 2.6);
-        screenShake = Math.max(screenShake, 14);
-        spawnParticles(W.kernel.x, W.kernel.y, '#ff3a3a', 18);
-        W.kernel.held = true;
-      }
-      if (W.sov && W.kernel && W.kernel.held) {
-        const p = Object.assign({}, sov.now(), { x: W.sov.x, y: W.sov.y, facing: W.sov.facing, scale: 0.9, headScale: 0.77 });
-        const J = CinRig.joints(p);
-        W.kernel.x = J.rHand.x; W.kernel.y = J.rHand.y;
-      }
-      if (F === 262) { sov.go('stand', 10); W.sov.facing = hero.cx() > W.sov.x ? 1 : -1; CinCam.setFocus((W.sov.x + hero.cx()) / 2, fy - 90, 1.35); }
-      if (F === 268) say(F, 'KAEL', 'He took it before I could move.', '#7ffcff', 100);
-      if (F === 300) { sov.go('raise', 8); CinFX.speedLines(W.sov.x, W.sov.y - 40, '#ff4a4a', { count: 16, maxLen: 200, dur: 14, dir: -Math.PI / 2, spread: 0.5 }); }
-      if (W.sov && F > 304) {
+      if (F === 280) kael.go('lookUp', 14);
+      if (F === 296) W.mark = 0;
+      if (W.mark !== undefined && W.mark !== null) W.mark++;
+      if (F === 320) { W.sov.facing = hero.cx() > W.sov.x ? 1 : -1; say(F, '', 'It looked at the kernel. Then at Kael. It did not come down.', '#b0b8d0', 120); }
+      if (F === 380) { W.mark = null; sov.go('raise', 8); CinFX.speedLines(W.sov.x, W.sov.y - 40, '#ff4a4a', { count: 16, maxLen: 200, dur: 14, dir: -Math.PI / 2, spread: 0.5 }); }
+      if (W.sov && F > 384) {
         W.sov.trail.push({ x: W.sov.x, y: W.sov.y });
-        W.sov.y -= (F - 304) * 2.2;
-        W.sov.alpha = Math.max(0, 1 - (F - 304) / 26);
+        W.sov.y -= (F - 384) * 2.2;
+        W.sov.alpha = Math.max(0, 1 - (F - 384) / 26);
       }
       if (W.sov) W.sov.trail = W.sov.trail.slice(-6);
 
-      // Kael alone. The light he took from Paradox settles.
-      if (F === 330) { kael.go('stand', 20); CinCam.setFocus(hero.cx(), hero.cy() - 10, 1.9); rec.exprs = [{ at: 0, expr: 'neutral' }]; }
-      if (F === 360) rec.glow = false;
+      // Two people and an empty shell. Freed, and already weaker for it.
+      if (F === 412) { kael.go('stand', 20); W.man.act.go('kneel', 30, 'inOutQuad'); CinCam.setFocus((hero.cx() + W.man.x) / 2, fy - 55, 1.8); rec.exprs = [{ at: 0, expr: 'neutral' }]; }
+      if (F === 430) say(F, '', 'Diminished. Himself.', '#ffd27f', 90);
+      if (F === 470) rec.glow = false;
     },
 
     drawWorld(c) {
@@ -151,7 +151,7 @@ function _makeTFFinaleCinematic(tf, hero) {
         // Fracture lines across his body: fixed per angle so they grow rather than flicker.
         const cx = tf.cx(), cy = tf.cy();
         c.strokeStyle = `rgba(235,220,255,${0.85 * W.cracks})`;
-        c.shadowColor = '#c080ff'; c.shadowBlur = 10; c.lineWidth = 1.6;
+        c.shadowColor = '#c080ff'; c.shadowBlur = 10 + 16 * (W.glow || 0); c.lineWidth = 1.6 + 1.4 * (W.glow || 0);
         c.beginPath();
         for (let i = 0; i < 7; i++) {
           const a = i * 0.9 + 0.3, len = (14 + (i * 7) % 18) * W.cracks;
@@ -168,13 +168,30 @@ function _makeTFFinaleCinematic(tf, hero) {
         c.fillRect(s.x, s.y, s.s, s.s);
       }
       c.globalAlpha = 1;
-      if (W.kernel && !(W.sov && W.sov.alpha <= 0)) {
-        const k = W.kernel, pulse = 1 + Math.sin(F * 0.3) * 0.2;
+      const rig = (o, extra) => Object.assign({}, o.act.now(), { x: o.x, y: o.y, facing: o.facing, scale: 0.9, headScale: 0.77 }, extra || {});
+      if (W.husk) {
+        // The empty architecture stays in the arena: dark, its violet light going out.
+        const g = 1 - W.husk.fade;
+        CinRig.draw(c, rig(W.husk), '#3b2e63', { width: 5.4, alpha: 0.95, glow: '#8a5cff', glowBlur: 4 + 14 * g, expr: 'neutral', outline: 1.3, face: false });
+      }
+      if (W.man && W.man.alpha > 0) {
+        const p = rig(W.man), J = CinRig.joints(p);
+        CinRig.draw(c, p, '#ffd27f', { width: 4.4, alpha: W.man.alpha, glow: '#ffd27f', glowBlur: 8, expr: 'neutral', outline: 1.1 });
+        // The kernel stays where it belongs, inside him.
+        const kx = J.hip.x + (J.shoulder.x - J.hip.x) * 0.7, ky = J.hip.y + (J.shoulder.y - J.hip.y) * 0.7;
+        const r = 7 * (1 + Math.sin(F * 0.3) * 0.2);
         c.globalCompositeOperation = 'lighter';
-        const g = c.createRadialGradient(k.x, k.y, 0, k.x, k.y, 18 * pulse);
-        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(200,150,255,0.7)'); g.addColorStop(1, 'rgba(120,60,255,0)');
-        c.fillStyle = g; c.beginPath(); c.arc(k.x, k.y, 18 * pulse, 0, Math.PI * 2); c.fill();
+        const kg = c.createRadialGradient(kx, ky, 0, kx, ky, r);
+        kg.addColorStop(0, `rgba(255,255,255,${W.man.alpha})`); kg.addColorStop(0.4, `rgba(200,150,255,${0.6 * W.man.alpha})`); kg.addColorStop(1, 'rgba(120,60,255,0)');
+        c.fillStyle = kg; c.beginPath(); c.arc(kx, ky, r, 0, Math.PI * 2); c.fill();
         c.globalCompositeOperation = 'source-over';
+        if (W.mark != null) {
+          // Sovereign's four-arc mark settles on the kernel: filed, not taken.
+          const m = Math.min(1, W.mark / 20), rr = 26 - 12 * m, rot = W.mark * 0.02;
+          c.strokeStyle = `rgba(255,58,58,${0.8 * m})`; c.lineWidth = 1.5; c.shadowColor = '#ff2a2a'; c.shadowBlur = 8;
+          for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(kx, ky, rr, rot + i * Math.PI / 2 + 0.25, rot + (i + 1) * Math.PI / 2 - 0.25); c.stroke(); }
+          c.shadowBlur = 0;
+        }
       }
       if (W.sov && W.sov.alpha > 0) {
         const base = Object.assign({}, sov.now(), { facing: W.sov.facing, scale: 0.9, headScale: 0.77 });

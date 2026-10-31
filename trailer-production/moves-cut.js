@@ -251,6 +251,48 @@ SPECS.beast = () => {
   };
 };
 
+
+// Mines: three chase him across his own minefield; he turns round and holds Q. Open loop on frame 0
+// ("he's not running" over a man running), answered by the blast. Slow motion is captured in-engine.
+SPECS.mines = () => {
+  const boom = fr(M.boom);
+  const L = timeline([
+    { at: 2, to: boom },
+    { at: boom, to: Math.min(J.frames - 1, boom + 150) },
+  ]);
+  return {
+    n: 37, L, music: { file: 'audio/music/arena-neon.mp3', at: 0, from: 27.0, gain: 0.7, fadeIn: 0.1, fadeOut: 0.8 },
+    overlays: [
+      { type: 'vignette', a: 0.3 },
+      slam(-4, L.out(boom), ["HE'S NOT", 'RUNNING.'], 0.15, 112, { bar: false }),
+      slam(L.out(boom) + 6, L.T, ['SIX STICKY', 'BOMBS.'], 0.15, 112, { bar: false, fill: '#ff5a4a' }),
+      ...endCard(L.T),
+    ],
+  };
+};
+
+// Shatter: the Glass Blade at 2 of 3 cracks, three round him. The rule on frame 0 reads as a threat;
+// the third crack is the payoff (its own ring of shards). Counter from D.log.cracks.
+SPECS.shatter = () => {
+  const boom = fr(M.boom);
+  const two = fr((M.cracks.find(c => c[1] === 2) || [9])[0]);
+  const back = M.cracks.find((c, i) => i > 0 && c[1] === 0);
+  const L = timeline([
+    { at: 2, to: boom },
+    { at: boom, to: J.frames - 1 },
+  ]);
+  const o = [
+    { type: 'vignette', a: 0.3 },
+    slam(-4, L.out(boom), ['ONE MORE CRACK', 'AND IT SHATTERS.'], 0.13, 84, { bar: false }),
+    slam(-4, L.out(two), '1 / 3', 0.27, 140, { bar: false, fill: '#bff4ff', steady: true }),
+    slam(L.out(two), L.out(boom), '2 / 3', 0.27, 140, { bar: false, fill: '#ffb040', steady: true }),
+    slam(L.out(boom), back ? L.out(fr(back[0])) : L.T, '3 / 3', 0.27, 160, { bar: false, fill: '#ff3a2a' }),
+    slam(L.out(boom) + 10, L.T, ['THAT WAS', 'THE PLAN.'], 0.13, 112, { bar: false, fill: '#7ff3ff' }),
+  ];
+  if (back) o.push(slam(L.out(fr(back[0])), L.T, '0 / 3', 0.27, 140, { bar: false, fill: '#bff4ff' }));
+  return { n: 39, L, music: { file: 'audio/music/arena-neon.mp3', at: 0, from: 27.0, gain: 0.7, fadeIn: 0.1, fadeOut: 0.8 }, overlays: o.concat(endCard(L.T)) };
+};
+
 (async () => {
   const spec = SPECS[NAME] && SPECS[NAME]();
   if (!spec) throw new Error('usage: node moves-cut.js <' + Object.keys(SPECS).join('|') + '> [profile]');
