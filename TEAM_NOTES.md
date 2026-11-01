@@ -19,9 +19,37 @@ The main clash is resolution: 2px unsmoothed art sits on top of smooth HD arenas
 
 The event hooks are useful whatever the style ends up being. They cover swings, hits, supers, domains and finishers, with a settings toggle and fallbacks to the old effects.
 
-We also recorded two 12-second Sovereign brain matches, one with the setting on and one with it off. They aren't the same fight, so this is a rough comparison. With it off, both fighters stay readable in the key frames we checked. With it on, the red fighter is often buried under white pixels or a gold pillar during supers and heavy exchanges, and 22-27 of the 28 allowed effects are live at peak for most of the clip. Readability may matter more than the style question.
+We also recorded two 12-second AI vs AI matches, one with the setting on and one with it off. They aren't the same fight, so this is a rough comparison. With it off, both fighters stay readable in the key frames we checked. With it on, the red fighter is often buried under white pixels or a gold pillar during supers and heavy exchanges, and 22-27 of the 28 allowed effects are live at peak for most of the clip. Readability may matter more than the style question.
 
 One thing to check: after the first frame, `_passInstall` routes every `ctx` call through a wrapper, even with the setting off. That needs testing on low-end school machines.
+
+## Basic rules for everyone
+
+These apply to all of us, including Aarush and any Claude. `CLAUDE.md` has the full list.
+
+**Before you push**
+1. **Test it in the running game.** Start it (`python3 -m http.server 8080` or `node server.js`), play the thing you changed, and check the console for errors. A syntax pass doesn't count as tested.
+2. **Look at it.** For anything visual, check real gameplay in a screenshot or clip, in a busy fight as well as a quiet one. Can you still see both fighters?
+3. **Test what you could have affected.** If you changed shared code, also try a boss fight and a story chapter. If it's behind a setting, test both on and off.
+4. **Run `npm run check`.**
+5. **Bump `?v=` for every file you changed** with `node tools/dev/bump-version.js <files>`. Otherwise browsers and the school zip run old code.
+6. **Pull first, and never force-push `main`.** Students and players get builds from this code, so `main` should always run.
+7. **Say what you didn't test** in the commit message. That's far better than someone finding out later.
+
+**In the code**
+- Patch, don't replace. Don't remove or rewrite large systems without asking.
+- Globals only: no `import` or `export`. A single `import` line silences every file loaded after it.
+- A new file needs a `<script>` tag in `index.html`, after everything it depends on.
+- All damage goes through `dealDamage()`. Never write `target.health -=`.
+- Never trigger a cinematic inside `dealDamage()`. Set a flag and trigger it at frame start in `gameLoop`.
+- Guard your references: `if (!boss || boss.health <= 0) return;`.
+- `activeCinematic`, `isCinematic` and `slowMotion` depend on each other. Changing one without the others freezes the game.
+
+**In the design**
+- The game must be hard, with no infinite combos.
+- QTEs fire only at cinematic HP checkpoints, never during active combat.
+- AI must never idle, fall off the map or get stuck in a state with no way out.
+- Keep secret-boss spoilers out of ungated changelog lines.
 
 ## Who is on what
 
@@ -44,7 +72,7 @@ These are the things that have saved Aarush's Claude the most time. Running thes
 
 **Tools**
 - `tools/showcase/session.js` and `trailer-production/lib/recorder.js`: step the real game one frame at a time and record a clean 60fps clip, however slow the machine is.
-- `SovereignControl.engage()` (`s.sovereignP1()` in the session helper, or F7 in the game for dev/admin accounts): Sovereign's brain plays Player 1, so you get a real fight without a person at the keyboard.
+- `SovereignControl.engage()` (`s.sovereignP1()` in the session helper, or F7 in the game for dev/admin accounts): Sovereign's hand-written AI plays Player 1, so you get a real fight without a person at the keyboard. This isn't the neural net that drives Sovereign in a real match by default (`data/brain/latest.json`), so don't use it as a stand-in when judging how strong Sovereign is.
 - `tools/flash-audit.js`: logs which code whites out the screen, and how often.
 - `tools/level-tester.js`: Sovereign plays story chapters and reports what it cleared and what it cost.
 - `tools/workbench/`: weapon and figure editors, with shot sheets.
@@ -61,6 +89,7 @@ These are the things that have saved Aarush's Claude the most time. Running thes
 **Traps that wasted our time**
 - Use one browser per headless match. Tabs get backgrounded, their game loop stops, and the fighters look frozen.
 - If globals are missing on load, suspect a stale cache or a cold Python server before a load-order bug. Use a fresh port and reload once.
+- If a frame-stepped recording freezes at the start, check the clock before the game. Stepping faster than real time, then calling `manual()` again right away, resets the fake clock behind `_lastFrameTime`, and `gameLoop` skips frames until it catches up. If `frameCount` isn't moving, it isn't an AI decision.
 - Don't wait on `networkidle0`. Online connections stay open, so use `load` and then a short wait.
 
 ## What would help us?
