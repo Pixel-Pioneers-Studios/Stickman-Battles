@@ -23,14 +23,14 @@ One thing to check: after the first frame, `_passInstall` routes every `ctx` cal
 
 ## Who is on what
 
-**Aarush is working on these now:**
+**Off limits: please don't change these without asking Aarush first.** Aarush is actively working on all of them:
 - Making Story Mode beatable at every difficulty (`js/story/`, `tools/level-tester.js`)
 - God and Absolute Axiom fights, plus checkpoint QTEs (`js/smb-god.js`, `js/smb-absolute-axiom.js`, `js/smb-axiom-multiverse.js`, `js/smb-qte-*.js`)
 - Rebuilding the Fight Ladder as a skills curriculum (`js/smb-ladder.js`)
 - Finishing the story cinematics
-- The Sovereign brain (`tools/brain/`)
+- Sovereign, both the fighter and the brain (`js/smb-smk2-*.js`, `js/smb-sov-*.js`, `js/smb-brain*.js`, `js/smb-adaptive-ai.js`, `tools/brain/`)
 
-Most of those files have large uncommitted changes right now, so edits there are likely to conflict.
+That includes all of Story Mode, not only the fixes above: chapters, levels, scenes and narration. Most of these files also have large uncommitted changes right now, so edits there are likely to conflict. If something in these areas looks broken, tell Aarush instead of patching it.
 
 **Shared, so keep changes small:** `js/smb-combat.js`, `js/smb-fighter.js`, `js/smb-loop-core.js`, `js/smb-menu-startcore.js`, `index.html`.
 
