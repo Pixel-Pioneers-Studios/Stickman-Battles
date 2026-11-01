@@ -6,8 +6,8 @@
 // the many places that heal or teleport a fighter needs touching. Render-only; never changes game state.
 
 const _pvQuiet = () => {};
-// Swing archetypes that read as an arc. Thrusts, whips and punches keep their own trails.
-const _PV_ARC_SWINGS = { slash: 1, iai: 1, cleave: 1, sweep: 1, smash: 1 };
+// Melee swing archetypes. Thrusts and jabs get a thin crescent along their short arc; ranged archetypes have no swing.
+const _PV_ARC_SWINGS = { slash: 1, iai: 1, cleave: 1, sweep: 1, smash: 1, whirl: 1, strike: 1, thrust: 1, jab: 1 };
 const _PV_HEAVY_SWINGS = { smash: 1, sweep: 1, cleave: 1 };
 
 function _pvOn() { return typeof PixelVFX !== 'undefined'; }
@@ -153,9 +153,30 @@ function pixelFinisherHitFX(att, tgt, last) {
   return true;
 }
 
+// Hand-drawn effect code that the pixel pass takes over (PixelVFX.wrap). Wrapped once, on the first frame,
+// because these files load after this one. Fighters, platforms, backgrounds and the HUD are not in here.
+const _PV_PASS_FNS = [
+  'drawBossBeams', 'drawBossSpikes', 'drawBossWarnings', 'drawBossParadoxForeshadow',
+  'drawSpartanRageEffects', 'drawClassEffects', 'drawCurseAuras',
+  'drawTFBlackHoles', 'drawTFGravityWells', 'drawTFMeteorCrash', 'drawTFClones', 'drawTFShockwaves', 'drawTFPhaseShift',
+  'drawTFRealityTear', 'drawTFCalcStrike', 'drawTFMathBubble', 'drawTFRealityOverride', 'drawTFBurnTrail',
+  'drawTFGammaBeam', 'drawTFNeutronStar', 'drawTFGalaxySweep', 'drawTFMultiverse', 'drawTFSupernova', 'drawTFDimensionPunch',
+  'drawPhaseTransitionRings', 'drawCinematicWorldEffects', 'drawCinematicImpactWorldEffects', 'drawCinSpeedLines',
+  'drawCinMotionTrails', 'drawParadoxEffects', 'drawDivineSummon', 'drawMapPerks',
+];
+let _pvPassWrapped = false;
+function _pvWrapPassFns() {
+  _pvPassWrapped = true;
+  for (const n of _PV_PASS_FNS) PixelVFX.wrap(window, n);
+  if (typeof DomainManager !== 'undefined') { PixelVFX.wrap(DomainManager, 'draw'); PixelVFX.wrap(DomainManager, 'drawHazards'); }
+  if (typeof ComboDomain !== 'undefined') { PixelVFX.wrap(ComboDomain, 'draw'); PixelVFX.wrap(ComboDomain, 'drawWorld'); }
+  if (typeof Projectile !== 'undefined') PixelVFX.wrap(Projectile.prototype, 'draw');
+}
+
 // Per-frame state watcher. Each fighter carries its last-seen values in _pv.
 function pixelVfxWatch() {
   if (!_pvOn() || typeof players === 'undefined') return;
+  if (!_pvPassWrapped) _pvWrapPassFns();
   const list = players.concat(typeof minions !== 'undefined' ? minions : []);
   for (const f of list) {
     if (!f || typeof f.cx !== 'function') continue;

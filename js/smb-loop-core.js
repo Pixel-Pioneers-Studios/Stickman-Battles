@@ -997,10 +997,13 @@ function gameLoop(timestamp) {
   }
 
   // Blood stains: persistent marks on surfaces
+  // Pixel Effects on: stains and particles are still simulated here but painted by PixelVFX as pixel art.
+  const _pxParts = typeof PixelVFX !== 'undefined' && PixelVFX.particles(null, null);
   for (let i = bloodStains.length - 1; i >= 0; i--) {
     const _bs = bloodStains[i];
     _bs.life--;
     if (_bs.life <= 0) { bloodStains.splice(i, 1); continue; }
+    if (_pxParts) continue;
     ctx.globalAlpha = Math.min(0.55, (_bs.life / _bs.maxLife) * 0.7);
     ctx.fillStyle   = '#660000';
     ctx.beginPath();
@@ -1043,6 +1046,8 @@ function gameLoop(timestamp) {
   // Two passes so the composite mode is set twice per frame, not once per particle.
   // Pass 1: heavy matter (blood, debris, smoke), normal blending.
   // Pass 2: sparks, streaked along velocity and drawn additively. A static dot reads as confetti, a streak reads as impact.
+  if (_pxParts) PixelVFX.particles(_liveParticles, bloodStains);
+  else {
   ctx.save();
   for (let i = 0; i < _liveParticles.length; i++) {
     const p = _liveParticles[i];
@@ -1072,6 +1077,7 @@ function gameLoop(timestamp) {
     ctx.stroke();
   }
   ctx.restore();
+  }
   ctx.globalAlpha = 1;
 
   // Phase: pixel VFX (smb-pixel-vfx.js). Hit-stop returns before this, so effects freeze with the hit.
