@@ -495,7 +495,9 @@ function openSettingsModal() {
   const aqEl = document.getElementById('settingAnimQuality');
   if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
   const pvEl = document.getElementById('settingPixelVfx');
-  if (pvEl) pvEl.checked = settings.pixelVfx !== false;
+  if (pvEl) pvEl.checked = !!settings.pixelVfx;
+  const asEl = document.getElementById('settingAnimeSuperFx');
+  if (asEl) asEl.checked = !!settings.animeSuperFx;
   const ssEl = document.getElementById('settingShakeScale');
   if (ssEl) ssEl.value = settings.shakeScale;
   const ssVal = document.getElementById('settingShakeScaleVal');
@@ -676,6 +678,11 @@ function updateSettings() {
   if (animQualityEl) {
     settings.animQuality = animQualityEl.checked ? 'high' : 'classic';
     localStorage.setItem('smc_animQuality', settings.animQuality);
+  }
+  const animeSuperEl = document.getElementById('settingAnimeSuperFx');
+  if (animeSuperEl) {
+    settings.animeSuperFx = animeSuperEl.checked;
+    localStorage.setItem('smc_animeSuperFx', settings.animeSuperFx ? '1' : '0');
   }
   const pixelVfxEl = document.getElementById('settingPixelVfx');
   if (pixelVfxEl) {
