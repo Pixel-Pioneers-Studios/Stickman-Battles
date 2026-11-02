@@ -1174,7 +1174,7 @@ function gameLoop(timestamp) {
   if (typeof updateTutorial === 'function') updateTutorial();
   if (typeof updateMentor === 'function') updateMentor();
   if (typeof updateMovePreview === 'function') updateMovePreview();
-  if (gameMode === 'trueform' && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
+  if ((gameMode === 'trueform' || gameMode === 'absoluteaxiom') && !tfAbsorptionScene && typeof updateQTE === 'function') updateQTE();
 
   // TrueForm: record player position history for multiverse lag-echo
   if (gameMode === 'trueform' && players[0] && players[0].health > 0) {
@@ -1254,7 +1254,7 @@ function gameLoop(timestamp) {
   if (typeof _interludeActive !== 'undefined' && _interludeActive && typeof drawInterlude === 'function') drawInterlude();
   if (exploreActive && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
-  if (gameMode === 'trueform' && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
+  if ((gameMode === 'trueform' || gameMode === 'absoluteaxiom') && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
   if (typeof drawCutscene === 'function') drawCutscene(ctx, canvas.width, canvas.height);
   if (typeof drawFinisher === 'function') drawFinisher(ctx); // finisher overlay (topmost)
   if (typeof drawCinNameCard === 'function') drawCinNameCard(canvas.width, canvas.height);

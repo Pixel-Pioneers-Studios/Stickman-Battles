@@ -828,6 +828,13 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       : Math.floor((target.maxHealth || 100) * 0.45);
     if (actualDmg > _maxHit) actualDmg = _maxHit;
   }
+  // A boss's opening: each new player swing lands for a fixed share of its bar.
+  if (target._openingT > 0 && attacker && !attacker.isMinion && !isDot && !isSplash &&
+      (attacker.attackTimer > 0 || (attacker.weapon && attacker.weapon.type !== 'melee')) &&
+      attacker._attackStartFrame !== target._openHitAct) {
+    target._openHitAct = attacker._attackStartFrame;
+    actualDmg = Math.max(actualDmg, Math.round(target.maxHealth * target._openHitFrac));
+  }
   // Godslayer armor: 45% resistance in the Absolute Axiom fight.
   if (target.armorStyle === 'godslayer' && typeof gameMode !== 'undefined' && gameMode === 'absoluteaxiom') {
     actualDmg = Math.max(1, Math.round(actualDmg * 0.55));
@@ -862,6 +869,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   const _bodyDmg = (target._brForm && typeof brFormAbsorb === 'function')
     ? brFormAbsorb(target, actualDmg, attacker) : actualDmg;
   target.health    = Math.max(0, target.health - _bodyDmg);
+  if (attacker && attacker._openWatch && attacker._openWatch.target === target && _bodyDmg > 0) attacker._openWatch.hit = true;
   if (attacker && attacker._brForm && typeof brFormOnHit === 'function') brFormOnHit(attacker, target, actualDmg);
   if (attacker && actualDmg > 0) attacker.totalDamageDealt = (attacker.totalDamageDealt || 0) + actualDmg;
   // Combo Domain streak (smb-combo-domain.js): landed hits inside the on-screen COMBO window.

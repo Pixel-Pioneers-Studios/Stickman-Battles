@@ -61,7 +61,6 @@ function _phaseToChapter(origCh, phase, newId, pi, isFirst, isFinal, totalTokens
       phaseCh.isTrueFormFight  = !!origCh.isTrueFormFight;
       phaseCh.isSovereignFight = !!origCh.isSovereignFight;
       phaseCh.isAbsoluteAxiomFight = !!origCh.isAbsoluteAxiomFight;
-      if (origCh.aaStoryHealth)   phaseCh.aaStoryHealth   = origCh.aaStoryHealth;
       if (origCh.paradoxManifest) phaseCh.paradoxManifest = origCh.paradoxManifest;
     }
     // Ally fighter goes through every fight phase

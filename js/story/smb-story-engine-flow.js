@@ -240,6 +240,8 @@ function _beginChapter2(idx) {
   if (_narrativeActive) return;
   const ch = STORY_CHAPTERS2[idx];
   if (!ch) return;
+  // Only a Retry from Checkpoint keeps the saved mark; any other way in starts the fight clean.
+  if (typeof storyBossCpResuming === 'function' && !storyBossCpResuming(ch)) storyBossCpClear();
   _activeStory2Chapter = ch;
 
   // A declared cinematic run plays as one film, not N click-through chapters. Self-disables if the
@@ -650,8 +652,8 @@ function _launchChapter2Fight(ch) {
     return;
   }
 
-  // Boss fight: show a cinematic intro first (async, delays startGame)
-  if (ch.isBossFight) {
+  // Boss fight: show a cinematic intro first (async, delays startGame). A checkpoint retry goes straight back in.
+  if (ch.isBossFight && !(typeof storyBossCpResuming === 'function' && storyBossCpResuming(ch))) {
     if (typeof triggerEvent === 'function') triggerEvent('BOSS_INTRO', { ch }, true);
     const _bossCinDuration = 7800;
     // Single pending launch only: clicking Retry inside the 7.8s window used to
@@ -696,7 +698,6 @@ function _launchChapter2FightImmediate(ch) {
   } else if (ch.isAbsoluteAxiomFight) {
     gameMode = 'absoluteaxiom';
     if (typeof selectMode === 'function') selectMode('absoluteaxiom');
-    window._aaStoryHealth = ch.aaStoryHealth || 900;
   } else if (ch.isGodFight) {
     gameMode = 'god';
     if (typeof selectMode === 'function') selectMode('god');

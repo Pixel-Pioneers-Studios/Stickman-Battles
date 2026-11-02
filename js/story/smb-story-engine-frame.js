@@ -5,6 +5,7 @@
 // Polls per-frame state and fires events when thresholds are crossed. Call after physics/combat.
 function storyCheckEvents() {
   if (!storyModeActive || !gameRunning) return;
+  _storyBossCpTick();
 
   const ch  = _activeStory2Chapter;
   const chId = ch ? ch.id : (storyState.chapter - 1);
@@ -230,6 +231,21 @@ function _storyMirrorPlayerBoosts(sov, p1, pre) {
   if (p1._mvJumpMult) sov._mvJumpMult = p1._mvJumpMult;
 }
 
+// Crowd cap: a story crowd takes turns. Up to the tier's atkSlots enemies hold a swing slot on
+// the player; a slot frees 75 frames after its holder's last swing (or when it dies). The rest
+// keep moving but can't start a swing. Bosses and fights against other AIs are untouched.
+function storyCrowdVeto(f, t) {
+  if (typeof storyModeActive === 'undefined' || !storyModeActive || !f || f.isBoss) return false;
+  const cap = _storyDiffCfg().atkSlots | 0;
+  const tgt = t || f.target;
+  if (!cap || !tgt || tgt.isAI || tgt !== players[0]) return false;
+  const slots = tgt._storySlots || (tgt._storySlots = new Map());
+  for (const [e, at] of slots) if (frameCount - at > 75 || e.health <= 0) slots.delete(e);
+  if (!slots.has(f) && slots.size >= cap) return true;
+  slots.set(f, frameCount);
+  return false;
+}
+
 // Story bosses keep their standalone stats (tuned from replays) instead of the regular-enemy curve,
 // whose 2x-player HP cap would leave a 3000-HP boss at 200. Like Sovereign they copy the player's
 // story boosts as ratios, multiplied onto their own stats, then take the difficulty tier's layer.
@@ -245,6 +261,97 @@ function _storyScaleBoss(boss, p1, pre) {
   boss.dmgMult   = (boss.dmgMult || 1) * dmgR * (diff ? diff.dmg : 1);
   boss.damageReductionMult = Math.max(0.05, (boss.damageReductionMult || 1) * drR);
   if (diff) boss.attackCooldownMult = Math.max(0.2, (boss.attackCooldownMult || 0.5) * diff.cd);
+}
+
+// Boss checkpoints. Crossing an HP mark (cpMarks, per tier) saves the fight; a game-over Retry resumes the boss there, with the
+// player at full health and lives. HP-driven state (played cinematics, phase) is snapshotted off the boss
+// as the fight runs, so resuming replays nothing and no per-boss key list can go stale.
+const _STORY_BOSS_CP_NUMS  = ['_aaPhase', '_phase3SpeedMod', '_lastPhase'];
+let _storyBossCp = null;        // { chId, frac, snap }
+let _storyBossCpWait = null;    // { frac, at }, a crossed mark waiting for the fight to settle
+let _storyBossCpResume = null;  // chapter id a Retry from Checkpoint is launching
+let _storyBossCpHold = null;    // { frac, until }, late fight-start scaling must not refill a resumed boss
+
+function _storyBossCpTarget() {
+  if (!players) return null;
+  // God and Absolute Axiom live in minions, and Absolute Axiom clears isGod.
+  return [...players, ...(minions || [])].find(p => p && p !== players[0] && p.health > 0 && !p.isAlly &&
+    (p.isBoss || p.isGod || p.isSovereignMK2 || (typeof AdaptiveAI !== 'undefined' && p instanceof AdaptiveAI) ||
+     (typeof AbsoluteAxiom !== 'undefined' && p instanceof AbsoluteAxiom))) || null;
+}
+// Share of the whole fight left. Sovereign fights on stocks, so a mark there counts stocks, not one health bar.
+function _storyBossCpFrac(boss) {
+  const n = boss._cpStocks > 1 ? boss._cpStocks : 1;
+  const left = n > 1 ? Math.max(1, boss.lives) - 1 : 0;
+  return (left + boss.health / boss.maxHealth) / n;
+}
+function _storyBossCpSetFrac(boss, frac) {
+  const n = boss._cpStocks > 1 ? boss._cpStocks : 1;
+  const total = frac * n, stocks = Math.ceil(total);
+  if (n > 1) boss.lives = stocks;
+  boss.health = Math.max(1, Math.round(boss.maxHealth * (total - stocks + 1)));
+}
+function _storyBossCpSnap(boss) {
+  const snap = { sets: {}, flags: {}, nums: {} };
+  for (const k of Object.keys(boss)) {
+    const v = boss[k];
+    if (v instanceof Set) {
+      const items = [...v];
+      if (items.every(i => typeof i === 'string' || typeof i === 'number')) snap.sets[k] = items;
+    } else if (v === true && /(Fired|Announced)$/.test(k)) snap.flags[k] = true;
+  }
+  for (const k of _STORY_BOSS_CP_NUMS) if (typeof boss[k] === 'number') snap.nums[k] = boss[k];
+  return snap;
+}
+function storyBossCpFor(ch) {
+  return (ch && _storyBossCp && _storyBossCp.chId === ch.id) ? _storyBossCp : null;
+}
+function storyBossCpArmResume(ch) { _storyBossCpResume = ch.id; }
+function storyBossCpResuming(ch) { return !!(ch && _storyBossCpResume === ch.id && storyBossCpFor(ch)); }
+function storyBossCpClear() { _storyBossCp = null; _storyBossCpWait = null; _storyBossCpResume = null; _storyBossCpHold = null; }
+
+function _storyBossCpApply() {
+  const ch = _activeStory2Chapter;
+  if (!_storyBossCpResume) return;
+  const boss = _storyBossCpTarget();
+  if (!boss) return;
+  const cp = storyBossCpFor(ch);
+  _storyBossCpResume = null;
+  if (!cp) return;
+  boss._cpStocks = boss.lives;
+  _storyBossCpSetFrac(boss, cp.frac);
+  _storyBossCpHold = { frac: cp.frac, until: frameCount + 120 };
+  for (const [k, items] of Object.entries(cp.snap.sets)) boss[k] = new Set(items);
+  for (const k of Object.keys(cp.snap.flags)) boss[k] = true;
+  Object.assign(boss, cp.snap.nums);
+  if (boss.isTrueForm && boss._cinematicFired) boss._cinematicFired.add('entry');
+  storyFightSubtitle = { text: 'Back at the checkpoint. The damage you did still stands.', timer: 200, maxTimer: 200, color: '#ffd27a' };
+}
+
+function _storyBossCpTick() {
+  const ch = _activeStory2Chapter;
+  if (!ch || typeof _storyIsSetPieceChapter !== 'function' || !_storyIsSetPieceChapter(ch)) return;
+  if (_storyBossCpResume) { if (!_storyFightBuffsPending) _storyBossCpApply(); return; }
+  const boss = _storyBossCpTarget();
+  if (!boss || !boss.maxHealth) return;
+  if (boss._cpStocks === undefined) boss._cpStocks = boss.lives;
+  const frac = _storyBossCpFrac(boss);
+  if (_storyBossCpHold) {
+    if (frameCount > _storyBossCpHold.until) _storyBossCpHold = null;
+    else if (frac > _storyBossCpHold.frac + 0.001) _storyBossCpSetFrac(boss, _storyBossCpHold.frac);
+  }
+  const have = storyBossCpFor(ch) ? _storyBossCp.frac : 1;
+  // Keep the snapshot current: whatever has played since the mark doesn't replay on a resume.
+  if (have < 1 && !activeCinematic && !isCinematic) _storyBossCp.snap = _storyBossCpSnap(boss);
+  const mark = _storyDiffCfg().cpMarks.filter(m => frac <= m && m < have && !(boss._cpStartFrac <= m)).pop();
+  if (mark === undefined) return;
+  if (!_storyBossCpWait || _storyBossCpWait.frac !== mark) _storyBossCpWait = { frac: mark, at: frameCount };
+  // A threshold cinematic starts on an AI tick, so let it begin (and finish) before reading what has played.
+  if (frameCount - _storyBossCpWait.at < 30 || activeCinematic || isCinematic ||
+      (typeof tfOpeningFightActive !== 'undefined' && tfOpeningFightActive)) return;
+  _storyBossCp = { chId: ch.id, frac: mark, snap: _storyBossCpSnap(boss) };
+  _storyBossCpWait = null;
+  storyFightSubtitle = { text: 'Checkpoint reached — fall, and you rise here.', timer: 170, maxTimer: 170, color: '#ffd27a' };
 }
 
 // Called from startGame (smb-menu-spawn.js) in story mode. _startGameCore runs 120-800 ms later, so the
@@ -296,6 +403,7 @@ function _storyApplyFightStartBuffs() {
     } else if (typeof MultiverseManager !== 'undefined' && MultiverseManager.isActive()) {
       MultiverseManager.deactivate();
     }
+    _storyBossCpApply();
   }
 }
 

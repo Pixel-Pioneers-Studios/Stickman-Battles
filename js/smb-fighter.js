@@ -2015,7 +2015,7 @@ class Fighter {
     // Remote players skip this. Their own machine handles their death.
     if (!this.isRemote && this.y > dyY && this.health > 0) {
       if (this.isBoss) bossTeleport(this, true);
-      else if (!this.godmode) this.health = 0;
+      else if (!this.godmode && !this.isAbsoluteAxiom) this.health = 0; // Axiom flies back (_aaFallRecover)
     }
 
     this.updateState();
@@ -2827,6 +2827,7 @@ class Fighter {
       this.shielding = false; this.shieldHoldTimer = 0; this._shieldOosLatch = true;
     }
     if (this._tacLegacy && typeof botTacVeto === 'function' && botTacVeto(this, 'a', target)) return;
+    if (this.isAI && typeof storyCrowdVeto === 'function' && storyCrowdVeto(this, target)) return;
 
     // KNIGHT: Uppercut Slam, upward fist swing, wide arc, sends enemies skyward
     if (this.charClass === 'megaknight') {

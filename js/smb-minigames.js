@@ -766,11 +766,22 @@ function _confirmResetProgressLocal() {
 
 // ETERNAL DAMNATION ARC: wave management and escape.
 
+// Anchor orb at an echo's body, clamped into reach (the floor is y 460). Minion wave 2 + Creator
+// echo 3 + Axiom echo 3 = the 8 the portal needs.
+function _damnationDropOrb(e, value) {
+  if (!e || e._anchorDropped) return;
+  e._anchorDropped = true;
+  damnationAnchorOrbs.push({ x: Math.max(60, Math.min(GAME_W - 60, e.cx())), y: Math.max(140, Math.min(410, e.cy())), frame: 0, value });
+}
+
 function spawnDamnationWave() {
   if (!damnationActive) return;
   const wave = damnationCheckpoint > damnationWave ? damnationCheckpoint : damnationWave;
   damnationWave = wave;
 
+  // updateDamnation and the death handler both advance waves; whichever runs first removes the
+  // dead echo here, so its orb drops here too or the run caps at 5 of 8.
+  for (const p of players) if (p.isEcho && p.isBoss && (p.health <= 0 || p.isDead)) _damnationDropOrb(p, 3);
   players = players.filter(p => !p.isEcho);
 
   if (wave === 0) {
@@ -825,6 +836,8 @@ function updateDamnation() {
   if (damnationWave === 0) {
     const minionEchoes = players.filter(p => p.isEcho && !p.isBoss && !p.isTrueForm);
     if (minionEchoes.length > 0 && minionEchoes.every(p => p.health <= 0 || p.isDead)) {
+      // The minion wave's anchors (worth 2). Only boss echoes dropped orbs, which capped a run at 2 of 8.
+      _damnationDropOrb(minionEchoes[minionEchoes.length - 1], 2);
       damnationWave = 1;
       spawnDamnationWave();
     }
@@ -838,6 +851,8 @@ function updateDamnation() {
   } else if (damnationWave === 2) {
     const tfEchoes = players.filter(p => p.isEcho && p.isTrueForm);
     if (tfEchoes.length > 0 && tfEchoes.every(p => p.health <= 0 || p.isDead)) {
+      // The Axiom echo usually dies through TrueForm's own death path, which skips the orb drop.
+      for (const e of tfEchoes) _damnationDropOrb(e, 3);
       damnationWave = 3; // mark complete so this doesn't re-fire
     }
   }
@@ -845,10 +860,17 @@ function updateDamnation() {
   for (let i = damnationAnchorOrbs.length - 1; i >= 0; i--) {
     const orb = damnationAnchorOrbs[i];
     orb.frame++;
+    // Orbs settle onto the surface below them: a flying echo left its orb hanging out of reach,
+    // and a platform the loop removes drops its orb to the next one down.
+    let top = 460;
+    for (const pl of (currentArena && currentArena.platforms) || []) {
+      if (!pl.isFloorDisabled && orb.x >= pl.x && orb.x <= pl.x + pl.w && pl.y - 30 >= orb.y - 1 && pl.y < top) top = pl.y;
+    }
+    if (orb.y < top - 30) orb.y = Math.min(top - 30, orb.y + 4);
     const dx = p1.cx() - orb.x;
     const dy = (p1.y + p1.h / 2) - orb.y;
     if (Math.sqrt(dx * dx + dy * dy) < 50) {
-      damnationAnchors++;
+      damnationAnchors += orb.value || 1;
       if (typeof SoundManager !== 'undefined' && SoundManager.pickup) SoundManager.pickup();
       damnationAnchorOrbs.splice(i, 1);
       if (!damnationPortalActive && damnationAnchors >= 8) {

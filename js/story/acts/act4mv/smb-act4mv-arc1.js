@@ -127,7 +127,7 @@ STORY_CHAPTER_REGISTRY.push(
     twoEnemies: true,
     secondEnemy: { weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', color: '#cc3300' },
     armor: ['helmet', 'chestplate'],
-    playerLives: 1,
+    playerLives: 2,
     arena: 'storyWar',
     walkFight: true, worldLength: 3000,
     tokenReward: 60,
@@ -135,7 +135,7 @@ STORY_CHAPTER_REGISTRY.push(
     postText: 'The Champion falls. The war-torn sky cracks open. The compass pulls you forward through the next fracture. You feel something change — not a power, but a certainty.',
     isMultiverseWorld: true,
     multiverseWorldId: 'war_torn',
-    storeNag: '⚠️ War Champion. Expert AI. 1 life. Spend tokens first.',
+    storeNag: '⚠️ War Champion. Expert AI. 2 lives. Spend tokens first.',
   },
 
   // Arc 5-1: Gravity Flux World

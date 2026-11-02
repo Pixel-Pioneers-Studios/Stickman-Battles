@@ -107,7 +107,8 @@ function _startGameCore() {
     currentArenaKey = 'sovereign'; // Sovereign's dedicated melee-only arena
   } else if (isAbsoluteAxiomMode) {
     // Standalone: the multiverse fight opens in the Broken Branch (smb-axiom-multiverse.js)
-    currentArenaKey = (!storyModeActive && ARENAS.aa_branch) ? 'aa_branch' : 'absolute_axiom_domain';
+    const _aaCh = storyModeActive && typeof _activeStory2Chapter !== 'undefined' ? _activeStory2Chapter : null;
+    currentArenaKey = (_aaCh && _aaCh.aaStartWorld) || (ARENAS.aa_branch ? 'aa_branch' : 'absolute_axiom_domain');
   } else if (isGodMode) {
     currentArenaKey = 'god_domain'; // God's own divine domain arena
   } else if (isMultiverseMode) {
@@ -670,6 +671,7 @@ function _startGameCore() {
         const _gh = _activeStory2Chapter.godStoryHealth || 20000;
         _godRef.maxHealth = _gh; _godRef.health = _gh;
         _godRef._storyGod = true;
+        _godRef._openHitFrac = 0.02;
         _godRef.target = p1;
         // Always God's phase-2 form. Phase 1 has standalone easter-egg stats (1e15 HP, 9999x damage) that would
         // kill a 1-life story hero. Damage is rescaled for a ~150-HP hero; special attacks stay lethal but dodgeable.
@@ -708,9 +710,9 @@ function _startGameCore() {
     // Absolute Axiom encounter: P1 vs Absolute Axiom directly
     p1.isAI    = false;
     p1._teamId = 1;
-    if (!storyModeActive) {
-      // Standalone mode: give the player the full godslayer loadout and extra lives
-      p1.lives = 10;
+    {
+      // The full godslayer loadout, in story as well. Only standalone gets the extra lives.
+      if (!storyModeActive) p1.lives = 10;
       p1.armorPieces = ['helmet', 'chestplate', 'leggings'];
       p1.armorStyle  = 'godslayer';
       if (window.GODSLAYER_WEAPON) {
@@ -727,7 +729,8 @@ function _startGameCore() {
       _aa._teamId = 50;
       minions.push(_aa);
       window._absoluteAxiomWasAlive = true;
-      if (!storyModeActive && typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
+      if (storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter) _aa._applyStoryBand(_activeStory2Chapter);
+      if (typeof _activateRGSForMatch === 'function') _activateRGSForMatch();
     }
     // Story Paradox manifestation: the fragment projects, Paradox's remaining energy fuels it. 'fading' starts nearly spent.
     if (storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter &&

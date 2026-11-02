@@ -39,6 +39,12 @@ const GOD_LANCE_DMG       = 60;
 const GOD_LANCE_RECOVER   = 55;   // 45 below 35% HP, the punish window
 const GOD_LANCE_CD        = 100;  // 70 below 35% HP
 const GOD_SMITE_WARN      = 36;
+// Openings: clear a big attack untouched and the boss stands exposed. Each new swing then
+// lands for a fixed share of its bar, so fight length follows dodges rather than HP.
+const BOSS_OPENING_FRAMES = 100;
+const BOSS_OPENING_GAP    = 150;  // minimum frames between openings
+const BOSS_OPENING_REACH  = 460;  // a player camping further away earns nothing
+const BOSS_OPENING_WATCH  = 180;  // overlapping attacks still resolve within this
 let _godWasAlive          = false;
 
 function _isGodPhase2() {
@@ -268,6 +274,11 @@ class God extends Fighter {
     this._smitePending = false;
     this._lance      = null; // { phase:'windup'|'dash'|'recover', t, dur, dx, dy, hit:Set }
     this._hoverSide  = Math.random() < 0.5 ? -1 : 1;
+    this._openingT    = 0;
+    this._openGap     = 0;
+    this._openWatch   = null; // { target, lives, age, seen, hit }; dealDamage sets hit
+    this._openHitFrac = 0.013;
+    this._openHitAct  = null;
 
     this._dashCd     = 60;
     this._dashFrames = 0;
@@ -362,6 +373,78 @@ class God extends Fighter {
       this._doRadiantNova();
     }
     this._specialCd = hpFrac < 0.3 ? 170 : hpFrac < 0.6 ? 230 : 300;
+  }
+
+  // Openings
+
+  _openingWatchStart(target) {
+    if (!target || !players.includes(target) || this._openingT > 0 || this._openGap > 0 || this._openWatch) return;
+    this._openWatch = { target, lives: target.lives, age: 0, seen: false, hit: false };
+  }
+
+  _openingLive() {
+    return !!(this._columns.length || this._novaRings.length || this._smiteRings.length || this._smitePending ||
+              (this._lance && this._lance.phase !== 'recover'));
+  }
+
+  _openingBreakAttack() {
+    this._lance = null;
+    this._attackCd = Math.max(this._attackCd, 60);
+  }
+
+  _tickOpening() {
+    if (this._openGap > 0) this._openGap--;
+    if (this._openingT > 0) {
+      if (--this._openingT === 0) this._openGap = BOSS_OPENING_GAP;
+      return;
+    }
+    const w = this._openWatch;
+    if (!w) return;
+    const tg = w.target;
+    if (!tg || tg.health <= 0 || w.hit || tg.lives !== w.lives) { this._openWatch = null; return; }
+    w.age++;
+    const live = this._openingLive();
+    if (live) w.seen = true;
+    if (w.seen ? (live && w.age < BOSS_OPENING_WATCH) : w.age < 30) return;
+    this._openWatch = null;
+    if (!w.seen || Math.hypot(tg.cx() - this.cx(), tg.cy() - this.cy()) > BOSS_OPENING_REACH) return;
+    this._openingT = BOSS_OPENING_FRAMES;
+    this._openHitAct = null;
+    this._openingBreakAttack();
+    this._specialCd = Math.max(this._specialCd, 60);
+    if (typeof hitStopFrames !== 'undefined') hitStopFrames = Math.max(hitStopFrames, 5);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 10);
+    if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.cy(), '#ffd76a', 22);
+    if (typeof SoundManager !== 'undefined' && SoundManager.explosion) SoundManager.explosion();
+    // A story ally can't reach a flying God on foot, so it closes the distance when God is exposed.
+    for (const m of minions) {
+      if (!m.isStoryAlly || m.health <= 0) continue;
+      const side = m.cx() < this.cx() ? -1 : 1;
+      m.x = Math.max(18, Math.min(GAME_W - m.w - 18, this.cx() + side * 55 - m.w / 2));
+      m.y = Math.max(20, tg.y + tg.h - m.h);
+      m.vx = 0; m.vy = 0;
+      if (typeof spawnParticles === 'function') spawnParticles(m.cx(), m.cy(), m.color || '#ffd27f', 12);
+    }
+  }
+
+  _drawOpening() {
+    if (!(this._openingT > 0) || typeof ctx === 'undefined') return;
+    const cx = this.cx(), cy = this.y + this.h / 2, frac = this._openingT / BOSS_OPENING_FRAMES;
+    const r = Math.max(this.w, this.h) * 0.9 + Math.sin(this._openingT * 0.35) * 3;
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(255,215,106,0.25)';
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = '#ffd76a';
+    ctx.shadowColor = '#ffb020';
+    ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
+    ctx.fillStyle = '#fff2c4';
+    ctx.font = 'bold 15px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('OPEN', cx, cy + r + 18);
+    ctx.restore();
   }
 
   // Special effect logic
@@ -468,14 +551,21 @@ class God extends Fighter {
       this._updateSmiteRings();
       if (this._smiteTimer > 0) this._smiteTimer--;
     }
+    if (!this.isAbsoluteAxiom && this._phase === 2) {
+      this._tickOpening();
+      // Chasing a flying God carries a story ally off the top of the screen.
+      for (const m of minions) if (m.isStoryAlly && m.y < 20) { m.y = 20; m.vy = Math.max(m.vy, 0); }
+    }
 
     let target = null, minDist = Infinity;
     for (const p of this._godTargetPool()) {
       if (p === this || p.health <= 0 || p.godmode === true) continue;
       if (p._teamId !== undefined && this._teamId !== undefined && p._teamId === this._teamId) continue;
       const d = Math.hypot(p.cx() - this.cx(), (p.y + p.h / 2) - (this.y + this.h / 2));
-      if (d < minDist) { minDist = d; target = p; }
+      // Allies only draw God when the player is far off, or it spends the fight on the ally.
+      if (d + ((p.isAlly || p.isStoryAlly) ? 500 : 0) < minDist) { minDist = d + ((p.isAlly || p.isStoryAlly) ? 500 : 0); target = p; }
     }
+    if (target) minDist = Math.hypot(target.cx() - this.cx(), (target.y + target.h / 2) - (this.y + this.h / 2));
     // Everyone alive is in godmode: fall back to them anyway so God keeps moving and
     // attacking (damage is still nullified downstream) instead of freezing mid-air.
     if (!target) {
@@ -510,7 +600,11 @@ class God extends Fighter {
     }
 
     const _p2 = this._phase === 2;
-    if (_p2 && this._lance) {
+    if (_p2 && this._openingT > 0) {
+      // Drops to the target's level so the opening can actually be reached.
+      this.vx *= 0.85;
+      this._flyVy = Math.max(-18, Math.min(18, (target.y + target.h - this.h - this.y) * 0.2));
+    } else if (_p2 && this._lance) {
       this._updateLance(target);
     } else if (this._smiteTimer > 0) {
       // Forced dive during smite
@@ -576,12 +670,16 @@ class God extends Fighter {
       dealDamage(this, target, baseDmg, 8);
       this._attackCd = 40;
     }
-    if (_p2 && !this._lance && this._attackCd <= 0 && this._smiteTimer <= 0 && minDist < GOD_LANCE_RANGE) {
+    if (_p2 && !this._openingT && !this._lance && this._attackCd <= 0 && this._smiteTimer <= 0 && minDist < GOD_LANCE_RANGE) {
       const _low = this.health / this.maxHealth < 0.35;
       this._lance = { phase: 'windup', t: 0, dur: _low ? 30 : GOD_LANCE_WINDUP, dx: this.facing, dy: 0, hit: new Set() };
+      this._openingWatchStart(target);
     }
 
-    if (_p2 && this._specialCd <= 0 && !this._lance) this._pickAndFireSpecial(target);
+    if (_p2 && !this._openingT && this._specialCd <= 0 && !this._lance) {
+      this._pickAndFireSpecial(target);
+      this._openingWatchStart(target);
+    }
 
     // Cinematic HP thresholds (Phase 2, standalone encounter only). The story fight (ch.160)
     // is excluded: its 1400 HP sits below both, so dialogue would fire on frame one.
@@ -995,6 +1093,7 @@ class God extends Fighter {
 
     // Special effect overlays
     this._drawSpecialEffects(cx, cy);
+    this._drawOpening();
 
     // Health bar (Phase 2)
     if (this._phase === 2 || this._consoleSummoned) {
@@ -1399,7 +1498,7 @@ class GodParadoxAlly extends Fighter {
         for (const e of pool) {
           if (e === this || e.health <= 0 || !e.isGod) continue;
           if (Math.hypot(e.cx() - this.cx(), (e.y+e.h/2) - (this.y+this.h/2)) < ring.maxR * 0.85)
-            dealDamage(this, e, 220, 14);
+            dealDamage(this, e, 60, 14);
         }
       }
       if (ring.alpha <= 0) this._blastRings.splice(i, 1);
@@ -1455,7 +1554,7 @@ class GodParadoxAlly extends Fighter {
     this.x = Math.max(18, Math.min(GW - this.w - 18, this.x));
 
     if (toDist < 130 && this._attackCd <= 0 && typeof dealDamage === 'function') {
-      dealDamage(this, this._godTarget, 120 * this.dmgMult, 8 * this.kbBonus);
+      dealDamage(this, this._godTarget, 32 * this.dmgMult, 8 * this.kbBonus);
       this._attackCd = 50;
       if (typeof spawnParticles === 'function') spawnParticles(this.cx(), this.y + this.h/2, '#55aaff', 8);
     }

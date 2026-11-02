@@ -55,6 +55,7 @@ const PORT    = parseInt(args.port, 10) || 8120;
 const ROOT    = path.resolve(__dirname, '..', '..');
 const DIR     = args.dir ? path.resolve(ROOT, args.dir) : path.join(ROOT, 'data', 'brain');
 const HUNTER_SHARE = 0.4;
+const CROWD_SHARE = Math.min(1, Math.max(0, parseFloat(args.crowdshare) || 0));
 // The hunters' newest nets (latest + up to 4 snapshots each); they play sampled, like any league net.
 const HUNTERS = !args.hunters ? [] : String(args.hunters).split(',').flatMap(d => {
   const dir = path.resolve(ROOT, d), snaps = path.join(dir, 'snapshots');
@@ -212,6 +213,14 @@ function pickOpponents(state, pool, count) {
   });
   for (let i = 0; i < count; i++) {
     const r = Math.random();
+    // --crowdshare=0.5: that share of league matches are outnumbered (story crowds), instead of ~8%.
+    if (CROWD_SHARE && stage === 'league' && Math.random() < CROWD_SHARE) {
+      const kit = Math.random() < 0.5 ? 'random' : undefined, c = Math.random();
+      out.push(c < 0.35 ? { type: 'expert', count: 2, label: 'crowd expert x2', brainKit, kit }
+        : c < 0.75 ? { type: 'hard', count: 3, label: 'crowd hard x3', brainKit, kit }
+        : { type: 'hard', count: 4, label: 'crowd hard x4', brainKit, kit });
+      continue;
+    }
     if (state.stage > 0 && r < 0.2) { out.push({ type: STAGES[Math.floor(Math.random() * Math.min(state.stage, 5))], brainKit }); continue; }
     if (stage !== 'league') { out.push({ type: stage, brainKit }); continue; }
     const q = Math.random();

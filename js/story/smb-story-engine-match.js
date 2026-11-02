@@ -318,6 +318,7 @@ function story2OnMatchEnd(playerWon) {
   }
   // Level won: its rest-checkpoint resume point is spent.
   if (_story2.cpResume && _story2.cpResume.chId === ch.id) _story2.cpResume = null;
+  if (typeof storyBossCpClear === 'function') storyBossCpClear();
   _saveStory2();
   if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
 

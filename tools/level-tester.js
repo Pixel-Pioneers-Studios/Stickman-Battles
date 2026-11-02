@@ -22,6 +22,13 @@
  *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
  *                 net that drives the shipped Sovereign fight, pressing virtual keys)
  *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/latest.json)
+ *   --progress    give the pilot the skill-tree nodes a player could own by each chapter.
+ *                 Value = a results.json from an earlier run (its measured EXP per chapter is
+ *                 the income), or 'auto' (72 EXP = 6 kills per chapter everywhere). Without it
+ *                 every chapter starts on a fresh profile, which understates the player.
+ *   --cpretries   after a LOSS, press the real retry button up to N times (Retry from Checkpoint
+ *                 when a boss mark is saved, else Restart), as a player would. --timeout covers
+ *                 the whole run of tries. Default 0: the first LOSS ends the attempt.
  *
  * Result per attempt:
  *   WIN    chapter cleared (victory screen, or walk-through exit into the next world)
@@ -60,7 +67,36 @@ const STALL_S    = parseInt(args.stall, 10) || 45;
 const PORT       = parseInt(args.port, 10) || 8131;
 const HEADFUL    = !!args.headful;
 const SHOTS_S    = parseInt(args.shots, 10) || 0;
+const CP_RETRIES = parseInt(args.cpretries, 10) || 0;
 const PILOT      = args.pilot === 'brain' ? 'brain' : 'cascade';
+
+// --progress: skill nodes bought greedily in this order (prerequisites first) from the EXP a
+// player earns in chapters before this one. Weapon mastery nodes are a separate track, left out.
+const SKILL_COST = { highJump1: 25, highJump2: 45, doubleJump: 80, fastFall: 55, heavyHit1: 25, heavyHit2: 45,
+  weaponAbility: 80, comboExtender: 100, criticalEdge: 140, impactShield: 60, tankier1: 25, tankier2: 45,
+  superMeter: 80, tankier3: 70, dimensionalPatch: 50, voidStep: 85, fastMove1: 20, fastMove2: 40, fastMove3: 75,
+  fractureSurge: 75, lastStrike: 60, echoRage: 110, mirrorFracture: 90, temporalBreak: 180, masterRoot: 100,
+  fragmentHunger: 130, architects: 160, coreCollapse: 350 };
+const SKILL_ORDER = ['tankier1', 'heavyHit1', 'highJump1', 'highJump2', 'doubleJump', 'tankier2', 'heavyHit2',
+  'fastMove1', 'impactShield', 'tankier3', 'superMeter', 'weaponAbility', 'fastMove2', 'lastStrike',
+  'dimensionalPatch', 'comboExtender', 'fastFall', 'criticalEdge', 'echoRage', 'masterRoot', 'fastMove3',
+  'voidStep', 'fractureSurge', 'mirrorFracture', 'temporalBreak', 'fragmentHunger', 'architects', 'coreCollapse'];
+const EXP_DEFAULT = 72;
+const expTable = (() => {
+  if (!args.progress || args.progress === true || args.progress === 'auto') return {};
+  const rows = JSON.parse(fs.readFileSync(args.progress, 'utf8')).rows || [];
+  const t = {};
+  for (const r of rows) if (r.expOnWins != null) t[r.id] = r.expOnWins;
+  return t;
+})();
+function progressTree(id) {
+  if (!args.progress) return null;
+  let exp = 0;
+  for (let i = 0; i < id; i++) exp += expTable[i] != null ? expTable[i] : EXP_DEFAULT;
+  const sk = {};
+  for (const k of SKILL_ORDER) { if (SKILL_COST[k] > exp) break; sk[k] = true; exp -= SKILL_COST[k]; }
+  return sk;
+}
 const CKPT       = String(args.ckpt || 'data/brain/latest.json');
 const STAMP      = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const OUT        = path.resolve(args.out || path.join(ROOT, 'data', 'level-test', STAMP));
@@ -169,14 +205,17 @@ async function runAttempt(browser, ch, attempt) {
   const bootErrs = errors.length, bootConsole = consoleErrors.length;
   try {
     await page.evaluate(QTE_SRC);
-    const launched = await page.evaluate((id, diff, stallS, pilot, ckpt) => {
+    const launched = await page.evaluate((id, diff, stallS, pilot, ckpt, skills) => {
       const T = window.__lt = {
         result: null, note: '', frames: 0, startT: performance.now(),
         hp: null, lives: null, livesStart: null, maxHp: 0, dmgTaken: 0, healed: 0, deaths: 0,
         dmgDealt: 0, minHpPct: 1, lowHpFrames: 0, maxX: -1e9, lastProgress: performance.now(),
-        navFrames: 0, aiFrames: 0, dropFrames: 0, lastDealt: performance.now(), hurtBy: {}, viaDeal: 0, falls: 0, lastY: 0, context: null, weapon: null, cls: null, engageFails: 0, completed: [],
+        navFrames: 0, aiFrames: 0, dropFrames: 0, lastDealt: performance.now(), hurtBy: {}, viaDeal: 0, falls: 0, fallSaves: 0, lastY: 0, context: null, weapon: null, cls: null, engageFails: 0, completed: [],
+        near: 0, crowdMax: 0, dmgByCrowd: [0, 0, 0, 0], deathCrowd: [],
       };
       _story2.difficulty = diff;
+      if (skills) _story2.skillTree = Object.assign({}, _story2.skillTree, skills);
+      T.skills = skills ? Object.keys(skills).length : 0; T.expGain = 0;
       const ch = STORY_CHAPTERS2[id];
       if (!ch) return 'no chapter ' + id;
       const progress = () => { T.lastProgress = performance.now(); };
@@ -186,6 +225,10 @@ async function runAttempt(browser, ch, attempt) {
         if (typeof orig !== 'function') return;
         window[name] = function () { try { fn.apply(this, arguments); } catch (e) {} return orig.apply(this, arguments); };
       };
+      wrap('_storyAwardKillExp', n => { T.expGain += n || 0; });
+      // Side portals are optional (a fresh shield press beside one), and the pilot guards often enough
+      // to enter them by accident: two bonus elites a player chose not to fight. Keep them shut.
+      if (typeof _storyEnterSidePortal === 'function') window._storyEnterSidePortal = function () {};
       wrap('_showStory2Victory', c => { if (!T.result) { T.result = 'WIN'; T.note = 'victory screen'; } });
       wrap('_regionCompleteChapter', chId => {
         T.completed.push(chId);
@@ -199,6 +242,11 @@ async function runAttempt(browser, ch, attempt) {
           modes, lives: h ? h.lives : null, health: h ? Math.round(h.health) : null,
           enemiesAlive: (typeof minions !== 'undefined' ? minions.filter(m => m.health > 0).length : 0) +
             players.filter(p => p !== h && p.health > 0 && !(typeof areAlliedEntities === 'function' && h && areAlliedEntities(h, p))).length };
+        if (typeof damnationActive !== 'undefined' && (damnationActive || damnationAnchors)) T.context.damnation = {
+          wave: damnationWave, anchors: damnationAnchors, portal: !!damnationPortalActive,
+          orbs: damnationAnchorOrbs.map(o => [Math.round(o.x), Math.round(o.y), o.value]),
+          echoes: players.filter(p => p.isEcho).map(p => ({ n: p.name, hp: Math.round(p.health), x: Math.round(p.x), y: Math.round(p.y),
+            dead: !!p.isDead, inv: p.invincible, hide: !!p.backstageHiding, tf: !!p.isTrueForm })) };
       };
       T.snap = snap;
       wrap('_showStory2RetryScreen', () => {
@@ -236,7 +284,13 @@ async function runAttempt(browser, ch, attempt) {
       const origEnd = window.endGame;
       window.endGame = function () {
         const h = host();
-        if (!h || BRAIN) return origEnd.apply(this, arguments);
+        if (!h) return origEnd.apply(this, arguments);
+        // The brain plays with isAI=false, but endGame's _brainDriven check still refuses it a
+        // story win; hide the link for the duration of the call.
+        if (BRAIN) {
+          const L = Brain.live; L.f = null;
+          try { return origEnd.apply(this, arguments); } finally { L.f = h; }
+        }
         h.isAI = false;
         try { return origEnd.apply(this, arguments); } finally { h.isAI = true; }
       };
@@ -260,6 +314,10 @@ async function runAttempt(browser, ch, attempt) {
       function waypoint(h) {
         if (typeof puzzleModeActive !== 'undefined' && puzzleModeActive && puzzleSwitches[puzzleStep])
           return puzzleSwitches[puzzleStep];
+        if (typeof damnationActive !== 'undefined' && damnationActive) {
+          if (damnationPortalActive && damnationPortal) return damnationPortal;
+          if (damnationAnchorOrbs.length) return damnationAnchorOrbs[0];
+        }
         if (typeof scavengeModeActive !== 'undefined' && scavengeModeActive) {
           const left = scavengeItems.filter(s => !s.collected);
           if (left.length) return left.reduce((a, b) => Math.abs(b.x - h.cx()) < Math.abs(a.x - h.cx()) ? b : a);
@@ -271,16 +329,41 @@ async function runAttempt(browser, ch, attempt) {
       // Sovereign never steps off a ledge to reach a target below him (no
       // drop-through exists). After a stretch with no damage dealt and the target
       // well below, walk him off the nearer edge of whatever he stands on.
-      function dropEdge(h, nav) {
-        const t = h.target;
+      // A waypoint (scavenge item, switch) below him is the same problem with no wait:
+      // pass `pt` = {x, y} with y as the point's centre.
+      function dropEdge(h, nav, pt) {
+        const t = pt ? { cx: () => pt.x, y: pt.y - h.h / 2 } : h.target;
+        // Finish a fall once started: steering back at a point behind him lands him on the ledge again.
+        if (!h.onGround && nav.dropWp) return nav.dropWp;
+        nav.dropWp = null;
         if (!t || !h.onGround || t.y - h.y < 120) return null;
-        if (performance.now() - T.lastDealt < 5000) return null;
+        if (!pt && performance.now() - T.lastDealt < 5000) return null;
         const pls = (typeof currentArena !== 'undefined' && currentArena && currentArena.platforms) || [];
         const feet = h.y + h.h;
         const pl = pls.find(p => h.x + h.w > p.x && h.x < p.x + p.w && Math.abs(feet - p.y) < 8 && !p.isFloor);
         if (!pl) return null;
         if (nav.dropPl !== pl) { nav.dropPl = pl; nav.dropSide = t.cx() < pl.x + pl.w / 2 ? -1 : 1; }
-        return { x: nav.dropSide < 0 ? pl.x - h.w - 20 : pl.x + pl.w + h.w + 20, y: null, drop: true };
+        return nav.dropWp = { x: nav.dropSide < 0 ? pl.x - h.w - 20 : pl.x + pl.w + h.w + 20, y: null, drop: true };
+      }
+      // Knocked or stepped into a floor gap mid-fight: the pilot never spends its double jump to get
+      // back (the game's own FELL OFF tip says to). Do what that tip says: double jump, drift to the
+      // nearest surface above the drop.
+      function recoverFall(f) {
+        if (f.onGround || !f.canDoubleJump || f.vy <= 1) return;
+        const feet = f.y + f.h, pls = (currentArena && currentArena.platforms) || [];
+        const live = pls.filter(p => !p.isFloorDisabled);
+        if (live.some(p => f.cx() >= p.x - 10 && f.cx() <= p.x + p.w + 10 && p.y >= feet - 4 && p.y <= feet + 220)) return;
+        let best = null, bd = Infinity;
+        for (const p of live) {
+          if (p.y < feet - 160 || p.y > feet + 40) continue;
+          const ex = Math.max(p.x + 12, Math.min(p.x + p.w - 12, f.cx()));
+          const d = Math.abs(ex - f.cx());
+          if (d < bd) { bd = d; best = ex; }
+        }
+        if (best == null) return;
+        f.vy = -13; f.canDoubleJump = false;
+        f.vx = Math.sign(best - f.cx()) * Math.max(Math.abs(f.vx), 5);
+        T.fallSaves = (T.fallSaves || 0) + 1;
       }
       function installNav(h) {
         if (h.__ltNav) return;
@@ -308,9 +391,16 @@ async function runAttempt(browser, ch, attempt) {
             if (Brain.live && Brain.live.f === this) Brain.live.opp = best;
           } else if (!this.target || this.target.health <= 0) { try { this._acquireAITarget(); } catch (e) {} }
           const free = !activeCinematic && !isCinematic;
-          let wp = free ? (this.target ? dropEdge(this, nav) : waypoint(this)) : null;
+          let wp = null;
+          if (free && this.target) wp = dropEdge(this, nav);
+          else if (free) { wp = waypoint(this); if (wp && wp.y != null) wp = dropEdge(this, nav, wp) || wp; }
           T.navHold = !!wp;
-          if (!wp) { if (this.onGround) nav.dropPl = null; T.aiFrames++; return inner.apply(this, arguments); }
+          if (!wp) {
+            if (this.onGround) nav.dropPl = null;
+            T.aiFrames++;
+            recoverFall(this);
+            return inner.apply(this, arguments);
+          }
           if (wp.drop) T.dropFrames++; else T.navFrames++;
           const dx = wp.x - this.cx();
           if (nav.backoff > 0) nav.backoff--;
@@ -322,13 +412,20 @@ async function runAttempt(browser, ch, attempt) {
           const spd = 5.2 * (this.classSpeedMult || 1);
           this.vx = Math.abs(dx) > 14 || nav.backoff > 0 ? nav.dir * spd : this.vx * 0.5;
           this.facing = nav.dir;
-          const wantUp = !wp.drop && wp.y != null && wp.y < this.cy() - 70 && Math.abs(dx) < 140;
+          // Pickups take |dy| < 60 (updateScavengeMode); one at y 330 is 68 px over a floored
+          // fighter's centre, so hop for anything above that window, as a player would.
+          const wantUp = !wp.drop && wp.y != null && wp.y < this.cy() - 50 && Math.abs(dx) < 140;
           // Jump floor gaps (cache shafts dead-end in tunnels a walker can't leave).
           let gap = false;
           if (!wp.drop && this.onGround && Math.abs(dx) > 80) {
             const feet = this.y + this.h, probe = this.cx() + nav.dir * 70;
             const pls = (currentArena && currentArena.platforms) || [];
             gap = !pls.some(p => !p.isFloorDisabled && probe >= p.x && probe <= p.x + p.w && p.y >= feet - 12 && p.y <= feet + 60);
+          }
+          // Falling with nothing below: spend the double jump, as a player crossing a void gap would.
+          if (!wp.drop && !this.onGround && this.vy > 1) {
+            const feet = this.y + this.h, pls = (currentArena && currentArena.platforms) || [];
+            gap = !pls.some(p => !p.isFloorDisabled && this.cx() >= p.x - 10 && this.cx() <= p.x + p.w + 10 && p.y >= feet - 4 && p.y <= feet + 220);
           }
           const jump = !wp.drop && (nav.stuck > 12 || wantUp || gap);
           if (this.onGround && jump) {
@@ -371,13 +468,24 @@ async function runAttempt(browser, ch, attempt) {
           }
           const h = host();
           installNav(h);
+          const cpBoss = typeof _storyBossCpTarget === 'function' && _storyBossCpTarget();
+          if (cpBoss && cpBoss.maxHealth && cpBoss._cpStocks !== undefined) T.minBossFrac = Math.min(T.minBossFrac == null ? 1 : T.minBossFrac, _storyBossCpFrac(cpBoss));
           if (T.livesStart == null) { T.livesStart = h.lives; T.weapon = h.weaponKey; T.cls = h.charClass; }
           T.maxHp = Math.max(T.maxHp, h.maxHealth || 0);
+          // Crowd pressure: hostiles alive within 220 px. Damage and deaths are bucketed by it
+          // (0, 1, 2, 3+) so a chapter's losses read as "too strong" or "too many at once".
+          if (T.frames % 6 === 0) {
+            const foes = (typeof minions !== 'undefined' ? minions : []).concat(players)
+              .filter(e => e && e !== h && e.health > 0 && !(typeof areAlliedEntities === 'function' && areAlliedEntities(h, e)));
+            T.near = foes.filter(e => Math.abs(e.cx() - h.cx()) < 220 && Math.abs(e.cy() - h.cy()) < 160).length;
+            T.crowdMax = Math.max(T.crowdMax, T.near);
+          }
           if (T.hp != null) {
             const d = T.hp - h.health;
-            if (d > 0) { T.dmgTaken += d; progress(); } else if (d < 0 && h.health < h.maxHealth) T.healed -= d;
+            if (d > 0) { T.dmgTaken += d; T.dmgByCrowd[Math.min(3, T.near)] += d; progress(); } else if (d < 0 && h.health < h.maxHealth) T.healed -= d;
           }
           if (T.lives != null && h.lives < T.lives) {
+            T.deathCrowd.push(T.near);
             T.deaths += T.lives - h.lives; progress();
             if (T.lastY > (typeof GAME_H !== 'undefined' ? GAME_H : 520) + 60) T.falls++;
           }
@@ -397,6 +505,19 @@ async function runAttempt(browser, ch, attempt) {
         } catch (e) { T.note = 'sampler: ' + e.message; }
       }
       requestAnimationFrame(tick);
+      T.retryLog = [];
+      T.pressRetry = () => {
+        const cp = document.getElementById('_retryCheckpointBtn');
+        const btn = cp || document.getElementById('_retryChapterBtn');
+        if (!btn) return null;
+        const row = { via: cp ? 'checkpoint' : 'restart', mark: typeof _storyBossCp !== 'undefined' && _storyBossCp ? _storyBossCp.frac : null,
+          lowest: T.minBossFrac == null ? null : +T.minBossFrac.toFixed(3), sec: Math.round((performance.now() - T.startT) / 1000) };
+        T.retryLog.push(row);
+        T.minBossFrac = null; T.hp = null; T.lives = null; T.note = ''; T.result = null; progress();
+        btn.click();
+        requestAnimationFrame(tick);
+        return row;
+      };
 
       if (typeof SovQTE !== 'undefined') SovQTE.enable();
       _activeStory2Chapter = ch;
@@ -405,12 +526,12 @@ async function runAttempt(browser, ch, attempt) {
       if (ch.beat && typeof _playChapterBeat === 'function') _playChapterBeat(ch, () => { if (!T.result) { T.result = 'WIN'; T.note = 'beat cleared'; } });
       else _launchChapterWithGauntlet(ch);
       return 'ok';
-    }, ch.id, DIFFICULTY, STALL_S, PILOT, CKPT);
+    }, ch.id, DIFFICULTY, STALL_S, PILOT, CKPT, progressTree(ch.id));
     if (launched !== 'ok') return { result: 'CRASH', note: 'launch: ' + launched };
 
     const deadline = Date.now() + TIMEOUT_S * 1000;
     let T = null;
-    let tickN = 0;
+    let tickN = 0, retriesUsed = 0;
     while (Date.now() < deadline) {
       await sleep(1000);
       if (SHOTS_S && ++tickN % SHOTS_S === 0) {
@@ -423,6 +544,11 @@ async function runAttempt(browser, ch, attempt) {
       T = await page.evaluate(() => window.__lt &&
         Object.assign({}, window.__lt, { seconds: Math.round((performance.now() - window.__lt.startT) / 1000) })).catch(() => null);
       if (!T) break;
+      if (T.result === 'LOSS' && retriesUsed < CP_RETRIES) {
+        await sleep(1500); // the retry screen draws on the next frame
+        const row = await page.evaluate(() => window.__lt.pressRetry()).catch(() => null);
+        if (row) { retriesUsed++; console.log(`[lt]   ch ${ch.id} retry ${retriesUsed}: ${JSON.stringify(row)}`); continue; }
+      }
       if (T.result) break;
       if (errors.length > bootErrs) { T.result = 'CRASH'; T.note = errors[errors.length - 1].slice(0, 300); break; }
     }
@@ -463,9 +589,15 @@ function summarize(ch, atts) {
     attempts: n, wins: wins.length, winRate, score, label,
     strainOnWins: strain == null ? null : +strain.toFixed(2),
     deathsOnWins: avg(wins, a => a.deaths), dmgTakenOnWins: avg(wins, a => a.dmgTaken),
-    minHpPctOnWins: avg(wins, a => a.minHpPct * 100), secondsOnWins: avg(wins, a => a.seconds),
+    minHpPctOnWins: avg(wins, a => a.minHpPct * 100), expOnWins: avg(wins, a => a.expGain || 0), skillNodes: atts.length ? atts[0].skills : 0, secondsOnWins: avg(wins, a => a.seconds),
     walkerPct: avg(atts, a => 100 * a.navFrames / Math.max(1, a.navFrames + a.aiFrames + a.dropFrames)),
     dropAssistPct: avg(atts, a => 100 * a.dropFrames / Math.max(1, a.navFrames + a.aiFrames + a.dropFrames)),
+    crowdMax: Math.max(0, ...atts.map(a => a.crowdMax || 0)),
+    // Share of all damage taken while 3+ hostiles were within reach, and deaths with 3+ near.
+    crowdDmgPct: (() => { const t = atts.reduce((s, a) => s + (a.dmgByCrowd || [0]).reduce((x, y) => x + y, 0), 0);
+      return t ? Math.round(100 * atts.reduce((s, a) => s + ((a.dmgByCrowd || [])[3] || 0), 0) / t) : null; })(),
+    deathsInCrowd: atts.reduce((s, a) => s + (a.deathCrowd || []).filter(n => n >= 3).length, 0),
+    deathsTotal: atts.reduce((s, a) => s + (a.deathCrowd || []).length, 0),
     outcomes: atts.map(a => a.result), notes: [...new Set(atts.map(a => a.note).filter(Boolean))],
     errors: [...new Set(atts.flatMap(a => a.errors || []))].slice(0, 3),
     raw: atts.map(a => { const { completed, hp, lives, lastProgress, startT, snap, lastY, ...k } = a; return k; }),
@@ -531,7 +663,17 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
       '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
   const sysChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   if (fs.existsSync(sysChrome)) launchOpts.executablePath = sysChrome;
-  const browser = await puppeteer.launch(launchOpts);
+  let browser = await puppeteer.launch(launchOpts);
+  // Chrome dies after ~160 pages in one session; relaunch it and retry the attempt.
+  let relaunching = null, sinceLaunch = 0, gen = 0;
+  async function relaunch() {
+    if (!relaunching) relaunching = (async () => {
+      try { await browser.close(); } catch {}
+      browser = await puppeteer.launch(launchOpts); sinceLaunch = 0; gen++;
+      console.log('[lt] relaunched browser');
+    })().finally(() => { relaunching = null; });
+    return relaunching;
+  }
 
   const all = await readChapters(browser);
   const misaligned = all.filter(c => c.id !== c.idx);
@@ -552,13 +694,20 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
   async function worker() {
     while (jobs.length) {
       const { ch, a } = jobs.shift();
-      const r = await runAttempt(browser, ch, a);
+      if (relaunching) await relaunching;
+      if (++sinceLaunch > 100 && !relaunching) await relaunch();
+      const g = gen;
+      let r = await runAttempt(browser, ch, a);
+      if (r.result === 'CRASH' && (g !== gen || !browser.connected || /Connection closed|detached/.test(r.note || ''))) {
+        if (g === gen) await relaunch(); else if (relaunching) await relaunching;
+        r = await runAttempt(browser, ch, a);
+      }
       done++;
       if (!results.has(ch.id)) results.set(ch.id, []);
       results.get(ch.id).push(r);
       console.log(`[lt] ${done} · ch ${ch.id} ${ch.title} #${a + 1}: ${r.result}${r.note ? ' — ' + r.note : ''}` +
         (r.livesStart != null ? ` (${r.cls}/${r.weapon}, deaths ${r.deaths}/${r.livesStart}, dmg taken ${Math.round(r.dmgTaken)}` +
-          ` dealt ${Math.round(r.dmgDealt)}, falls ${r.falls}, hurt by ${JSON.stringify(Object.fromEntries(Object.entries(r.hurtBy || {}).map(([k, v]) => [k, Math.round(v)])))}, furthest x ${Math.round(r.maxX)}, walker ${Math.round(100 * r.navFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, drop assist ${Math.round(100 * r.dropFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, ${r.seconds}s)` : ''));
+          ` dealt ${Math.round(r.dmgDealt)}, falls ${r.falls} (saved ${r.fallSaves | 0}), hurt by ${JSON.stringify(Object.fromEntries(Object.entries(r.hurtBy || {}).map(([k, v]) => [k, Math.round(v)])))}, furthest x ${Math.round(r.maxX)}, walker ${Math.round(100 * r.navFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, drop assist ${Math.round(100 * r.dropFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, ${r.seconds}s)` : ''));
       if (results.get(ch.id).length === ATTEMPTS) {
         rows.set(ch.id, summarize(ch, results.get(ch.id)));
         const ordered = chapters.map(c => rows.get(c.id)).filter(Boolean);

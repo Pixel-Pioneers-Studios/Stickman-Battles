@@ -3005,7 +3005,9 @@ function checkDeaths() {
         if (!p.ragdollTimer) { p.ragdollTimer = 45; p.ragdollSpin = (Math.random() - 0.5) * 0.25; }
         if (!p._anchorDropped) {
           p._anchorDropped = true;
-          damnationAnchorOrbs.push({ x: p.cx(), y: p.y + p.h / 2, frame: 0 });
+          // Worth 3: minion wave 2 + Creator echo 3 + Axiom echo 3 = the 8 the portal needs.
+          // Clamped: a ragdolled or falling body left orbs under the floor (y 460), out of pickup reach.
+          damnationAnchorOrbs.push({ x: Math.max(60, Math.min(GAME_W - 60, p.cx())), y: Math.max(140, Math.min(410, p.cy())), frame: 0, value: 3 });
         }
         p.invincible = 999;
         damnationCheckpoint = Math.max(damnationCheckpoint, damnationWave);

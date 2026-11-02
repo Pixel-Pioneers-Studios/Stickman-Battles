@@ -999,7 +999,8 @@ const _SL_BIOME = {
   crystal:{ top: '#5a5a7a', lip: '#3a3a5a', rock: '#22203a' },
   desert: { top: '#d8b878', lip: '#b8985a', rock: '#6a4a2e' },
   snow:   { top: '#e8eef2', lip: '#c8d2da', rock: '#4a5260' },
-  void:   { top: '#1e1a2e', lip: '#2a2440', rock: '#0e0c18' },
+  // Void islands sit on a near-black sky, so they run lighter with a lit edge or the footing can't be seen.
+  void:   { top: '#3a3256', lip: '#4a4070', rock: '#1c1830', edge: 'rgba(200,170,255,0.55)' },
 };
 function _slIsland(x0, x1, y, biome, ph, seed) {
   const B = _SL_BIOME[biome] || _SL_BIOME.void;
@@ -1022,7 +1023,7 @@ function _slIsland(x0, x1, y, biome, ph, seed) {
   for (let i = 0; i < n; i++) ctx.fillRect(x0 + (i + 0.3) * (x1 - x0) / n, y + 20 + _slHash(i * 3 + (seed || 0)) * 40, 4, 30);
   // Lip
   ctx.fillStyle = B.lip; ctx.fillRect(x0, y, x1 - x0, 12);
-  ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x0, y, x1 - x0, 1.5);
+  ctx.fillStyle = B.edge || 'rgba(255,255,255,0.12)'; ctx.fillRect(x0, y, x1 - x0, B.edge ? 2 : 1.5);
   // Torn edges glow faintly
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   ctx.fillStyle = 'rgba(190,150,255,0.35)'; ctx.fillRect(x0 - 1, y - 16, 2, 60); ctx.fillRect(x1 - 1, y - 16, 2, 60);

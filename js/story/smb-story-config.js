@@ -205,6 +205,7 @@ function storyNewGame() {
 //   mercyTo:   chapters below this keep the onboarding mercy band.
 //   duelExtra: escorts that join every walk-level duel.
 //   reward:    multiplier on chapter and side-portal token payouts.
+//   atkSlots:  story enemies that may swing at the player at once (0 = no cap). See storyCrowdVeto.
 // Evolution is permanent for a save: only New Game exits it.
 const STORY_DIFFICULTIES = {
   story: {
@@ -212,21 +213,21 @@ const STORY_DIFFICULTIES = {
     tagline: 'Experience the story with little fighting.',
     lines: ['Enemies are much weaker and slower', 'Easy bot intelligence', 'Fewer enemies in explore levels'],
     shift: 0, hpCap: 1, dmgCap: 1, hp: 0.45, dmg: 0.35, cd: 1.45, speed: 1,
-    predict: -1, dodge: -1, ai: 'easy', exploreCap: -2, mercyTo: 6, duelExtra: 0, reward: 1,
+    predict: -1, dodge: -1, ai: 'easy', exploreCap: -2, mercyTo: 6, duelExtra: 0, reward: 1, atkSlots: 1, cpMarks: [0.75, 0.5, 0.25],
   },
   normal: {
     name: 'Normal', color: '#aaffbb',
     tagline: 'The fight as it was designed.',
     lines: ['Enemies grow stronger as the story goes on', 'Normal bot intelligence'],
     shift: 0, hpCap: 1, dmgCap: 1, hp: 1, dmg: 1, cd: 1, speed: 1,
-    predict: 0, dodge: 0, ai: 'medium', exploreCap: 0, mercyTo: 6, duelExtra: 0, reward: 1,
+    predict: 0, dodge: 0, ai: 'medium', exploreCap: 0, mercyTo: 6, duelExtra: 0, reward: 1, atkSlots: 2, cpMarks: [0.75, 0.5, 0.25],
   },
   challenge: {
     name: 'Challenge', color: '#ffcc66',
     tagline: 'Stronger enemies arrive earlier.',
     lines: ['Enemies are a few chapters ahead of you', 'Tougher enemies', 'Hard bot intelligence', 'No beginner mercy', 'An extra enemy joins every duel', '+50% tokens'],
-    shift: 6, hpCap: 1.15, dmgCap: 1, hp: 1, dmg: 1, cd: 0.92, speed: 1.06,
-    predict: 0.04, dodge: 0.03, ai: 'hard', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [140, 200], earlyHit: [14, 20], duelExtra: 1, reward: 1.5,
+    shift: 6, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1, cd: 0.88, speed: 1.08,
+    predict: 0.04, dodge: 0.03, ai: 'hard', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [140, 200], earlyHit: [14, 20], duelExtra: 1, reward: 1.5, atkSlots: 3, cpMarks: [0.66, 0.33],
   },
   evolution: {
     name: 'Evolution', color: '#ff6644',
@@ -234,7 +235,7 @@ const STORY_DIFFICULTIES = {
     lines: ['Enemies are ten chapters ahead of you, faster and sharper', 'Expert bot intelligence', 'Enemies adapt to any move you repeat: vary your attacks',
             'No beginner mercy', 'An extra enemy joins every duel', 'Double tokens', 'Can never be changed without wiping story progress'],
     shift: 10, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1, cd: 0.88, speed: 1.08,
-    predict: 0.08, dodge: 0.06, ai: 'expert', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [160, 240], earlyHit: [17, 22], duelExtra: 1, reward: 2,
+    predict: 0.08, dodge: 0.06, ai: 'expert', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [160, 240], earlyHit: [17, 22], duelExtra: 1, reward: 2, atkSlots: 0, cpMarks: [0.5],
   },
 };
 const STORY_DIFFICULTY_ORDER = ['story', 'normal', 'challenge', 'evolution'];
@@ -1750,7 +1751,8 @@ function _spiritPanelHTML(rep) {
 function _showStory2RetryScreen(ch) {
   // Read the death NOW: the fighters still exist; by the next frame they may not.
   const _death = _storyBuildDeathReport(ch);
-  const _canResume = !!(_story2.cpResume && _story2.cpResume.chId === ch.id && !storyPhaseIndicator);
+  const _bossCp = typeof storyBossCpFor === 'function' ? storyBossCpFor(ch) : null;
+  const _canResume = !!_bossCp || !!(_story2.cpResume && _story2.cpResume.chId === ch.id && !storyPhaseIndicator);
   // Ad-gated continue: once per chapter attempt, only when a real ad SDK is live.
   const _adOk = window._storyAdUsedCh !== ch.id && typeof AdManager !== 'undefined' &&
     AdManager.rewardedReady && AdManager.rewardedReady();
@@ -1823,6 +1825,7 @@ function _showStory2RetryScreen(ch) {
       if (btnRow) btnRow.style.display = '';
       storyModeActive = false;
       if (typeof backToMenu === 'function') backToMenu();
+      if (typeof storyBossCpClear === 'function') storyBossCpClear();
       setTimeout(() => _beginChapter2(ch.id), 350);
     };
 
@@ -1839,7 +1842,8 @@ function _showStory2RetryScreen(ch) {
         if (_story2.runState) _story2.runState.healthPct = 1;
         _story2.health = null;
         window._storyAdResume = { chId: ch.id, index: _fellPhase };
-        if (_canResume) window._storyResumeCpFor = ch.id;
+        if (_bossCp) storyBossCpArmResume(ch);
+        else if (_canResume) window._storyResumeCpFor = ch.id;
         setTimeout(() => _beginChapter2(ch.id), 350);
       }, () => { adBtn.disabled = false; });
     };
@@ -1850,8 +1854,16 @@ function _showStory2RetryScreen(ch) {
       if (btnRow) btnRow.style.display = '';
       storyModeActive = false;
       if (typeof backToMenu === 'function') backToMenu();
-      // Consumed by _launchExplorationChapter for this chapter only
-      window._storyResumeCpFor = ch.id;
+      if (_bossCp) {
+        // Full health and lives; the boss keeps the damage up to its checkpoint.
+        if (_story2.runState) _story2.runState.healthPct = 1;
+        _story2.health = null;
+        window._storyAdResume = { chId: ch.id, index: _fellPhase };
+        storyBossCpArmResume(ch);
+      } else {
+        // Consumed by _launchExplorationChapter for this chapter only
+        window._storyResumeCpFor = ch.id;
+      }
       setTimeout(() => _beginChapter2(ch.id), 350);
     };
 

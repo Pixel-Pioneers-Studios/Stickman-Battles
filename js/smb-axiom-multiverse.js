@@ -1,8 +1,7 @@
 // absolute axiom: the multiverse fight. Four locations, one per HP band.
 // Each location changes the rules, not just the look. The Dimension Punch is the
 // transition: a full-frame flight across the universe into the next location.
-// Hazards hit AA too (credited to the player). Story mode (ch 167/169) keeps the
-// original single arena.
+// Hazards hit AA too (credited to the player). Story chapters 167/169 each play one HP band.
 // Depends on: smb-absolute-axiom.js (AbsoluteAxiom), smb-data-arenas.js (arenas).
 // Hooks: AbsoluteAxiom.update/draw/_pickSpecial, gameLoop (flight takeover, world draw, overlay).
 
@@ -181,7 +180,7 @@ const AAMultiverse = {
   },
 
   enabled() {
-    return !(typeof storyModeActive !== 'undefined' && storyModeActive);
+    return true;
   },
 
   inWorld() {

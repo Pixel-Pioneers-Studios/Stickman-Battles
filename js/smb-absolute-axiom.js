@@ -83,6 +83,8 @@ const AA_STUN_MAX      = 45;  // longest single stun the RGS kit can apply
 const AA_STUN_IMMUNE   = 300; // stun immunity after any stun ends
 const AA_MELEE_REACH   = 120; // strike only connects in front, inside this
 const AA_MELEE_RECOVER = 40;  // 30 in phase 3: AA stands exposed after a strike
+const AA_QTE_PHASE     = 5;   // QTE_PHASES entry for the checkpoint events
+const AA_MELEE_LOCK    = 12;  // strike direction freezes this many frames before it lands
 
 function _aaDialogue(lines, dur) {
   if (!Array.isArray(lines) || !lines.length) return;
@@ -114,7 +116,8 @@ function _onAbsoluteAxiomDefeated() {
       if (p && !p.isBoss) { p._storyNoSuper = false; }
     }
   }
-  if (typeof unlockAchievement === 'function') unlockAchievement('absolute_axiom_slayer');
+  const _bandEnd = Array.isArray(minions) && minions.some(m => m.isAbsoluteAxiom && m._storyBandEnded);
+  if (!_bandEnd && typeof unlockAchievement === 'function') unlockAchievement('absolute_axiom_slayer');
   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 60);
   if (typeof CinFX !== 'undefined') {
     CinFX.flash('#ff6600', 0.9, 30);
@@ -130,7 +133,6 @@ function _onAbsoluteAxiomDefeated() {
   }
     // Story: endGame, so story2OnMatchEnd completes the chapter. Standalone: the defeat card.
   if (typeof storyModeActive !== 'undefined' && storyModeActive) {
-    window._aaStoryHealth = null;
     setTimeout(() => { if (typeof endGame === 'function') endGame(); }, 900);
     return;
   }
@@ -169,6 +171,7 @@ class AbsoluteAxiom extends God {
     this.h               = 66;
 
     this._phase      = 2; // always use God's phase-2 movement system
+    this._openHitFrac = 0.01;
     this.health      = 1000000;
     this.maxHealth   = 1000000;
     this.dmgMult     = 2.2;
@@ -177,8 +180,6 @@ class AbsoluteAxiom extends God {
     this._attackCd   = 100;
     this._specialCd  = 280;
     this._dashCd     = 90;
-
-    // Story uses full-power AA (no downscaling), same as standalone.
 
     this._aaPhase        = 1; // 1→2 at 70%, 2→3 at 35%
     this._phase2Fired    = false;
@@ -353,7 +354,14 @@ class AbsoluteAxiom extends God {
   update() {
     if (this.health <= 0) return;
     if (typeof activeCinematic !== 'undefined' && activeCinematic) return;
-    // Standalone fight: location chain + Dimension Punch transitions (smb-axiom-multiverse.js)
+    if (typeof QTE_STATE !== 'undefined' && QTE_STATE) return;
+    // A story chapter can stop at an HP band; the next chapter resumes from there.
+    if (this._storyEndFrac && this.health / this.maxHealth <= this._storyEndFrac) {
+      this._storyBandEnded = true;
+      this.health = 0;
+      return;
+    }
+    // Location chain + Dimension Punch transitions (smb-axiom-multiverse.js)
     if (typeof AAMultiverse !== 'undefined') {
       AAMultiverse.tick(this);
       if (AAMultiverse.holdBoss(this)) return;
@@ -429,6 +437,7 @@ class AbsoluteAxiom extends God {
       this._finalAssaultPending = false;
       _startAAFinalAssaultCinematic(this);
     }
+    if (this._checkpointQtePending && this._tryCheckpointQTE()) this._checkpointQtePending = false;
     // Remove portal invincibility when enough allies are active
     if (this._portalInvincible) {
       // Enforced every frame. dealDamage checks target.invincible. The 2-frame floor expires on its own.
@@ -471,6 +480,16 @@ class AbsoluteAxiom extends God {
     if (this._idleDialogueTimer <= 0) {
       this._idleDialogueTimer = 420 + Math.floor(Math.random() * 180);
       _aaDialogue(AA_IDLE_LINES, 160);
+    }
+
+    this._tickOpening();
+    if (this._openingT > 0) {
+      this._updateColumns();
+      this._updateNova();
+      this._updateSmiteRings();
+      this.vx *= 0.85;
+      super.update();
+      return;
     }
 
     // Stun freezes movement and attacks. Capped, then immune. Uncapped, the RGS kit chained stuns for half the fight.
@@ -638,7 +657,8 @@ class AbsoluteAxiom extends God {
 
     // Melee windup: the strike fires after 35 frames by default.
     // The punish ledger changes the timing: crossup 28 frames, delayed 47.
-    if (minDist < 155 && this._attackCd <= 0 && !this._meleeWindup && !this._meleeRecover) {
+    // Close to the next special the melee holds back, or it starves the specials while the player stays close.
+    if (minDist < 155 && this._attackCd <= 0 && this._specialCd > 45 && !this._meleeWindup && !this._meleeRecover) {
       this._meleeWindup = 1;
       this._meleeWindupTarget = target;
       this._meleeFacing = this.facing;
@@ -671,6 +691,8 @@ class AbsoluteAxiom extends God {
         this._meleeWindupTarget = null;
       } else {
         this._meleeWindup++;
+        // Tracks the target until AA_MELEE_LOCK frames before the strike: a late step behind dodges, an early one doesn't.
+        if (this._meleeWindup <= (this._meleeWindupDur || 35) - AA_MELEE_LOCK) this._meleeFacing = this.facing;
         if (this._meleeWindup >= (this._meleeWindupDur || 35) && typeof dealDamage === 'function') {
           // Snapshot HP before the strike; outcome resolves ~20 frames later
           if (this._behaviorModel && this._bmMeleeRoute && this._meleeWindupTarget) {
@@ -697,7 +719,10 @@ class AbsoluteAxiom extends God {
       }
     }
 
-    if (this._specialCd <= 0 && !this._meleeWindup && !this._meleeRecover) this._pickSpecial(target);
+    if (this._specialCd <= 0 && !this._meleeWindup && !this._meleeRecover) {
+      this._pickSpecial(target);
+      this._openingWatchStart(target);
+    }
   }
 
   _logPlayerAction(target) {
@@ -1283,15 +1308,48 @@ class AbsoluteAxiom extends God {
       const GH = typeof GAME_H !== 'undefined' ? GAME_H : 520;
       for (let i = 0; i < 6; i++) spawnParticles(GW * 0.1 + Math.random() * GW * 0.8, GH * 0.3 + Math.random() * GH * 0.4, '#cc00ff', 14);
     }
-    // Trigger QTE if available
-    if (typeof _startQTE === 'function') {
-      const qteKey = `aa_checkpoint_${threshold}`;
-      if (typeof activeCinematic === 'undefined' || !activeCinematic) {
-        try {
-          _startQTE({ id: qteKey, stages: 4, windowMs: 1800, successDmg: 60000, source: this });
-        } catch(e) {}
-      }
-    }
+    this._checkpointQtePending = true;
+  }
+
+  // Waits for a clear moment: cinematics, the Dimension Punch and another QTE all own the frame.
+  _tryCheckpointQTE() {
+    const hero = this.target;
+    if (typeof _startQTE !== 'function' || typeof QTE_PHASES === 'undefined' || !QTE_PHASES[AA_QTE_PHASE]) return true;
+    if (!hero || hero.health <= 0 || !players.includes(hero)) return false;
+    if ((typeof isCinematic !== 'undefined' && isCinematic) || activeCinematic ||
+        (typeof activeFinisher !== 'undefined' && activeFinisher) ||
+        (typeof QTE_STATE !== 'undefined' && QTE_STATE) ||
+        (typeof AAMultiverse !== 'undefined' && (AAMultiverse.trans || AAMultiverse.flight))) return false;
+    _startQTE(AA_QTE_PHASE, this, hero);
+    return true;
+  }
+
+  _openingLive() {
+    return super._openingLive() || !!(this._kernelPulseRings.length || this._voidSpears.length || this._kernelBeam ||
+      this._singularity || this._genesisStar || this._absoluteStrike || this._columnBarrage.length ||
+      this._aaNova.length || this._aerialSlam);
+  }
+
+  _openingBreakAttack() {
+    super._openingBreakAttack();
+    this._aerialSlam = null;
+    this._absoluteStrike = null;
+    this._meleeWindup = 0;
+    this._meleeWindupTarget = null;
+    this._meleeRecover = 0;
+    this._locomotionMode = 'walk';
+    this._flyVy = 0;
+  }
+
+  // Story chapters each play one HP band of the fight. Marks earlier bands as already played.
+  _applyStoryBand(ch) {
+    if (ch.aaEndFrac) this._storyEndFrac = ch.aaEndFrac;
+    const start = ch.aaStartFrac;
+    if (!start || start >= 1) return;
+    this.health = Math.round(this.maxHealth * start);
+    this._cpStartFrac = start;
+    for (const t of this._checkpointThresholds) if (this.health <= t) this._checkpointsFired.add(t);
+    if (start <= 0.70) { this._phase2Fired = true; this._aaPhase = 2; this._specialCd = 160; this._dashCd = 50; }
   }
 
   _doDimensionPunch(target) {
@@ -1624,6 +1682,7 @@ class AbsoluteAxiom extends God {
     this._drawEffects(cx, cy);
 
     this._drawHealthBar(cx, hpFrac);
+    this._drawOpening();
   }
 
   _drawHealthBar(cx, hpFrac) {
@@ -2093,7 +2152,7 @@ function _initRGS(player) {
   player._rgsComboTimer  = 0;
   player.kbResist = Math.max(player.kbResist || 0, 0.55);
   _rgsApplyLoadoutWeapon(player, 0);
-  if (typeof showBossDialogue === 'function') showBossDialogue('Reinforced God Slayer activated.', 180);
+  if (typeof showBossDialogue === 'function') showBossDialogue(storyModeActive ? 'The fragment burns clear.' : 'Reinforced God Slayer activated.', 180);
   if (typeof CinFX !== 'undefined') CinFX.flash('#ffe066', 0.5, 16);
 }
 
@@ -2130,6 +2189,7 @@ function _rgsApplyLoadoutWeapon(player, loadoutIdx) {
 
 function _updateRGS(aa, player) {
   if (!player || player.health <= 0) return;
+  if (typeof QTE_STATE !== 'undefined' && QTE_STATE) return; // QTE prompts use the same keys
   if (!aa || !aa.isAbsoluteAxiom) return;
   _initRGS(player);
 

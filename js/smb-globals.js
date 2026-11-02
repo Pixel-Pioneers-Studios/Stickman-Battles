@@ -34,11 +34,32 @@ const SERVER_CONFIG = {
 
 const CHANGELOG = [
   {
+    version: '4.8.0',
+    title: 'NO MORE WALLS',
+    date: '2026-11-01',
+    flavor: 'Boss fights save your progress, the Fight Ladder teaches as you climb, and the toughest fights give you real openings.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',   text: 'Boss chapters have checkpoints at 75%, 50% and 25% of the fight. Retry from Checkpoint brings you back there with full health and lives, and skips the intro' },
+      { cat: 'Mode',    text: 'Fight Ladder: every rung now teaches one skill, from stringing hits to breaking a guard and timing your super. The tip shows when the fight starts, on the rung card and after a loss' },
+      { cat: 'Balance', text: 'Story crowds take turns: on Story difficulty one enemy swings at you at a time, on Normal two and on Challenge three. Evolution has no limit' },
+      { cat: 'Balance', text: 'Challenge is harder: enemies have more health, move faster and use their abilities more often' },
+      { cat: 'Balance', text: 'The two hardest 2-on-1 story fights give you two lives instead of one' },
+      { cat: 'Combat',  text: 'God: dodge an attack he commits to and a gold ring opens. Each new swing inside it takes a share of his health bar. He also goes after you instead of your ally, and allies do far less of the work', spoilerLevel: 2 },
+      { cat: 'Combat',  text: 'Absolute Axiom: dodging opens the same gold ring, his special attacks come out more often and his melee tracks you until just before the strike. The First Law prompt now deals its full damage', spoilerLevel: 3 },
+      { cat: 'Story',   text: 'The Absolute Axiom story fight is now one fight across two chapters, using the full Godslayer kit and the multiverse locations', spoilerLevel: 3 },
+      { cat: 'Fix',     text: 'Absolute Axiom no longer dies from being knocked below the stage. He flies back', spoilerLevel: 3 },
+      { cat: 'Fix',     text: 'Two story chapters could never be finished because their escape portal could not be fully charged. Enemies now drop enough orbs to open it', spoilerAct: 5 },
+      { cat: 'Fix',     text: 'The void islands in an early story chapter were nearly invisible. They are brighter and have lit edges' },
+      { cat: 'Visual',  text: 'New pixel effects for hits, explosions, supers, finishers and domains. Settings can switch them off' },
+    ],
+  },
+  {
     version: '4.7.3',
     title: 'YOUR KEYS, YOUR STREAK',
     date: '2026-10-30',
     flavor: 'Rebind every key, chain ten hits to open a Combo Domain, and new players get a hand that lets go as they improve.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Combat',  text: 'Combo Domain: land 10 hits in a row and your weapon opens a domain for 5 seconds. Your hits ignore guards and parries, shots fly straight, and each weapon adds its own boost' },
       { cat: 'Visual',  text: 'Fighters animate with bending arms and legs. Settings can switch back to the classic look' },
@@ -1283,7 +1304,7 @@ let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-const GAME_VERSION = '4.7.3';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.8.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 let debugMode          = false;

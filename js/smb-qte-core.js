@@ -27,6 +27,24 @@ const _QTE_MIRROR = { 'a': 'd', 'd': 'a', 'w': 's', 's': 'w', ' ': 'q', 'q': ' '
 const _QTE_ALL_KEYS = Object.keys(_QTE_KEY_MAP);
 
 const QTE_PHASES = {
+  // Absolute Axiom's checkpoint events: short, and they pay out a share of its bar.
+  5: {
+    id: 5,
+    name: 'FIRST LAW',
+    subtitle: 'The fragment answers. Hold it.',
+    promptCount: [4, 4],
+    windowFrames: 60,
+    mirrored: false,
+    simultaneous: false,
+    failDamage: 0.08,
+    successBonus: 60000,
+    noHeal: true,
+    bgIntensity: 0.4,
+    hpThreshold: 0,
+    maxAttempts: 2,
+    penaltyDamage: 0.25,
+  },
+
   // Phase 1: single prompts, 60-frame window each. Mild flicker and scanlines only.
   1: {
     id: 1,
@@ -447,10 +465,10 @@ function _startQTE(phaseId, bossRef, playerRef) {
     setCameraDrama('focus', 60, bossRef, 1.35);
   }
 
-  _qteShakeExtra = 28 + phaseId * 6;
+  _qteShakeExtra = phaseId === 5 ? 24 : 28 + phaseId * 6;
   screenShake = Math.max(screenShake, _qteShakeExtra);
 
-  _qteFlashColor = phaseId >= 3 ? '#ff00ff' : '#ffffff';
+  _qteFlashColor = phaseId === 5 ? '#ff6a2a' : phaseId >= 3 ? '#ff00ff' : '#ffffff';
   _qteFlashAlpha = 0.85;
 
   _spawnQTEBurst(bossRef.cx(), bossRef.cy(), 40, _phaseColor(phaseId));

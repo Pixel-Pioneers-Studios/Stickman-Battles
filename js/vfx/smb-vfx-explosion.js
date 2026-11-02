@@ -34,7 +34,8 @@ var __vfx_mod = (() => {
     const S = o.size ?? 1, RAD = 36 * S, POWER = 0.9 * Math.pow(S, 0.8), EARTH = o.earth ?? 1.6, RING = (o.shockwave ?? 80) * S, SCORCH = (o.scorch ?? 22) * S;
     const R = new Rng(o.seed ?? 1);
     const gr = o.ground ?? o.y ?? 600, groundAt = (x) => typeof gr === "number" ? gr : gr(x);
-    const X = o.x ?? 770, G = groundAt(X), Y = o.y ?? G;
+    // groundAt is Infinity over a gap; scorch() loops over G, so it must stay finite.
+    const X = o.x ?? 770, G0 = groundAt(X), G = isFinite(G0) ? G0 : (o.y ?? 600), Y = o.y ?? G;
     const ps = new Particles(R, groundAt), fx = new Fx(ps), rocks = new Bits(groundAt);
     const ST = stone(o.surface ?? STONE_BODY), gx = X / PX, gy = G / PX, cool = 1.2 + RAD / 28, thick = 2 + RAD / 18;
     const ringCols = [WHITE, PAL.hot, PAL.orange, ST.light, ST.body];

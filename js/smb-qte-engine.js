@@ -346,17 +346,18 @@ function _beginOutroSuccess() {
 
   const boss = s.bossRef;
   if (boss && boss.health > 0) {
-    if (s.def.successBonus >= 9999) {
+    if (s.def.id === 4) {
       // Phase 4: health 1 so the boss death scene triggers
       boss.health = 1;
       if (typeof dealDamage === 'function') dealDamage(s.playerRef, boss, 1, 0);
     } else {
+      boss.invincible = 0; // leftover hit i-frames would swallow the payout
       if (typeof dealDamage === 'function') dealDamage(s.playerRef, boss, s.def.successBonus, 0);
     }
   }
 
   const p1 = s.playerRef;
-  if (p1 && p1.health > 0) {
+  if (p1 && p1.health > 0 && !s.def.noHeal) {
     if (s.phase <= 2) {
       const _healAmt = Math.round(p1.maxHealth * 0.15);
       p1.health = Math.min(p1.maxHealth, p1.health + _healAmt);
@@ -587,6 +588,6 @@ function _buildWarpGrid(cols, rows) {
 }
 
 function _phaseColor(phaseId) {
-  return ['#ffffff', '#44aaff', '#aa44ff', '#ff4400', '#ff00ff'][phaseId] || '#ffffff';
+  return ['#ffffff', '#44aaff', '#aa44ff', '#ff4400', '#ff00ff', '#ff6a2a'][phaseId] || '#ffffff';
 }
 

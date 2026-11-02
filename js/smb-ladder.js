@@ -9,17 +9,30 @@
 // `tac` is the opponent's _btTune (smb-bot-tactics.js). The per-frame tactics
 // layer is what makes a bot punish and land its Q/E, and against it newcomers
 // won 0 of 16 headless duels, so it stays off until rung 9 (tools/bot-duel.js).
+// `lesson` makes each rung a skill check: _ladderLessonTick shapes the opponent so the
+// fight is hard to win without that skill, and the tip is shown at the start and on a loss.
+// Rungs build on each other; the last two ask for all of them at once.
 const LADDER_RUNGS = [
-  { name: 'Sparring Partner', weapon: 'sword',  cls: 'none',      diff: 'easy',   arena: 'colosseum', lives: 2 },
-  { name: 'Street Brawler',   weapon: 'combat', cls: 'pugilist',  diff: 'easy',   arena: 'city',      lives: 2 },
-  { name: 'Spearhand',        weapon: 'spear',  cls: 'warrior',   diff: 'medium', arena: 'grass',     lives: 2, tac: { skill: 0 } },
-  { name: 'Shadow Blade',     weapon: 'sword',  cls: 'ninja',     diff: 'medium', arena: 'clouds',    lives: 2, tac: { skill: 0 } },
-  { name: 'Axe Raider',       weapon: 'axe',    cls: 'kratos',    diff: 'medium', arena: 'forest',    lives: 3, tac: { skill: 0 } },
-  { name: 'Hammerfall',       weapon: 'hammer', cls: 'thor',      diff: 'medium', arena: 'ruins',     lives: 3, tac: { skill: 0 } },
-  { name: 'Wandering Ronin',  weapon: 'katana', cls: 'ronin',     diff: 'hard',   arena: 'city',      lives: 3, tac: { skill: 0 } },
-  { name: 'The Reaper',       weapon: 'scythe', cls: 'reaper',    diff: 'hard',   arena: 'colosseum', lives: 3, tac: { skill: 0 } },
-  { name: 'Berserker',        weapon: 'axe',    cls: 'berserker', diff: 'hard',   arena: 'ruins',     lives: 3, tac: { skill: 0.2, think: 10, hesitate: 70 } },
-  { name: 'Champion',         weapon: 'katana', cls: 'ronin',     diff: 'expert', arena: 'colosseum', lives: 3, tac: { skill: 0.7, think: 3, hesitate: 14 } },
+  { name: 'Sparring Partner', weapon: 'sword',  cls: 'none',       diff: 'easy',   arena: 'colosseum', lives: 2,
+    lesson: { key: 'basics', title: 'Move and swing', tip: 'A and D move, W jumps, Space swings. Walk in and hit him.' } },
+  { name: 'Street Brawler',   weapon: 'combat', cls: 'pugilist',   diff: 'easy',   arena: 'city',      lives: 2,
+    lesson: { key: 'combo', title: 'String your hits', tip: 'He shakes off one or two hits: that health comes back. Land three in a row and it stays gone.' } },
+  { name: 'Iron Knight',      weapon: 'flail',  cls: 'none',       diff: 'medium', arena: 'grass',     lives: 2, tac: { skill: 0 },
+    lesson: { key: 'slam', title: 'Guard the big hit', tip: 'When he glows gold, a slam is coming. Hold S to guard it, or step out of reach.' } },
+  { name: 'Axe Raider',       weapon: 'axe',    cls: 'kratos',     diff: 'medium', arena: 'forest',    lives: 3, tac: { skill: 0 },
+    lesson: { key: 'punish', title: 'Punish the miss', tip: 'His guard is up until he swings. Stay just out of reach, let the axe miss, then hit him.' } },
+  { name: 'The Wall',         weapon: 'sword',  cls: 'warrior',    diff: 'medium', arena: 'colosseum', lives: 3, tac: { skill: 0 },
+    lesson: { key: 'wall', title: 'Break the guard', tip: 'Swings never break his guard. E shatters it. Q wears it down, so Q then E.' } },
+  { name: 'Gunslinger',       weapon: 'gun',    cls: 'gunner',     diff: 'medium', arena: 'city',      lives: 3, tac: { skill: 0 },
+    lesson: { key: 'kite', title: 'Close the distance', tip: 'He backs off and shoots. Jump his shots, guard the ones you cannot jump, and corner him.' }, kite: [200, 380] },
+  { name: 'Spearhand',        weapon: 'spear',  cls: 'warrior',    diff: 'hard',   arena: 'grass',     lives: 3, tac: { skill: 0 },
+    lesson: { key: 'kite', title: 'Get inside the reach', tip: 'His spear outranges you and he steps back to keep you on the tip. Bait a poke, then step in behind it.' }, kite: [110, 140], kiteSpeed: 4.4 },
+  { name: 'Hammerfall',       weapon: 'hammer', cls: 'thor',       diff: 'hard',   arena: 'clouds',    lives: 3, tac: { skill: 0 }, kb: 1.35,
+    lesson: { key: 'recover', title: 'Come back from the edge', tip: 'His hammer will knock you off. Double jump (W again in the air) and drift back toward the stage. Do not jump straight at him.' } },
+  { name: 'Berserker',        weapon: 'axe',    cls: 'berserker',  diff: 'hard',   arena: 'ruins',     lives: 3, tac: { skill: 0.2, think: 10, hesitate: 70 },
+    lesson: { key: 'super', title: 'Time your super', tip: 'He gets stronger as he gets hurt. Hold your super until he charges in, then use it.' } },
+  { name: 'Champion',         weapon: 'katana', cls: 'ronin',      diff: 'expert', arena: 'colosseum', lives: 3, tac: { skill: 0.7, think: 3, hesitate: 14 },
+    lesson: { key: 'all', title: 'Everything at once', tip: 'Guard his strings, punish his misses, break his guard with E, and save your super for his rush.' } },
 ];
 const LADDER_DIFF_LABEL = { easy: 'Easy', medium: 'Medium', hard: 'Hard', expert: 'Expert' };
 
@@ -136,13 +149,100 @@ function updateLadder() {
   if (!ladderActive) return;
   if (!gameRunning) { if (!_ladderOver) ladderActive = false; return; }
   if (typeof gameLoading !== 'undefined' && gameLoading) return;
-  if (_ladderInit) return;
+  if (_ladderInit) { _ladderLessonTick(); return; }
   if (!Array.isArray(players) || players.length < 2) return;
   // Name and lives are set at spawn by _startGameCore; this only pins the opponent.
   _ladderBotRef = players[1];
   _ladderInit = true;
   _ladderT0 = performance.now();
+  _ladderLS = {};
   if (_ladderFirstRun) _ladderStageFirstRun(players[0], players[1]);
+  const L = !_ladderWeekly && !_ladderFirstRun && LADDER_RUNGS[ladderRung].lesson;
+  if (L && L.key !== 'basics') _ladderToast('RUNG ' + (ladderRung + 1) + ': ' + L.title.toUpperCase() + '. ' + L.tip);
+}
+
+let _ladderLS = {};   // lesson state for the running match
+
+function _ladderToast(text) {
+  if (typeof CONTEXT_TIPS === 'undefined' || typeof showContextTip !== 'function') return;
+  const id = 'ladder_' + Math.random().toString(36).slice(2, 8);
+  CONTEXT_TIPS[id] = { text };
+  showContextTip(id);
+  delete CONTEXT_TIPS[id];
+}
+
+/** Raise and hold the bot's guard at full, so swings can't wear it down. Q/E guard breaks still work. */
+function _ladderHoldGuard(b) {
+  if ((b.shieldCooldown || 0) > 0 || b.shieldBroken || b.attackTimer > 0) return;
+  if (!b.shielding && typeof shieldRaise === 'function' && !shieldRaise(b)) return;
+  b.shielding = true;
+  if (typeof SHIELD_POOL_MAX !== 'undefined') b.shieldHP = SHIELD_POOL_MAX;
+}
+
+/** The lesson's rule for this frame. Runs after the fighters update, so it has the last word. */
+function _ladderLessonTick() {
+  const def = _ladderWeekly ? null : LADDER_RUNGS[ladderRung];
+  const L = def && def.lesson;
+  const b = ladderBot(), t = players[0];
+  if (!L || !b || !t || _ladderOver || b.health <= 0 || t.health <= 0) return;
+  if (typeof isCinematic !== 'undefined' && isCinematic) return;
+  if (b._msScene || t._msScene) return;   // Q/E scenes own both fighters
+  const S = _ladderLS, fc = frameCount;
+  const dx = t.cx() - b.cx(), dist = Math.abs(dx), dir = Math.sign(dx) || 1;
+
+  if (def.kb && !S.kbSet) { b.kbBonus = (b.kbBonus || 1) * def.kb; S.kbSet = true; }
+
+  if (L.key === 'combo') {
+    // Damage taken is grouped into strings (a hit within 60 frames continues one). A string
+    // shorter than three hits flows back over 40 frames once it has gone cold.
+    if (S.hp == null) { S.hp = b.health; S.dmg = 0; S.hits = 0; S.last = 0; S.back = 0; }
+    if (b.health < S.hp) { if (fc - S.last > 60) { S.dmg = 0; S.hits = 0; } S.dmg += S.hp - b.health; S.hits++; S.last = fc; S.back = 0; }
+    if (S.hits && S.hits < 3 && fc - S.last > 75) { S.back = S.dmg / 40; S.hits = 0; S.dmg = 0; S.backN = 40; }
+    if (S.back > 0 && S.backN-- > 0) {
+      b.health = Math.min(b.maxHealth, b.health + S.back);
+      if (fc % 6 === 0) spawnParticles(b.cx(), b.cy(), '#55ff99', 3);
+    }
+    S.hp = b.health;
+  }
+
+  else if (L.key === 'slam') {
+    // Every few seconds in close: plant, glow gold for 45 frames, then a powered swing.
+    if (S.cd == null) S.cd = 150;
+    if (S.wind > 0) {
+      S.wind--; b.vx = 0; b.facing = dir;
+      if (fc % 2 === 0) spawnParticles(b.cx(), b.cy() - 6, '#ffcc33', 2);
+      if (S.wind === 0) {
+        // The slam hits like a super: x2.2 damage and x1.4 knockback for the swing only.
+        S.saved = { dm: b.dmgMult, kb: b.kbBonus }; S.restoreAt = fc + 24;
+        b.dmgMult = (b.dmgMult || 1) * 2.2; b.kbBonus = (b.kbBonus || 1) * 1.4;
+        b.cooldown = 0; b.attack(t); S.cd = 170 + Math.random() * 90;
+      }
+    } else if (--S.cd <= 0 && dist < 150 && b.onGround) S.wind = 45;
+    if (S.saved && fc >= S.restoreAt) { b.dmgMult = S.saved.dm; b.kbBonus = S.saved.kb; S.saved = null; }
+  }
+
+  else if (L.key === 'punish' || L.key === 'wall') {
+    // Guard up whenever he is not swinging. He swings from the edge of his reach on a timer,
+    // and his guard stays down for a short window after: that window is the opening.
+    const wall = L.key === 'wall';
+    if (S.next == null) { S.next = fc + 90; S.open = 0; }
+    if (b.attackTimer > 0) S.open = wall ? 22 : 40;
+    else if (S.open > 0) S.open--;
+    if (fc >= S.next && dist < b.weapon.range * 1.4 + 40 && b.cooldown <= 0) {
+      b.shielding = false; b.facing = dir; b.attack(t);
+      S.next = fc + (wall ? 150 + Math.random() * 80 : 70 + Math.random() * 50);
+    } else if (S.open <= 0 && dist < 170) _ladderHoldGuard(b);
+  }
+
+  else if (L.key === 'kite') {
+    // Step away when the player is inside the near range, but never off a ledge.
+    const [lo] = def.kite;
+    if (dist < lo && b.onGround && b.attackTimer <= 0) {
+      const nx = b.x - dir * (def.kiteSpeed || 3.2);
+      const ground = typeof _msGroundTop !== 'function' || _msGroundTop(nx + b.w / 2 - dir * 30, b.y + b.h, 60) !== null;
+      if (ground) { b.x = nx; b.facing = dir; }
+    }
+  }
 }
 
 /**
@@ -234,10 +334,12 @@ function _showLadderResult(won, rung, coins, weekly) {
   }
   if (sub) sub.textContent = (won ? `Rung ${rung + 1} cleared` : `Rung ${rung + 1}: ${LADDER_RUNGS[rung].name}`) + `  ·  +${coins} coins`;
   if (nx) {
+    nx.style.whiteSpace = 'pre-line';
     nx.textContent = won && last
       ? 'You beat the whole ladder. The Champion will take a rematch any time.'
       : `${won ? 'Next' : 'Try again'}: Rung ${nextRung + 1}, ${next.name} (${LADDER_DIFF_LABEL[next.diff] || next.diff}, ${_ladderWeaponName(next.weapon)})` +
-        (won ? '' : `. You start with +${Math.round(ladderAssist(rung) * 100)}% health.`);
+        (won ? '' : `. You start with +${Math.round(ladderAssist(rung) * 100)}% health.`) +
+        (!won && LADDER_RUNGS[rung].lesson ? `\n${LADDER_RUNGS[rung].lesson.title}: ${LADDER_RUNGS[rung].lesson.tip}` : '');
   }
   if (go) {
     go.textContent = won ? (last ? 'Rematch' : 'Next Fight') : 'Retry';
@@ -299,7 +401,7 @@ function openLadderRungs() {
     name.textContent = (i + 1) + '. ' + def.name;
     const info = document.createElement('span');
     info.style.cssText = 'color:var(--ui-muted);font-size:0.78rem;font-weight:600;';
-    info.textContent = (LADDER_DIFF_LABEL[def.diff] || def.diff) + ' · ' + _ladderWeaponName(def.weapon) + (i < cleared ? ' · beaten' : open ? '' : ' · locked');
+    info.textContent = (def.lesson ? def.lesson.title + ' · ' : '') + (LADDER_DIFF_LABEL[def.diff] || def.diff) + ' · ' + _ladderWeaponName(def.weapon) + (i < cleared ? ' · beaten' : open ? '' : ' · locked');
     row.appendChild(name); row.appendChild(info);
     if (open) row.onclick = function () { closeLadderRungs(); startLadderRung(i); };
     list.appendChild(row);
@@ -351,7 +453,7 @@ function refreshLadderCard() {
   const def = LADDER_RUNGS[n];
   titleEl.textContent = `Rung ${n + 1}: ${def.name}`;
   const whereEl = document.getElementById('hubLadderWhere');
-  if (whereEl) whereEl.textContent = `${LADDER_DIFF_LABEL[def.diff] || def.diff} bot, ${_ladderWeaponName(def.weapon)}. Win to climb; clear all ten to unlock the Weekly Challenge.`;
+  if (whereEl) whereEl.textContent = `${def.lesson ? 'Lesson: ' + def.lesson.title + '. ' : ''}${LADDER_DIFF_LABEL[def.diff] || def.diff} bot, ${_ladderWeaponName(def.weapon)}. Win to climb; clear all ten to unlock the Weekly Challenge.`;
   const cleared = getLadderCleared();
   const barEl = document.getElementById('hubLadderBar');
   if (barEl) barEl.style.width = Math.round((cleared / LADDER_RUNGS.length) * 100) + '%';
