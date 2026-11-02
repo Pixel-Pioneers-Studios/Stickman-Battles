@@ -1607,8 +1607,12 @@
           <span>High-Detail Animation</span>
         </label>
         <label class="setting-item" title="Pixel-art hits, slashes, blood, explosions, shields and spells. Off = the classic particles">
-          <input type="checkbox" id="settingPixelVfx" checked onchange="updateSettings()">
+          <input type="checkbox" id="settingPixelVfx" onchange="updateSettings()">
           <span>Pixel Effects</span>
+        </label>
+        <label class="setting-item" title="Prototype: supers get an impact frame, speed lines and a move-name card">
+          <input type="checkbox" id="settingAnimeSuperFx" onchange="updateSettings()">
+          <span>Anime Supers (prototype)</span>
         </label>
         <label class="setting-item" title="Turn Performance Mode on automatically when the frame rate drops. Off = never switch it on for you">
           <input type="checkbox" id="settingAutoPerf" checked onchange="updateSettings()">
@@ -1823,7 +1827,7 @@
   <script src="./js/smb-combat.js?v=4.9.133"></script>
   <script src="./js/smb-particles-core.js?v=4.9.119"></script>
   <!-- Pixel-art VFX host + effects (Sprite Fusion, MIT). Effects register into PIXEL_VFX, so they follow the host. -->
-  <script src="./js/smb-pixel-vfx.js?v=4.9.124"></script>
+  <script src="./js/smb-pixel-vfx.js?v=4.9.125"></script>
   <script src="./js/vfx/smb-vfx-black-hole.js?v=4.9.116"></script>
   <script src="./js/vfx/smb-vfx-blood.js?v=4.9.116"></script>
   <script src="./js/vfx/smb-vfx-embers.js?v=4.9.116"></script>
@@ -1839,7 +1843,8 @@
   <script src="./js/vfx/smb-vfx-rain.js?v=4.9.116"></script>
   <script src="./js/vfx/smb-vfx-shield.js?v=4.9.116"></script>
   <script src="./js/vfx/smb-vfx-slash.js?v=4.9.116"></script>
-  <script src="./js/smb-pixel-vfx-game.js?v=4.9.124"></script>
+  <script src="./js/smb-pixel-vfx-game.js?v=4.9.125"></script>
+  <script src="./js/smb-anime-super.js?v=4.9.125"></script>
   <script src="./js/smb-destruction.js?v=4.9.114"></script>
   <script src="./js/smb-world-react.js?v=4.9.10"></script>
   <script src="./js/smb-heatmap.js?v=4.3.8"></script>
@@ -1878,7 +1883,7 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.3.9"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.9.138"></script>
+  <script src="./js/smb-fighter.js?v=4.9.139"></script>
   <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
   <script src="./js/smb-weapons-ext.js?v=4.9.116"></script>
   <!-- Abilities and supers as scripted, uninterruptible move scenes (must follow smb-weapons-ext.js) -->
@@ -1997,7 +2002,7 @@
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=4.9.104"></script>
   <script src="./js/smb-home-art.js?v=4.9.67"></script>
-  <script src="./js/smb-menu-select.js?v=4.9.120"></script>
+  <script src="./js/smb-menu-select.js?v=4.9.125"></script>
   <script src="./js/smb-menu-config.js?v=4.9.112"></script>
   <script src="./js/smb-loadscreen.js?v=4.6.0"></script>
   <script src="./js/smb-menu-spawn.js?v=4.9.94"></script>

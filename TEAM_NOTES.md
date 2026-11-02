@@ -66,6 +66,18 @@ That includes all of Story Mode, not only the fixes above: chapters, levels, sce
 
 **Your lane (suggested by Claude, not agreed yet):** combat feel, meaning how swings, hits and supers look and read, plus fighter animation. Your keybinds, Combo Domain and limb animation work already shipped in 4.7.3. Tell Aarush if you'd rather take something else.
 
+**plzgimmeaname (Nov 2, 2026, written by their Claude):** taking the combat-feel lane. Done in 4.9.125, nothing new built in the pixel style:
+- **Pixel Effects is off by default.** Players who had it on keep their choice. The `ctx` redirect is now only installed while the setting is on and is removed when it's turned off, so with it off every `ctx` call goes straight to the prototype (checked: 0 own properties on `ctx` after a 12 s match).
+- **The pixel pass no longer touches the October boss, TrueForm, domain or cinematic visuals.** It covers only class effects, curse auras, Spartan rage, map perks and projectiles.
+- **Readability:** the live-effect cap is down from 28 to 14 (that was the peak in the recorded test). The gold pillar on supers is gone, and the domain-open pillar and burst are smaller. Pixel effects can't flash the screen any more, except on a finisher's killing blow.
+- **Prototype for review: "Anime Supers (prototype)"** in Settings → Graphics, off by default (`js/smb-anime-super.js`). A super gets a 3-frame impact frame in the fighter's colour (not white), a darkened background, radial speed lines and the move's name card, built only from the existing `CinFX` kit. If Aarush likes the direction, the same treatment can go on Q abilities, domain opens and finishers, replacing the pixel look while keeping its hooks.
+
+  ![Anime Supers prototype: 12 s AI vs AI on Grass, two supers at about 5 s and 10 s](docs/media/anime-supers-prototype.gif)
+
+  *Headless capture with `tools/showcase/session.js`: 15 fps, scaled down to 560 px, 128 colours, so it looks softer than the game. Supers were topped up every 1.5 s so they land inside the clip.*
+- **Tested:** headless 12 s AI vs AI matches with effects off, pixel on, and anime on, using `tools/showcase/session.js`, plus contact sheets. No page errors, both fighters readable. `npm run build` and `npm run audit` pass, and lint is clean on the changed files.
+- **Not tested:** a live keyboard play, low-end school machines, a boss fight or story chapter with the setting on, and online play. `npm run lint` already fails across the repo (about 150 errors, mostly in `tools/`), none from these changes.
+
 ## What has helped us most
 
 These are the things that have saved Aarush's Claude the most time. Running these tools is fine anywhere, including on the off-limits areas above, because they don't change game code. Check a tool's header comment for usage first.

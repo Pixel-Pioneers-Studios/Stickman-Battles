@@ -95,12 +95,11 @@ function _pvColor(f) {
   return (d && d.def && d.def.color) || (f && f.color) || '#8ff0ff';
 }
 
-/** Super: the fighter's colour bursts out of them, with a thin pillar and a ring. */
+/** Super: the fighter's colour bursts out of them, with a ground ring. */
 function pixelSuperFX(f) {
   if (!_pvOn() || !f || f.isBoss) return false;
   const col = _pvColor(f), feet = f.y + f.h;
-  PixelVFX.on(f, 'powerUp', { size: 1.15, palette: _pvRampHex(col), shake: _pvQuiet });
-  PixelVFX.spawn('holyLight', { x: f.cx(), y: feet, width: 5, hold: 0.12, colors: _pvRamp(col), shake: _pvQuiet, darken: _pvQuiet });
+  PixelVFX.on(f, 'powerUp', { size: 0.8, palette: _pvRampHex(col), shake: _pvQuiet });
   PixelVFX.spawn('explosion', { x: f.cx(), y: feet - 4, size: 0.35, chunks: 0, shockwave: 120, shake: _pvQuiet });
   return true;
 }
@@ -133,9 +132,9 @@ function pixelDomainRiseFX(f, color, secs) {
 function pixelDomainOpenFX(f, color, big) {
   if (!_pvOn() || !f) return false;
   const col = color || _pvColor(f), feet = f.y + f.h, k = big ? 1 : 0.6;
-  PixelVFX.spawn('holyLight', { x: f.cx(), y: feet, width: Math.round(22 * k), hold: big ? 0.7 : 0.25, colors: _pvRamp(col), shake: _pvQuiet });
+  PixelVFX.spawn('holyLight', { x: f.cx(), y: feet, width: Math.round(12 * k), hold: big ? 0.35 : 0.15, colors: _pvRamp(col), shake: _pvQuiet });
   PixelVFX.spawn('explosion', { x: f.cx(), y: feet - 4, size: 0.5 * k, chunks: 0, shockwave: Math.round(220 * k), shake: _pvQuiet });
-  PixelVFX.on(f, 'powerUp', { size: 1.4 * k, palette: _pvRampHex(col), shake: _pvQuiet });
+  PixelVFX.on(f, 'powerUp', { size: 1.0 * k, palette: _pvRampHex(col), shake: _pvQuiet });
   f._pvAuraT = 150;
   return true;
 }
@@ -144,7 +143,7 @@ function pixelDomainOpenFX(f, color, big) {
 function pixelFinisherHitFX(att, tgt, last) {
   if (!_pvOn() || !tgt) return false;
   const col = _pvColor(att), dir = att ? (tgt.cx() >= att.cx() ? 1 : -1) : 1, feet = tgt.y + tgt.h;
-  PixelVFX.spawn('impact', { x: tgt.cx() - dir * 6, y: tgt.cy() - 8, angle: dir > 0 ? 0 : Math.PI, size: last ? 1.4 : 1, shake: _pvQuiet });
+  PixelVFX.spawn('impact', { x: tgt.cx() - dir * 6, y: tgt.cy() - 8, angle: dir > 0 ? 0 : Math.PI, size: last ? 1.4 : 1, shake: _pvQuiet, allowFlash: last });
   PixelVFX.spawn('explosion', { x: tgt.cx(), y: feet - 4, size: last ? 0.4 : 0.25, chunks: 0, shockwave: last ? 200 : 90, shake: _pvQuiet });
   if (!last) return true;
   if (!tgt.isBoss) PixelVFX.spawn('blood', { x: tgt.cx(), y: tgt.cy() - 4, angle: dir > 0 ? -0.5 : Math.PI + 0.5, amount: 1, size: 0.8, stainLife: 4, shake: _pvQuiet });
@@ -154,22 +153,15 @@ function pixelFinisherHitFX(att, tgt, last) {
 }
 
 // Hand-drawn effect code that the pixel pass takes over (PixelVFX.wrap). Wrapped once, on the first frame,
-// because these files load after this one. Fighters, platforms, backgrounds and the HUD are not in here.
+// because these files load after this one. Boss, TrueForm, domain and cinematic visuals were remastered in
+// October and stay out, as do fighters, platforms, backgrounds and the HUD.
 const _PV_PASS_FNS = [
-  'drawBossBeams', 'drawBossSpikes', 'drawBossWarnings', 'drawBossParadoxForeshadow',
-  'drawSpartanRageEffects', 'drawClassEffects', 'drawCurseAuras',
-  'drawTFBlackHoles', 'drawTFGravityWells', 'drawTFMeteorCrash', 'drawTFClones', 'drawTFShockwaves', 'drawTFPhaseShift',
-  'drawTFRealityTear', 'drawTFCalcStrike', 'drawTFMathBubble', 'drawTFRealityOverride', 'drawTFBurnTrail',
-  'drawTFGammaBeam', 'drawTFNeutronStar', 'drawTFGalaxySweep', 'drawTFMultiverse', 'drawTFSupernova', 'drawTFDimensionPunch',
-  'drawPhaseTransitionRings', 'drawCinematicWorldEffects', 'drawCinematicImpactWorldEffects', 'drawCinSpeedLines',
-  'drawCinMotionTrails', 'drawParadoxEffects', 'drawDivineSummon', 'drawMapPerks',
+  'drawSpartanRageEffects', 'drawClassEffects', 'drawCurseAuras', 'drawMapPerks',
 ];
 let _pvPassWrapped = false;
 function _pvWrapPassFns() {
   _pvPassWrapped = true;
   for (const n of _PV_PASS_FNS) PixelVFX.wrap(window, n);
-  if (typeof DomainManager !== 'undefined') { PixelVFX.wrap(DomainManager, 'draw'); PixelVFX.wrap(DomainManager, 'drawHazards'); }
-  if (typeof ComboDomain !== 'undefined') { PixelVFX.wrap(ComboDomain, 'draw'); PixelVFX.wrap(ComboDomain, 'drawWorld'); }
   if (typeof Projectile !== 'undefined') PixelVFX.wrap(Projectile.prototype, 'draw');
 }
 

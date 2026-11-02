@@ -3283,6 +3283,7 @@ class Fighter {
       return;
     }
     if (typeof pixelSuperFX === 'function') pixelSuperFX(this);
+    if (typeof animeSuperFX === 'function') animeSuperFX(this);
 
     // KNIGHT super: Mega Jump, massive leap into the sky, shockwave on landing
     if (this.charClass === 'megaknight') {

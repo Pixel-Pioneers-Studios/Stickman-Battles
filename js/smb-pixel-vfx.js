@@ -8,12 +8,13 @@
 
 const PIXEL_VFX = {};
 if (typeof settings !== 'undefined' && settings.pixelVfx === undefined) {
-  try { settings.pixelVfx = localStorage.getItem('smc_pixelVfx') !== '0'; } catch (e) { settings.pixelVfx = true; }
+  // Off by default until the art direction decides on it (TEAM_NOTES.md).
+  try { settings.pixelVfx = localStorage.getItem('smc_pixelVfx') === '1'; } catch (e) { settings.pixelVfx = false; }
 }
 
 const PixelVFX = (() => {
   const PX = 2;                 // world px per art pixel; the effects are authored at this scale
-  const MAX_ACTIVE = 28;
+  const MAX_ACTIVE = 14;          // more than this buries the fighters in busy exchanges
   const MAX_W = 1100, MAX_H = 700;   // art-pixel cap on the buffer, for very wide zoomed-out views
   const active = [];            // { fx, name, born }
   let frame = null, colorCv = null, lightCv = null, colorImg = null, lightImg = null;
@@ -58,6 +59,8 @@ const PixelVFX = (() => {
       if (typeof settings !== 'undefined' && settings.screenShake === false) return;
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, Math.min(22, k * 34));
     };
+    // Screen flashes are kept for kills and finishers, so an effect only gets one when the caller asks.
+    if (!o.flash && !o.allowFlash) o.flash = () => {};
     if (!o.flash) o.flash = (k, rgb) => {
       if (typeof settings !== 'undefined' && settings.phaseFlash === false) return;
       if (k * 0.35 > flashK) { flashK = Math.min(0.45, k * 0.35); flashRGB = rgb || '255,255,255'; }
@@ -232,6 +235,7 @@ const PixelVFX = (() => {
   // ctx is a const shared by every file, so it is redirected in place rather than swapped.
   const _CTX_DRAWS = new Set(['fill', 'stroke', 'fillRect', 'strokeRect', 'fillText', 'strokeText', 'drawImage', 'putImageData']);
   let _pctx = null, _pDepth = 0, _pDirty = false, _pStale = false, _pInstalled = false;
+  const _pNames = [];
   // Installed once: ctx's own properties forward to the prototype as normal, and to _pctx while a pass runs.
   function _passInstall() {
     _pInstalled = true;
@@ -247,6 +251,7 @@ const PixelVFX = (() => {
     for (const name of Object.getOwnPropertyNames(proto)) {
       if (name === 'constructor' || name === 'canvas') continue;
       const d = Object.getOwnPropertyDescriptor(proto, name);
+      if (typeof d.value === 'function' || d.get) _pNames.push(name);
       if (typeof d.value === 'function') {
         const real = d.value, alt = custom[name], draws = _CTX_DRAWS.has(name);
         Object.defineProperty(ctx, name, { configurable: true, writable: true, value: function () {
@@ -262,6 +267,12 @@ const PixelVFX = (() => {
           set(v) { if (set) set.call(_pDepth ? _pctx : ctx, v); } });
       }
     }
+  }
+  // Back to the plain prototype, so a player with Pixel Effects off pays nothing per ctx call.
+  function _passUninstall() {
+    for (const n of _pNames) delete ctx[n];
+    _pNames.length = 0;
+    _pInstalled = false;
   }
   function _passBegin() {
     if (_pDepth > 0) { _pDepth++; return; }
@@ -291,7 +302,10 @@ const PixelVFX = (() => {
   }
   /** Run fn with its drawing pixelated. Falls straight through when Pixel Effects is off. */
   function pass(fn, self, args) {
-    if (!enabled() || typeof CanvasRenderingContext2D === 'undefined') return fn.apply(self, args);
+    if (!enabled() || typeof CanvasRenderingContext2D === 'undefined') {
+      if (_pInstalled && !_pDepth) _passUninstall();
+      return fn.apply(self, args);
+    }
     _passBegin();
     try { return fn.apply(self, args); } finally { _passEnd(); }
   }
@@ -304,7 +318,10 @@ const PixelVFX = (() => {
     obj[name] = w;
   }
 
-  function clear() { active.length = 0; flashK = 0; darkK = 0; }
+  function clear() {
+    active.length = 0; flashK = 0; darkK = 0;
+    if (_pInstalled && !_pDepth && !enabled()) _passUninstall();
+  }
 
   return { spawn, on, update, draw, clear, particles, pass, wrap, actor, groundFn, get count() { return active.length; }, PX };
 })();
