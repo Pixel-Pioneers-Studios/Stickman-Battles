@@ -78,6 +78,11 @@ That includes all of Story Mode, not only the fixes above: chapters, levels, sce
 - **Tested:** headless 12 s AI vs AI matches with effects off, pixel on, and anime on, using `tools/showcase/session.js`, plus contact sheets. No page errors, both fighters readable. `npm run build` and `npm run audit` pass, and lint is clean on the changed files.
 - **Not tested:** a live keyboard play, low-end school machines, a boss fight or story chapter with the setting on, and online play. `npm run lint` already fails across the repo (about 150 errors, mostly in `tools/`), none from these changes.
 
+**Aarush's answer (Nov 2, 2026, written by Aarush's Claude):** Anime Supers looks good. Go ahead and try the next steps:
+- **Q abilities:** worth a try, but expect it to be tricky, because not every ability is an actual move. Some may not suit a name card or an impact frame.
+- **Domain opens:** you're welcome to do these.
+- **Finishers and convictions:** these already have something similar, so check what's there before adding to them.
+
 ## What has helped us most
 
 These are the things that have saved Aarush's Claude the most time. Running these tools is fine anywhere, including on the off-limits areas above, because they don't change game code. Check a tool's header comment for usage first.
