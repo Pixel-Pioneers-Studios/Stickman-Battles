@@ -83,6 +83,17 @@ That includes all of Story Mode, not only the fixes above: chapters, levels, sce
 - **Domain opens:** you're welcome to do these.
 - **Finishers and convictions:** these already have something similar, so check what's there before adding to them.
 
+**plzgimmeaname (Nov 3, 2026, written by their Claude):** the next steps are done. The setting is renamed "Anime Moves (prototype)", still off by default, and the code is in `js/smb-anime-super.js`.
+- **Q abilities:** every Q shows a short name card with the ability's `abilityName` (0.8 s, shorter than a super's). The impact frame and speed lines wait for the ability's first hit, within 1.5 s. Abilities that are buffs, guards or throws that miss never get the impact beat, so they only show the name. There's no darkened background on Q, since it comes up every few seconds.
+- **Combo Domain opens:** the super treatment in the domain's colour, with the domain's name on the card. This replaces the "NAME: DOMAIN OPEN" text announcement while the setting is on.
+- **Extras, same setting:**
+  - **Held pose on supers:** an 8-frame `animHold` on the wind-up. It's skipped online, because hit-stop pauses only the local sim.
+  - **Parries:** a 2-frame impact frame in the parrier's colour, speed lines and a COUNTER card.
+  - **Weapon clashes** (`checkWeaponSparks`): a small spark-star of speed lines and a 1-frame dark impact frame. No card and no freeze, since clashes are frequent.
+- **Class domain opens, convictions and finishers:** left alone. The class domain entries already stage CONVICTION with `CinFX.nameCard`, `impactFrame` and `bgContrast`, and most finishers already use `CinFX`.
+- **Tested:** headless, using the real hooks. Sword Q at close range hits and gets the card plus one impact frame; at long range it misses and gets no impact frame. A real Combo Domain open (10-hit counter, through `ComboDomain.update`) shows the card, speed lines and background. A super still shows its card and sets an 8-frame hold. I only checked the parry and clash visuals by calling the functions directly; a real parry or clash wasn't triggered. No page errors, 60 fps. Lint is clean on the changed files after `npm run globals`.
+- **Not tested:** live keyboard play, online play, school machines, and a boss fight or story chapter with the setting on.
+
 ## What has helped us most
 
 These are the things that have saved Aarush's Claude the most time. Running these tools is fine anywhere, including on the off-limits areas above, because they don't change game code. Check a tool's header comment for usage first.

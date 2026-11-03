@@ -119,6 +119,7 @@ function checkWeaponSparks() {
           particles.push(_p);
         }
         screenShake = Math.max(screenShake, 3);
+        if (typeof animeClashFX === 'function') animeClashFX(mx, my, a.f, b.f);
         const nx = dx === 0 ? 1 : dx / Math.sqrt(dx * dx + dy * dy);
         a.f.vx += nx * 2; b.f.vx -= nx * 2;
         a.f._weaponClashCd = 20; b.f._weaponClashCd = 20;

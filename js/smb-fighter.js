@@ -3142,6 +3142,7 @@ class Fighter {
     this.attackTimer     = _scene ? 0 : this.attackDuration * 2;
     abilityFlashTimer = 14; abilityFlashPlayer = this;
     if (typeof pixelAbilityFX === 'function') pixelAbilityFX(this);
+    if (typeof animeAbilityFX === 'function') animeAbilityFX(this);
   }
 
   // Dedicated super / ultimate activation (separate button from Q)

@@ -93,7 +93,8 @@ const ComboDomain = (() => {
     screenShake = Math.max(screenShake, 10);
     if (typeof pixelDomainOpenFX === 'function') pixelDomainOpenFX(owner, def.color, false);
     if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
-    if (typeof queueAnnouncement === 'function') queueAnnouncement(def.name.toUpperCase() + ': DOMAIN OPEN', def.color);
+    const _anime = typeof animeDomainFX === 'function' && animeDomainFX(owner, def);
+    if (!_anime && typeof queueAnnouncement === 'function') queueAnnouncement(def.name.toUpperCase() + ': DOMAIN OPEN', def.color);
   }
 
   function _close(d) {

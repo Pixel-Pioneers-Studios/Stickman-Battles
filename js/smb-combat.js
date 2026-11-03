@@ -605,6 +605,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         screenShake = Math.max(screenShake, 10);
         if (settings.dmgNumbers)
           damageTexts.push(new DamageText(target.cx(), target.y - 38, 'PARRY!', '#ffff00'));
+        if (typeof animeParryFX === 'function') animeParryFX(target, attacker);
         SoundManager.clang && SoundManager.clang();
         // Overdrive burst fires next frame, not from inside dealDamage.
         if (target._wxOverdrive > 0) target._wxParryBurst = true;
@@ -1111,6 +1112,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Pixel hit flash and blood (smb-pixel-vfx-game.js). The particle blood is the fallback when that is off.
   const _pvBlood = typeof pixelHitFX === 'function' && pixelHitFX(attacker, target, actualDmg, _guardUp, isSplash);
+  if (typeof animeHitFX === 'function') animeHitFX(attacker, target, actualDmg, _guardUp);
   // Blood only on direct entity hits.
   if (!_pvBlood && !_guardUp && !isSplash && attacker && !target.isBoss &&
       actualDmg > 0 && typeof spawnBlood === 'function') {
