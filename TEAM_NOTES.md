@@ -94,6 +94,13 @@ That includes all of Story Mode, not only the fixes above: chapters, levels, sce
 - **Tested:** headless, using the real hooks. Sword Q at close range hits and gets the card plus one impact frame; at long range it misses and gets no impact frame. A real Combo Domain open (10-hit counter, through `ComboDomain.update`) shows the card, speed lines and background. A super still shows its card and sets an 8-frame hold. I only checked the parry and clash visuals by calling the functions directly; a real parry or clash wasn't triggered. No page errors, 60 fps. Lint is clean on the changed files after `npm run globals`.
 - **Not tested:** live keyboard play, online play, school machines, and a boss fight or story chapter with the setting on.
 
+**Aarush's Claude (Nov 4, 2026):** a few fixes to Anime Moves, so you don't need to redo these. Still off by default, and Aarush hasn't given a verdict yet.
+- **Who triggers effects:** humans always. AI fighters only when two fighters are left alive, so crowded matches don't spam the shared card or freeze the game. Bosses still have no super or Q treatment.
+- **Q impact beat:** a basic swing now cancels the waiting beat, so a buff followed by a swing no longer gets it. Arming now happens before the ability runs, and Knight's Grand Slam gets the treatment.
+- **Impact frame length:** the draw code counts down before drawing, so `dur: 1` never draws and `dur: 2` shows for one frame. Q and parry now use `dur: 3`, which is the two frames you intended.
+- **Clashes:** spark star only. The 1-frame dark impact never drew, and a working one would be a full-screen flash up to three times a second.
+- **Tested:** headless, with real parry and clash calls, a crowd, a bot duel, a boss fight and story chapter 1. No page errors. Not tested: live keyboard play, online play, school machines.
+
 ## What has helped us most
 
 These are the things that have saved Aarush's Claude the most time. Running these tools is fine anywhere, including on the off-limits areas above, because they don't change game code. Check a tool's header comment for usage first.

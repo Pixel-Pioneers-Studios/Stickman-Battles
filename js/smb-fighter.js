@@ -2836,6 +2836,7 @@ class Fighter {
       this.attackTimer  = this.attackDuration;
       this.superChargeRate = 2;
       this.weaponHit    = false;
+      this._animeQUntil = 0;
       SoundManager.heavyHit && SoundManager.heavyHit();
       const _allF = [...players, ...minions, ...trainingDummies];
       for (const f of _allF) {
@@ -2905,6 +2906,7 @@ class Fighter {
       }
     }
 
+    this._animeQUntil = 0;
     if (!this.isBoss && this.weapon.type === 'melee') {
       // Counted in dealDamage() when this swing lands, see BASIC_CHAIN_MAX.
       this._basicChainArmed = true;
@@ -3104,6 +3106,7 @@ class Fighter {
       this.abilityCooldown2 = 80;
       this.attackTimer      = this.attackDuration; // drives the upward swing animation
       abilityFlashTimer = 14; abilityFlashPlayer = this;
+      if (typeof animeAbilityFX === 'function') animeAbilityFX(this);
       const _allF = [...players, ...minions, ...trainingDummies];
       let hitCount = 0;
       for (const f of _allF) {
@@ -3127,6 +3130,8 @@ class Fighter {
     if (!_safeTarget) return; // no valid target. Avoids a null crash in weapon ability functions.
     if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
     this._abilityCdOverride = null;
+    // Before the ability runs: one that isn't a scene lands its hit inside this call.
+    if (typeof animeAbilityFX === 'function') animeAbilityFX(this);
     // Scripted move scene (smb-move-scenes.js) fires the weapon's ability at its release frame.
     const _scene = typeof MoveScene !== 'undefined' &&
       MoveScene.begin(this, 'q', _safeTarget, () => this.weapon.ability(this, _safeTarget));
@@ -3142,7 +3147,6 @@ class Fighter {
     this.attackTimer     = _scene ? 0 : this.attackDuration * 2;
     abilityFlashTimer = 14; abilityFlashPlayer = this;
     if (typeof pixelAbilityFX === 'function') pixelAbilityFX(this);
-    if (typeof animeAbilityFX === 'function') animeAbilityFX(this);
   }
 
   // Dedicated super / ultimate activation (separate button from Q)
