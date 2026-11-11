@@ -36,6 +36,13 @@ async function shot(p, name) {
     await p.evaluate(() => window.scrollBy(0, 700)); await sleep(1200);
   }
   if (!await p.evaluate(() => !!document.querySelector('#simplebox-placeholder'))) { await shot(p, 'no-box'); throw new Error('comment box not found'); }
+  // Emoji render as <img>, so threads are matched on printable ASCII only. An existing match is never re-posted.
+  const NORM = 't => t.replace(/[^\\x20-\\x7E]/g, "").replace(/\\s+/g, " ").trim()';
+  const has = () => p.evaluate((t, n) => { const norm = x => x.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim(); return [...document.querySelectorAll('ytd-comment-thread-renderer #content-text')].some(e => norm(e.innerText) === norm(t)); }, TEXT, NORM);
+  await sleep(2500);
+  const already = await has();
+  if (already) console.log('comment already there; not re-posting');
+  else {
   await p.evaluate(() => { const e = document.querySelector('#simplebox-placeholder'); e.scrollIntoView({ block: 'center' }); e.click(); });
   await waitFor(p, () => !!document.querySelector('#contenteditable-root'), 10000);
   await p.evaluate(() => document.querySelector('#contenteditable-root').focus());
@@ -45,19 +52,21 @@ async function shot(p, name) {
   const norm = t => t.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
   if (norm(typed) !== norm(TEXT)) { await shot(p, 'typed-wrong'); throw new Error('text not entered: ' + typed.slice(0, 60)); }
   await p.evaluate(() => { const s = document.querySelector('#submit-button button, #submit-button'); s.click(); });
+  }
   // Our new comment appears at the top of the list.
-  const posted = await waitFor(p, t => [...document.querySelectorAll('ytd-comment-thread-renderer #content-text')].some(e => e.innerText.trim() === t.trim()), 20000, TEXT);
+  let posted = already;
+  for (let i = 0; i < 40 && !posted; i++) { await sleep(500); posted = await has(); }
   console.log('posted', posted);
   await shot(p, 'posted');
   if (!posted || !PIN) { b.disconnect(); return; }
   // Pin: the thread's action menu (three dots) -> "Pin" -> confirm.
-  const opened = await p.evaluate(t => {
-    const th = [...document.querySelectorAll('ytd-comment-thread-renderer')].find(r => (r.querySelector('#content-text') || {}).innerText && r.querySelector('#content-text').innerText.trim() === t.trim());
+  const opened = await p.evaluate((t, n) => {
+    const norm = x => x.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim(), th = [...document.querySelectorAll('ytd-comment-thread-renderer')].find(r => (r.querySelector('#content-text') || {}).innerText && norm(r.querySelector('#content-text').innerText) === norm(t));
     if (!th) return false;
     th.scrollIntoView({ block: 'center' });
     const btn = [...th.querySelectorAll('button')].find(x => /action menu/i.test(x.getAttribute('aria-label') || ''));
     if (!btn) return false; btn.click(); return true;
-  }, TEXT);
+  }, TEXT, NORM);
   if (!opened) { await shot(p, 'no-menu'); throw new Error('comment menu not found'); }
   await sleep(1500);
   const pinItem = await p.evaluate(() => {
@@ -72,10 +81,10 @@ async function shot(p, name) {
     if (c) c.click();
   });
   await sleep(3000);
-  const pinned = await p.evaluate(t => {
-    const th = [...document.querySelectorAll('ytd-comment-thread-renderer')].find(r => (r.querySelector('#content-text') || {}).innerText && r.querySelector('#content-text').innerText.trim() === t.trim());
+  const pinned = await p.evaluate((t, n) => {
+    const norm = x => x.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim(), th = [...document.querySelectorAll('ytd-comment-thread-renderer')].find(r => (r.querySelector('#content-text') || {}).innerText && norm(r.querySelector('#content-text').innerText) === norm(t));
     return !!(th && /Pinned by/i.test(th.innerText));
-  }, TEXT);
+  }, TEXT, NORM);
   console.log('pinned', pinned);
   await shot(p, 'pinned');
   b.disconnect();

@@ -166,10 +166,11 @@ function overlayPage() {
     },
   };
 
+  window.__OVX = window.__OVX || {};
   window.__draw = function (f, items) {
     const cv = document.getElementById('c'), ctx = cv.getContext('2d');
     ctx.clearRect(0, 0, cv.width, cv.height);
-    for (const it of items) { ctx.save(); D[it.type](ctx, it, f, cv.width, cv.height); ctx.restore(); }
+    for (const it of items) { ctx.save(); (D[it.type] || window.__OVX[it.type])(ctx, it, f, cv.width, cv.height); ctx.restore(); }
     return cv.toDataURL('image/png');
   };
   window.__drawOver = function (f, items, bgUrl, type, q) {
@@ -179,7 +180,7 @@ function overlayPage() {
         const cv = document.getElementById('c'), ctx = cv.getContext('2d');
         const s = Math.max(cv.width / img.width, cv.height / img.height);
         ctx.drawImage(img, (cv.width - img.width * s) / 2, (cv.height - img.height * s) / 2, img.width * s, img.height * s);
-        for (const it of items) { ctx.save(); D[it.type](ctx, it, f, cv.width, cv.height); ctx.restore(); }
+        for (const it of items) { ctx.save(); (D[it.type] || window.__OVX[it.type])(ctx, it, f, cv.width, cv.height); ctx.restore(); }
         res(cv.toDataURL(type || 'image/png', q));
       };
       img.src = bgUrl;

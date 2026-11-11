@@ -21,7 +21,7 @@ function shotLog(profile, shot) {
   return _logs[k] || (_logs[k] = JSON.parse(fs.readFileSync(path.join(WORK, profile, shot + '.json'), 'utf8')));
 }
 
-async function openOverlay(W, H) {
+async function openOverlay(W, H, scripts) {
   const puppeteer = require(path.join(ROOT, 'node_modules', 'puppeteer'));
   const lo = { headless: 'new', pipe: true, protocolTimeout: 600000, args: ['--no-sandbox'] };
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -41,6 +41,8 @@ async function openOverlay(W, H) {
   <span style="font-family:'Russo One'">.</span><span style="font-family:'Potta One'">.</span><span style="font-family:'SE Logo Brush'">.</span><span style="font-family:Rajdhani;font-weight:600">.</span><span style="font-family:Rajdhani;font-weight:700">.</span>
   </body></html>`, { waitUntil: 'load' });
   await page.evaluate('(' + overlayPage.toString() + ')()');
+  // A cut can add overlay types: each script runs in the page after overlayPage and may define window.__OVX[type].
+  for (const sc of (scripts || [])) await page.addScriptTag({ content: fs.readFileSync(sc, 'utf8') });
   await page.evaluate(() => document.fonts.ready);
   return { page, close: () => browser.close() };
 }
@@ -112,7 +114,7 @@ async function render(spec) {
   const ff = spawn('ffmpeg', args, { stdio: ['pipe', 'inherit', 'inherit'] });
   const done = new Promise((res, rej) => ff.on('close', c => c ? rej(new Error('ffmpeg picture ' + c)) : res()));
   ff.stdin.on('error', () => {});
-  const ov = await openOverlay(W, H);
+  const ov = await openOverlay(W, H, spec.pageScripts);
   const items = spec.overlays || [];
   let blank = null;
   for (let f = 0; f < total; f++) {
