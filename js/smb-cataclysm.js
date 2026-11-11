@@ -27,8 +27,8 @@ const CX_CONVICTIONS = [
   { key: 'storm',     cls: 'thor',    name: 'Storm Realm',         color: '#44aaff' },
   { key: 'warpath',   cls: 'kratos',  name: 'Ashen Warpath',       color: '#ff5500' },
   { key: 'siege',     cls: 'gunner',  name: 'Siege Line',          color: '#ff9900' },
-  { key: 'hunt',      cls: 'archer',  name: 'Verdant Hunt',        color: '#44ff88' },
-  { key: 'sanctuary', cls: 'paladin', name: 'Holy Sanctuary',      color: '#ffffaa' },
+  { key: 'hunt',      cls: 'archer',  name: 'Duskfall Hunt',       color: '#44ff88' },
+  { key: 'sanctuary', cls: 'paladin', name: 'Dawn Gate',           color: '#ffffaa' },
   { key: 'shadow',    cls: 'ninja',   name: 'Shadow Realm',        color: '#bb44ff' },
   { key: 'blades',    cls: 'warrior', name: 'The Proving Grounds', color: '#e0b070' },
 ];

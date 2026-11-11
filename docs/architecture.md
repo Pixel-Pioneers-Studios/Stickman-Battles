@@ -13,6 +13,8 @@ Stickman-Battles/
 
 ### JS Module Load Order
 
+> **Stale:** this table predates the file splits. The current list is [load-order.md](load-order.md) (and `index.html`).
+
 Strict dependency order. A file may only reference globals defined by files loaded before it.
 
 | # | File | Responsibility |

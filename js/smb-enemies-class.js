@@ -79,6 +79,8 @@ function showDesc(player, type, key) {
         if (!this._mirrorWeaponTimer || this._mirrorWeaponTimer <= 0) {
           if (!this.isSovereignMK2 && human.weapon && this.weapon !== human.weapon) {
             this.weapon = human.weapon;
+            // weaponKey drives the drawn weapon, sprite and move scenes; keep it in step with the copied weapon.
+            if (human.weaponKey) this.weaponKey = human.weaponKey;
           }
           // 20-40 frames until the next check.
           this._mirrorWeaponTimer = 20 + Math.floor(Math.random() * 21);

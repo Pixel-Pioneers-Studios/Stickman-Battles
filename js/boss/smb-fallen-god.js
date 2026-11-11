@@ -189,8 +189,30 @@ class FallenGod extends Boss {
     }
   }
 
+  // Fell below the map. The Creator glitches back through a portal; he is set down in a column of his
+  // own light instead. No timers: he is placed at once and the column is only a render effect.
+  _fgRecoverFall() {
+    if (this.health <= 0 || !currentArena) return;
+    const t = this.target && this.target.health > 0 ? this.target : null;
+    const fl = this._fgFloor();
+    const wantX = t ? t.cx() + (t.cx() < GAME_W / 2 ? 140 : -140) : (fl ? fl.x + fl.w / 2 : GAME_W / 2);
+    const pos = typeof _bossFindSafeArenaPosition === 'function'
+      ? _bossFindSafeArenaPosition(this, wantX, fl ? fl.y - this.h : 200, {}) : null;
+    this.x = pos ? pos.x : wantX - this.w / 2;
+    this.y = pos ? pos.y : (fl ? fl.y - this.h - 4 : 200);
+    this.vx = 0; this.vy = 0;
+    this._fgMove = null;
+    this.invincible = Math.max(this.invincible || 0, 50);
+    this._fgRise = 40;
+    this._fgRecover = Math.max(this._fgRecover, 4);
+    spawnParticles(this.cx(), this.y + this.h, FG_GOLD, 22);
+    spawnParticles(this.cx(), this.cy(), FG_LIGHT, 10);
+    showBossDialogue(randChoice(['I have fallen further than this.', 'The fall is not new to me.', 'I fell once. I stood up.']), 200);
+  }
+
   // Per-frame: run Fighter physics, then resolve his moves and hazards.
   update() {
+    if (this._fgRise > 0) this._fgRise--;
     super.update();
     if (this.isRemote || this.health <= 0 || activeCinematic || !gameRunning) return;
     this._fgTickMove();
@@ -346,35 +368,84 @@ class FallenGod extends Boss {
     this._fgWaves = this._fgWaves.filter(wv => wv.life > 0);
   }
 
-  // His look, behind the body: a halo knocked askew and split where Axiom broke it, a short
-  // stole, and three stones from his walls turning around him.
+  // His look, behind the body. Built to read as a different being from the Creator at a glance:
+  // broken wings drooping from his back (the far one torn short), a long stole, a wide halo cracked
+  // in two with a chip drifting off it, and stones from his walls turning around him.
   _drawSignature(cx, headCY, shoulderY, hipY, f, headR) {
-    const t = frameCount;
+    const t = frameCount, ph = this.getPhase();
     ctx.save();
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    // Broken wings. k=0 far wing (torn short), k=1 near wing.
+    const droop = Math.sin(t * 0.045 + this.x * 0.01) * 2.5;
+    for (const k of [0, 1]) {
+      const rx = cx - f * (2 + k * 2), ry = shoulderY + 3;
+      const span = k ? 40 : 26;
+      const ex = rx - f * (12 + k * 3), ey = ry - (22 + k * 6) + droop * 0.4;   // wrist, raised behind
+      const tx = ex - f * span * 0.55, ty = ry + span * 0.55 + droop;          // tip, hanging low
+      ctx.fillStyle = k ? 'rgba(42,28,6,0.92)' : 'rgba(30,20,4,0.85)';
+      ctx.strokeStyle = k ? 'rgba(255,214,110,0.8)' : 'rgba(255,214,110,0.55)';
+      ctx.lineWidth = k ? 1.4 : 1.1;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(ex, ey);
+      ctx.lineTo(tx, ty);
+      // Ragged trailing edge: feathers hanging from the arm back to the root.
+      const n = k ? 4 : 2;
+      for (let i = 1; i <= n; i++) {
+        const u = i / (n + 1);
+        const px = tx + (rx - tx) * u, py = ty + (ry - ty) * u;
+        const len = (k ? 16 : 10) * (1 - u * 0.55) + (i % 2) * 3;
+        ctx.lineTo(px + f * 3, py + len);
+        ctx.lineTo(px - f * 1, py + 4);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      if (!k) {
+        // The tear: a jagged cut where the far wing ends.
+        ctx.strokeStyle = 'rgba(255,170,0,0.6)';
+        ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx + f * 3, ty - 4); ctx.lineTo(tx - f * 2, ty - 7); ctx.stroke();
+      }
+    }
+
+    // Stole: two long strips to the knees.
     const sway = Math.sin(t * 0.07 + this.x * 0.02) * 2;
-    ctx.fillStyle = 'rgba(90,58,8,0.8)';
-    ctx.strokeStyle = 'rgba(255,220,130,0.7)';
+    ctx.fillStyle = 'rgba(90,58,8,0.85)';
+    ctx.strokeStyle = 'rgba(255,220,130,0.75)';
     ctx.lineWidth = 1.1;
     for (const k of [0, 1]) {
-      const x0 = cx - f * (3 + k * 3), x1 = cx - f * (12 + k * 7) + sway;
+      const x0 = cx + f * (2 - k * 4), x1 = cx - f * (6 + k * 5) + sway * (1 + k * 0.5);
+      const yEnd = hipY + 30 - k * 5;
       ctx.beginPath();
-      ctx.moveTo(x0 - 2, shoulderY - 1);
-      ctx.lineTo(x0 + 2, shoulderY - 1);
-      ctx.lineTo(x1 + 3, hipY + 12 - k * 6);
-      ctx.lineTo(x1, hipY + 17 - k * 6);
-      ctx.lineTo(x1 - 3, hipY + 12 - k * 6);
+      ctx.moveTo(x0 - 2.5, shoulderY - 1);
+      ctx.lineTo(x0 + 2.5, shoulderY - 1);
+      ctx.lineTo(x1 + 3.5, yEnd - 5);
+      ctx.lineTo(x1, yEnd);
+      ctx.lineTo(x1 - 3.5, yEnd - 5);
       ctx.closePath(); ctx.fill(); ctx.stroke();
     }
-    const hx = cx - f * 3, hy = headCY - headR * 0.9, R = headR * 1.7;
+
+    // Halo: wide, tilted, split in two where Axiom broke it. It flickers as he weakens.
+    const hx = cx - f * 4, hy = headCY - headR * 1.1, R = headR * 2.3;
+    const flick = ph >= 3 ? 0.55 + 0.35 * Math.abs(Math.sin(t * 0.21) * Math.sin(t * 0.073)) : 0.9;
+    ctx.save();
     ctx.translate(hx, hy);
-    ctx.rotate(-f * 0.35);
-    ctx.scale(1, 0.38);
-    ctx.strokeStyle = 'rgba(255,214,110,0.85)';
-    ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 10;
-    ctx.lineWidth = 2.6;
-    ctx.beginPath(); ctx.arc(0, 0, R, 0.25, Math.PI - 0.1); ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, -2, R, Math.PI + 0.15, Math.PI * 2 - 0.3); ctx.stroke();
+    ctx.rotate(-f * 0.4);
+    ctx.scale(1, 0.34);
+    ctx.strokeStyle = 'rgba(255,214,110,' + flick + ')';
+    ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 12;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0.3, Math.PI - 0.15); ctx.stroke();
+    ctx.beginPath(); ctx.arc(f * 2, -4, R, Math.PI + 0.25, Math.PI * 2 - 0.35); ctx.stroke();
+    ctx.restore();
+    // A chip off the break, drifting down and fading, then starting again.
+    const cu = (t % 150) / 150;
+    ctx.globalAlpha = 1 - cu;
+    ctx.fillStyle = FG_GOLD; ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 6;
+    ctx.save();
+    ctx.translate(hx + f * R * 0.9 + Math.sin(cu * 6) * 3, hy + cu * 42);
+    ctx.rotate(cu * 5);
+    ctx.fillRect(-2.5, -1, 5, 2);
+    ctx.restore();
     ctx.restore();
     this._fgStones(false);
   }
@@ -388,8 +459,9 @@ class FallenGod extends Boss {
     for (let i = 0; i < 3; i++) {
       const a = frameCount * 0.025 + i * Math.PI * 2 / 3;
       if ((Math.sin(a) > 0) !== front) continue;
-      ctx.save(); ctx.translate(this.cx() + Math.cos(a) * 26, this.cy() + Math.sin(a) * 9); ctx.rotate(a * 0.5);
-      ctx.fillRect(-4, -3, 8, 6); ctx.strokeRect(-4, -3, 8, 6);
+      ctx.save(); ctx.translate(this.cx() + Math.cos(a) * 32, this.cy() + Math.sin(a) * 10); ctx.rotate(a * 0.5);
+      ctx.fillRect(-6, -4, 12, 8); ctx.strokeRect(-6, -4, 12, 8);
+      ctx.beginPath(); ctx.moveTo(-6, 0); ctx.lineTo(6, 0); ctx.stroke();   // mortar line: wall stone, not a gem
       ctx.restore();
     }
     ctx.restore();
@@ -426,6 +498,19 @@ class FallenGod extends Boss {
 
   _fgDrawHazards() {
     const floorY = this._fgFloorY();
+    // Fall recovery: the column of light he was set down in, fading out.
+    if (this._fgRise > 0) {
+      const a = this._fgRise / 40, x = this.cx(), w = 26 + (1 - a) * 20;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createLinearGradient(0, this.y + this.h - 600, 0, this.y + this.h);
+      g.addColorStop(0, 'rgba(255,204,68,0)'); g.addColorStop(1, 'rgba(255,214,110,' + (0.55 * a) + ')');
+      ctx.fillStyle = g;
+      ctx.fillRect(x - w / 2, this.y + this.h - 600, w, 600);
+      ctx.fillStyle = 'rgba(255,242,192,' + (0.5 * a) + ')';
+      ctx.fillRect(x - 3, this.y + this.h - 600, 6, 600);
+      ctx.restore();
+    }
     ctx.save();
     // Fall: shadow marker under the hovering god.
     const m = this._fgMove;

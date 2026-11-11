@@ -105,9 +105,9 @@ const WEAPON_FINISHERS = {
       _wfDrawAura(ctx,att,'rgba(100,160,255,1)',data.auraAlpha,data.auraR,scX,scY,ox,oy);
       ctx.save();ctx.setTransform(scX,0,0,scY,ox,oy);
       for(const g of data.ghostTrail){
-        ctx.globalAlpha=g.a*0.55; ctx.fillStyle='#2255aa';
-        ctx.shadowColor='#88ccff'; ctx.shadowBlur=20;
-        ctx.fillRect(g.x,g.y,g.w,g.h);
+        ctx.globalAlpha=g.a; ctx.strokeStyle='#88ccff';
+        ctx.shadowColor='#88ccff'; ctx.shadowBlur=14;
+        _cinStickGhost(ctx,g.x,g.y,g.w,g.h);
       }
       ctx.globalAlpha=1; ctx.shadowBlur=0;
       for(const sl of data.slashLines){
@@ -320,7 +320,7 @@ const WEAPON_FINISHERS = {
     , { swing:{at:26,dur:14}, impact:38 }
   ),
 
-  scythe: _wfDef("REAPER'S SWEEP",'rgba(80,255,120,1)',122,
+  scythe: _wfDef("MORDANE'S SWEEP",'rgba(80,255,120,1)',122,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.sweepAngle=Math.PI*1.5;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
@@ -346,7 +346,7 @@ const WEAPON_FINISHERS = {
       ctx.restore();
       if(timer>=40&&timer<=48) _finFlash(ctx,(48-timer)/8*0.68,60,220,100);
       if(timer>53&&timer<108) _finSubtitle(ctx,'"The harvest is complete."',t);
-      _finTitle(ctx,"REAPER'S SWEEP",t,'rgba(80,255,120,1)');
+      _finTitle(ctx,"MORDANE'S SWEEP",t,'rgba(80,255,120,1)');
     }
     , { swing:{at:20,dur:22}, impact:40 , approach:{ at:10, dur:10, gap:34 } }
   ),
@@ -471,7 +471,7 @@ const CLASS_FINISHERS = {
     , { swing:{at:24,dur:18}, impact:40 , approach:{ at:12, dur:12, gap:26 } }
   ),
 
-  kratos: _wfDef('UNDYING RAGE','rgba(220,60,60,1)',120,
+  kratos: _wfDef('GRUDGE PAID','rgba(220,60,60,1)',120,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.ragePulse=0;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
@@ -495,7 +495,7 @@ const CLASS_FINISHERS = {
       ctx.restore();
       if(timer>=40&&timer<=48) _finFlash(ctx,(48-timer)/8*0.84,200,50,50);
       if(timer>54&&timer<106) _finSubtitle(ctx,'"The rage never died. It waited."',t);
-      _finTitle(ctx,'UNDYING RAGE',t,'rgba(220,60,60,1)');
+      _finTitle(ctx,'GRUDGE PAID',t,'rgba(220,60,60,1)');
     }
     , { swing:{at:22,dur:20}, impact:40 }
   ),
@@ -563,7 +563,7 @@ const CLASS_FINISHERS = {
     , { swing:{at:28,dur:12}, impact:40 }
   ),
 
-  paladin: _wfDef('HOLY JUDGMENT','rgba(255,240,120,1)',125,
+  paladin: _wfDef('DAWNBREAK','rgba(255,240,120,1)',125,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.holyR=0;
       data.tl=_makeTimeline([
         {frame:0, fn(){ CinCam.zoomTo(1.3); CinCam.focusMidpoint(att,tgt); CinCam.slowMo(0.25); }},
@@ -589,7 +589,7 @@ const CLASS_FINISHERS = {
       ctx.restore();
       if(timer>=42&&timer<=50) _finFlash(ctx,(50-timer)/8*0.78,255,240,100);
       if(timer>56&&timer<112) _finSubtitle(ctx,'"Divine justice is absolute."',t);
-      _finTitle(ctx,'HOLY JUDGMENT',t,'rgba(255,240,120,1)');
+      _finTitle(ctx,'DAWNBREAK',t,'rgba(255,240,120,1)');
     }
     , { swing:{at:28,dur:16}, impact:42 , approach:{ at:12, dur:16, gap:18 } }
   ),
@@ -657,7 +657,7 @@ const CLASS_FINISHERS = {
     , { swing:{at:24,dur:14}, impact:40 }
   ),
 
-  megaknight: _wfDef('FINAL JUDGMENT','rgba(220,180,40,1)',128,
+  megaknight: _wfDef('OATHKEEPER','rgba(220,180,40,1)',128,
     (att,tgt,data)=>{ _wfBaseSetup(att,tgt,data); data.leapY=0;
       // Clamp slam landing Y so attacker never goes below the floor
       const _floorPl = currentArena && currentArena.platforms && currentArena.platforms.find(pl => pl.isFloor && !pl.isFloorDisabled);
@@ -685,7 +685,7 @@ const CLASS_FINISHERS = {
       ctx.restore();
       if(timer>=44&&timer<=52) _finFlash(ctx,(52-timer)/8*0.92,255,220,100);
       if(timer>58&&timer<114) _finSubtitle(ctx,'"Kneel before the knight eternal."',t);
-      _finTitle(ctx,'FINAL JUDGMENT',t,'rgba(220,180,40,1)');
+      _finTitle(ctx,'OATHKEEPER',t,'rgba(220,180,40,1)');
     }
     , { swing:{at:28,dur:18}, impact:44 }
   ),

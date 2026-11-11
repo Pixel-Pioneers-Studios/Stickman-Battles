@@ -610,7 +610,7 @@ function wxUnlockFragmentStyle(announce) {
   try { localStorage.setItem('smb_fragmentUnlocked', '1'); } catch (e) {}
   refreshFragmentOptions();
   if (announce && !was && typeof showToast === 'function') {
-    showToast('Fragment style unlocked — new weapon and class: Fragment / Adept');
+    showToast('Fragment style unlocked — new weapon and class: Fragment / ' + CLASSES.adept.name);
   }
 }
 
@@ -619,7 +619,7 @@ function refreshFragmentOptions() {
   if (typeof document === 'undefined') return;
   const on = wxIsFragmentUnlocked();
   const pairs = [['p1Weapon', 'fragment', 'Fragment'], ['p2Weapon', 'fragment', 'Fragment'],
-                 ['p1Class', 'adept', 'Adept'], ['p2Class', 'adept', 'Adept']];
+                 ['p1Class', 'adept', CLASSES.adept.name], ['p2Class', 'adept', CLASSES.adept.name]];
   let changed = false;
   for (const [id, val, label] of pairs) {
     const sel = document.getElementById(id);

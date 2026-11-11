@@ -19,7 +19,7 @@ function _sagaInRange(chId) {
 function spawnWorldBoss(wId) {
   if (!players || !Array.isArray(players)) return;
   const boss = players.find(p => p && p.isBoss && !p.isTrueForm);
-  if (!boss) return;
+  if (!boss || boss.isFallenGod) return; // variants are Creator patches (his lines, his teleports)
 
   switch (wId) {
     case 'fracture':

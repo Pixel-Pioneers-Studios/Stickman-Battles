@@ -29,7 +29,7 @@ const LADDER_RUNGS = [
     lesson: { key: 'kite', title: 'Get inside the reach', tip: 'His spear outranges you and he steps back to keep you on the tip. Bait a poke, then step in behind it.' }, kite: [110, 140], kiteSpeed: 4.4 },
   { name: 'Hammerfall',       weapon: 'hammer', cls: 'thor',       diff: 'hard',   arena: 'clouds',    lives: 3, tac: { skill: 0 }, kb: 1.35,
     lesson: { key: 'recover', title: 'Come back from the edge', tip: 'His hammer will knock you off. Double jump (W again in the air) and drift back toward the stage. Do not jump straight at him.' } },
-  { name: 'Berserker',        weapon: 'axe',    cls: 'berserker',  diff: 'hard',   arena: 'ruins',     lives: 3, tac: { skill: 0.2, think: 10, hesitate: 70 },
+  { name: 'Bloodrager',       weapon: 'axe',    cls: 'berserker',  diff: 'hard',   arena: 'ruins',     lives: 3, tac: { skill: 0.2, think: 10, hesitate: 70 },
     lesson: { key: 'super', title: 'Time your super', tip: 'He gets stronger as he gets hurt. Hold your super until he charges in, then use it.' } },
   { name: 'Champion',         weapon: 'katana', cls: 'ronin',      diff: 'expert', arena: 'colosseum', lives: 3, tac: { skill: 0.7, think: 3, hesitate: 14 },
     lesson: { key: 'all', title: 'Everything at once', tip: 'Guard his strings, punish his misses, break his guard with E, and save your super for his rush.' } },

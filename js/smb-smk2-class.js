@@ -2400,8 +2400,7 @@ class SovereignMK2 extends AdaptiveAI {
   _targetDamageMult(t) {
     if (!t) return 1;
     let m = (typeof t.dmgMult === 'number' && t.dmgMult > 0) ? t.dmgMult : 1;
-    if (t.charClass === 'kratos' && t.rageStacks > 0) m *= 1 + Math.min(t.rageStacks, KRATOS_RAGE_MAX) * KRATOS_RAGE_PER;
-    if (t.spartanRageTimer > 0) m *= 1.3;
+    m *= _varekDmgMult(t);
     if (t._powerBuff > 0)       m *= 1.35;
     return m;
   }
@@ -3625,7 +3624,7 @@ class SovereignMK2 extends AdaptiveAI {
     }
     const pool = SMK2_LOADOUTS.filter(lo =>
       typeof WEAPONS !== 'undefined' && WEAPONS[lo.wk] &&
-      lo.wk !== 'gauntlet' && lo.wk !== 'mkgauntlet');
+      lo.wk !== 'gauntlet' && lo.wk !== 'mkgauntlet' && lo.wk !== 'nullblade');
     if (!pool.length) return null;
 
     // Exploration count comes from the dossier, not _loadoutStats: _pickLoadout runs before any life is

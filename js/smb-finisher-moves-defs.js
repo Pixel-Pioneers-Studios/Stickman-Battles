@@ -90,7 +90,7 @@ mfDefine('axe:q', {
 
 // Axe Throw: the thrower walks in and tears the buried axe out.
 mfDefine('axe:e', {
-  name: 'WOODSPLITTER', color: '#ff8a3d', len: 108,
+  name: 'SETTLED SCORE', color: '#ff8a3d', len: 108,
   me: [
     { t: 0,  r: 0.35, w: 0.2, l: 2.3, lean: 14, drop: 5, fr: 18, fl: -12, hide: true },
     { t: 14, e: 'io',  ...MS_STAND, hide: true },
@@ -491,7 +491,7 @@ mfDefine('shield:e', {
 // SCYTHE
 // Scythe Toss: the blade circles through them twice and returns to hand. The cut opens when caught.
 mfDefine('scythe:q', {
-  name: "REAPER'S RETURN", color: '#aa44aa', len: 100,
+  name: "MORDANE'S RETURN", color: '#aa44aa', len: 100,
   me: [
     { t: 0,  r: 0.2, w: 0.05, l: 2.4, lean: 13, drop: 5, fr: 17, fl: -12, hide: true },
     { t: 12, e: 'io', ...MS_STAND, hide: true },

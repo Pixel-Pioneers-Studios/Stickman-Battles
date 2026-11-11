@@ -543,7 +543,18 @@ function _startGameCore() {
     players = [p1, ai];
     p1.target = ai;
     ai.target = p1;
-    if (_useSovMK2 && typeof Brain !== 'undefined' && Brain.driveSovereign) Brain.driveSovereign(ai, p1);
+    if (_useSovMK2) {
+      // Canon (docs/canon.md, SOVEREIGN'S ARMS): the first meeting (Act 4 gate) is his own Null Blade, brain
+      // or scripted. Every later fight (the lab, standalone) he carries a copy of one of the player's arms,
+      // so the counter-pick runs now and the opening Null Blade is never seen.
+      const _sovFirst = _storySovFight && !!_activeStory2Chapter.sovereignSignature;
+      if (_sovFirst) { ai._sovSignature = true; ai._loadoutLocked = true; }
+      else if (ai._ensureMatchLoadout) { try { ai._ensureMatchLoadout(); } catch (e) {} }
+      const _drive = (typeof Brain !== 'undefined' && Brain.driveSovereign) ? Brain.driveSovereign(ai, p1) : null;
+      Promise.resolve(_drive || -1).then(it => {
+        if (it < 0) console.warn('[Sovereign] brain checkpoint not loaded: scripted Sovereign');
+      });
+    }
   } else if (isDamnationMode) {
     // Eternal Damnation arc: P1 solo, wave manager spawns echoes dynamically
     p1.isAI  = false;

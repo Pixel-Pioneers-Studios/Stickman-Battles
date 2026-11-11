@@ -225,7 +225,6 @@ function _finClearPose(f) {
 }
 
 function triggerFinisher(attacker, target) {
-  if (!settings.finishers) return false;
   if (activeFinisher)      return false;
   // Not during a cinematic: it would replace activeCinematic and orphan its onEnd.
   if (typeof activeCinematic !== 'undefined' && activeCinematic) return false;
@@ -239,6 +238,13 @@ function triggerFinisher(attacker, target) {
   // _brCreditElimination). When the local player dies, a clone of the killer performs the finisher while the
   // real killer is healed now and keeps fighting. The world doesn't freeze.
   const _world = gameMode === 'battleroyale';
+  // Finishers off changes what plays, not the fight: the killer takes the heal on the kill.
+  if (!settings.finishers) {
+    const _storyFoe = typeof storyModeActive !== 'undefined' && storyModeActive &&
+      attacker !== players[0] && !areAlliedEntities(attacker, players[0]);
+    if (!_world && !_storyFoe) _finPayHeal(attacker, !attacker.isAI && !attacker.isRemote);
+    return false;
+  }
   let _realAttacker = null;
   if (_world) {
     if (activeWorldFinisher) return false;

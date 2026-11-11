@@ -853,7 +853,7 @@ function _renderWeaponMasterySection(container) {
   for (const k of melee) {
     const opt = document.createElement('option');
     opt.value = k;
-    opt.textContent = (WEAPONS[k] && WEAPONS[k].name) || k;
+    opt.textContent = (typeof WEAPON_LORE !== 'undefined' && WEAPON_LORE[k]) ? WEAPON_LORE[k].name + ' (' + WEAPON_LORE[k].kind + ')' : ((WEAPONS[k] && WEAPONS[k].name) || k);
     if (k === wKey) opt.selected = true;
     sel.appendChild(opt);
   }

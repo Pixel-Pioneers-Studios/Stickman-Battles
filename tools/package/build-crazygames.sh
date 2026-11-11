@@ -57,6 +57,8 @@ cp data/sov-artifact.json "$STAGE/data/"
 # The Brain: Sovereign's default driver. Missing/failed fetch falls back to the cascade.
 mkdir -p "$STAGE/data/brain"
 cp data/brain/latest.json "$STAGE/data/brain/"
+# Script copy of the same checkpoint, for file:// where fetch is blocked.
+node tools/brain/ckpt-js.js --out="$STAGE/data/brain/latest.js"
 
 # Strip anything that is not a runtime asset.
 find "$STAGE" \( -name '.DS_Store' -o -name '*.smbreplay' -o -name '*.md' \) -delete

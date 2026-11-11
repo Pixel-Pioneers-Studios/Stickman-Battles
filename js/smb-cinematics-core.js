@@ -798,6 +798,16 @@ function drawCinSpeedLines() {
 // World-space draw: motion trails
 // Called from smb-loop-core.js before the players draw loop.
 
+function _cinStickGhost(ctx, x, y, w, h, lineWidth = 3) {
+  const cx = x + w / 2, r = h * 0.15, neck = y + r * 2, hip = y + h * 0.62, foot = y + h;
+  ctx.lineWidth = lineWidth; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx, y + r, r, 0, Math.PI * 2);
+  ctx.moveTo(cx, neck); ctx.lineTo(cx, hip);
+  ctx.moveTo(cx - w * 0.55, neck + h * 0.2); ctx.lineTo(cx, neck + h * 0.05); ctx.lineTo(cx + w * 0.55, neck + h * 0.2);
+  ctx.moveTo(cx - w * 0.45, foot); ctx.lineTo(cx, hip); ctx.lineTo(cx + w * 0.45, foot);
+  ctx.stroke();
+}
+
 function drawCinMotionTrails() {
   if (!cinMotionTrails || !cinMotionTrails.length) return;
   ctx.save();
@@ -817,7 +827,8 @@ function drawCinMotionTrails() {
       if (ent._cinPerf && typeof CinPerf !== 'undefined' && typeof CinRig !== 'undefined') {
         CinPerf.drawGhost(ent, pos, t.color, alpha);
       } else {
-        ctx.fillRect(pos.x + 4, pos.y + 4, ent.w - 8, ent.h - 8);
+        ctx.strokeStyle = t.color || '#ffffff';
+        _cinStickGhost(ctx, pos.x, pos.y, ent.w, ent.h);
       }
     }
   }
@@ -876,7 +887,8 @@ function drawCinImpactFrame() {
       if (!ent || ent.health <= 0) continue;
       const sx = (ent.x - 3) * _fSc + _tx;
       const sy = (ent.y - 3) * _fSc + _ty;
-      ctx.fillRect(sx, sy, (ent.w + 6) * _fSc, (ent.h + 6) * _fSc);
+      ctx.strokeStyle = '#0a0a0a';
+      _cinStickGhost(ctx, sx, sy, (ent.w + 6) * _fSc, (ent.h + 6) * _fSc, 4 * _fSc);
     }
   }
   ctx.globalAlpha = 1;

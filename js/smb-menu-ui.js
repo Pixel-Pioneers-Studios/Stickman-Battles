@@ -1335,3 +1335,17 @@ window.addEventListener('load', function() {
     }).observe(menuEl, { attributes: true, attributeFilter: ['style'] });
   }
 });
+
+// Remember the bot difficulty across reloads. Only a user change saves it: story chapters set
+// the select from code (no change event), so a chapter's difficulty is never stored.
+(function () {
+  const sel = document.getElementById('p2Difficulty');
+  if (!sel) return;
+  try {
+    const v = localStorage.getItem('smc_p2Difficulty');
+    if (v && sel.querySelector('option[value="' + v + '"]')) sel.value = v;
+  } catch (e) {}
+  sel.addEventListener('change', () => {
+    try { localStorage.setItem('smc_p2Difficulty', sel.value); } catch (e) {}
+  });
+})();

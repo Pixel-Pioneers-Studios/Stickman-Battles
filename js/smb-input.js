@@ -214,7 +214,7 @@ document.addEventListener('keydown', e => {
       ['p1Class','p2Class'].forEach(id => {
         const sel = document.getElementById(id);
         if (sel && !sel.querySelector('option[value="megaknight"]')) {
-          const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: Knight ★'; sel.appendChild(opt);
+          const opt = document.createElement('option'); opt.value = 'megaknight'; opt.textContent = 'Class: ' + CLASSES.megaknight.name + ' ★'; sel.appendChild(opt);
         }
       });
       const notif2 = document.createElement('div');

@@ -67,6 +67,7 @@ function endCinematic() {
 
 // One factory per boss and phase.
 function _makeBossPhase2Cinematic(boss) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeCreatorPhase2Film(boss);
   return {
     durationFrames: 150, // 2.5 s
     _slamFired: false, _roarFired: false,
@@ -118,6 +119,7 @@ function _makeBossPhase2Cinematic(boss) {
 }
 
 function _makeBossPhase3Cinematic(boss) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeCreatorPhase3Film(boss);
   return {
     durationFrames: 180, // 3.0 s
     _slamFired: false, _roarFired: false,
@@ -166,6 +168,7 @@ function _makeBossPhase3Cinematic(boss) {
 }
 
 function _makeTFPhase2Cinematic(tf) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeAxiomPhase2Film(tf);
   return {
     durationFrames: 150, // 2.5 s
     _burstFired: false, _roarFired: false,
@@ -212,6 +215,7 @@ function _makeTFPhase2Cinematic(tf) {
 }
 
 function _makeTFPhase3Cinematic(tf) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeAxiomPhase3Film(tf);
   return {
     durationFrames: 210, // 3.5 s
     _voidFired: false, _roarFired: false,

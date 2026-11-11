@@ -1709,11 +1709,12 @@ function _storyBuildDeathReport(ch) {
   }
   rep.cause = 'foe';
   const wk = k.weaponKey || (k.weapon && k.weapon.key) || '';
-  const wName = (typeof WEAPONS !== 'undefined' && WEAPONS[wk] && WEAPONS[wk].name) || (wk ? wk : 'bare hands');
+  const wName = (typeof weaponDisplayName === 'function' && weaponDisplayName(k))
+    || (typeof WEAPONS !== 'undefined' && WEAPONS[wk] && WEAPONS[wk].name) || (wk ? wk : 'bare hands');
   const cName = (k.charClass && k.charClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[k.charClass] && CLASSES[k.charClass].name) || null;
   const who = k.name || (k.isBoss ? 'the boss' : 'an enemy');
   rep.killer = { name: who, weapon: wName, cls: cName };
-  rep.lines.push(`<b>${_spiritEsc(who)}</b>${cName ? ` (${_spiritEsc(cName)})` : ''} ended you with ${_spiritEsc(/^[aeiou]/i.test(wName) ? 'an' : 'a')} <b>${_spiritEsc(wName)}</b>` +
+  rep.lines.push(`<b>${_spiritEsc(who)}</b>${cName ? ` (${_spiritEsc(cName)})` : ''} ended you with ${/^The /.test(wName) ? '' : _spiritEsc(/^[aeiou]/i.test(wName) ? 'an' : 'a')} <b>${_spiritEsc(wName)}</b>` +
     (p1._lastAttackerDmg ? `. The last blow did ${Math.round(p1._lastAttackerDmg)} damage.` : '.'));
   rep.lines.push(_spiritWeaponTip(wk));
   const afford = _spiritAffordableSkills();

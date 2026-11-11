@@ -124,3 +124,18 @@ Exploration beats get no generic checkpoint waves, pressure stalkers or idle amb
 (a `defense` beat keeps its wave; a `walkFight` keeps its one duel). The Reckonings
 film (`STORY_CINEMATIC_RUNS`) plays beats and `afterNarrative` inline. Chapters 166,
 170 and 171 (around the Absolute Axiom fight) deliberately have no beat.
+
+## Chapter id check
+
+Story chapters live in `js/story/acts/` organized by act and arc, and are pushed into `STORY_CHAPTER_REGISTRY` at load time (the registry file itself is empty). After adding or renumbering chapters, verify the `id:` values are contiguous 0..N with no gaps or duplicates by scanning every arc file (run from the `Stickman-Battles/` dir):
+```bash
+node -e '
+const fs=require("fs"),path=require("path");
+function walk(d){let o=[];for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);e.isDirectory()?o=o.concat(walk(p)):e.name.endsWith(".js")&&o.push(p);}return o;}
+let ids=[];for(const f of walk("js/story/acts")){for(const m of fs.readFileSync(f,"utf8").matchAll(/^\s*id:\s*(\d+),/gm))ids.push(+m[1]);}
+ids.sort((a,b)=>a-b);
+console.log("total",ids.length,"min",ids[0],"max",ids.at(-1));
+const dup=[...new Set(ids.filter((v,i)=>ids[i+1]===v))];if(dup.length)console.log("DUPLICATES",dup);
+for(let i=0;i<=ids.at(-1);i++)if(!ids.includes(i))console.log("GAP at",i);
+'
+```

@@ -32,6 +32,8 @@ cp -R images/weapons "$STAGE/images/"
 mkdir -p "$STAGE/data/brain"
 cp data/sov-artifact.json "$STAGE/data/"
 cp data/brain/latest.json "$STAGE/data/brain/"
+# Script copy of the same checkpoint, for file:// where fetch is blocked.
+node tools/brain/ckpt-js.js --out="$STAGE/data/brain/latest.js"
 
 # Owner and developer tools stay out of the player copy: the developer console
 # (typed GAMECONSOLE), its local AI assistant, the F7 Sovereign possession

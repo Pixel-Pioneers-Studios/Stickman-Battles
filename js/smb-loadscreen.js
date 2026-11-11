@@ -77,6 +77,33 @@ var LoadScene = (function () {
       }
     }
 
+    // Film body (same as the fighters, smb-figure-skin.js): built in pose units, scaled by u.
+    var _film = typeof FigureSkin !== 'undefined' && typeof FIG_FILM_BODY !== 'undefined' && FIG_FILM_BODY;
+    if (_film) {
+      var LW = (typeof FIG_LINE_W !== 'undefined') ? FIG_LINE_W : 3.8;
+      var q = function (a) { return { x: a[0], y: a[1] }; };
+      var hipQ = { x: 0, y: 0 }, shQ = q(p[0]), hdQ = q(p[1]);
+      var HRU = 10;   // head radius in pose units (film head is ~1/9.5 of body height)
+      var nd = Math.hypot(hdQ.x - shQ.x, hdQ.y - shQ.y) || 1;
+      var nkQ = { x: hdQ.x - (hdQ.x - shQ.x) / nd * HRU * 0.55, y: hdQ.y - (hdQ.y - shQ.y) / nd * HRU * 0.55 };
+      var near = FigureSkin.begin({ film: true }), far = FigureSkin.begin({ film: true });
+      FigureSkin.segment(far,  [hipQ, q(p[4]), q(p[5])], [LW * 1.16, LW * 0.90, LW * 0.68]);
+      FigureSkin.segment(far,  [shQ,  q(p[8]), q(p[9])], [LW * 1.02, LW * 0.82, LW * 0.62]);
+      FigureSkin.segment(near, [nkQ, shQ], [LW * 0.55, LW * 0.92]);
+      FigureSkin.head(near, hdQ.x, hdQ.y, HRU, f);
+      FigureSkin.segment(near, [shQ, hipQ], [LW * 1.85, LW * 1.30]);
+      FigureSkin.segment(near, [hipQ, q(p[2]), q(p[3])], [LW * 1.30, LW * 1.00, LW * 0.76]);
+      FigureSkin.segment(near, [shQ,  q(p[6]), q(p[7])], [LW * 1.15, LW * 0.92, LW * 0.70]);
+      var pal = { accent: RIM, fill: o.dark || null };
+      ctx.save();
+      ctx.translate(hx, hy); ctx.scale(f * u, u);
+      FigureSkin.paint(far,  pal, true,  ctx, ctx.globalAlpha);
+      FigureSkin.paint(near, pal, false, ctx, ctx.globalAlpha);
+      ctx.restore();
+      weapon(); ctx.strokeStyle = RIM;  ctx.lineWidth = 4.0 * u; ctx.stroke();
+      weapon(); ctx.strokeStyle = DARK; ctx.lineWidth = 2.8 * u; ctx.stroke();
+      head = [hx + hdQ.x * f * u, hy + hdQ.y * u];   // eyes below follow the film head
+    } else {
     body();   ctx.strokeStyle = RIM;  ctx.lineWidth = 5.4 * u; ctx.stroke();
     weapon(); ctx.strokeStyle = RIM;  ctx.lineWidth = 4.0 * u; ctx.stroke();
     body();   ctx.strokeStyle = DARK; ctx.lineWidth = 4.2 * u; ctx.stroke();
@@ -86,6 +113,7 @@ var LoadScene = (function () {
     ctx.beginPath(); ctx.arc(head[0], head[1], hr, 0, Math.PI * 2);
     ctx.fillStyle = DARK; ctx.fill();
     ctx.lineWidth = 1.6 * u; ctx.strokeStyle = RIM; ctx.stroke();
+    }
 
     if (o.eye) {
       ctx.save();

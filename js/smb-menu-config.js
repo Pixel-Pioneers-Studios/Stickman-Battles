@@ -99,7 +99,7 @@ function toggleStatsLog() {
   html += '<tr style="background:rgba(255,215,0,0.12)"><th>Name</th><th>Type</th><th>Damage</th><th>Range</th><th>CD</th><th>Endlag</th><th>KB</th><th>Ability</th></tr>';
   for (const [key, w] of Object.entries(WEAPONS)) {
     if (w.enemyOnly) continue;
-    const dmg = w.damageFunc ? (key === 'gun' ? '5-8' : key === 'bow' ? '12-20' : key === 'peashooter' ? '2-3' : key === 'slingshot' ? '10-14' : key === 'paperairplane' ? '8-12' : 'random') : w.damage;
+    const dmg = w.damageFunc ? (key === 'gun' ? '5-8' : key === 'bow' ? '12-20' : key === 'peashooter' ? '6-7' : key === 'slingshot' ? '10-14' : key === 'paperairplane' ? '8-12' : 'random') : w.damage;
     const endlagNote = w.endlag ? `${w.endlag}f (whiff: ${Math.round(w.endlag*2.4)}f)` : '—';
     html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.08)"><td>${w.name || key}</td><td style="color:#aaa">${w.type}</td><td>${dmg}</td><td>${w.range}px</td><td>${w.cooldown}f</td><td style="color:#ff9944">${endlagNote}</td><td>${w.kb}</td><td style="font-size:11px;color:#ccc">${w.abilityName || '—'}</td></tr>`;
   }

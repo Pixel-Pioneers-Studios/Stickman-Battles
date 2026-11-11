@@ -10,7 +10,7 @@ const MP_IDEAL_WEAPON = { warrior: 'sword', berserker: 'axe', summoner: 'sword' 
 // The Knight is not in CLASS_DESCS (its fist and moves are built into Fighter).
 const MP_CLASS_FALLBACK = {
   megaknight: {
-    title: 'Knight',
+    title: CLASSES.megaknight.name,
     weapon: 'mkgauntlet',
     what: 'Legendary knight. Slow, enormous, and built to crush.',
     attack: 'Uppercut Slam: an upward swing with a huge reach that launches whoever it catches.',

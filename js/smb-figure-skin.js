@@ -5,6 +5,11 @@
 // Colour: the lit side shifts warm, the shadow shifts cool and saturated.
 // Load order: after smb-palette.js, before smb-fighter.js.
 
+// Film body (default on): the figure from the Kael films (CinRig, smb-cin-figure.js). Even, slim bones as
+// separate capsules (knees and elbows show), no boots or ball hands, far limbs drawn like near ones.
+// Opt-in per body via begin({ film: true }); ?classicbody or window.FIG_FILM_BODY = false restores the classic look.
+var FIG_FILM_BODY = !(typeof location !== 'undefined' && /[?&]classicbody\b/.test(location.search || ''));
+
 const FigureSkin = (function () {
 
 
@@ -89,11 +94,12 @@ const FigureSkin = (function () {
 
   // Builders add geometry and never paint. Bounds are tracked so paint() can use one gradient for the whole figure.
 
-  function begin() {
+  function begin(opts) {
     // parts: each closed shape. p: all combined, for stroking. d: parts that need a form shadow.
     // Never fill a compound path with 'nonzero': opposite-winding subpaths cancel and punch holes.
     // The same opaque world-space gradient on every part makes overlaps overpaint identically, so no seams.
     return { parts: [], p: new Path2D(), d: new Path2D(), hasD: false,
+             film: !!(opts && opts.film && FIG_FILM_BODY),
              x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
   }
   function _add(b, q) { b.parts.push(q); b.p.addPath(q); }
@@ -105,7 +111,54 @@ const FigureSkin = (function () {
   }
 
   // Limb or torso: variable-width ribbon through pts. Constant width reads as programmer art. Quadratic flanks curve at joints.
-  function segment(b, pts, ws, detail) {
+  // Film bone widths, from the films' CinRig draw (width 5.2 at actor scale 0.9).
+  const FILM_W = 4.68;
+  function _filmCapsule(a, c, wa, wb) {
+    const P = new Path2D();
+    const dx = c.x - a.x, dy = c.y - a.y, d = Math.hypot(dx, dy);
+    if (d < 0.01) { P.arc(a.x, a.y, Math.max(0.4, wa * 0.5), 0, Math.PI * 2); return P; }
+    const nx = -dy / d, ny = dx / d;
+    const ra = Math.max(0.4, wa * 0.5), rb = Math.max(0.4, wb * 0.5);
+    P.moveTo(a.x + nx * ra, a.y + ny * ra);
+    P.lineTo(c.x + nx * rb, c.y + ny * rb);
+    P.arc(c.x, c.y, rb, Math.atan2(ny, nx), Math.atan2(-ny, -nx), true);
+    P.lineTo(a.x - nx * ra, a.y - ny * ra);
+    P.arc(a.x, a.y, ra, Math.atan2(-ny, -nx), Math.atan2(ny, nx), true);
+    P.closePath();
+    return P;
+  }
+  // Film mode: one capsule per bone. The caller's classic widths only pick the role:
+  // torso (wide root), neck (thin root, kept), or limb (even, light taper to the tip).
+  function _filmSegment(b, pts, ws, smooth) {
+    const n = pts.length, cls = ws[0] / FIG_LINE_W;
+    let fw;
+    if (cls < 0.75)      fw = ws.map(w => w * 0.85);                               // neck
+    else if (cls > 1.6)  fw = ws.map((w, i) => FILM_W * (1.05 - 0.05 * i / Math.max(1, n - 1)));  // torso
+    else                 fw = ws.map((w, i) => FILM_W * (1 - 0.24 * i / Math.max(1, n - 1)));     // limb
+    if (cls < 0.75 && n === 2) {
+      // Neck starts inside the head; the film body is see-through, so start it at the jaw instead.
+      const a0 = { x: pts[0].x + (pts[1].x - pts[0].x) * 0.5, y: pts[0].y + (pts[1].y - pts[0].y) * 0.5 };
+      _add(b, _filmCapsule(a0, pts[1], fw[0], fw[1]));
+    } else if (cls > 1.6) {
+      // Torso is one bone in the films: no waist joint.
+      _add(b, _filmCapsule(pts[0], pts[n - 1], fw[0], fw[n - 1]));
+    } else if (n > 2) {
+      // Limbs: one smooth ribbon at film width, so knees and elbows bend without a visible joint.
+      // (The films' CinRig shows the joints; the user preferred them smooth in the game, Nov 8.)
+      _ribbon(b, pts, fw, false);
+      return;
+    } else {
+      for (let i = 0; i < n - 1; i++) _add(b, _filmCapsule(pts[i], pts[i + 1], fw[i], fw[i + 1]));
+    }
+    for (let i = 0; i < n; i++) _bound(b, pts[i].x, pts[i].y, fw[i]);
+  }
+
+  // opts.smooth: in film mode, draw this limb as one ribbon (no joint seam). Used for legs.
+  function segment(b, pts, ws, detail, opts) {
+    if (b.film && pts.length > 1) return _filmSegment(b, pts, ws, !!(opts && opts.smooth));
+    _ribbon(b, pts, ws, detail);
+  }
+  function _ribbon(b, pts, ws, detail) {
     const n = pts.length, P = new Path2D();
     const L = [], R = [];
     for (let i = 0; i < n; i++) {
@@ -170,6 +223,7 @@ const FigureSkin = (function () {
   // Fist, so an arm ends in a hand rather than a stump.
   function hand(b, x, y, ang, f, scale) {
     const s = scale || 1, P = new Path2D();
+    if (b.film && s < 1.2) return;   // film figure: the arm ends at the wrist; bare-hand fists (scale 1.6) stay
     const rx = 3.5 * s, ry = 3.0 * s;
     P.ellipse(x, y, rx, ry, ang * 0.25, 0, Math.PI * 2);
     _add(b, P);
@@ -178,6 +232,7 @@ const FigureSkin = (function () {
 
   // Feet make a figure read as standing on something. Round caps hover.
   function foot(b, x, y, legAng, f) {
+    if (b.film) return;              // film figure: no boots
     const roll = Math.max(-0.55, Math.min(0.55, (legAng - Math.PI * 0.5) * 0.55));
     const co = Math.cos(roll), si = Math.sin(roll), P = new Path2D();
     const T = (lx, ly) => [x + lx * co - ly * si, y + lx * si + ly * co];
@@ -209,6 +264,7 @@ const FigureSkin = (function () {
     // The far-side limb is a shadowed part of the same fighter, not a ghost.
     // Nearly opaque, so legs don't vanish into arena art at store-cover scale.
     const _A = alpha === undefined ? 1 : alpha;
+    if (b.film) far = false;         // film figure: back limbs read like front ones
     ctx.globalAlpha = (far ? 0.86 : 0.94) * _A;
     ctx.strokeStyle = p.accent;
     ctx.lineWidth   = far ? 1.35 : 1.85;
@@ -219,7 +275,7 @@ const FigureSkin = (function () {
     // Opaque matters: every part gets the same world-space gradient, so overlaps match and vanish.
     // One light across the whole figure reads as one object under one sun.
     const style = far ? 'rgba(3, 5, 18, 0.90)' : 'rgba(3, 5, 18, 0.80)';
-    ctx.fillStyle = style;
+    ctx.fillStyle = p.fill || style;   // p.fill: art that tints the body (loading-screen ghosts)
     for (const q2 of b.parts) ctx.fill(q2);
 
     ctx.restore();

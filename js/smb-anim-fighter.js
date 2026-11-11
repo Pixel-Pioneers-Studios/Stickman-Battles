@@ -342,3 +342,184 @@ function animArmBlend(f, s, rAng, lAng, skip = false, frames = 7) {
   f._armL = lAng;
   return [rAng, lAng];
 }
+
+// Whole-body basic swings and hit reactions. Classic animation quality turns these off, as does ?noswingbody.
+// Draw-only: during a swing the hand stays where swingPose() puts it, so the blade still matches its hitbox while the body moves around it.
+// A swing has to start on the press, so there is no real wind-up: the weight is in the strike and the held follow-through.
+// Pose: lean/hip px forward; head px ahead of the shoulders; drop px crouch; front/rear feet offset from the body centre; l off-arm angle; ll off-arm reach.
+let SWING_BODY_ON = !(typeof location !== 'undefined' && /[?&]noswingbody\b/.test(location.search));
+
+// [load, strike, held], a pair per archetype: consecutive swings alternate so a chain doesn't repeat one pose.
+const _SB_SLASH = [
+  [{ lean: -2, hip: 2, drop: 5, front: 13, rear: -12, l: 0.60 }, { lean: 13, hip: 7, drop: 10, front: 23, rear: -19, l: 2.75 }, { lean: 11, hip: 6, drop: 9, front: 23, rear: -19, l: 2.85 }],
+  [{ lean: 3, hip: 3, drop: 8, front: 15, rear: -13, l: 2.40 }, { lean: 8, hip: 5, drop: 2, front: 17, rear: -16, l: 0.72 }, { lean: 7, hip: 4, drop: 3, front: 17, rear: -16, l: 0.84 }],
+];
+const _SB_SMASH = [
+  [{ lean: -5, hip: -1, drop: -2, front: 10, rear: -11, l: -1.00 }, { lean: 16, hip: 8, drop: 15, front: 24, rear: -20, l: 2.20 }, { lean: 14, hip: 7, drop: 14, front: 24, rear: -20, l: 2.30 }],
+  [{ lean: -3, hip: 0, drop: 1, front: 12, rear: -12, l: 2.70 }, { lean: 13, hip: 7, drop: 13, front: 21, rear: -22, l: 0.95 }, { lean: 12, hip: 6, drop: 12, front: 21, rear: -22, l: 1.05 }],
+];
+const _SB_CLEAVE = [
+  [{ lean: -4, hip: 1, drop: 6, front: 14, rear: -14, l: 0.20 }, { lean: 12, hip: 6, drop: 11, front: 25, rear: -21, l: 3.00 }, { lean: 8, hip: 5, drop: 10, front: 25, rear: -21, l: 2.90 }],
+  [{ lean: 2, hip: 2, drop: 9, front: 16, rear: -14, l: 2.60 }, { lean: 10, hip: 5, drop: 5, front: 20, rear: -20, l: 0.50 }, { lean: 8, hip: 4, drop: 6, front: 20, rear: -20, l: 0.65 }],
+];
+const _SB_SWEEP = [
+  [{ lean: -6, hip: 0, drop: 8, front: 16, rear: -16, l: 0.30 }, { lean: 10, hip: 4, drop: 14, front: 28, rear: -24, l: 2.90 }, { lean: 12, hip: 5, drop: 13, front: 28, rear: -24, l: 3.05 }],
+  [{ lean: -3, hip: 1, drop: 10, front: 18, rear: -18, l: 2.50 }, { lean: 11, hip: 3, drop: 12, front: 24, rear: -27, l: 0.40 }, { lean: 10, hip: 3, drop: 11, front: 24, rear: -27, l: 0.55 }],
+];
+const _SB_THRUST = [
+  [{ lean: -4, hip: -2, drop: 6, front: 10, rear: -12, l: 2.30 }, { lean: 15, hip: 10, drop: 9, front: 27, rear: -22, l: 2.95 }, { lean: 13, hip: 9, drop: 8, front: 27, rear: -22, l: 2.90 }],
+  [{ lean: -2, hip: -1, drop: 4, front: 11, rear: -13, l: 2.10 }, { lean: 12, hip: 9, drop: 12, front: 25, rear: -24, l: 2.70 }, { lean: 11, hip: 8, drop: 11, front: 25, rear: -24, l: 2.75 }],
+];
+const _SB_CRACK = [
+  [{ lean: -3, hip: 0, drop: 3, front: 11, rear: -11, l: 1.00 }, { lean: 9, hip: 5, drop: 6, front: 17, rear: -15, l: 2.60 }, { lean: 8, hip: 4, drop: 5, front: 17, rear: -15, l: 2.70 }],
+  [{ lean: 1, hip: 1, drop: 7, front: 13, rear: -11, l: 2.20 }, { lean: 6, hip: 4, drop: 2, front: 15, rear: -15, l: 0.90 }, { lean: 5, hip: 3, drop: 3, front: 15, rear: -15, l: 1.00 }],
+];
+const _SB_JAB = [
+  [{ lean: 1, hip: 1, drop: 4, front: 10, rear: -10, l: -0.50, ll: 0.55 }, { lean: 10, hip: 6, drop: 6, front: 15, rear: -12, l: -0.45, ll: 0.55 }, { lean: 7, hip: 4, drop: 5, front: 15, rear: -12, l: -0.45, ll: 0.55 }],
+  [{ lean: 3, hip: 2, drop: 6, front: 11, rear: -11, l: -0.70, ll: 0.50 }, { lean: 7, hip: 7, drop: 8, front: 16, rear: -14, l: -0.65, ll: 0.50 }, { lean: 5, hip: 5, drop: 7, front: 16, rear: -14, l: -0.65, ll: 0.50 }],
+];
+// Guns and bows push back on the shot instead of lunging.
+const _SB_POINT = [
+  [{ lean: 2, hip: 1, drop: 3, front: 11, rear: -11, l: 0.90, ll: 0.8 }, { lean: -4, hip: -1, drop: 4, front: 12, rear: -13, l: 0.95, ll: 0.8 }, { lean: -2, hip: 0, drop: 3, front: 12, rear: -13, l: 0.95, ll: 0.8 }],
+  [{ lean: 3, hip: 1, drop: 4, front: 11, rear: -12, l: 0.85, ll: 0.8 }, { lean: -3, hip: -1, drop: 5, front: 12, rear: -14, l: 0.90, ll: 0.8 }, { lean: -1, hip: 0, drop: 4, front: 12, rear: -14, l: 0.90, ll: 0.8 }],
+];
+const _SB_AIM = [
+  [{ lean: -1, hip: 0, drop: 3, front: 14, rear: -13, l: 3.00, ll: 0.6 }, { lean: 3, hip: 1, drop: 4, front: 15, rear: -14, l: 3.05, ll: 0.9 }, { lean: 2, hip: 1, drop: 4, front: 15, rear: -14, l: 3.05, ll: 0.9 }],
+  [{ lean: -2, hip: 0, drop: 4, front: 14, rear: -14, l: 3.05, ll: 0.6 }, { lean: 2, hip: 1, drop: 5, front: 15, rear: -15, l: 3.10, ll: 0.9 }, { lean: 1, hip: 1, drop: 5, front: 15, rear: -15, l: 3.10, ll: 0.9 }],
+];
+const _SB_THROW = [
+  [{ lean: -5, hip: 0, drop: 3, front: 12, rear: -12, l: 0.40 }, { lean: 14, hip: 8, drop: 7, front: 20, rear: -17, l: 2.70 }, { lean: 11, hip: 6, drop: 6, front: 20, rear: -17, l: 2.80 }],
+  [{ lean: -4, hip: 1, drop: 5, front: 13, rear: -12, l: 0.70 }, { lean: 11, hip: 6, drop: 4, front: 18, rear: -18, l: 2.45 }, { lean: 9, hip: 5, drop: 4, front: 18, rear: -18, l: 2.55 }],
+];
+const _SB_HOSE = [
+  [{ lean: 3, hip: 1, drop: 5, front: 13, rear: -13, l: 0.80, ll: 0.75 }, { lean: 4, hip: 2, drop: 6, front: 14, rear: -14, l: 0.80, ll: 0.75 }, { lean: 3, hip: 2, drop: 6, front: 14, rear: -14, l: 0.80, ll: 0.75 }],
+  [{ lean: 3, hip: 1, drop: 5, front: 13, rear: -13, l: 0.80, ll: 0.75 }, { lean: 4, hip: 2, drop: 6, front: 14, rear: -14, l: 0.80, ll: 0.75 }, { lean: 3, hip: 2, drop: 6, front: 14, rear: -14, l: 0.80, ll: 0.75 }],
+];
+const SWING_BODY_ARCH = {
+  slash: _SB_SLASH, iai: _SB_SLASH, strike: _SB_SLASH,
+  smash: _SB_SMASH, cleave: _SB_CLEAVE,
+  sweep: _SB_SWEEP, whirl: _SB_SWEEP,
+  thrust: _SB_THRUST, poke: _SB_THRUST, bash: _SB_THRUST,
+  crack: _SB_CRACK, jab: _SB_JAB,
+  point: _SB_POINT, aim: _SB_AIM, throw: _SB_THROW, hose: _SB_HOSE,
+};
+const SWING_BODY_HEAVY = { smash: 1, sweep: 1, whirl: 1 };
+
+// Reactions start at full pose on frame 0, so the hit-stop freezes the body already taking the blow.
+// lean, hip and head are written for a blow from the front and flip for one from behind.
+const _SB_STAND = { w: 0, lean: 0, hip: 0, head: 0, drop: 0, front: 7, rear: -7, l: 1.32, ll: 1 };
+const _SB_REACT = {
+  head: [
+    { t: 0, w: 1, lean: -9, hip: 3, head: -7, drop: 4, front: 11, rear: -15, l: 2.40, ll: 1 },
+    { t: 6, e: 'lin', w: 1, lean: -11, hip: 4, head: -9, drop: 5, front: 11, rear: -15, l: 2.55, ll: 1 },
+    { t: 24, e: 'io', ..._SB_STAND },
+  ],
+  gut: [
+    { t: 0, w: 1, lean: 9, hip: -6, head: 4, drop: 11, front: 9, rear: -9, l: 0.90, ll: 0.7 },
+    { t: 7, e: 'lin', w: 1, lean: 11, hip: -7, head: 5, drop: 12, front: 9, rear: -9, l: 0.85, ll: 0.7 },
+    { t: 26, e: 'io', ..._SB_STAND },
+  ],
+  heavy: [
+    { t: 0, w: 1, lean: -16, hip: 7, head: -10, drop: 8, front: 15, rear: -20, l: -2.20, ll: 1 },
+    { t: 8, e: 'lin', w: 1, lean: -18, hip: 8, head: -11, drop: 10, front: 15, rear: -20, l: -2.35, ll: 1 },
+    { t: 30, e: 'io', ..._SB_STAND },
+  ],
+};
+const SWING_BODY_FIELDS = ['w', 'lean', 'hip', 'head', 'drop', 'front', 'rear', 'l', 'll'];
+const _sbTrackCache = {};
+
+function _swingBodyEase(e, u) {
+  if (e === 'out')  return 1 - (1 - u) * (1 - u);
+  if (e === 'snap') return 1 - Math.pow(1 - u, 4);
+  if (e === 'io')   return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  return u;
+}
+
+// Key times follow the weapon's own swing length, so a hammer's strike lands late and a jab's lands at once.
+function _sbTrack(arch, alt, dur) {
+  const id = arch + (alt ? 1 : 0) + ':' + dur;
+  if (_sbTrackCache[id]) return _sbTrackCache[id];
+  const set = SWING_BODY_ARCH[arch][alt ? 1 : 0];
+  const tLoad = Math.max(1, Math.round(dur * 0.25));
+  const tStrike = Math.max(tLoad + 1, Math.round(dur * 0.7));
+  const heavy = SWING_BODY_HEAVY[arch];
+  const tHold = tStrike + (heavy ? 12 : 9);
+  const key = (t, e, p) => Object.assign({ t, e, w: 1, head: 0, ll: 1 }, p);
+  return (_sbTrackCache[id] = [
+    key(tLoad, 'out', set[0]), key(tStrike, 'snap', set[1]), key(tHold, 'lin', set[2]),
+    Object.assign({ t: tHold + (heavy ? 18 : 14), e: 'io' }, _SB_STAND),
+  ]);
+}
+
+/** A landed hit picks a reaction. Render-only; called from dealDamage. */
+function animHitReact(attacker, target, dmg, kb, guardUp) {
+  if (!SWING_BODY_ON || !attacker || !target || guardUp || !(dmg > 0) || target.isBoss) return;
+  const g = typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[attacker.weaponKey] : null;
+  const arch = g && g.archetype;
+  let kind;
+  if (dmg >= 26 || (kb || 0) >= 16 || arch === 'smash') kind = 'heavy';
+  else if (arch === 'thrust' || arch === 'poke' || arch === 'bash') kind = 'gut';
+  // Alternating with the attacker's chain, so a string of cuts doesn't play one flinch.
+  else kind = attacker._sbAlt ? 'head' : 'gut';
+  const front = (attacker.cx() - target.cx()) * (target.facing || 1) >= 0 ? 1 : -1;
+  target._sbReact = { t0: target.animTimer || 0, track: _SB_REACT[kind], front, face: target.facing };
+  target._sbSwing = target._sbCur = null;
+}
+
+function _sbSample(track, t, from) {
+  let i = 0;
+  while (i < track.length - 1 && track[i].t <= t) i++;
+  const b = track[i];
+  const a = i > 0 ? track[i - 1] : (from || _SB_STAND);
+  const t0 = i > 0 ? a.t : 0;
+  const k = b.t > t0 ? _swingBodyEase(b.e, Math.min(1, (t - t0) / (b.t - t0))) : 1;
+  const out = {};
+  for (const n of SWING_BODY_FIELDS) {
+    const av = a[n] === undefined ? _SB_STAND[n] : a[n], bv = b[n] === undefined ? _SB_STAND[n] : b[n];
+    out[n] = av + (bv - av) * k;
+  }
+  return out;
+}
+
+/** The body pose for this frame, or null. Pauses with hit-stop, since animTimer does. */
+function animSwingBody(f, s) {
+  if (!SWING_BODY_ON || !animHiQ() || f.isBoss) return null;
+  const clock = f.animTimer || 0;
+  const prevAtk = f._sbAtk || 0;
+  f._sbAtk = f.attackTimer || 0;
+  const g = typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[f.weaponKey] : null;
+  // Knight's gauntlet has no swing entry of its own; it fights like a hammer.
+  const arch = g && SWING_BODY_ARCH[g.archetype] ? g.archetype : (f.charClass === 'megaknight' ? 'smash' : null);
+  if (s === 'attacking' && f._sbAtk > prevAtk && arch) {
+    f._sbSwing = { t0: clock, track: _sbTrack(arch, !!f._sbAlt, f.attackDuration || (g && g.dur) || 10), from: f._sbCur || null, face: f.facing };
+    f._sbAlt = !f._sbAlt;
+    f._sbReact = null;
+  }
+  const r = f._sbReact;
+  if (r) {
+    const t = clock - r.t0;
+    if (s === 'ragdoll' || s === 'dead' || s === 'attacking' || s === 'shielding' || r.face !== f.facing || t >= r.track[r.track.length - 1].t) f._sbReact = null;
+    else {
+      const out = _sbSample(r.track, t);
+      out.lean *= r.front; out.hip *= r.front; out.head *= r.front;
+      return out;
+    }
+  }
+  const sw = f._sbSwing;
+  if (!sw) return null;
+  const t = clock - sw.t0;
+  if (t >= sw.track[sw.track.length - 1].t || sw.face !== f.facing ||
+      (s !== 'attacking' && s !== 'idle' && s !== 'walking' && s !== 'jumping' && s !== 'falling')) {
+    f._sbSwing = f._sbCur = null;
+    return null;
+  }
+  const out = _sbSample(sw.track, t, sw.from);
+  f._sbCur = out;
+  out.anchor = true;
+  // Back to running: the follow-through hands off to the run cycle quickly.
+  if (s === 'walking') {
+    sw.run = (sw.run || 0) + 1;
+    out.w *= Math.max(0, 1 - sw.run / 8);
+  } else sw.run = 0;
+  return out;
+}

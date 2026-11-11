@@ -128,7 +128,10 @@ const Brain = (() => {
   // net can tell a turtle from a rusher.
   const N_HIST = 17;
   const HIST_DECAY = Math.pow(0.5, 1 / 400);   // 400 decisions = 20 s
-  const OBS_DIM = OBS_BASE + 2 * OBS_KIT + OBS_CROWD + N_HIST;
+  // Objective, appended after the read: one-hot of 1..3 (pressure, punish, antiair), all zero for none.
+  // Only the training/eval rollout sets it, for the brain's own view; opponents and live play see none.
+  const N_OBJ = 3;
+  const OBS_DIM = OBS_BASE + 2 * OBS_KIT + OBS_CROWD + N_HIST + N_OBJ;
   let _histOff = false;                          // ablation: read frozen at match start (tools/brain/adapt.js)
   let _huntWeights = null;                       // the frozen net a hunter run trains against (opts.hunt)
   // Ablation (tools/brain/weaponread.js): the brain's view shows these fighters' weapons as unknown,
@@ -164,8 +167,10 @@ const Brain = (() => {
     o[i++] = f.facing || 1;
     o[i++] = f.health / Math.max(1, f.maxHealth);
     o[i++] = (f.lives || 0) / 3;
-    o[i++] = Math.min(1, (f.cooldown || 0) / 40);
-    o[i++] = Math.min(1, (f.attackTimer || 0) / 20);
+    // An opponent's swing is hidden until swingSeen() (smb-globals.js): no reacting inside its startup.
+    const hide = !me && f.attackTimer > 0 && typeof swingSeen === 'function' && !swingSeen(f);
+    o[i++] = hide ? 0 : Math.min(1, (f.cooldown || 0) / 40);
+    o[i++] = hide ? 0 : Math.min(1, (f.attackTimer || 0) / 20);
     o[i++] = Math.min(1, (f.attackEndlag || 0) / 30);
     o[i++] = Math.min(1, (f.abilityCooldown || 0) / 300);
     o[i++] = (f.superMeter || 0) / 100;
@@ -251,7 +256,10 @@ const Brain = (() => {
         const dx = Math.abs(opp.cx() - me.cx()), dy = Math.abs(opp.cy() - me.cy());
         const myR = ((me.weapon && me.weapon.range) || 60) * 1.4 + 20;
         const opR = ((opp.weapon && opp.weapon.range) || 60) * 1.4 + 20;
-        const oSwing = now.oAtk > 0 && p.oAtk === 0 ? 1 : 0;
+        // Its swing counts once it is SWING_SEEN_LAG frames old (smb-globals.js), like the obs above.
+        if (now.oAtk > 0 && p.oAtk === 0) H.pend = fc + (typeof SWING_SEEN_LAG !== 'undefined' ? SWING_SEEN_LAG : 0);
+        const oSwing = H.pend !== undefined && H.pend !== null && fc >= H.pend ? 1 : 0;
+        if (oSwing) H.pend = null;
         const mSwing = now.mAtk > 0 && p.mAtk === 0 ? 1 : 0;
         const dealt = Math.max(0, p.oHp - now.oHp), taken = Math.max(0, p.mHp - now.mHp);
         const towardMe = Math.sign(me.cx() - opp.cx());
@@ -289,7 +297,7 @@ const Brain = (() => {
     return i;
   }
 
-  function observe(me, opp, prevAct, obs) {
+  function observe(me, opp, prevAct, obs, obj) {
     const o = obs || new Float32Array(OBS_DIM);
     const dir = Math.sign(opp.cx() - me.cx()) || 1;
     let i = _fighterObs(o, 0, me, true);
@@ -325,6 +333,8 @@ const Brain = (() => {
     i = _kitObs(o, i, opp, me);
     i = _crowdObs(o, i, me, opp);
     i = _histObs(o, i, me, opp);
+    for (let k = 0; k < N_OBJ; k++) o[i + k] = obj === k + 1 ? 1 : 0;
+    i += N_OBJ;
     for (let k = 0; k < o.length; k++) {
       const v = o[k];
       o[k] = v !== v ? 0 : v > 5 ? 5 : v < -5 ? -5 : v;
@@ -391,7 +401,13 @@ const Brain = (() => {
     'turns', 'twitchTurns',
     // What the twitches were: the opponent changed sides between the two turns, the turn came in the air,
     // in stun, or with no move key toward the new side (a swing or a hit turned him).
-    'twitchCross', 'twitchAir', 'twitchStun', 'twitchNoKey'];
+    'twitchCross', 'twitchAir', 'twitchStun', 'twitchNoKey',
+    // Brain deaths with no damage taken from anyone in the previous 120 frames (fell, walked off), and the
+    // subset where an opponent was invincible (respawn protection) during those 120 frames.
+    'selfKOs', 'selfKOsOppInv',
+    // Goal-conditioned play: damage dealt to a stock opponent that fits each objective's pattern (counted
+    // under any objective, to measure behaviour), and the frames spent under each objective.
+    'objPressureDmg', 'objPunishDmg', 'objAntiAirDmg', 'objFrames1', 'objFrames2', 'objFrames3'];
   function newStats() { const s = {}; for (const k of STAT_KEYS) s[k] = 0; return s; }
 
   const BRAIN_TEAM = 'brain_a', ENEMY_TEAM = 'brain_b';
@@ -407,6 +423,8 @@ const Brain = (() => {
       if (!T || !((target === T.brain && foe(attacker)) || (attacker === T.brain && foe(target)))) return orig(attacker, target, dmg, kb, ...rest);
       const hp0 = target.health, sh0 = !!target.shielding, stun0 = target.stunTimer || 0;
       const broke0 = !!target.shieldBroken, pv0 = attacker ? (attacker._parryVulnFrames || 0) : 0;
+      const committed0 = (target.attackEndlag || 0) > 0 || (target._parryVulnFrames || 0) > 0 || broke0;
+      const antiair0 = !target.onGround && target.cy() < T.brain.cy() - 20;
       const r = orig(attacker, target, dmg, kb, ...rest);
       const lost = Math.max(0, hp0 - target.health);
       const st = T.st;
@@ -430,7 +448,19 @@ const Brain = (() => {
           if (stun0 > 0) st.strings++;
         }
         if ((target.stunTimer || 0) > stun0 && stun0 === 0) st.stuns++;
-        if (sh0 && !broke0 && target.shieldBroken) st.guardBreaks++;
+        const gb = sh0 && !broke0 && target.shieldBroken;
+        if (gb) st.guardBreaks++;
+        const pressure = stun0 > 0 || sh0 || gb;
+        if (pressure) st.objPressureDmg += lost;
+        if (committed0) st.objPunishDmg += lost;
+        if (antiair0) st.objAntiAirDmg += lost;
+        const ob = T.obj | 0, w = T.objW;
+        if (ob === 1) {
+          if (stun0 > 0) T.bonus += w * lost / 40;
+          if (sh0) T.bonus += w * Math.min(0.5, (dmg || 0) / 80);
+          if (gb) T.bonus += w * 0.25;
+        } else if (ob === 2) { if (committed0) T.bonus += w * lost / 40; }
+        else if (ob === 3) { if (antiair0) T.bonus += w * lost / 40; }
       }
       return r;
     };
@@ -449,6 +479,7 @@ const Brain = (() => {
   function _trackFrame(T) {
     const b = T.brain, o = T.opp, p = T.prev, st = T.st;
     st.frames++;
+    if (T.obj > 0) st['objFrames' + T.obj]++;
     const threat = _threatened(b);
     if (threat) st.threatFrames++; else st.calmFrames++;
     if (Math.abs(b.vx || 0) > 1 && b.onGround) st.walkFrames++;
@@ -612,6 +643,13 @@ const Brain = (() => {
       // Live Sovereign plays his top choice every decision, so the hunter's target does too.
       f._brainGreedy = !!spec.greedy;
       f._habit = spec.habit ? _newHabit(spec.habit) : null;
+      // spec.habits [a, b] with spec.switchAt [lo, hi]: habit a until one frame drawn per match, then habit b
+      // ('none' = no habit). tools/brain/intelbench.js --habits.
+      if (spec.habits && spec.switchAt) {
+        const [lo, hi] = spec.switchAt;
+        f._switchFrame = Math.round(lo + Math.random() * (hi - lo));
+        f._habit = _newHabit(spec.habits[0]); f._habitNext = spec.habits[1];
+      }
     } else if (spec.type === 'sovereign' && typeof SovereignMK2 !== 'undefined') {
       f = new SovereignMK2(x, SPAWN_Y, '#ff2200', kit.w);
       f.isAI = true;
@@ -626,6 +664,13 @@ const Brain = (() => {
       const ctls = (spec.styles || [spec.params]).map(p => HumanProxy.controller(p));
       const every = spec.every || 1800, off = Math.floor(Math.random() * ctls.length);
       f.updateAI = function () { return ctls[(off + Math.floor((frameCount || 0) / every)) % ctls.length].call(this); };
+      // spec.switchAt [lo, hi]: plays styles[0] until one frame drawn per match, then styles[1] for good
+      // (tools/brain/intelbench.js: a change at a known moment). frameCount is match-local in the rollout.
+      if (spec.switchAt && ctls.length >= 2) {
+        const [lo, hi] = spec.switchAt, sw = Math.round(lo + Math.random() * (hi - lo));
+        f._switchFrame = sw;
+        f.updateAI = function () { return ctls[(frameCount || 0) < sw ? 0 : 1].call(this); };
+      }
       f.aiTickInterval = 1; f._noWhiffGuard = true;
     } else {
       f = new Fighter(x, SPAWN_Y, '#44dd44', kit.w, null, true, spec.type === 'idle' ? 'easy' : spec.type);
@@ -638,6 +683,42 @@ const Brain = (() => {
     f.name = 'OPP:' + spec.type;
     return f;
   }
+
+  const _orObs = new Float32Array(OBS_DIM), _orAct = [1, 0, 0, 0];
+  // Layer 2 portfolio (rollout opts.portfolio). Nets are cached per weights object across episodes.
+  const _pfNets = new Map();
+  function _pfValue(f) { return (Math.max(0, f.lives) + (f.lives > 0 ? Math.max(0, f.health) / f.maxHealth : 0)); }
+  function _pfStart(o, brain, opp) {
+    const nets = o.nets.map(w => { if (!_pfNets.has(w)) _pfNets.set(w, loadNet(w)); return _pfNets.get(w); });
+    const pf = { nets, h: nets.map(newState), seg: o.seg || 600, pick: o.pick === undefined ? 'ts' : o.pick,
+      sigma: o.sigma || 0.25, prior: o.prior || nets.map((_, k) => k === 0 ? 0.05 : 0),
+      n: nets.map(() => 0), sum: nets.map(() => 0), on: 0, from: 0, b0: 0, o0: 0, lives: brain.lives, log: [] };
+    pf.on = typeof pf.pick === 'number' ? pf.pick : 0;
+    pf.b0 = _pfValue(brain); pf.o0 = _pfValue(opp);
+    return pf;
+  }
+  function _pfClose(pf, frame, brain, opp) {
+    if (frame - pf.from < 60) return;
+    const r = (pf.o0 - _pfValue(opp)) - (pf.b0 - _pfValue(brain));
+    pf.n[pf.on]++; pf.sum[pf.on] += r; pf.log.push([pf.on, Math.round(r * 1000) / 1000, pf.from]);
+  }
+  function _pfTick(pf, frame, brain, opp) {
+    const lost = brain.lives < pf.lives;
+    if (frame - pf.from < pf.seg && !lost) return;
+    pf.lives = brain.lives;
+    _pfClose(pf, frame, brain, opp);
+    if (pf.pick === 'ts') {
+      let best = -Infinity;
+      for (let k = 0; k < pf.nets.length; k++) {
+        const n = pf.n[k] + 1, mu = (pf.sum[k] + pf.prior[k]) / n;
+        const u = Math.max(1e-9, Math.random()), v = Math.random();
+        const x = mu + pf.sigma / Math.sqrt(n) * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+        if (x > best) { best = x; pf.on = k; }
+      }
+    }
+    pf.from = frame; pf.b0 = _pfValue(brain); pf.o0 = _pfValue(opp);
+  }
+  function _pfEnd(pf, frame, brain, opp) { _pfClose(pf, frame, brain, opp); return { n: pf.n, sum: pf.sum.map(x => Math.round(x * 1000) / 1000), log: pf.log }; }
 
   // Runs whole episodes until `steps` decisions are collected. Returns flat
   // base64 arrays for the trainer plus per-episode results and discovery stats.
@@ -659,6 +740,10 @@ const Brain = (() => {
     // instead of having it filtered at play time.
     const twitchPen = +opts.twitchPen || 0;
     if (opts.hunt) _huntWeights = opts.hunt;
+    // Goal-conditioned play. opts.objectives (training): 900-1200 frame segments, each drawing an objective
+    // 0..3. opts.objective (eval): that one for the whole match. opts.objW scales the objective reward.
+    const objMixed = !!opts.objectives, objFixed = objMixed ? 0 : (opts.objective | 0);
+    const objW = opts.objW === undefined ? 1 : +opts.objW;
     // Eval only (shieldtest.js): who controls the brain's shield key. undefined = the net; 'none' = never;
     // 'f1' = scripted guard every frame; 'dec' = scripted, at decisions only; 'hold' = guard ahead while a
     // hostile is in reach and neither side swings. Ground only: in the air the key is fast fall.
@@ -713,6 +798,7 @@ const Brain = (() => {
       brain._autoConviction = true; // trained on the old rule: a banked Conviction fires on the next super
       if (kit.c && kit.c !== 'none') applyClass(brain, kit.c);
       brain.name = 'BRAIN';
+      if (spec.brainHpMult) { brain.maxHealth = Math.round(brain.maxHealth * spec.brainHpMult); brain.health = brain.maxHealth; }
       // spec.count: opponents at once (2v1, 3v1). They share a team and all hunt the brain.
       const opps = [];
       for (let q = 0; q < (spec.count || 1); q++) {
@@ -738,7 +824,7 @@ const Brain = (() => {
       // swing started (-1 = none in progress: ability, projectile, hazard), and
       // the brain's state as that frame began: stun / air / atk / open].
       const swingStart = new Map(), hitLag = [];
-      const T = _track = { brain, opp: opps[0], opps, st, bonus: 0, frame: 0, lastAbi: -999, lastSup: -999, twitchPen,
+      const T = _track = { brain, opp: opps[0], opps, st, bonus: 0, obj: 0, objW, frame: 0, lastAbi: -999, lastSup: -999, twitchPen,
         prev: { onGround: false, canDoubleJump: false, vy: 0, shielding: false, attackTimer: 0,
                 abilityCooldown: 0, superReady: false, clashCd: 0, oClashCd: 0, dom: false } };
       const act = [1, 0, 0, 0], prevAct = [1, 0, 0, 0], mem = newState(net);
@@ -757,20 +843,72 @@ const Brain = (() => {
         return best;
       };
       let bLost = 0, oLost = 0, pb = brain.health;
+      let _lastDmgF = -9999, _lastOppInvF = -9999, _lastCtx = brain._lastHitCtx; // self-KO stats only
       const po = opps.map(f => f.health);
-      let frame = 0, trunc = false, epSteps = 0, finalObs = null, won = false;
+      let frame = 0, trunc = false, epSteps = 0, finalObs = null, won = false, objEnd = 0;
       const start = n;
+      // opts.intel { every }: Layer 1 (smb-sov-intel.js) watches the main opponent from the brain's side and
+      // its short/medium drift scores are sampled every `every` frames. Eval only; changes nothing it sees.
+      const intel = opts.intel && typeof SovIntel !== 'undefined'
+        ? { S: SovIntel.create(), every: opts.intel.every || 15, s: [], m: [], mz: [], vals: [] } : null;
+
+      // opts.portfolio { nets: [weights...], seg, pick: 'ts' | index, prior }: Layer 2. The brain is several nets,
+      // all fed every decision (each keeps its own memory); the one in charge plays. At each segment end and
+      // each stock the brain loses, the exchange under the net in charge is scored (share of the opponent's
+      // total HP+stocks taken minus share of its own lost), and 'ts' re-picks by Thompson sampling on this
+      // match's scores. Eval only.
+      const pf = opts.portfolio ? _pfStart(opts.portfolio, brain, opps[0]) : null;
+      const trace = opts.trace ? [] : null;
 
       while (true) {
         const main = primary() || opps[0];
         T.opp = main; brain.target = main;
+        if (pf) _pfTick(pf, frame, brain, opps[0]);
         const o = obsBuf.subarray(n * OBS_DIM, (n + 1) * OBS_DIM);
-        observe(brain, main, prevAct, o);
+        if (objMixed) {
+          if (frame >= objEnd) { T.obj = Math.floor(Math.random() * 4); objEnd = frame + 900 + Math.floor(Math.random() * 301); }
+        } else T.obj = objFixed;
+        observe(brain, main, prevAct, o, T.obj);
         if (memWipe && mem && (n - start) % memWipe === 0) mem.fill(0);
-        logps.push(sample(forward(net, o, mem), act, greedy));
+        if (pf) {
+          let lg = null;
+          for (let k = 0; k < pf.nets.length; k++) { const out = forward(pf.nets[k], o, pf.h[k]); if (k === pf.on) lg = out; }
+          logps.push(sample(lg, act, greedy));
+        } else logps.push(sample(forward(net, o, mem), act, greedy));
         acts.push(act[0], act[1], act[2], act[3]);
+        // opts.trace (eval only): one row per decision, both fighters' state as it was decided.
+        if (trace) trace.push([frame, act[0], act[1], act[2], act[3], Math.round(main.cx() - brain.cx()), Math.round(main.cy() - brain.cy()),
+          brain.onGround ? 1 : 0, main.onGround ? 1 : 0, brain.attackTimer || 0, main.attackTimer || 0, brain.stunTimer || 0, main.stunTimer || 0,
+          Math.round(brain.health), Math.round(main.health), brain.lives, main.lives, brain.shielding ? 1 : 0, main.shielding ? 1 : 0, brain.attackEndlag || 0, main.attackEndlag || 0]);
         if (brain._bRead) BrainRead.adjust(brain._bRead, brain, main, act);
         turnAway(turnSt, act, frame, turnAwayN, brain, main, turnDz);
+        // opts.oracle 'back' | 'guard' | 'jump' (eval only, ceiling test): the brain sees the main opponent's
+        // button for this decision before it is pressed (greedy net, memory copied) and dodges a swing in reach.
+        // 'react' needs no oracle: guard while idle once the opponent's swing in reach has visibly started.
+        if (opts.oracle === 'react') {
+          const reach = ((main.weapon && main.weapon.range) || 60) * 1.4 + 30;
+          if ((main.attackTimer || 0) > 0 && Math.abs(main.cx() - brain.cx()) < reach && Math.abs(main.cy() - brain.cy()) < 140
+              && act[3] === 0 && brain.onGround && !((brain.attackEndlag || 0) > 0) && !((brain.stunTimer || 0) > 0)) {
+            act[1] = 0; act[2] = 1; st.oracleDodges = (st.oracleDodges || 0) + 1;
+          }
+        } else if (opts.oracle && main._brainNet && main._brainGreedy) {
+          const q = opps.indexOf(main), io = oppIO[q];
+          if (io) {
+            observe(main, brain, io.prev, _orObs);
+            sample(forward(main._brainNet, _orObs, io.h ? io.h.slice() : null), _orAct, true);
+            const reach = ((main.weapon && main.weapon.range) || 60) * 1.4 + 30;
+            if (_orAct[3] === 1 && !((main.attackTimer || 0) > 0) && Math.abs(main.cx() - brain.cx()) < reach && Math.abs(main.cy() - brain.cy()) < 140
+                && !((brain.stunTimer || 0) > 0)) {
+              const away = main.cx() > brain.cx() ? 0 : 2;
+              if (opts.oracle === 'back') { act[0] = away; act[1] = 0; act[2] = 0; act[3] = 0; }
+              else if (opts.oracle === 'guard') { act[0] = 1; act[1] = 0; act[2] = 1; act[3] = 0; }
+              else if (opts.oracle === 'jump') { act[0] = away; act[1] = 1; act[2] = 0; act[3] = 0; }
+              else if (opts.oracle === 'guardidle') { if (act[3] === 0 && brain.onGround && !((brain.attackEndlag || 0) > 0)) { act[1] = 0; act[2] = 1; } }
+              else if (opts.oracle === 'strike') { if (!((brain.attackEndlag || 0) > 0)) { act[0] = 2 - away; act[2] = 0; act[3] = 1; } }
+              st.oracleDodges = (st.oracleDodges || 0) + 1;
+            }
+          }
+        }
         if (shieldMode === 'hold') holdKey(brain, act);
         applyKeys(brain, act);
         if (shieldMode === 'none' || shieldMode === 'dec') oracleKey(brain, act);
@@ -785,6 +923,7 @@ const Brain = (() => {
           observe(f, brain, io.prev, io.obs);
           sample(forward(f._brainNet, io.obs, io.h), io.act, !!f._brainGreedy);
           if (f._bRead) BrainRead.adjust(f._bRead, f, brain, io.act);
+          if (f._habitNext !== undefined && frame >= f._switchFrame) { f._habit = _newHabit(f._habitNext); f._habitNext = undefined; }
           if (f._habit) {
             _habitAdjust(f, brain, io.act, frame);
             if (f._habit.fired) { f._habit.fired = false; st.habitFires++; if (frame >= 1800) st.habitFiresLate++; }
@@ -812,6 +951,18 @@ const Brain = (() => {
           // Abilities and supers play as move scenes (smb-move-scenes.js); gameLoop ends them, so the sim must too.
           try { if (typeof MoveScene !== 'undefined') MoveScene.update(); } catch (e) { errs.scene = errs.scene || e.message; }
           _trackFrame(T);
+          if (intel) {
+            SovIntel.frame(intel.S, brain, primary() || opps[0]);
+            if (frame % intel.every === 0) {
+              const ds = SovIntel.drift(intel.S, 's'), dm = SovIntel.drift(intel.S, 'm');
+              intel.s.push(Math.round(ds.score * 100) / 100);
+              intel.m.push(Math.round(dm.score * 100) / 100);
+              intel.mz.push(Math.round(dm.maxZ * 100) / 100);
+            }
+            // opts.intel.vals: the medium window's feature values every 60 frames (separability diagnostic).
+            if (opts.intel.vals && frame % 60 === 0) intel.vals.push(SovIntel.FEATURES.map((_, i) => {
+              const v = SovIntel.value(intel.S, 'm', i, 8); return v === v ? Math.round(v * 1e4) / 1e4 : null; }));
+          }
           frame++;
           if (shieldMode !== undefined) {
             for (const e of hostilesOf(brain)) {
@@ -833,6 +984,8 @@ const Brain = (() => {
             if (inHabit) { st.habitTaken += pb - brain.health; if (frame >= 1800) st.habitTakenLate += pb - brain.health; }
           }
           pb = brain.health;
+          if (brain._lastHitCtx !== _lastCtx) { _lastCtx = brain._lastHitCtx; _lastDmgF = frame; }
+          if (opps.some(f => alive(f) && (f.invincible || 0) > 0)) _lastOppInvF = frame;
           opps.forEach((f, q) => {
             if (f.health < po[q]) {
               r += (po[q] - f.health) / 40; st.dmgDealt += po[q] - f.health; if (frame < 600) st.dmgDealtEarly += po[q] - f.health;
@@ -844,7 +997,8 @@ const Brain = (() => {
           for (const who of [brain, ...opps]) {
             if (who.health > 0 || !alive(who)) continue;
             const isB = who === brain;
-            if (isB) { bLost++; st.deaths++; r -= 2; } else { oLost++; st.kills++; r += 2; }
+            if (isB) { bLost++; st.deaths++; r -= 2;
+              if (frame - _lastDmgF > 120) { st.selfKOs++; if (frame - _lastOppInvF <= 120) st.selfKOsOppInv++; } } else { oLost++; st.kills++; r += 2; }
             who.lives--;
             if (who.lives <= 0) {
               if (isB) { done = true; break; }
@@ -877,7 +1031,7 @@ const Brain = (() => {
         rews.push(r); dones.push(done ? 1 : 0);
         n++; epSteps++;
         if (done) {
-          if (trunc) { finalObs = new Float32Array(OBS_DIM); observe(brain, primary() || opps[0], prevAct, finalObs); }
+          if (trunc) { finalObs = new Float32Array(OBS_DIM); observe(brain, primary() || opps[0], prevAct, finalObs, T.obj); }
           break;
         }
       }
@@ -889,8 +1043,11 @@ const Brain = (() => {
       const win = won ? 1 : brain.lives <= 0 ? 0 : (score(brain) > Math.max(...opps.map(score)) ? 1 : 0);
       episodes.push({ opp: spec.label || spec.type, habit: typeof spec.habit === 'string' ? spec.habit : undefined, snap: spec.snap, kit: brain.weaponKey + '/' + (brain.charClass || 'none'), start, len: epSteps, trunc,
         finalObs: finalObs ? _f32ToB64(finalObs) : null,
-        bLost, oLost, win, frames: frame, stats: st, bursts: brain._guardBurstCount || 0, hitLag: shieldMode !== undefined ? hitLag : undefined,
-        read: brain._bRead ? brain._bRead.stats : opps[0]._bRead ? opps[0]._bRead.stats : undefined });
+        bLost, oLost, win, frames: frame, objective: objMixed ? 'mixed' : objFixed, stats: st, bursts: brain._guardBurstCount || 0, hitLag: shieldMode !== undefined ? hitLag : undefined,
+        read: brain._bRead ? brain._bRead.stats : opps[0]._bRead ? opps[0]._bRead.stats : undefined,
+        pf: pf ? _pfEnd(pf, frame, brain, opps[0]) : undefined, trace: trace || undefined,
+        intel: intel ? { every: intel.every, sw: opps[0]._switchFrame, s: intel.s, m: intel.m, mz: intel.mz,
+          vals: opts.intel.vals ? intel.vals : undefined } : undefined });
       for (const k of STAT_KEYS) total[k] += st[k];
     }
     players.length = 0;
@@ -998,18 +1155,35 @@ const Brain = (() => {
     _sovEnabled = !!on;
     try { localStorage.setItem('smb_brain_sov', on ? '1' : '0'); } catch (e) {}
   }
+  // The same checkpoint wrapped as a script (tools/brain/ckpt-js.js) for file://, where fetch fails.
+  let _ckptScript = null;
+  function _loadCkptScript() {
+    if (typeof window !== 'undefined' && window.SOV_BRAIN_CKPT) return Promise.resolve(window.SOV_BRAIN_CKPT);
+    return _ckptScript || (_ckptScript = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'data/brain/latest.js';
+      s.onload  = () => window.SOV_BRAIN_CKPT ? resolve(window.SOV_BRAIN_CKPT) : reject(new Error('no checkpoint'));
+      s.onerror = () => { _ckptScript = null; reject(new Error('no checkpoint script')); };
+      document.head.appendChild(s);
+    }));
+  }
   function driveSovereign(sov, opponent) {
     if (!_sovEnabled || !sov || !opponent) return Promise.resolve(-1);
     try { if (sov._ensureMatchLoadout) sov._ensureMatchLoadout(); } catch (e) {}
     const unknownRanged = KIT_WEAPONS.indexOf(sov.weaponKey) < 0 && !(sov.weapon && sov.weapon.type === 'melee');
-    if (unknownRanged && typeof SMK2_LOADOUTS !== 'undefined' && sov._applyLoadout) {
+    // The Null Blade belongs to the first meeting only (_sovSignature, see _startGameCore). Anywhere
+    // else he fights with a copy of the player's arms.
+    const scriptedTell = sov.weaponKey === 'nullblade' && !sov._sovSignature;
+    if ((unknownRanged || scriptedTell) && typeof SMK2_LOADOUTS !== 'undefined' && sov._applyLoadout) {
       const known = SMK2_LOADOUTS.filter(l => KIT_WEAPONS.indexOf(l.wk) >= 0)
         .sort((a, b) => (b.prior || 0) - (a.prior || 0));
       if (known.length) sov._applyLoadout(known[0]);
     }
     const ck = _sovCkpt ? Promise.resolve(_sovCkpt)
       // no-cache revalidates, so a swapped checkpoint is picked up without a hard reload.
-      : fetch('data/brain/latest.json', { cache: 'no-cache' }).then(r => r.json()).then(j => (_sovCkpt = j));
+      : fetch('data/brain/latest.json', { cache: 'no-cache' }).then(r => r.json())
+          .catch(_loadCkptScript)   // file:// blocks fetch; a <script> still loads
+          .then(j => (_sovCkpt = j));
     return ck.then(j => {
       if (players.indexOf(sov) < 0 || !possess(sov, j.pi || j, opponent)) return -1;
       _live.greedy = true;

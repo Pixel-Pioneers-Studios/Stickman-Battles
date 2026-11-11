@@ -162,7 +162,7 @@ STORY_CHAPTER_REGISTRY.push(
       'Those patterns accumulated. They crystallized.',
       'They became a fragment.',
       '',
-      'Every class ability — every warrior, archer, paladin, berserker',
+      'Every class ability — Aldric, Liss, Oswin, Hroth, every bearer',
       'who stood their ground until they were erased —',
       'was still present. Still fighting.',
       '',

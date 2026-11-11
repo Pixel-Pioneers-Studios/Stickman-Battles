@@ -3468,7 +3468,7 @@ function endGame() {
   }).join('');
   // Boss defeated hint (only if letters not yet unlocked)
   const defeatedBoss = players.find(p => p.isBoss && p.health <= 0);
-  if (defeatedBoss && (winner || bossDefeated) && !(winner && winner.isBoss) && !unlockedTrueBoss && bossBeaten) {
+  if (defeatedBoss && !defeatedBoss.isFallenGod && (winner || bossDefeated) && !(winner && winner.isBoss) && !unlockedTrueBoss && bossBeaten) {
     statsHtml += '<div class="stat-row" style="color:#cc00ee;margin-top:10px;font-size:11px;letter-spacing:1px">' +
                  '&#x2756; Something stirs... seek clues in the arenas.</div>';
   }
@@ -3861,7 +3861,7 @@ function updateHUD() {
       if (p.isBoss) {
         // Boss: show a phase indicator instead of hearts
         const phase = p.getPhase ? p.getPhase() : 1;
-        _hudSet(lEl, 'html', `<span style="font-size:10px;letter-spacing:1px;color:#cc00ee">PHASE ${phase}</span>`);
+        _hudSet(lEl, 'html', `<span style="font-size:10px;letter-spacing:1px;color:${p.isFallenGod ? '#ffcc44' : '#cc00ee'}">PHASE ${phase}</span>`);
       } else if (infiniteMode || p.isDummy || p.lives >= 50 ||
                  (gameMode === 'minigames' && minigameType === 'koth')) {
         _hudSet(lEl, 'html', '∞');
@@ -3939,8 +3939,9 @@ function updateHUD() {
     const wEl = document.getElementById(`p${n}WeaponHud`);
     if (wEl) {
       const hasAmmo = p.weapon && p.weapon.clipSize;
+      const weapName = typeof weaponDisplayName === 'function' ? weaponDisplayName(p) : (p.weapon ? p.weapon.name : '');
       let weapLabel = p.weapon
-        ? (hasAmmo ? `${p.weapon.name}  ${p._ammo}/${p.weapon.clipSize}` : p.weapon.name)
+        ? (hasAmmo ? `${weapName}  ${p._ammo}/${p.weapon.clipSize}` : weapName)
         : '';
       if (p.charClass && p.charClass !== 'none' && typeof CLASSES !== 'undefined' && CLASSES[p.charClass]) {
         const clsName = CLASSES[p.charClass].name || p.charClass;
@@ -4518,8 +4519,8 @@ function _drawPlayerPreview(pid, frame) {
   if (typeof FigureSkin !== 'undefined') {
     const LW = FIG_LINE_W, f = 1, off = -1.6;
     const pal  = FigureSkin.pal(color);
-    const near = FigureSkin.begin();
-    const far  = FigureSkin.begin();
+    const near = FigureSkin.begin({ film: true });
+    const far  = FigureSkin.begin({ film: true });
     FigureSkin.segment(near, [{ x: cx, y: headCY + headR * 0.55 }, { x: cx, y: shouldY - 1 }], [LW * 0.55, LW * 0.92]);
     FigureSkin.head(near, cx, headCY, headR, f);
     FigureSkin.segment(far, [{ x: cx + off, y: shouldY }, { x: lElbX + off, y: lElbY }, { x: lEx + off, y: lEy }],
@@ -4607,10 +4608,14 @@ function drawBossDialogue(scX, scY, camX, camY) {
   const bubbleCx = rx + bw / 2;
   const ry  = Math.max(_hudBottom() + 12, by - bh - Math.round(6 * _scale));
 
-  ctx.fillStyle   = 'rgba(18,0,32,0.90)';
-  ctx.strokeStyle = '#d65bff';
+  // Bubble palette: the Creator's violet, or the Fallen God's gold.
+  const _bp = boss.isFallenGod
+    ? { fill: 'rgba(30,20,4,0.90)', edge: '#ffcc44', glow: 'rgba(240,170,20,0.42)', text: '#fff2c0', tGlow: '#cc8800' }
+    : { fill: 'rgba(18,0,32,0.90)', edge: '#d65bff', glow: 'rgba(160,20,240,0.42)', text: '#f8d7ff', tGlow: '#aa00ee' };
+  ctx.fillStyle   = _bp.fill;
+  ctx.strokeStyle = _bp.edge;
   ctx.lineWidth   = 2.2;
-  ctx.shadowColor = 'rgba(160,20,240,0.42)';
+  ctx.shadowColor = _bp.glow;
   ctx.shadowBlur  = 14;
   ctx.beginPath();
   ctx.roundRect(rx, ry, bw, bh, Math.round(10 * _scale));
@@ -4625,14 +4630,14 @@ function drawBossDialogue(scX, scY, camX, camY) {
   ctx.lineTo(tailCx,       Math.max(tailTop + _tp * 1.55, by + _tp * 0.65));
   ctx.lineTo(tailCx + _tp, tailTop);
   ctx.closePath();
-  ctx.fillStyle = 'rgba(18,0,32,0.90)';
+  ctx.fillStyle = _bp.fill;
   ctx.fill();
-  ctx.strokeStyle = '#d65bff';
+  ctx.strokeStyle = _bp.edge;
   ctx.lineWidth = 2.2;
   ctx.stroke();
 
-  ctx.fillStyle   = '#f8d7ff';
-  ctx.shadowColor = '#aa00ee';
+  ctx.fillStyle   = _bp.text;
+  ctx.shadowColor = _bp.tGlow;
   ctx.shadowBlur  = 10;
   for (let i = 0; i < lines.length; i++) {
     const ty = ry + padY + lineH * (i + 0.5);

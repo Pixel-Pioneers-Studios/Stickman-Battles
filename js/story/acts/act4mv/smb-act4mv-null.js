@@ -171,7 +171,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 560, text: '"You are not waiting for the sweep." Null sounds unsettled. "You are moving before it returns."', color: '#9933ff', timer: 270 },
       { frame: 820, text: '"None of the 847 did that." Keep going.', color: '#ffffff', timer: 260 },
     ],
-    preText: 'Null\'s pattern construct is invisible. You carry the Lantern \u2014 its ability sweeps the space and marks where a body WAS, held three seconds and already stale. Its swing, its footfalls and its flinch are the only live signals. 2 lives.',
+    preText: 'Null\'s pattern construct is invisible. You carry Vigil, a lamplighter\'s lantern \u2014 its ability sweeps the space and marks where a body WAS, held three seconds and already stale. Its swing, its footfalls and its flinch are the only live signals. 2 lives.',
     trial: 'sense',
     // Granted through playerCaps, since the lantern is trialOnly and never rolls randomly.
     // noAbility must be false, or the skill tree could gate away the only sense you have.

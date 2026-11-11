@@ -279,9 +279,20 @@ let _hitFromSuper = false;
 const COMBO_SCALE_SUPER_MIN = 0.7;
 const COMBO_ABILITY_STUN    = 24;
 
-// Varek rage: +1% damage per hit taken this life, max +20%.
-const KRATOS_RAGE_MAX = 20;
+// Varek rage: +1% damage per hit taken this life (DoT ticks don't count), max +10%.
+// Warborn Fury adds +15% on top, ADDED not multiplied, so the peak is +25%: an axe basic
+// tops out at 24, the per-hit ceiling. It was 1.2 x 1.3 = +56% (axe basics hit 29-30), and
+// whip bleed ticks maxed rage in seconds.
+const KRATOS_RAGE_MAX = 10;
 const KRATOS_RAGE_PER = 0.01;
+const KRATOS_FURY_BONUS = 0.15;
+function _varekDmgMult(f) {
+  if (!f) return 1;
+  let m = 1;
+  if (f.charClass === 'kratos' && f.rageStacks > 0) m += Math.min(f.rageStacks, KRATOS_RAGE_MAX) * KRATOS_RAGE_PER;
+  if (f.spartanRageTimer > 0) m += KRATOS_FURY_BONUS;
+  return m;
+}
 
 // Hit i-frames block the same attacker only until they start a new action.
 // Spawn, super and finisher invincibility are never bypassed.
@@ -485,13 +496,11 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     const _pdm = LiveOps.getBalance('playerDamageMult', 1);
     if (_pdm !== 1) actualDmg = Math.max(1, Math.round(actualDmg * _pdm));
   }
-  // Varek rage stacks reset on respawn (see Fighter.respawn).
-  if (attacker && attacker.charClass === 'kratos' && attacker.rageStacks > 0) {
-    actualDmg = Math.round(actualDmg * (1 + Math.min(attacker.rageStacks, KRATOS_RAGE_MAX) * KRATOS_RAGE_PER));
-  }
-  // Warborn Fury: +30% damage, heals 5% of damage dealt.
+  // Varek rage + Warborn Fury, one additive multiplier (see _varekDmgMult). Rage resets on respawn.
+  const _vMult = _varekDmgMult(attacker);
+  if (_vMult !== 1) actualDmg = Math.round(actualDmg * _vMult);
+  // Warborn Fury also heals 5% of damage dealt.
   if (attacker && attacker.spartanRageTimer > 0) {
-    actualDmg = Math.round(actualDmg * 1.3);
     // heal accumulates as a float, applied in whole HP
     attacker._spartanRageHealPool = (attacker._spartanRageHealPool || 0) + actualDmg * 0.05;
     const healNow = Math.floor(attacker._spartanRageHealPool);
@@ -551,7 +560,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     spawnParticles(attacker.cx(), attacker.cy(), '#00aaff', 6);
   }
   // Varek builds rage from hits taken.
-  if (target && target.charClass === 'kratos') {
+  if (target && target.charClass === 'kratos' && !isDot) {
     target.rageStacks = Math.min(KRATOS_RAGE_MAX, (target.rageStacks || 0) + 1);
   }
   // KB scales with damage.
@@ -1113,6 +1122,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   // Pixel hit flash and blood (smb-pixel-vfx-game.js). The particle blood is the fallback when that is off.
   const _pvBlood = typeof pixelHitFX === 'function' && pixelHitFX(attacker, target, actualDmg, _guardUp, isSplash);
   if (typeof animeHitFX === 'function') animeHitFX(attacker, target, actualDmg, _guardUp);
+  if (typeof animHitReact === 'function') animHitReact(attacker, target, actualDmg, actualKb, _guardUp);
   // Blood only on direct entity hits.
   if (!_pvBlood && !_guardUp && !isSplash && attacker && !target.isBoss &&
       actualDmg > 0 && typeof spawnBlood === 'function') {

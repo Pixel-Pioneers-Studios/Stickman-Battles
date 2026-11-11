@@ -611,6 +611,9 @@ class Fighter {
     if (this.abilityCooldown2 > 0) this.abilityCooldown2--;
     if (this.invincible > 0)      this.invincible--;
     const _prevAtkTimer = this.attackTimer;
+    // Frames this swing has been live (0 on its first frame): startup and swingSeen() read it.
+    this._atkAge = _prevAtkTimer > 0 && this._atkWasLive ? (this._atkAge || 0) + 1 : 0;
+    this._atkWasLive = _prevAtkTimer > 0;
     if (this.attackTimer > 0)     this.attackTimer--;
     if (this.attackEndlag > 0) { this.attackEndlag--; this.vx *= 0.72; } // slow during recovery
     if (this._landLag > 0) {
@@ -1560,7 +1563,9 @@ class Fighter {
 
     // Melee arc hitbox: sample points along the swing. Uses _prevAtkTimer so the final frame still hits,
     // so weaponHit is set before the whiff-stun check.
-    if (_prevAtkTimer > 0 && this.weapon.type === 'melee' && !this.weapon.noSwingHitbox) {
+    // Swing startup (swingStartupFrames, smb-globals.js). SIM_SWING_STARTUP (dev sims) overrides it.
+    const _startup = this.isBoss ? 0 : typeof SIM_SWING_STARTUP !== 'undefined' ? SIM_SWING_STARTUP : swingStartupFrames(this.attackDuration);
+    if (_prevAtkTimer > 0 && this.weapon.type === 'melee' && !this.weapon.noSwingHitbox && this._atkAge >= _startup) {
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
         const hitPad = 6; // tight pad, avoids phantom hits from behind and above
@@ -2065,7 +2070,7 @@ class Fighter {
         combatAfter(57, _strikeFn);  // follow-up
       }
 
-      // VAREK: Warborn Fury. 5s damage boost, heals 10% of damage dealt.
+      // VAREK: Warborn Fury. 5s +15% damage (KRATOS_FURY_BONUS), heals 5% of damage dealt.
       if (this.charClass === 'kratos' && pct <= CLASS_PERK_THRESHOLD.kratos) {
         this.classPerkUsed     = true;
         this.spartanRageTimer  = 300;
@@ -4556,7 +4561,7 @@ class Fighter {
     if (this.inputBuffer.length > 3) this.inputBuffer.length = 3;
 
     // Only shield while stacks are low, so the bot doesn't spam a depleted shield.
-    if (t && this.aiDiff !== 'easy' && t.attackTimer > 0 && d < 110 &&
+    if (t && this.aiDiff !== 'easy' && swingSeen(t) && d < 110 &&
         (this.shieldStacks || 0) <= 2 && Math.random() < 0.22) {
       if ((this.shieldHoldTimer || 0) !== 0 || shieldRaise(this)) this.shielding = true;
       combatAfter(19, () => { this.shielding = false; this.shieldHoldTimer = 0; this.shieldBroken = false; });
@@ -5411,6 +5416,10 @@ class Fighter {
       ? animBodyLayer(this, s, (this._finPoseP !== null && this._finPoseP !== undefined) ? this._finPoseP
                                : (this.attackDuration > 0 ? 1 - this.attackTimer / this.attackDuration : 0))
       : null;
+    const _sb = (typeof animSwingBody === 'function' && !_mp && this.spinning <= 0) ? animSwingBody(this, s) : null;
+    const _sbGround = !!(_sb && this.onGround && (s === 'attacking' || s === 'idle' || s === 'hurt' || s === 'stunned'));
+    // Also while running: the run legs lift by the same amount below, so the feet stay on the floor.
+    const _sbDrop = (_sbGround || (_sb && this.onGround && s === 'walking')) ? _sb.drop * _sb.w : 0;
     if (_layer && _layer.rot) {
       const _guY = ty + this.h * 0.45;
       ctx.translate(cx, _guY);
@@ -5465,7 +5474,7 @@ class Fighter {
     const _runPh  = _run ? animRunAdvance(this, FIG_LEG_LEN, _runAmp) : 0;
     const headBob   = _run ? animRunBob(_runPh, FIG_LEG_LEN, _runAmp)
                     : (s === 'walking') ? Math.abs(Math.sin(_walkStepPhase * Math.PI / 2)) * (2.2 + _spr * 0.8) : 0;
-    const headCY    = ty + headR + 1 + animOffY + headBob + (_run ? 0 : _spr * 1.2); // head drops slightly as he commits
+    const headCY    = ty + headR + 1 + animOffY + headBob + (_run ? 0 : _spr * 1.2) + _sbDrop; // head drops slightly as he commits
     const neckY     = headCY + headR + 1;
     const shoulderY = neckY + FIG_NECK;
     const hipY      = shoulderY + 30;
@@ -5476,10 +5485,12 @@ class Fighter {
     // A runner is nearly upright, about 4px of hip lean. Not a 26px anime dash.
     const hipX      = cx + _pelvis + (_run ? -f * 4.5 * _runAmp
                           : s === 'walking' ? f * (2.5 - _spr * 26)
-                          : (_inAir ? f * (-_spr * 4.5) : 0));   // matches the run so takeoff doesn't pop
+                          : (_inAir ? f * (-_spr * 4.5) : 0))    // matches the run so takeoff doesn't pop
+                          + (_sbGround ? f * _sb.hip * _sb.w : 0);
     // Render-only forward lean for showcase captures. Opt-in, so gameplay poses are unchanged.
     const _coverLean = (Number(this._coverLean) || 0) + (_mp ? (_mp.lean || 0) : 0);
-    const _bodyLean = _layer ? _layer.lean : 0;
+    const _sbLean = _sb ? f * _sb.lean * _sb.w : 0;
+    const _bodyLean = (_layer ? _layer.lean : 0) + _sbLean;
     const shoulderX = cx - _pelvis * 0.8 + f * _coverLean + _bodyLean;
     const armLen    = FIG_ARM_LEN;
     const legLen    = FIG_LEG_LEN;
@@ -5538,12 +5549,12 @@ class Fighter {
     // Head lags the torso lean a few frames (follow-through).
     const headCX = ((_spr <= 0.10 && typeof animHeadLag === 'function' && !this.isBoss)
       ? cx + f * _coverLean * 1.20 + animHeadLag(this, (hipX - cx) * -0.35, 4, 2)
-      : cx + f * _coverLean * 1.20) + _bodyLean * 1.1 + (_layer ? _layer.head : 0);
+      : cx + f * _coverLean * 1.20) + _bodyLean * 1.1 + (_layer ? _layer.head : 0) + (_sb ? f * _sb.head * _sb.w : 0);
 
     // One silhouette: parts accumulate into two masses (far-side limbs, everything else) and are filled once.
     // Painting parts separately made the figure look assembled.
-    const _near = FigureSkin.begin();
-    const _far  = FigureSkin.begin();
+    const _near = FigureSkin.begin({ film: true });
+    const _far  = FigureSkin.begin({ film: true });
 
     // Neck: without it the head looks balanced on a stick.
     FigureSkin.segment(_near,
@@ -5691,10 +5702,12 @@ class Fighter {
       rAng = msLerpAngle(rAng, f > 0 ? _op.r : Math.PI - _op.r, _ok);
       lAng = msLerpAngle(lAng, f > 0 ? _op.l : Math.PI - _op.l, _ok);
     }
+    if (_sb) lAng = msLerpAngle(lAng, f > 0 ? _sb.l : Math.PI - _sb.l, _sb.w);
     let _rArmLen = (s === 'attacking' && this._swingArmStretch) ? armLen * this._swingArmStretch : armLen;
     if (this._finStretch) _rArmLen *= this._finStretch;
     let _lArmLen = armLen;
     if (_mp) { _rArmLen = armLen * (_mp.rl || 1); _lArmLen = armLen * (_mp.ll || 1); }
+    if (_sb) _lArmLen = armLen * (1 + (_sb.ll - 1) * _sb.w);
     // Run arms use forward kinematics, so the elbow matches the reference instead of an IK guess.
     const _runArmFK = (u) => {
       const a = animRunArm(u, _runAmp);
@@ -5714,8 +5727,9 @@ class Fighter {
     if (typeof animArmBlend === 'function') {
       [rAng, lAng] = animArmBlend(this, s, rAng, lAng, !!(_mp || this.spinning > 0 || _rRun || _lRun));
     }
-    const rEx = shoulderX + Math.cos(rAng) * _rArmLen;
-    const rEy = shoulderY + Math.sin(rAng) * _rArmLen;
+    const _sbAnchor = !!(_sb && _sb.anchor);
+    const rEx = shoulderX + Math.cos(rAng) * _rArmLen - (_sbAnchor ? _sbLean : 0);
+    const rEy = shoulderY + Math.sin(rAng) * _rArmLen - (_sbAnchor ? _sbDrop : 0);
     const lEx = shoulderX + Math.cos(lAng) * _lArmLen;
     const lEy = shoulderY + Math.sin(lAng) * _lArmLen;
 
@@ -5882,6 +5896,16 @@ class Fighter {
         lLeg = Math.atan2(lFootY - hipY, lFootX - hipX);
       }
     }
+    if (_sbGround) {
+      // The foot already on the leading side steps out, so the legs never cross.
+      const _sbFloor = hipY + legLen * Math.sin(Math.PI * 0.62) - _sbDrop;
+      const _rLeads  = f < 0;
+      const _rTo = cx + f * (_rLeads ? _sb.front : _sb.rear), _lTo = cx + f * (_rLeads ? _sb.rear : _sb.front);
+      rFootX += (_rTo - rFootX) * _sb.w; lFootX += (_lTo - lFootX) * _sb.w;
+      rFootY = lFootY = _sbFloor;
+      rLeg = Math.atan2(rFootY - hipY, rFootX - hipX);
+      lLeg = Math.atan2(lFootY - hipY, lFootX - hipX);
+    }
     const kneeOut = f * 5;
     let [rKneeX, rKneeY] = _hiQ
       ? animIK(hipX, hipY, rFootX, rFootY, _legBone, -f)
@@ -5901,6 +5925,7 @@ class Fighter {
       };
       [rKneeX, rKneeY, rFootX, rFootY, rLeg] = _leg(_runPh);          // near leg
       [lKneeX, lKneeY, lFootX, lFootY, lLeg] = _leg(_runPh + 0.5);
+      if (_sbDrop) { rKneeY -= _sbDrop; rFootY -= _sbDrop; lKneeY -= _sbDrop; lFootY -= _sbDrop; }
     }
     // Accumulate legs.
     // Thigh to knee to ankle taper, plus a boot at each ankle, so the figure looks planted.
@@ -5911,14 +5936,14 @@ class Fighter {
       { x: hipX + _lOff,   y: hipY },
       { x: lKneeX + _lOff, y: lKneeY },
       { x: lFootX + _lOff, y: lFootY },
-    ], _legFarW);
+    ], _legFarW, false, { smooth: true });
     FigureSkin.foot(_far, lFootX + _lOff, lFootY + 1.2, lLeg, f);
 
     FigureSkin.segment(_near, [
       { x: hipX,   y: hipY },
       { x: rKneeX, y: rKneeY },
       { x: rFootX, y: rFootY },
-    ], _legW, true);   // detail: separates the near leg from the far one
+    ], _legW, true, { smooth: true });   // detail: separates the near leg from the far one
     FigureSkin.foot(_near, rFootX, rFootY + 1.2, rLeg, f);
 
     // Paint the two silhouettes, then the face.
@@ -6967,6 +6992,7 @@ class Fighter {
     ctx.save();
     ctx.translate(hx, hy);
     const k = overrideKey || this.weaponKey;
+    const _hollowArm = !overrideKey && typeof isHollowArm === 'function' && isHollowArm(this); // story enemy's dark copy
     // Per-weapon grip tilt while attacking (legacy weapons keep the 0.6 rad slash tilt)
     const _swgD = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[k] : null;
     let _atkTilt;
@@ -7014,6 +7040,12 @@ class Fighter {
       ctx.shadowBlur  = attacking ? Math.max(18, 22 + pulse * 10) : 7 + pulse * 7;
     }
 
+    // Hollow copies burn violet-black instead of the weapon's own colour.
+    if (_hollowArm) {
+      ctx.shadowColor = '#7a2cff';
+      ctx.shadowBlur  = attacking ? 18 : 9;
+    }
+
     // Record blade-tip samples for the swing trail. Gauntlet and ranged weapons are excluded.
     const _swgTr = _swgD && _swgD.trail;
     if (typeof settings !== 'undefined' && settings.particles && attacking &&
@@ -7026,6 +7058,7 @@ class Fighter {
       if (!overrideKey && this.weaponTheme && typeof WEAPON_THEMES !== 'undefined' && WEAPON_THEMES[this.weaponTheme]) {
         _stColor = WEAPON_THEMES[this.weaponTheme];
       }
+      if (_hollowArm) _stColor = '#4a1a8c';
       const _stLife = _swgTr ? _swgTr.life : (_stHeavy ? 14 : 9);
       // Older than one frame means the previous swing ended, so start a new crescent segment.
       const _stLast = this._swingTrail[this._swingTrail.length - 1];
@@ -7047,11 +7080,17 @@ class Fighter {
 
     // Hand-drawn sprite art. Falls back to the vector art if not loaded.
     const _wSpr = (typeof WEAPON_SPRITES !== 'undefined') ? WEAPON_SPRITES[k] : null;
+    if (_hollowArm) {
+      const _wsReady = _wSpr && _wSpr.ready && _wSpr.img;
+      drawHollowAura(ctx, this, _wsReady ? _wSpr.len * (1 - _wSpr.anchor) : (HOLLOW_AURA_LEN[k] || 46), attacking);
+      // Procedural art has no bitmap to tint. The restore that ends the facing mirror clears this.
+      if (!_wsReady) ctx.filter = 'brightness(0.3) saturate(0.7)';
+    }
     if (_wSpr && _wSpr.ready && _wSpr.img) {
       const _wsW = _wSpr.len;
       const _wsH = _wSpr.img.height * (_wsW / _wSpr.img.width);
       // Facing is handled by the shared mirror above.
-      ctx.drawImage(_wSpr.img, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+      ctx.drawImage((_hollowArm && hollowWeaponSprite(_wSpr)) || _wSpr.img, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
 
     } else if (k === 'sword') {
       // Pommel

@@ -10,7 +10,6 @@ function _makeTFKicksParadoxOutCinematic(tf) {
     _teleportFired:   false,
     _windupFired:     false,
     _launchFired:     false,
-    _phaseLabel: { text: '— ENOUGH —', color: '#ffffff' },
 
     update(t) {
       if      (t < 0.2) slowMotion = Math.max(0.05, 1 - t * 4.75);
@@ -18,11 +17,20 @@ function _makeTFKicksParadoxOutCinematic(tf) {
       else              slowMotion = 0.05;
 
       cinematicCamOverride = t < 3.0;
-      if (cinematicCamOverride) {
-        cinematicZoomTarget = 1.6;
-        const px = paradoxEntity ? paradoxEntity.cx() : GAME_W / 2;
-        cinematicFocusX = px;
-        cinematicFocusY = GAME_H / 2 - 20;
+      if (cinematicCamOverride && tf) {
+        const pd = paradoxEntity;
+        if (pd && !this._launchFired) {
+          // Both of them, tightening as the punch winds up. Wide enough for the gap before the teleport.
+          const fit = 760 / (Math.abs(pd.cx() - tf.cx()) + 170);
+          cinematicZoomTarget = Math.min(fit, t < 1.2 ? 1.7 : 2.1);
+          cinematicFocusX = (pd.cx() + tf.cx()) / 2;
+          cinematicFocusY = (pd.cy() + tf.cy()) / 2 - 12;
+        } else {
+          // Paradox leaves the frame; the shot stays on who threw the punch, then opens back up for the fight.
+          cinematicZoomTarget = t < 2.4 ? 1.7 : 1.15;
+          cinematicFocusX = tf.cx();
+          cinematicFocusY = tf.cy() - 16;
+        }
       }
 
       // 0.5 s: TF teleports directly behind Paradox
@@ -60,7 +68,7 @@ function _makeTFKicksParadoxOutCinematic(tf) {
           paradoxEntity._launchVx = launchDir * 28;
           paradoxEntity._launchVy = -16;
         }
-        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.7, 18);
+        if (typeof CinFX !== 'undefined') CinFX.flash('#ffffff', 0.3, 10);
         screenShake = Math.max(screenShake, 48);
         if (typeof showBossDialogue === 'function')
           showBossDialogue('You are not needed here.', 280);

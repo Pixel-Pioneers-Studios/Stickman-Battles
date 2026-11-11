@@ -331,15 +331,16 @@ STORY_CHAPTER_REGISTRY.push(
   {
     id: 164, title: 'What It Made',
     world: '🏚️ The Lab — The Maker',
-    preText: 'Awakened Sovereign. Unconstrained, fully adaptive, every counter-pattern it has ever built. The maker of Absolute Axiom, at full capacity, with nothing left to protect. 3 lives.',
+    preText: 'Awakened Sovereign. Unconstrained, fully adaptive, every counter-pattern it has ever built. The maker of Absolute Axiom, at full capacity, with nothing left to protect. It sets the red blade from the gate aside. It has no fragment, so nothing forms in its hands; it pulls copies of your arms out of its pocket, built from every fight it recorded, each one the answer to the arm you hold. 3 lives.',
     isSovereignFight: true,
     arena: 'sovereign',
     playerLives: 10,   // standalone refight: 10 stocks each
 
     tokenReward: 150,
     fightScript: [
-      { frame: 60,  text: '"Every match was a rehearsal. This is the performance."', color: '#cc44ff', timer: 220 },
-      { frame: 300, text: '"I extracted my maker in four seconds. I have modeled you for years."', color: '#cc44ff', timer: 240 },
+      { frame: 60,  text: '"Every match was a rehearsal. This is the performance."', color: '#cc44ff', timer: 140 },
+      { frame: 200, text: 'The weapon in its hand is a red copy of one of yours, pulled from its pocket to answer the one you hold.', color: '#ffd27f', timer: 220 },
+      { frame: 430, text: '"I extracted my maker in four seconds. I have modeled you for years."', color: '#cc44ff', timer: 190 },
       { frame: 620, text: 'It is adapting mid-exchange — but so are you, and your last teacher thought at fragment speed.', color: '#ffd27f', timer: 260 },
       { frame: 900, text: '"You are off-model." It says it like an error report. Stay off-model.', color: '#ff44aa', timer: 240 },
     ],

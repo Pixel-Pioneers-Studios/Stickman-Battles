@@ -124,6 +124,7 @@ function _makeTFEntryCinematic(tf) {
 
 
 function _makeTFReality50Cinematic(tf) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeAxiomRealityFilm(tf);
   return cinScript({
     duration: 4.7,
     label: { text: '— REALITY BENDS —', color: '#8844ff' },

@@ -9,6 +9,7 @@ const CIN_PERF_DOMAIN_GESTURE = {
   thor: 'raise', paladin: 'raise', megaknight: 'raise', warrior: 'raise',
   ronin: 'draw', ninja: 'draw',
   reaper: 'low', summoner: 'low', sovereign: 'low', archer: 'low',
+  warden: 'raise', adept: 'draw',
 };
 
 
@@ -97,6 +98,7 @@ const CinPerf = {
       exprs: o.exprs || null,                       // [{at(frames), expr}] authored faces
       bound: !!o.bound,                             // dies with the running cinematic
       noWeapon: !!o.noWeapon,                       // draw the figure bare-handed
+      signature: !!o.signature,                     // keep a boss's own mantle, halo and gauntlets
       t0: o.t0 || 0,
     };
     rec.track = o.track || CinPerf._buildTrack(rec);
@@ -153,6 +155,10 @@ const CinPerf = {
       catch (e) { /* cosmetic only */ }
       f.hat = _hat;
     }
+    if (rec.signature && f._drawSignature) {
+      try { f._drawSignature(_jj.head.x, _jj.head.y, _jj.shoulder.y, _jj.hip.y, pose.facing, _jj.headR); }
+      catch (e) { /* cosmetic only */ }
+    }
     J = CinRig.draw(ctx, pose, f.color || rec.color, {
       width: 5.2,
       glow: rec.glow ? rec.color : false,
@@ -167,9 +173,11 @@ const CinPerf = {
       catch (e) { /* cosmetic only */ }
       f.cape = _cape;
     }
-    if (!rec.noWeapon && f.weaponKey && f.weaponKey !== 'gauntlet' && typeof f.drawWeapon === 'function') {
+    if (!rec.noWeapon && f.weaponKey && (f.weaponKey !== 'gauntlet' || rec.signature) && typeof f.drawWeapon === 'function') {
       ctx.save();
-      try { f.drawWeapon(J.rHand.x, J.rHand.y, pose.rFore, false, null, 1.5 * pose.scale); }
+      // CinRig.draw rotates the body on the canvas, but its joints come back unrotated.
+      if (pose.rot) { ctx.translate(J.hip.x, J.hip.y); ctx.rotate(pose.rot * pose.facing); ctx.translate(-J.hip.x, -J.hip.y); }
+      try { f.drawWeapon(J.rHand.x, J.rHand.y, pose.rFore, false, null, (rec.signature ? 1 : 1.5) * pose.scale); }
       catch (e) { /* a cinematic must never take the frame down */ }
       ctx.restore();
     }

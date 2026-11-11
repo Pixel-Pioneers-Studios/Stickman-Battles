@@ -45,22 +45,22 @@ const DOMAIN_DEFS = {
     announce:   'Weapons free — total fire superiority!',
   },
   archer: {
-    name:       'Verdant Hunt',
+    name:       'Duskfall Hunt',
     color:      '#44ff88',
     bgTint:     'rgba(0,35,10,0.48)',
     spawnEvery: 40,
     hazardType: 'arrow',
     ownerBuff: {},
-    announce:   'The hunt begins — the forest has eyes!',
+    announce:   'The light goes — the hunt begins!',
   },
   paladin: {
-    name:       'Holy Sanctuary',
+    name:       'Dawn Gate',
     color:      '#ffffaa',
     bgTint:     'rgba(70,65,20,0.40)',
     spawnEvery: 52,
     hazardType: 'holy_beam',
     ownerBuff:  { healPerFrame: 0.016 },
-    announce:   'Divine judgment descends — the unworthy burn!',
+    announce:   'The gate holds till dawn — the unworthy burn!',
   },
   berserker: {
     name:       'Blood Arena',
@@ -72,13 +72,13 @@ const DOMAIN_DEFS = {
     announce:   'Blood and fury — death walks among you!',
   },
   megaknight: {
-    name:       'Void Rift',
+    name:       'The Last Oath',
     color:      '#9944ff',
     bgTint:     'rgba(18,0,55,0.55)',
     spawnEvery: 0,
     hazardType: 'void_rock',
     ownerBuff:  {},
-    announce:   'Reality tears — the void claims this arena!',
+    announce:   'One oath kept — this ground answers to it!',
   },
   ronin: {
     name:       'Death\'s Dojo',
@@ -136,6 +136,42 @@ const DOMAIN_DEFS = {
     ownerBuff:  { healPerFrame: 0.010 },
     swarmDamage: 16,          // per familiar, it dies on contact
     announce:   'They never stopped answering. They never will.',
+  },
+  // Hask, Sunseed. Mortar suns lock onto each enemy's feet and burst.
+  demolitionist: {
+    name:       'Sunfall',
+    color:      '#ffaa22',
+    bgTint:     'rgba(50,22,0,0.52)',
+    spawnEvery: 52,           // one shell per enemy (up to 3), telegraphed reticle
+    hazardType: 'sun_mortar',
+    ownerBuff:  { power: true },
+    mortarDamage: 20,         // ~27 felt with _powerBuff
+    mortarRadius: 72,
+    announce:   'The sky goes small and bright. The suns are falling!',
+  },
+  // Maren, Deepmoor. The undertow drags enemies toward the Warden while waves roll the floor.
+  warden: {
+    name:       'Breakwater',
+    color:      '#5fb8d0',
+    bgTint:     'rgba(0,22,38,0.55)',
+    spawnEvery: 96,           // one wave from alternating sides; jump it
+    hazardType: 'tide_wave',
+    ownerBuff:  { healPerFrame: 0.012 },
+    waveDamage:  18,
+    pullSpeed:   0.75,        // px/frame toward the owner, beyond pullMinDist
+    pullMinDist: 70,
+    announce:   'The tide comes in. Maren does not move.',
+  },
+  // The 95th: Kael's own style, not a dead bearer. Fragment shards hang still, then fire inward.
+  adept: {
+    name:       'First Draft',
+    color:      '#8fd8ff',
+    bgTint:     'rgba(4,18,36,0.55)',
+    spawnEvery: 60,           // a ring of 3 shards around one enemy
+    hazardType: 'echo_shard',
+    ownerBuff:  { speed: true },
+    shardDamage: 13,
+    announce:   'No dead bearer\'s ground. This one is yours.',
   },
 // Sovereign has no class, so this is reached via _domainKey (see _domainKeyOf).
 // Keyed 'sovereign' so no equippable class resolves to it.
@@ -354,6 +390,74 @@ const DomainManager = (() => {
             damage: (domain.def.swarmDamage || 16),
             radius: 13, life: 300,
             hitSet: new Set(),
+          });
+        }
+        break;
+      }
+
+      // Demolitionist: a reticle tracks each enemy's feet, locks, and a sun shell drops on it.
+      case 'sun_mortar': {
+        const _foes = _getDomainTargets(domain.owner).slice(0, 3);
+        const _list = _foes.length ? _foes : [null];
+        for (const t of _list) {
+          const tx = t ? t.cx() : OX + 80 + Math.random() * (GAME_W - 160);
+          const ty = t ? t.y + t.h : GAME_H - 60;
+          domain.hazards.push({
+            type: 'sun_mortar',
+            target: t,
+            x: Math.max(OX + 30, Math.min(OX + GAME_W - 30, tx)),
+            y: ty,
+            trackTimer: 26,          // reticle follows, then locks
+            fallTimer:  30,          // shell visible falling after lock
+            blastTimer: 0,
+            damage: domain.def.mortarDamage || 20,
+            radius: domain.def.mortarRadius || 72,
+            hitSet: new Set(),
+          });
+        }
+        break;
+      }
+
+      // Warden: a low wave rolls across the floor from alternating sides. Jump it.
+      case 'tide_wave': {
+        domain.waveSide = domain.waveSide === 1 ? -1 : 1;
+        const fromLeft = domain.waveSide === 1;
+        // The wave rides the target's floor line (follows them up and down ledges while
+        // they're grounded), so it never sails over someone on a different platform.
+        const _foes = _getDomainTargets(domain.owner);
+        const _tg = _foes.length ? _foes[Math.floor(Math.random() * _foes.length)] : null;
+        domain.hazards.push({
+          type: 'tide_wave',
+          target: _tg,
+          x: OX + (fromLeft ? -50 : GAME_W + 50),
+          y: _tg ? _tg.y + _tg.h : GAME_H - 60,
+          vx: fromLeft ? 6.5 : -6.5,
+          height: 46, radius: 26,
+          damage: domain.def.waveDamage || 18,
+          hitSet: new Set(),
+        });
+        break;
+      }
+
+      // Adept: three fragment shards freeze around one enemy, aim at where they stood, then fire.
+      case 'echo_shard': {
+        const _foes = _getDomainTargets(domain.owner);
+        const t = _foes.length ? _foes[Math.floor(Math.random() * _foes.length)] : null;
+        const ax = t ? t.cx() : OX + GAME_W / 2;
+        const ay = t ? t.cy() : GAME_H * 0.5;
+        const base = Math.random() * Math.PI * 2;
+        for (let i = 0; i < 3; i++) {
+          const a = base + (i / 3) * Math.PI * 2;
+          // Never below the target's waist, or the shard starts inside the floor.
+          const sx = ax + Math.cos(a) * 130, sy = Math.max(30, Math.min(ay + 10, ay + Math.sin(a) * 100));
+          const aim = Math.atan2(ay - sy, ax - sx);
+          domain.hazards.push({
+            type: 'echo_shard',
+            x: sx, y: sy, aim,
+            holdTimer: 42 + i * 6,   // staggered so they can be read one by one
+            vx: 0, vy: 0, life: 70,
+            damage: domain.def.shardDamage || 13,
+            radius: 9, hitSet: new Set(),
           });
         }
         break;
@@ -629,6 +733,17 @@ const DomainManager = (() => {
       });
     }
 
+    // Warden: the undertow. No damage, it drags enemies toward the Warden all domain long.
+    if (domain.defKey === 'warden') {
+      domain.hazards.push({
+        type:   'undertow',
+        damage: 0, radius: 0,
+        hitSet: new Set(),
+        get x() { return domain.owner.cx(); },
+        get y() { return domain.owner.cy(); },
+      });
+    }
+
     // Berserker: extra weapon hazard on top of the rage pulse
     if (domain.defKey === 'berserker') {
       const wk = domain.owner.weaponKey;
@@ -685,6 +800,7 @@ const DomainManager = (() => {
     berserker: 5, megaknight: -4,
     ronin: -4.5, reaper: 3.5, pugilist: -3,
     warrior: 3, summoner: -3.5, sovereign: -2.5, none: 0,
+    demolitionist: 4.5, warden: -2, adept: -3,
   };
   const _DOMAIN_DARK_COLOR = {
     thor: '#000a1a', kratos: '#1a0500', ninja: '#030008',
@@ -692,6 +808,7 @@ const DomainManager = (() => {
     berserker: '#1a0000', megaknight: '#050013',
     ronin: '#050510', reaper: '#100510', pugilist: '#120000',
     warrior: '#1a1000', summoner: '#001a18', sovereign: '#1a0200', none: '#080808',
+    demolitionist: '#1a0c00', warden: '#00101a', adept: '#020a16',
   };
   const _DOMAIN_ENTRY_LINE = {
     thor:       'The storm answers me...',
@@ -707,6 +824,9 @@ const DomainManager = (() => {
     pugilist:   'Get up. I\'m not done yet.',
     warrior:    'Step into the ring.',
     summoner:   'You are outnumbered. You always were.',
+    demolitionist: 'Everything down here is already lit.',
+    warden:     'The storm broke on me. So will you.',
+    adept:      'Nobody died for this one. It\'s mine.',
     sovereign:  'You never chose the ground. You only thought you did.',
     none:       'No class. No rules. Just power.',
   };
@@ -1306,6 +1426,118 @@ const DomainManager = (() => {
         break;
       }
 
+      case 'demolitionist': {
+        if (t === 278) {
+          CinFX.bgContrast('#1a0c00', 0.88, 60);
+          CinCam.directionalShake(18, 0, -1);
+        }
+        if (t === 268) {
+          // Three small suns lift off the bearer and climb
+          d.suns = [];
+          for (let i = 0; i < 3; i++) d.suns.push({ dx: (i - 1) * 70, y: 0, vy: -6 - i, r: 9 + i * 2 });
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#ffaa22', 18);
+        }
+        if (t === 236) {
+          // They burst overhead together
+          d.sunBurst = 1;
+          CinFX.flash('#ffcc66', 0.50, 6);
+          CinFX.groundCrack(f.cx(), GAME_H - 80, { count: 7, color: '#aa5500' });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 38);
+        }
+        if (t === 226) {
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 212) {
+          CinFX.shockwave(f.cx(), f.cy(), '#ffaa22', { count: 3, maxR: 330, lw: 6, dur: 55 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  _releaseDomainCin(f);
+        if (d.suns && !d.sunBurst) for (const s of d.suns) { s.y += s.vy; s.vy *= 0.97; }
+        if (d.sunBurst) d.sunBurst = Math.min(1.8, d.sunBurst + 0.04);
+        break;
+      }
+
+      case 'warden': {
+        if (t === 278) {
+          CinFX.bgContrast('#00101a', 0.90, 62);
+          CinCam.directionalShake(20, 0, -1);
+        }
+        if (t === 262) {
+          // Anchor planted: the chain drops and the floor takes it
+          d.chainDrop = 0;
+          CinFX.groundCrack(f.cx(), GAME_H - 80, { count: 8, color: '#2a6a80' });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 34);
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.y + f.h, '#5fb8d0', 22);
+        }
+        if (t === 244) {
+          // Two waves rise either side and break on the bearer
+          d.waves = { r: 360 };
+          CinFX.flash('#9fe0f0', 0.40, 6);
+        }
+        if (t === 226) {
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+          CinFX.shockwave(f.cx(), f.cy(), '#5fb8d0', { count: 2, maxR: 320, lw: 5, dur: 50 });
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 30);
+        }
+        if (t === 212) {
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  _releaseDomainCin(f);
+        if (d.chainDrop !== undefined) d.chainDrop = Math.min(1, d.chainDrop + 0.08);
+        if (d.waves) d.waves.r = Math.max(40, d.waves.r - 9);
+        break;
+      }
+
+      case 'adept': {
+        if (t === 278) {
+          CinFX.bgContrast('#020a16', 0.90, 62);
+          CinCam.directionalShake(14, 0, -1);
+        }
+        if (t === 266) {
+          // Shards drift out of the bearer and stop dead in the air
+          d.shards = [];
+          for (let i = 0; i < 9; i++) {
+            const a = (i / 9) * Math.PI * 2;
+            d.shards.push({ a, r: 10, rTo: 90 + (i % 3) * 30, spin: Math.random() * Math.PI });
+          }
+          if (typeof spawnParticles === 'function') spawnParticles(f.cx(), f.cy(), '#8fd8ff', 18);
+        }
+        if (t === 240) {
+          // Freeze beat: every shard turns to point outward at once
+          d.shardsLocked = true;
+          CinFX.flash('#c8eeff', 0.40, 5);
+          if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 22);
+        }
+        if (t === 226) {
+          CinFX.nameCard('CONVICTION', def.color, { dur: 110 });
+          CinFX.impactFrame(f, { dur: 3 });
+          const line = _DOMAIN_ENTRY_LINE[f.charClass];
+          if (line && typeof queueAnnouncement === 'function') queueAnnouncement('"' + line + '"', def.color);
+        }
+        if (t === 212) {
+          CinFX.shockwave(f.cx(), f.cy(), '#8fd8ff', { count: 3, maxR: 320, lw: 4, dur: 55 });
+          CinFX.motionTrailOn(f, def.color);
+          CinCam.zoomTo(1.28);
+        }
+        if (t === 160) { CinCam.tilt(0); CinFX.motionTrailOff(f); CinCam.zoomTo(1.18); }
+        if (t === 60)  _releaseDomainCin(f);
+        if (d.shards) for (const s of d.shards) {
+          s.r += (s.rTo - s.r) * 0.12;
+          if (!d.shardsLocked) s.spin += 0.2;
+        }
+        break;
+      }
+
       case 'sovereign': {
         if (t === 278) {
           CinFX.bgContrast('#1a0200', 0.90, 60);
@@ -1660,6 +1892,76 @@ const DomainManager = (() => {
           const my = GAME_H - ((m * 47 + now * 0.030 * (0.7 + m * 0.05)) % (GAME_H + 40));
           ctx.globalAlpha = fadeIn * (0.14 + 0.14 * Math.sin(now / 300 + m));
           ctx.beginPath(); ctx.arc(mx, my, 2, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'demolitionist': {
+        // Low orange glow on the horizon, embers drifting up, a few small suns overhead
+        ctx.globalAlpha = fadeIn * 0.22;
+        ctx.fillStyle = '#ff7a10';
+        ctx.fillRect(0, GAME_H * 0.78, GAME_W, GAME_H * 0.22);
+        ctx.shadowColor = '#ffaa22'; ctx.shadowBlur = 18;
+        for (let s = 0; s < 4; s++) {
+          const sx = 120 + s * ((GAME_W - 240) / 3) + Math.sin(now / 1300 + s) * 14;
+          const sy = 46 + (s % 2) * 26;
+          ctx.globalAlpha = fadeIn * (0.30 + 0.12 * Math.sin(now / 240 + s));
+          ctx.fillStyle = '#ffd27a';
+          ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.shadowBlur = 6;
+        for (let e = 0; e < 22; e++) {
+          const ex = (e * 59 + Math.sin(now / 700 + e) * 18) % GAME_W;
+          const ey = GAME_H - ((e * 41 + now * 0.045 * (0.6 + e * 0.04)) % (GAME_H * 0.9));
+          ctx.globalAlpha = fadeIn * (0.16 + 0.16 * Math.sin(now / 200 + e));
+          ctx.fillStyle = e % 3 === 0 ? '#ffee99' : '#ff8822';
+          ctx.beginPath(); ctx.arc(ex, ey, 1.8, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+
+      case 'warden': {
+        // Storm rain slanting in, and a slow swell line low on the screen
+        ctx.strokeStyle = '#9fd8e8'; ctx.lineWidth = 1;
+        for (let r = 0; r < 34; r++) {
+          const rx = (r * 29 + now * 0.32) % (GAME_W + 60) - 30;
+          const ry = (r * 53 + now * 0.55) % GAME_H;
+          ctx.globalAlpha = fadeIn * 0.18;
+          ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 7, ry + 18); ctx.stroke();
+        }
+        ctx.globalAlpha = fadeIn * 0.16;
+        ctx.strokeStyle = '#5fb8d0'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#5fb8d0'; ctx.shadowBlur = 10;
+        for (let l = 0; l < 2; l++) {
+          ctx.beginPath();
+          for (let x = 0; x <= GAME_W; x += 20) {
+            const y = GAME_H * (0.70 + l * 0.08) + Math.sin(x / 70 + now / (900 + l * 300)) * 8;
+            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        break;
+      }
+
+      case 'adept': {
+        // Still shards hanging in the air, a faint grid of unfinished lines
+        ctx.globalAlpha = fadeIn * 0.07;
+        ctx.strokeStyle = '#8fd8ff'; ctx.lineWidth = 1;
+        for (let gx = 0; gx <= GAME_W; gx += 75) {
+          ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, GAME_H * (0.4 + 0.6 * ((gx / 75) % 2))); ctx.stroke();
+        }
+        ctx.shadowColor = '#8fd8ff'; ctx.shadowBlur = 10;
+        for (let s = 0; s < 14; s++) {
+          const sx = (s * 67 + 25) % GAME_W;
+          const sy = 30 + ((s * 43) % Math.floor(GAME_H * 0.6));
+          const a = s * 1.3;
+          ctx.globalAlpha = fadeIn * (0.18 + 0.10 * Math.sin(now / 900 + s));
+          ctx.fillStyle = s % 2 ? '#c8eeff' : '#8fd8ff';
+          ctx.beginPath();
+          ctx.moveTo(sx + Math.cos(a) * 7, sy + Math.sin(a) * 7);
+          ctx.lineTo(sx + Math.cos(a + 2.5) * 3, sy + Math.sin(a + 2.5) * 3);
+          ctx.lineTo(sx + Math.cos(a - 2.5) * 3, sy + Math.sin(a - 2.5) * 3);
+          ctx.closePath(); ctx.fill();
         }
         break;
       }
@@ -2458,6 +2760,84 @@ const DomainManager = (() => {
     }
   }
 
+  function _drawDemolitionistEntry(f, t, now, d) {
+    if (!d.suns) return;
+    ctx.save();
+    ctx.shadowColor = '#ffaa22'; ctx.shadowBlur = 24;
+    for (const s of d.suns) {
+      const sx = f.cx() + s.dx, sy = f.cy() + s.y;
+      if (d.sunBurst) {
+        const b = d.sunBurst;
+        ctx.globalAlpha = Math.max(0, 1 - b / 1.8) * 0.8;
+        ctx.fillStyle = '#ffcc55';
+        ctx.beginPath(); ctx.arc(sx, sy, s.r * (1 + b * 5), 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fff2c0'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(sx, sy, s.r * (1 + b * 7), 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = '#ff8a10';
+        ctx.beginPath(); ctx.arc(sx, sy, s.r * 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff2c0';
+        ctx.beginPath(); ctx.arc(sx, sy, s.r * 0.7, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function _drawWardenEntry(f, t, now, d) {
+    if (d.chainDrop !== undefined) {
+      // Chain hangs from the top of the screen into the bearer's hand
+      ctx.save();
+      ctx.strokeStyle = '#8a959e'; ctx.lineWidth = 3;
+      ctx.shadowColor = '#5fb8d0'; ctx.shadowBlur = 10;
+      const endY = f.cy() * d.chainDrop;
+      for (let y = 0; y < endY; y += 14) {
+        ctx.beginPath(); ctx.ellipse(f.cx() + 2, y + 7, 4, 7, 0, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    if (d.waves) {
+      ctx.save();
+      const gy = f.y + f.h;
+      ctx.shadowColor = '#5fb8d0'; ctx.shadowBlur = 18;
+      for (const side of [-1, 1]) {
+        const wx = f.cx() + side * d.waves.r;
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = 'rgba(95,184,208,0.55)';
+        ctx.beginPath();
+        ctx.moveTo(wx - side * 40, gy);
+        ctx.quadraticCurveTo(wx - side * 10, gy - 70, wx + side * 20, gy - 56);
+        ctx.quadraticCurveTo(wx + side * 6, gy - 30, wx + side * 30, gy);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#e0f8ff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(wx - side * 10, gy - 66);
+        ctx.quadraticCurveTo(wx + side * 14, gy - 64, wx + side * 20, gy - 56);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+
+  function _drawAdeptEntry(f, t, now, d) {
+    if (!d.shards) return;
+    ctx.save();
+    ctx.shadowColor = '#8fd8ff'; ctx.shadowBlur = 16;
+    for (const s of d.shards) {
+      const sx = f.cx() + Math.cos(s.a) * s.r;
+      const sy = f.cy() + Math.sin(s.a) * s.r * 0.8;
+      const ang = d.shardsLocked ? s.a : s.spin;
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#c8eeff';
+      ctx.beginPath();
+      ctx.moveTo(sx + Math.cos(ang) * 12, sy + Math.sin(ang) * 12);
+      ctx.lineTo(sx + Math.cos(ang + 2.6) * 5, sy + Math.sin(ang + 2.6) * 5);
+      ctx.lineTo(sx + Math.cos(ang - 2.6) * 5, sy + Math.sin(ang - 2.6) * 5);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   function _drawSummonerEntry(f, t, now, d) {
     if (d.sigilDraw) {
       const p = d.sigilProg || 0;
@@ -2567,6 +2947,9 @@ const DomainManager = (() => {
       case 'pugilist':   _drawPugilistEntry(f, t, now, d);   break;
       case 'warrior':    _drawWarriorEntry(f, t, now, d);    break;
       case 'summoner':   _drawSummonerEntry(f, t, now, d);   break;
+      case 'demolitionist': _drawDemolitionistEntry(f, t, now, d); break;
+      case 'warden':     _drawWardenEntry(f, t, now, d);     break;
+      case 'adept':      _drawAdeptEntry(f, t, now, d);      break;
       case 'sovereign':  _drawSovereignEntry(f, t, now, d);  break;
     }
     ctx.restore();
@@ -3722,6 +4105,101 @@ const DomainManager = (() => {
               h.pulse = 20;
               if (typeof spawnParticles === 'function')
                 spawnParticles(h.x, h.y, '#66ffcc', 10);
+            }
+            break;
+          }
+
+          // Demolitionist: reticle tracks, locks, the shell falls, then one blast.
+          case 'sun_mortar': {
+            if (h.trackTimer > 0) {
+              h.trackTimer--;
+              const tg = h.target;
+              if (tg && tg.health > 0) {
+                h.x += (tg.cx() - h.x) * 0.18;
+                if (tg.onGround) h.y = tg.y + tg.h;
+              }
+            } else if (h.fallTimer > 0) {
+              h.fallTimer--;
+              if (h.fallTimer === 0) {
+                h.blastTimer = 20;
+                for (const t of targets) {
+                  if (h.hitSet.has(t)) continue;
+                  const dx = t.cx() - h.x, dy = (t.cy() - (h.y - 20)) * 0.8;
+                  if (Math.hypot(dx, dy) < h.radius + t.w / 2) {
+                    h.hitSet.add(t);
+                    _dealDomainDamage(owner, t, h.damage, 12);
+                  }
+                }
+                if (typeof spawnParticles === 'function') {
+                  spawnParticles(h.x, h.y - 10, '#ffaa22', 18);
+                  spawnParticles(h.x, h.y - 10, '#fff2c0', 8);
+                }
+                if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 12);
+              }
+            } else if (--h.blastTimer <= 0) {
+              remove = true;
+            }
+            break;
+          }
+
+          // Warden: undertow. Drags enemies toward the Warden, never away, so it can't
+          // push anyone off the stage. Skipped for bosses and anyone mid-finisher.
+          case 'undertow': {
+            const _sm = (typeof slowMotion !== 'undefined' ? slowMotion : 1);
+            const pull = (def.pullSpeed || 0.75) * _sm, minD = def.pullMinDist || 70;
+            for (const t of targets) {
+              if (t.isBoss || t.invincible > 1000) continue;
+              const dx = owner.cx() - t.cx();
+              if (Math.abs(dx) <= minD) continue;
+              t.x += Math.sign(dx) * pull;
+            }
+            break;
+          }
+
+          // Warden: the wave rolls along the floor line it spawned on. Jumping clears it.
+          case 'tide_wave': {
+            h.x += h.vx * (typeof slowMotion !== 'undefined' ? slowMotion : 1);
+            if (h.x < OX - 80 || h.x > OX + GAME_W + 80) { remove = true; break; }
+            if (h.target && h.target.health > 0 && h.target.onGround)
+              h.y += (h.target.y + h.target.h - h.y) * 0.15;
+            for (const t of targets) {
+              if (h.hitSet.has(t)) continue;
+              const feet = t.y + t.h;
+              if (Math.abs(t.cx() - h.x) < h.radius + t.w / 2
+                  && feet > h.y - h.height && feet < h.y + 24) {
+                h.hitSet.add(t);
+                _dealDomainDamage(owner, t, h.damage, 9);
+                if (typeof spawnParticles === 'function')
+                  spawnParticles(t.cx(), feet - 10, '#9fe0f0', 12);
+              }
+            }
+            break;
+          }
+
+          // Adept: shard hangs still, then fires once along its aim line.
+          case 'echo_shard': {
+            if (h.holdTimer > 0) {
+              h.holdTimer--;
+              if (h.holdTimer === 0) {
+                h.vx = Math.cos(h.aim) * 15;
+                h.vy = Math.sin(h.aim) * 15;
+              }
+              break;
+            }
+            const _sm = (typeof slowMotion !== 'undefined' ? slowMotion : 1);
+            h.x += h.vx * _sm; h.y += h.vy * _sm;
+            if (--h.life <= 0 || h.x < OX - 60 || h.x > OX + GAME_W + 60
+                || h.y < -60 || h.y > GAME_H + 60) { remove = true; break; }
+            for (const t of targets) {
+              if (h.hitSet.has(t)) continue;
+              if (Math.hypot(h.x - t.cx(), h.y - t.cy()) < h.radius + t.w / 2) {
+                h.hitSet.add(t);
+                _dealDomainDamage(owner, t, h.damage, 6);
+                if (typeof spawnParticles === 'function')
+                  spawnParticles(h.x, h.y, '#c8eeff', 8);
+                remove = true;
+                break;
+              }
             }
             break;
           }
@@ -4903,6 +5381,126 @@ const DomainManager = (() => {
         ctx.beginPath();
         ctx.arc(h.x, h.y, 10 + 4 * Math.sin(now / 260), 0, Math.PI * 2);
         ctx.fill();
+        break;
+      }
+
+      case 'sun_mortar': {
+        const locked = h.trackTimer <= 0;
+        if (h.fallTimer > 0) {
+          // Reticle on the floor: dashed while tracking, solid and tightening once locked
+          const k = locked ? 1 - h.fallTimer / 30 : 0;
+          ctx.globalAlpha = locked ? 0.55 + 0.35 * k : 0.40;
+          ctx.strokeStyle = '#ffaa22'; ctx.lineWidth = locked ? 3 : 2;
+          ctx.shadowColor = '#ffaa22'; ctx.shadowBlur = 12;
+          if (!locked) ctx.setLineDash([7, 6]);
+          const rr = h.radius * (locked ? 1 - 0.25 * k : 1);
+          ctx.beginPath(); ctx.ellipse(h.x, h.y, rr, rr * 0.28, 0, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(h.x - 10, h.y); ctx.lineTo(h.x + 10, h.y);
+          ctx.moveTo(h.x, h.y - 6); ctx.lineTo(h.x, h.y + 6);
+          ctx.stroke();
+          if (locked) {
+            // The shell itself, dropping from above the screen
+            const sy = -30 + (h.y - 12 + 30) * Math.pow(k, 1.6);
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#ff8a10'; ctx.shadowBlur = 20;
+            ctx.beginPath(); ctx.arc(h.x, sy, 10, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff2c0';
+            ctx.beginPath(); ctx.arc(h.x, sy, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.globalAlpha = 0.35;
+            ctx.strokeStyle = '#ffcc66'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(h.x, sy - 8); ctx.lineTo(h.x, sy - 40); ctx.stroke();
+          }
+        } else if (h.blastTimer > 0) {
+          const b = 1 - h.blastTimer / 20;
+          ctx.globalAlpha = (1 - b) * 0.75;
+          ctx.fillStyle = '#ffcc55';
+          ctx.shadowColor = '#ffaa22'; ctx.shadowBlur = 26;
+          ctx.beginPath(); ctx.arc(h.x, h.y - 20, h.radius * (0.5 + 0.6 * b), 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#fff2c0'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(h.x, h.y - 20, h.radius * (0.7 + 0.7 * b), 0, Math.PI * 2); ctx.stroke();
+        }
+        break;
+      }
+
+      case 'undertow': {
+        // Faint current lines flowing in toward the Warden from both sides
+        if (!owner) break;
+        const now = performance.now();
+        ctx.strokeStyle = '#5fb8d0'; ctx.lineWidth = 2;
+        ctx.shadowColor = '#5fb8d0'; ctx.shadowBlur = 8;
+        const gy = owner.y + owner.h - 6;
+        for (let i = 0; i < 10; i++) {
+          const side = i % 2 ? 1 : -1;
+          const ph = ((now / 1400) + i * 0.17) % 1;
+          const dist = 380 * (1 - ph) + 40;
+          const x = owner.cx() + side * dist;
+          ctx.globalAlpha = 0.22 * Math.sin(ph * Math.PI);
+          ctx.beginPath();
+          ctx.moveTo(x, gy - (i % 3) * 14);
+          ctx.lineTo(x - side * 26, gy - (i % 3) * 14);
+          ctx.stroke();
+        }
+        break;
+      }
+
+      case 'tide_wave': {
+        const dir = Math.sign(h.vx) || 1;
+        ctx.shadowColor = '#5fb8d0'; ctx.shadowBlur = 16;
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = 'rgba(70,160,190,0.75)';
+        ctx.beginPath();
+        ctx.moveTo(h.x - dir * 70, h.y);
+        ctx.quadraticCurveTo(h.x - dir * 20, h.y - h.height * 0.6, h.x + dir * 8, h.y - h.height);
+        ctx.quadraticCurveTo(h.x + dir * 26, h.y - h.height * 0.9, h.x + dir * 22, h.y - h.height * 0.55);
+        ctx.quadraticCurveTo(h.x + dir * 30, h.y - h.height * 0.2, h.x + dir * 34, h.y);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = '#e0f8ff'; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(h.x - dir * 14, h.y - h.height * 0.82);
+        ctx.quadraticCurveTo(h.x + dir * 10, h.y - h.height * 1.02, h.x + dir * 24, h.y - h.height * 0.7);
+        ctx.stroke();
+        ctx.globalAlpha = 0.4;
+        ctx.fillStyle = '#e0f8ff';
+        const now = performance.now();
+        for (let s = 0; s < 5; s++) {
+          ctx.beginPath();
+          ctx.arc(h.x + dir * (10 + Math.sin(now / 80 + s) * 14), h.y - h.height + 4 - s * 3, 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+
+      case 'echo_shard': {
+        const holding = h.holdTimer > 0;
+        if (holding) {
+          // Aim line shows exactly where it will go
+          ctx.globalAlpha = 0.18 + 0.30 * (1 - Math.min(1, h.holdTimer / 42));
+          ctx.strokeStyle = '#8fd8ff'; ctx.lineWidth = 1.5;
+          ctx.setLineDash([5, 6]);
+          ctx.beginPath();
+          ctx.moveTo(h.x, h.y);
+          ctx.lineTo(h.x + Math.cos(h.aim) * 320, h.y + Math.sin(h.aim) * 320);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+        const ang = h.aim;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#c8eeff';
+        ctx.shadowColor = '#8fd8ff'; ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.moveTo(h.x + Math.cos(ang) * 14, h.y + Math.sin(ang) * 14);
+        ctx.lineTo(h.x + Math.cos(ang + 2.6) * 6, h.y + Math.sin(ang + 2.6) * 6);
+        ctx.lineTo(h.x + Math.cos(ang - 2.6) * 6, h.y + Math.sin(ang - 2.6) * 6);
+        ctx.closePath(); ctx.fill();
+        if (!holding) {
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#8fd8ff'; ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(h.x, h.y); ctx.lineTo(h.x - h.vx * 2.4, h.y - h.vy * 2.4);
+          ctx.stroke();
+        }
         break;
       }
 

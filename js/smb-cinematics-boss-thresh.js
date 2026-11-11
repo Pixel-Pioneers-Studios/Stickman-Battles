@@ -4,6 +4,7 @@
 // Mid-fight cinematics for the creator boss at 75%, 40% and 10% HP.
 
 function _makeBossWarning75Cinematic(boss) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeCreatorWarnFilm(boss);
   // Track whether the speed-line burst has fired (it should only render for ~0.4s)
   let _riseLineFired = false;
 
@@ -81,6 +82,7 @@ function _makeBossWarning75Cinematic(boss) {
 
 
 function _makeBossRage40Cinematic(boss) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeCreatorRageFilm(boss);
   let _throwTarget = null;
   // Rolling afterimage buffers (oldest → newest)
   const _trailBoss   = [];
@@ -247,6 +249,7 @@ function _makeBossRage40Cinematic(boss) {
 
 
 function _makeBossDesp10Cinematic(boss) {
+  if (typeof _filmCinOk === 'function' && _filmCinOk()) return _makeCreatorDespFilm(boss);
   let _screenLinePulse = 0; // tracks last pulse timestamp for screen speed lines
 
   return cinScript({

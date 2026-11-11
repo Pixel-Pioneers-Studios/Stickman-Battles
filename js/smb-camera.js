@@ -300,6 +300,9 @@ function _camWorldRect() {
   return { wL, wR, wT, wB };
 }
 
+// Tighter 1v1 framing. ?noduelcam restores the wider one.
+let CAM_DUEL_CLOSE = !(typeof location !== 'undefined' && /[?&]noduelcam\b/.test(location.search));
+
 function updateCamera() {
   // Sequences step at a fixed 60fps.
   if (_camSeq) { _tickCameraSequence(1 / 60); return; }
@@ -414,7 +417,8 @@ function updateCamera() {
     // Zoom floor is a flat limit. Don't tie it to fitting the world: the sewer is
     // only 510 units tall, and that pinned the floor high enough to lose a player.
     const _zMin = _isWide ? 0.30 : 0.42;
-    const _zMax = _isWide ? 1.18 : 1.40;
+    const _closeDuel = CAM_DUEL_CLOSE && _camDuel;
+    const _zMax = _closeDuel ? 1.60 : (_isWide ? 1.18 : 1.40);
 
     // Look-ahead and boss emphasis are weighted preferences. The solver still frames everyone.
     let _biasX = 0, _biasY = 0, _biasW = 0;
@@ -441,8 +445,8 @@ function updateCamera() {
     const _sol = _camSolveFrame(_tracked, {
       zMin: _zMin, zMax: _zMax,
       // A 1v1 frames tighter. Two fighters are the whole shot.
-      padX: _isWide ? 220 : (_camDuel ? 150 : 190),
-      padY: _isWide ? 200 : (_camDuel ? 160 : 190),
+      padX: _closeDuel ? 130 : (_isWide ? 220 : (_camDuel ? 150 : 190)),
+      padY: _closeDuel ? 130 : (_isWide ? 200 : (_camDuel ? 160 : 190)),
       safeH: _safeH, hudGU: _hudGU, hudShift: _hudShift,
       wL: _wr.wL, wR: _wr.wR, wT: _wr.wT, wB: _wr.wB,
       biasX: _biasX, biasY: _biasY, biasW: _biasW,

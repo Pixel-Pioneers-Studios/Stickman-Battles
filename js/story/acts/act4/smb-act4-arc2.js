@@ -208,6 +208,7 @@ STORY_CHAPTER_REGISTRY.push(
       'Defeat it — if the concept means anything to you.',
     ],
     isSovereignFight: true,
+    sovereignSignature: true,   // first meeting: his own Null Blade, never a copy (docs/canon.md, SOVEREIGN'S ARMS)
     arena: 'sovereign',   // standalone fight arena
     playerLives: 10,   // same as the standalone fight
     tokenReward: 150,

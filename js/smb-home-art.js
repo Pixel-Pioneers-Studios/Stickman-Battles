@@ -329,7 +329,7 @@ function _homeArtFighter(ctx, hx, hy, o) {
   var fK = pt(pose.farLeg[0]),  fF = pt(pose.farLeg[1]);
   var ang = function (a, b) { return Math.atan2(b.y - a.y, b.x - a.x); };
 
-  var near = FigureSkin.begin(), far = FigureSkin.begin();
+  var near = FigureSkin.begin({ film: true }), far = FigureSkin.begin({ film: true });
   var hd = Math.hypot(head.x - sh.x, head.y - sh.y) || 1;
   FigureSkin.segment(near,
     [{ x: head.x - (head.x - sh.x) / hd * HR * 0.55, y: head.y - (head.y - sh.y) / hd * HR * 0.55 }, sh],

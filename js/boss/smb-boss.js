@@ -732,6 +732,11 @@ function drawBackstagePortals() {
 // Boss teleport.
 function bossTeleport(boss, isForced = false) {
   if (!currentArena || !boss) return;
+  // The Fallen God never uses the Creator's backstage portal. A fall below the map sets him down in his own light.
+  if (boss.isFallenGod) {
+    if (isForced && typeof boss._fgRecoverFall === 'function') boss._fgRecoverFall();
+    return;
+  }
   if (!isForced && boss.teleportCooldown > 0) return;
   const fallbackX = currentArena.worldWidth ? (currentArena.mapLeft || GAME_W * 0.5) : GAME_W * 0.5;
   const safePos = _bossFindSafeArenaPosition(

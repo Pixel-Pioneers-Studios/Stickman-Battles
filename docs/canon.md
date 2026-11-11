@@ -54,11 +54,15 @@ Rules:
 
 A proper connection between physical body, soul, and fragment was never established in any of the 94 bearers before Kael. The fragment settled into each host, began integrating, and the process killed them — the body could not sustain it. As each bearer died, the fragment absorbed what remained: their soul, their fighting style, the crystallized expression of how they moved and fought and endured. It carried that forward to the next host.
 
-By the time the fragment reaches Kael it has passed through dozens of bearers. Every warrior, archer, paladin, and berserker who held it before him is still in there — not as memories, but as patterns. Muscle memory without the muscle. Combat philosophy without the fighter. When the fragment bonds with Kael, his own nature resonates with whichever of those accumulated patterns is closest to who he is. That resonance becomes his class. His living personality then fine-tunes the template — sharpening it, bending it toward specificity, making the dead echo into something present.
+By the time the fragment reaches Kael it has passed through dozens of bearers. Aldric, Liss, Oswin, Hroth, and every other bearer who held it before him is still in there — not as memories, but as patterns. Muscle memory without the muscle. Combat philosophy without the fighter. When the fragment bonds with Kael, his own nature resonates with whichever of those accumulated patterns is closest to who he is. That resonance becomes his class. His living personality then fine-tunes the template — sharpening it, bending it toward specificity, making the dead echo into something present.
 
-This is what the Act 0 line means: *"Something in your hands knows what to do. You don't."* Kael's hands are being guided by someone who died holding this same fragment. He doesn't know their name. He doesn't need to. Their fighting style is already his.
+This is what the Act 0 line means: *"Something in your hands knows what to do. You don't."* Kael's hands are being guided by someone who died holding this same fragment. He doesn't know their name. He doesn't need to. Their fighting style is already his. (The player does: the class picker shows each bearer's name. Kael never says them.)
 
 **The dark implication:** Every class is a dead person. Not a title, not an archetype — a specific bearer who couldn't survive what Kael is surviving now. Using their fighting style against the system that killed them is the completion. Axiom's collection process built the weapon Kael fights with. He just didn't know it, and neither did Axiom.
+
+**The named classes.** Each class carries its bearer's name, and a class that suggests a weapon is named for that weapon's bearer: Torren (Mountainfall), Varek (Grudgebearer), Sable (Answerer), Dray (Last Word), Liss (Evenfall), Oswin (Dawnwall), Corvane (Oathbreakers), Bram (The Empty Hand), Seren (Stillwater), Mordane (Soultithe), Hask (Sunseed), Maren (Deepmoor). Aldric, Hroth, and Wren fought with whatever was at hand. None of them is the first bearer; that is the Rift Entity. The full table and each backstory line live in `CLASS_LORE` in `js/smb-weapon-lore.js`, which is the source of truth for class names.
+
+**The one class that is not a dead bearer.** The 95th (internally `adept`, unlocked with the Fragment style) is Kael's own pattern, the fragment style Axiom taught him during the companion arc. Every other class is someone the fragment killed. This one is the person it didn't.
 
 ---
 
@@ -77,6 +81,30 @@ This is the literal reading of the Act 0 line. *"Something in your hands knows w
 **Other bearers.** Calix manifests too, but badly — two competing fragments means two sets of patterns reaching for the grip at once, and what forms is often not what they intended, sometimes changing mid-fight. Axiom manifested before the void contact, though he had no idea that was what he was doing; he assumed he was simply always armed and never questioned why he could never remember picking anything up. After the contact there was nothing left to manifest — the fragment had dissolved into the Creator form, and the weapons he uses across the main story are constructions, not recollections.
 
 **The tell.** An empty-handed bearer is not an unarmed one. Anyone who understands what the fragment is knows that a bearer walking toward you with nothing in his hands is the most dangerous configuration, because it means the pattern has not yet decided you are worth answering.
+
+---
+
+## HOLLOW ARMS AND THE NAMED ARMS
+
+**The named arms.** Every weapon a bearer manifests has a name, because it belonged to someone. Mountainfall is Torren's. Grudgebearer is Varek's. A plain word like "hammer" still describes its shape, but it is never what the thing is called. This is why a hammer can hurt Cosmic Axiom: it is not a hammer, it is a crystal of the same law he runs on, held in the shape a dead bearer's hands remember. The full table and each backstory live in `js/smb-weapon-lore.js`, which is the source of truth for names.
+
+**Hollow arms.** The weapons Kael's enemies carry are copies, and they look it: near-black, with a violet-black haze along the blade. Axiom cannot manifest (his fragment dissolved at the void contact), so he builds. The Creator form shapes the crystals in his stash into the arms he has seen bearers use, and the cosmic power fills them. This is a limit, not a choice. What he collected was power, not people; everything those bearers were had already passed down the link to the next fragment. So a Hollow arm has the shape and the force, and none of the pattern: no stance, no timing, no dead hands behind it. That is why every copy is weaker than the original, however much power is poured into it, and why the real one is Kael's.
+
+**Who carries them.** Rank-and-file story enemies in Axiom's system, under the name "Hollow" plus the original's name (Hollow Mountainfall). The foundries keep running after Axiom is freed, so the copies stay in the field. Exempt: bosses, allies, ordinary people such as street thugs, beings with their own history (Veran, Seraph, VAEL, Thresh, the Herald, Null, Sovereign, Paradox, the Preserved), other bearers, and everything in the Void Mind arc, which answers to nobody.
+
+**Who knows.** Kael can see that the copies are copies. The stash behind them stays a late-story reveal, so player-facing menu text says only that they are copies, dark with stolen power.
+
+---
+
+## SOVEREIGN'S ARMS
+
+**He cannot manifest.** Sovereign never carried a fragment, so nothing crystallizes for him. Every weapon he holds was made, not recalled.
+
+**The first meeting: the Null Blade.** At the Act 4 gate (and in the first film) he carries his own Null Blade, red, built in the pocket long before the fracture network. It is the only arm that is truly his. He is still wearing the mask of Axiom's controlled asset, and the blade fits the mask: a weapon, not a statement.
+
+**The second meeting: copies of Kael, pulled from the pocket.** In the lab (the Awakened Sovereign fight, the standalone fight, and the final film) he opens with the Null Blade, and once the reading starts he puts it away. From then on his hand goes into a portal to his pocket and comes out holding a copy of one of Kael's arms: the one that answers the arm Kael is holding. Every time Kael's fragment reforms a new weapon (film 1's patterns), Sovereign pulls its answer. The gate taught him what it costs to meet Kael with something Kael has never seen, so he meets Kael with Kael. The copies were made in his pocket from his own recordings of Kael, not from Axiom's memory of dead bearers, so they are better than Hollow arms (a recorded stance and timing, not just shape and force) and still not real: a recording only holds what Kael has already done. They look it: the shape of the real arm, washed in his red, a ghost of the original. Film 4's pairs: katana is answered by the sword, hammer by the spear. He is exempt from the Hollow look and name because these are his copies, not Axiom's.
+
+**Rule.** At the gate he only ever holds the Null Blade, and in the lab the Null Blade only appears before the reading starts. Code: the Act 4 chapter's `sovereignSignature: true` locks the Null Blade (`_startGameCore`, `Brain.driveSovereign`); every other Sovereign fight counter-picks from the player's arsenal, which never contains the Null Blade.
 
 ---
 
@@ -894,7 +922,7 @@ Properties of the dimension **bleeding through into the combat space**. The coll
 
 A class isn't a title. It's a **combat philosophy crystallized into something structurally real** — a fighting approach internalized so completely that it modifies how force literally interacts with the fighter.
 
-A Paladin has spent long enough absorbing punishment and standing firm that incoming force registers differently against them at a structural level. The ×0.85 incoming damage isn't armor. It's who they became. A Berserker has spent so long in kinetic aggression that their speed is a physical fact of how they exist in space, not just effort. A Varek-type processes damage as fuel rather than depletion — an internal alchemy where pain converts to force. At maximum rage stacks, the alchemy has generated enough output that the damage is structurally enhanced. The lifesteal during Undying Rage is the same alchemy reversed: force expended returns as restoration.
+Oswin spent long enough absorbing punishment and standing firm that incoming force registers differently against him at a structural level. The ×0.85 incoming damage isn't armor. It's who he became. Hroth spent so long in kinetic aggression that his speed is a physical fact of how he exists in space, not just effort. Varek processes damage as fuel rather than depletion — an internal alchemy where pain converts to force. At maximum rage stacks, the alchemy has generated enough output that the damage is structurally enhanced. The lifesteal during Warborn Fury is the same alchemy reversed: force expended returns as restoration.
 
 The class system shows who this person *became through conflict*. Not what role they were assigned.
 
@@ -902,13 +930,13 @@ The class system shows who this person *became through conflict*. Not what role 
 
 ### CLASS AFFINITY
 
-A crystallized philosophy **resonates with certain kinds of force** and doesn't with others. A Warrior's philosophy amplifies melee weapons because the resonance between their internalized style and the weapon's energy signature adds force. An Archer *loses* damage on melee because close-quarters fighting runs against their crystallized nature — the disruption costs something.
+A crystallized philosophy **resonates with certain kinds of force** and doesn't with others. Aldric's philosophy amplifies melee weapons because the resonance between his internalized style and the weapon's energy signature adds force. Liss *loses* damage on melee because close-quarters fighting runs against her crystallized nature — the disruption costs something.
 
 ---
 
 ### WEAPONS
 
-Dimensional artifacts — physical tools that carry the energy signature of the dimension they were built in or traveled through. A sword carries a pattern of concentrated directional force. A bow carries a pattern of projection. A scythe carries a pattern the others don't share.
+Manifested arms, not physical tools (see THE MANIFESTED ARM). Each one is the shape a dead bearer's hands were built around, and each has a name and a history (see HOLLOW ARMS AND THE NAMED ARMS). A sword carries a pattern of concentrated directional force. A bow carries a pattern of projection. A scythe carries a pattern the others don't share.
 
 The fragment in a bearer resonates with whatever they hold. The weapon isn't passive — it's in dialogue with you. How much you hear it depends on how aligned your philosophy is with what it does.
 

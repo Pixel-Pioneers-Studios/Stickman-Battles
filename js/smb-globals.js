@@ -26,6 +26,15 @@ const FIG_LEG_LEN = 31;   // was 27; +4 offsets the smaller head, feet stay at y
 const FIG_SHOULDER_DY = FIG_HEAD_R * 2 + 2 + FIG_NECK;   // head top -> shoulder
 const FIG_LINE_W  = 3.8;  // outline width
 
+// Melee swing startup: a non-boss swing can't hit in its first frames (40% of the swing, 2-6 frames), so a
+// swing can be read before it lands. Bots and the brain only see a swing once it is SWING_SEEN_LAG frames
+// old, longer than any startup: beating a swing takes predicting it, not out-reacting it.
+const SWING_STARTUP_SHARE = 0.4, SWING_STARTUP_MIN = 2, SWING_STARTUP_MAX = 6, SWING_SEEN_LAG = 8;
+function swingStartupFrames(dur) {
+  return Math.max(SWING_STARTUP_MIN, Math.min(SWING_STARTUP_MAX, Math.round((dur || 12) * SWING_STARTUP_SHARE)));
+}
+function swingSeen(f) { return !!f && f.attackTimer > 0 && (f._atkAge || 0) >= SWING_SEEN_LAG; }
+
 // Server sync: bans are enforced across devices when url is set. Empty url means offline, local bans only.
 const SERVER_CONFIG = {
   url:            'https://stickman-battles.onrender.com',

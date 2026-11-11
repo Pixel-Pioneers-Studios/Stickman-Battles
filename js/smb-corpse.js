@@ -349,7 +349,7 @@ const Corpse = {
       ctx.translate(-c.x, -c.y);
     }
 
-    const near = FigureSkin.begin(), far = FigureSkin.begin();
+    const near = FigureSkin.begin({ film: true }), far = FigureSkin.begin({ film: true });
     const H  = mid(vr.lHip, vr.rHip, 0.5);
     const Sh = mid(vr.neck, H, 0.12);
     const faces = [];   // cut cross-sections: [x, y, dirX, dirY, width]
@@ -378,7 +378,7 @@ const Corpse = {
       if (d > gone + 0.22) return;
       const start = cut[key] ? ext[key] : root;
       const short = d > gone;                         // the far half has already gone
-      FigureSkin.segment(b, short ? [start, a] : [start, a, e], short ? ws.slice(0, 2) : ws, b === near);
+      FigureSkin.segment(b, short ? [start, a] : [start, a, e], short ? ws.slice(0, 2) : ws, b === near, { smooth: !arm });
       if (cut[key]) face(start, a, ws[0] * 1.05);
       if (short) return;
       if (arm) FigureSkin.hand(b, e.x, e.y, 0, f, b === near ? 1 : 0.85);

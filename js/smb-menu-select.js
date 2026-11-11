@@ -175,7 +175,7 @@ function refreshMegaknightClassOption() {
     if (sel && !sel.querySelector('option[value="megaknight"]')) {
       const opt = document.createElement('option');
       opt.value = 'megaknight';
-      opt.textContent = 'Knight ★';
+      opt.textContent = CLASSES.megaknight.name + ' ★';
       sel.appendChild(opt);
     }
   });
@@ -192,7 +192,7 @@ function showDesc(pid, type, value) {
   const desc = type === 'weapon' ? WEAPON_DESCS[value] : CLASS_DESCS[value];
   if (!desc) { panel.style.display = 'none'; return; }
   panel.style.display = 'block';
-  titleEl.textContent = desc.title;
+  titleEl.textContent = desc.kind ? desc.title + ' · ' + desc.kind : desc.title;
   bodyEl.innerHTML = [
     // Stat bars read live from WEAPONS. Hardcoded 'Damage: N' text went stale after balance passes.
     type === 'weapon' ? _weaponStatBarsHtml(value) : '',
@@ -204,6 +204,8 @@ function showDesc(pid, type, value) {
     desc.super   ? `<br><span style="color:#ffaa44">${desc.super}</span>`   : '',
     desc.perk    ? `<br><span style="color:#aaffaa">★ ${desc.perk}</span>`  : '',
     `<br><span style="color:#aaa; font-style:italic">Tip: ${desc.how}</span>`,
+    desc.lore ? `<br><span style="color:#b9a7dc">${desc.lore}</span>` : '',
+    (desc.lore && type === 'weapon') ? `<br><span style="color:#8d7bb5; font-size:0.92em">${HOLLOW_ARM_NOTE}</span>` : '',
   ].join('');
 }
 
@@ -235,6 +237,8 @@ function onWeaponChange(pid) {
   const weaponEl = document.getElementById(pid + 'Weapon');
   if (weaponEl) weaponEl.dataset.userPicked = 'true';
   updateClassWeapon(pid);
+  // updateClassWeapon ends by showing the class panel, which hid the weapon just picked.
+  if (weaponEl) showDesc(pid, 'weapon', weaponEl.value);
 }
 
 function classSel_wasLocked(el, val) { /* no-op */ }
@@ -492,6 +496,7 @@ function openSettingsModal() {
   if (qfhEl) qfhEl.checked = !!settings.quickFightHazards;
   const apEl = document.getElementById('settingAutoPerf');
   if (apEl) apEl.checked = settings.autoPerf !== false;
+  syncPerfModeItems();
   const aqEl = document.getElementById('settingAnimQuality');
   if (aqEl) aqEl.checked = settings.animQuality !== 'classic';
   const pvEl = document.getElementById('settingPixelVfx');
@@ -723,46 +728,74 @@ function toggleAdvanced() {
 let _performanceModeActive = false;
 let _perfModePrevSettings = null;
 
+// keep = left on unless the player ticks it.
+const PERF_MODE_ITEMS = [
+  { key: 'particles',  el: 'settingParticles' },
+  { key: 'shake',      el: 'settingShake' },
+  { key: 'dmgNums',    el: 'settingDmgNums' },
+  { key: 'landDust',   el: 'settingLandDust' },
+  { key: 'bossAura',   el: 'settingBossAura' },
+  { key: 'botPortal',  el: 'settingBotPortal' },
+  { key: 'phaseFlash', el: 'settingPhaseFlash' },
+  { key: 'arenaHd' }, // HD arena backdrops are the biggest draw cost on low-end machines.
+  { key: 'finishers',  el: 'settingFinishers', keep: true },
+];
+const _perfModeList = (() => {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('smc_perfModeList')) || {}; } catch (e) {}
+  const list = {};
+  for (const it of PERF_MODE_ITEMS) list[it.key] = typeof saved[it.key] === 'boolean' ? saved[it.key] : !it.keep;
+  return list;
+})();
+
+function _perfItemOn(it) {
+  if (!it.el) return !window.ARENA_HD_OFF;
+  const el = document.getElementById(it.el);
+  return el ? el.checked : true;
+}
+function _perfItemSet(it, on) {
+  if (!it.el) { window.ARENA_HD_OFF = !on; return; }
+  const el = document.getElementById(it.el);
+  if (el) el.checked = on;
+}
+function _perfItemSuspend(it) {
+  _perfModePrevSettings[it.key] = _perfItemOn(it);
+  _perfItemSet(it, false);
+}
+function _perfItemRestore(it) {
+  if (!_perfModePrevSettings || !(it.key in _perfModePrevSettings)) return;
+  _perfItemSet(it, _perfModePrevSettings[it.key]);
+  delete _perfModePrevSettings[it.key];
+}
+
+function setPerfModeItem(key, on) {
+  const it = PERF_MODE_ITEMS.find(i => i.key === key);
+  if (!it) return;
+  _perfModeList[key] = !!on;
+  try { localStorage.setItem('smc_perfModeList', JSON.stringify(_perfModeList)); } catch (e) {}
+  if (!_performanceModeActive) return;
+  if (on) _perfItemSuspend(it); else _perfItemRestore(it);
+  updateSettings();
+}
+
+function syncPerfModeItems() {
+  for (const it of PERF_MODE_ITEMS) {
+    const el = document.getElementById('settingPerf_' + it.key);
+    if (el) el.checked = !!_perfModeList[it.key];
+  }
+}
+
 function togglePerformanceMode(auto) {
   const btn = document.getElementById('perfModeBtn');
   if (auto !== true) _autoPerfUserSet = true; // player's choice wins
   _performanceModeActive = !_performanceModeActive;
 
   if (_performanceModeActive) {
-    _perfModePrevSettings = {
-      particles:   document.getElementById('settingParticles').checked,
-      shake:       document.getElementById('settingShake').checked,
-      dmgNums:     document.getElementById('settingDmgNums').checked,
-      landDust:    document.getElementById('settingLandDust').checked,
-      finishers:   document.getElementById('settingFinishers') ? document.getElementById('settingFinishers').checked : true,
-      bossAura:    document.getElementById('settingBossAura')  ? document.getElementById('settingBossAura').checked  : true,
-      botPortal:   document.getElementById('settingBotPortal') ? document.getElementById('settingBotPortal').checked : true,
-      phaseFlash:  document.getElementById('settingPhaseFlash')? document.getElementById('settingPhaseFlash').checked: true,
-    };
-    // Disable visual effects. HD arena backdrops are the biggest draw cost on low-end machines.
-    _perfModePrevSettings.arenaHdOff = !!window.ARENA_HD_OFF;
-    window.ARENA_HD_OFF = true;
-    document.getElementById('settingParticles').checked = false;
-    document.getElementById('settingShake').checked     = false;
-    document.getElementById('settingDmgNums').checked   = false;
-    document.getElementById('settingLandDust').checked  = false;
-    if (document.getElementById('settingFinishers'))  document.getElementById('settingFinishers').checked  = false;
-    if (document.getElementById('settingBossAura'))   document.getElementById('settingBossAura').checked   = false;
-    if (document.getElementById('settingBotPortal'))  document.getElementById('settingBotPortal').checked  = false;
-    if (document.getElementById('settingPhaseFlash')) document.getElementById('settingPhaseFlash').checked = false;
+    _perfModePrevSettings = {};
+    for (const it of PERF_MODE_ITEMS) if (_perfModeList[it.key]) _perfItemSuspend(it);
     if (btn) { btn.textContent = '⚡ Performance Mode: On'; btn.style.color = '#ffff66'; btn.style.borderColor = 'rgba(255,255,80,0.5)'; }
   } else {
-    if (_perfModePrevSettings) {
-      window.ARENA_HD_OFF = !!_perfModePrevSettings.arenaHdOff;
-      document.getElementById('settingParticles').checked = _perfModePrevSettings.particles;
-      document.getElementById('settingShake').checked     = _perfModePrevSettings.shake;
-      document.getElementById('settingDmgNums').checked   = _perfModePrevSettings.dmgNums;
-      document.getElementById('settingLandDust').checked  = _perfModePrevSettings.landDust;
-      if (document.getElementById('settingFinishers'))  document.getElementById('settingFinishers').checked  = _perfModePrevSettings.finishers;
-      if (document.getElementById('settingBossAura'))   document.getElementById('settingBossAura').checked   = _perfModePrevSettings.bossAura;
-      if (document.getElementById('settingBotPortal'))  document.getElementById('settingBotPortal').checked  = _perfModePrevSettings.botPortal;
-      if (document.getElementById('settingPhaseFlash')) document.getElementById('settingPhaseFlash').checked = _perfModePrevSettings.phaseFlash;
-    }
+    for (const it of PERF_MODE_ITEMS) _perfItemRestore(it);
     if (btn) { btn.textContent = '⚡ Performance Mode: Off'; btn.style.color = '#88ffaa'; btn.style.borderColor = 'rgba(80,255,120,0.4)'; }
   }
 
