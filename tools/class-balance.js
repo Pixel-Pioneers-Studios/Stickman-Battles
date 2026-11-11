@@ -355,7 +355,9 @@ window.BalanceSim = (function () {
   page.on('pageerror', e => errs.push(String(e && e.message || e)));
   page.on('console', m => { if (m.type() === 'error' && !NOISE.test(m.text())) errs.push(m.text()); });
 
-  await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'load', timeout: 60000 });
+  // 'load' can hang on an external resource (CDN, online services); wait for the game's own scripts.
+  await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForFunction(() => typeof startGame === 'function' && typeof Fighter === 'function', { timeout: 90000 });
   await sleep(2500);
   await page.evaluate(() => { try { if (typeof backToHome === 'function') backToHome(); } catch (e) {} });
   await page.addScriptTag({ content: SIM_SRC });

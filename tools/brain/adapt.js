@@ -12,6 +12,8 @@
  *                      decisions (20 decisions = 1 s; 1 = no memory at all). --greedy = top choice, as shipped.
  *                      --styles=a,b limits the opponents. --nets=name:ckpt.json,... adds other nets as opponents.
  *                      --switch[=900] adds 'switch': all those nets taking turns in one body, swapping every N frames.
+ *                      --objective=none|pressure|punish|antiair  the brain plays that goal-conditioned objective all match.
+ *                      --hp=<mult> overrides each style's hpMult.
  *                      --json=out.json writes the per-opponent and pooled win rates for a script (league.js).
  */
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -22,6 +24,8 @@ const ROOT = path.resolve(__dirname, '..', '..'), PORT = parseInt(args.port, 10)
 const EPS = parseInt(args.eps, 10) || 12, SEED = parseInt(args.seed, 10) || 1;
 const CKPT = path.resolve(ROOT, args.ckpt || 'data/brain/latest.json');
 const WIPE = args.wipe ? String(args.wipe).split(',').map(Number).filter(n => n > 0) : null, GREEDY = !!args.greedy;
+const OBJECTIVE = Math.max(0, ['none', 'pressure', 'punish', 'antiair'].indexOf(String(args.objective || 'none')));
+const HP = parseFloat(args.hp) || 0;
 const ARMS = WIPE ? [{ k: 'on' }].concat(WIPE.map(n => ({ k: 'wipe' + n, memWipe: n }))) : [{ k: 'on' }, { k: 'off', histOff: true }];
 
 // Same table as train.js, kept in sync by hand (train.js is a script, not a module).
@@ -38,9 +42,9 @@ const STYLES = {
               shieldUse: 0.2, jumpInRate: 0, airHopRate: 0.02, comboFollow: 0.8 },
   human:    HUMAN,
 };
-const specs = Object.entries(STYLES).map(([k, p]) => ({ type: 'style', label: k, params: p, hpMult: k === 'zoner' ? 2 : 1.5,
+const specs = Object.entries(STYLES).map(([k, p]) => ({ type: 'style', label: k, params: p, hpMult: HP || (k === 'zoner' ? 2 : 1.5),
   brainKit: 'randomClass', kit: k === 'zoner' ? { w: 'ranged', c: 'none' } : undefined }));
-specs.push({ type: 'style', label: 'switcher', every: 900, hpMult: 1.5, brainKit: 'randomClass',
+specs.push({ type: 'style', label: 'switcher', every: 900, hpMult: HP || 1.5, brainKit: 'randomClass',
   styles: ['turtle', 'rushdown', 'aerial', 'counter'].map(k => STYLES[k]) });
 // --nets=name:path,...  other checkpoints as opponents (hunters, the mirror), top choice, random class kits both sides.
 for (const kv of args.nets ? String(args.nets).split(',') : []) {
@@ -90,7 +94,7 @@ const run = ONLY ? specs.filter(s => ONLY.includes(s.label)) : specs;
     const rows = [];
     for (const spec of run) {
       const si = specs.indexOf(spec);
-      rows.push(await page.evaluate((w, spec, si, eps, seed, arms, greedy) => {
+      rows.push(await page.evaluate((w, spec, si, eps, seed, arms, greedy, objective) => {
         const row = { style: spec.label };
         // The page's own loop ran since the last call; a throwaway pair of matches puts every arm behind a rollout of the same kind.
         Math.random = window._adaptSeeded(seed + si);
@@ -98,7 +102,7 @@ const run = ONLY ? specs.filter(s => ONLY.includes(s.label)) : specs;
         for (const arm of arms) {
           Math.random = window._adaptSeeded(seed * 7919 + si * 104729);
           const r = Brain.rollout({ weights: w, steps: 1, maxFrames: 7200, opponents: Array(eps).fill(spec), episodes: eps,
-            histOff: !!arm.histOff, memWipe: arm.memWipe || 0, greedy });
+            histOff: !!arm.histOff, memWipe: arm.memWipe || 0, greedy, objective });
           const a = { win: 0, de: 0, te: 0, dt: 0, tt: 0, fr: 0 };
           for (const e of r.episodes) { a.win += e.win; a.de += e.stats.dmgDealtEarly; a.te += e.stats.dmgTakenEarly; a.dt += e.stats.dmgDealt; a.tt += e.stats.dmgTaken; a.fr += e.frames; }
           a.win /= r.episodes.length;
@@ -106,7 +110,7 @@ const run = ONLY ? specs.filter(s => ONLY.includes(s.label)) : specs;
         }
         Math.random = window._adaptRnd;
         return row;
-      }, ck.pi, spec, si, EPS, SEED, ARMS, GREEDY));
+      }, ck.pi, spec, si, EPS, SEED, ARMS, GREEDY, OBJECTIVE));
       if (WIPE) { const r = rows[rows.length - 1];
         console.log(r.style.padEnd(10) + ARMS.map(m => `  ${m.k} ${(r[m.k].win * 100).toFixed(0)}% ${(r[m.k].dt / Math.max(1, r[m.k].tt)).toFixed(2)} late ${((r[m.k].dt - r[m.k].de) / Math.max(1, r[m.k].tt - r[m.k].te)).toFixed(2)}`).join('')); }
     }

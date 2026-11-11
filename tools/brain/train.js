@@ -83,6 +83,14 @@ const CFG = {
   refKl: parseFloat(args.refkl) || 0,
   twitchPen: parseFloat(args.twitchpen) || 0,   // --twitchpen=<r>: reward paid per twitch turn
 };
+// --objectives: goal-conditioned training (objective segments, js/smb-brain.js rollout); --objw scales its reward.
+const OBJ_W = args.objw === undefined ? 1 : parseFloat(args.objw);
+// --styleshare=0.33: that share of league matches is a turtle/rushdown/aerial/counter style.
+// --stylehp=turtle:6.73,rushdown:7.66: per-style hpMult (default 1.5), e.g. goalmatrix's calibrated values.
+const STYLE_SHARE = Math.min(1, Math.max(0, parseFloat(args.styleshare) || 0));
+const STYLE_HP = Object.fromEntries(String(args.stylehp || '').split(',').filter(Boolean).map(t => {
+  const [k, v] = t.split(':'); return [k, parseFloat(v)];
+}));
 const STAGES = ['idle', 'easy', 'medium', 'hard', 'expert', 'league'];
 const RECYCLE = 150;
 const PROMOTE_WIN = 0.7, PROMOTE_MIN_EPS = 60, WINDOW = 100;
@@ -191,7 +199,7 @@ function styleSpec(name, brainKit) {
              styles: ['turtle', 'rushdown', 'aerial', 'counter'].map(k => STYLES[k]) };
   }
   // Extra health so a match lasts long enough for reading it to pay off.
-  return { type: 'style', label: name, brainKit, params: STYLES[name], hpMult: name === 'zoner' ? 2 : 1.5,
+  return { type: 'style', label: name, brainKit, params: STYLES[name], hpMult: STYLE_HP[name] || (name === 'zoner' ? 2 : 1.5),
            kit: name === 'zoner' ? { w: 'ranged', c: 'none' } : (Math.random() < 0.5 ? 'random' : undefined) };
 }
 const STYLE_NAMES = [...Object.keys(STYLES), 'switcher'];
@@ -219,6 +227,10 @@ function pickOpponents(state, pool, count) {
       out.push(c < 0.35 ? { type: 'expert', count: 2, label: 'crowd expert x2', brainKit, kit }
         : c < 0.75 ? { type: 'hard', count: 3, label: 'crowd hard x3', brainKit, kit }
         : { type: 'hard', count: 4, label: 'crowd hard x4', brainKit, kit });
+      continue;
+    }
+    if (STYLE_SHARE && stage === 'league' && Math.random() < STYLE_SHARE) {
+      out.push(styleSpec(['turtle', 'rushdown', 'aerial', 'counter'][Math.floor(Math.random() * 4)], brainKit));
       continue;
     }
     if (state.stage > 0 && r < 0.2) { out.push({ type: STAGES[Math.floor(Math.random() * Math.min(state.stage, 5))], brainKit }); continue; }
@@ -340,7 +352,7 @@ function withHunters(opps) {
       try {
         if (state.iter > 0 && state.iter % RECYCLE === i % RECYCLE) throw new Error('recycle');
         return await w.page.evaluate(o => Brain.rollout(o),
-          { weights, steps: STEPS, novelty, maxFrames: 7200, opponents: withHunters(pickOpponents(state, pool, 40)), hunt: HUNT, twitchPen: CFG.twitchPen });
+          { weights, steps: STEPS, novelty, maxFrames: 7200, opponents: withHunters(pickOpponents(state, pool, 40)), hunt: HUNT, twitchPen: CFG.twitchPen, objectives: !!args.objectives, objW: OBJ_W });
       } catch (e) {
         if (e.message !== 'recycle') log(`worker ${w.id} failed (${e.message.slice(0, 80)}); relaunching`);
         await killBrowser(w.browser);
@@ -463,7 +475,8 @@ function withHunters(opps) {
     const perMin = k => (tot[k] / Math.max(1, tot.frames) * 3600).toFixed(1);
     const opps = Object.entries(byOpp).map(([k, b]) => `${k} ${b.w}/${b.n}`).join(' ');
     log(`it ${state.iter} [${stageName} ${(curWin * 100).toFixed(0)}%] R/ep ${entry.meanRewardPerEp.toFixed(2)} ent ${u.ent.toFixed(2)} kl ${u.kl.toFixed(3)} | ` +
-        (u.lpErr !== undefined ? `lpErr ${u.lpErr.toExponential(1)} ` : '') + (u.refKl ? `refKl ${u.refKl.toFixed(3)} ` : '') + `turn/min ${perMin('turns')} twitch/min ${perMin('twitchTurns')} swing/min ${perMin('swings')} jump/min ${perMin('jumps')} hit/swing ${(tot.swingHits / Math.max(1, tot.swings) * 100).toFixed(0)}% dj/min ${perMin('doubleJumps')} blk/min ${perMin('blocks')} abiHit ${tot.abilityHits} supHit ${tot.superHits} | ${opps} | roll ${(tRoll / 1000).toFixed(1)}s upd ${(tUpd / 1000).toFixed(1)}s`);
+        (u.lpErr !== undefined ? `lpErr ${u.lpErr.toExponential(1)} ` : '') + (u.refKl ? `refKl ${u.refKl.toFixed(3)} ` : '') + `turn/min ${perMin('turns')} twitch/min ${perMin('twitchTurns')} swing/min ${perMin('swings')} jump/min ${perMin('jumps')} hit/swing ${(tot.swingHits / Math.max(1, tot.swings) * 100).toFixed(0)}% dj/min ${perMin('doubleJumps')} blk/min ${perMin('blocks')} abiHit ${tot.abilityHits} supHit ${tot.superHits} |` +
+        (args.objectives ? ` obj dmg/min P ${perMin('objPressureDmg')} U ${perMin('objPunishDmg')} A ${perMin('objAntiAirDmg')} frames% ${[1, 2, 3].map(k => (tot['objFrames' + k] / Math.max(1, tot.frames) * 100).toFixed(0)).join('/')} |` : '') + ` ${opps} | roll ${(tRoll / 1000).toFixed(1)}s upd ${(tUpd / 1000).toFixed(1)}s`);
     for (const w of workers) if (w.errors.length) { log(`worker ${w.id} page errors:`, w.errors.slice(0, 3)); w.errors.length = 0; }
   }
 
