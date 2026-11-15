@@ -43,11 +43,32 @@ const SERVER_CONFIG = {
 
 const CHANGELOG = [
   {
+    version: '4.9.0',
+    title: 'NAMED ARMS',
+    date: '2026-11-15',
+    flavor: 'A new home screen, the prequels inside the game, a Journal that fills in as you play, and weapons with names worth fearing.',
+    isLatest: true,
+    changes: [
+      { cat: 'UI',      text: 'New home screen: your fighter stands on a ledge beside the mode list, with one PLAY button to get straight into a match. The game also loads faster' },
+      { cat: 'Prequel', text: 'The prequels are now playable from the Prequels tile on the home screen, with the same controls and fighters as the main game. Their chapters open as you progress through the main story, so they spoil nothing' },
+      { cat: 'Prequel', text: 'The Axiom prequel has a new fourth act with five chapters. Walking chapters no longer leave you waiting at the edge of the map for the text to finish, and Space skips ahead' },
+      { cat: 'Story',   text: 'Journal: 26 lore entries about the world and the people in it, opened by playing the story. Find it on the home screen. Some entries stay hidden until you have seen enough' },
+      { cat: 'Weapon',  text: 'Every weapon and class now has a name and a backstory. The enemies in the story carry dark, hollow copies of them' },
+      { cat: 'Visual',  text: 'Fighters have a slimmer body, swings move the whole body, hits get reactions, and the camera sits closer in duels' },
+      { cat: 'Combat',  text: 'Melee swings wind up for a few frames before they hit. The blade pulls back first, so you can read a swing coming' },
+      { cat: 'Setting', text: 'Anime Moves (prototype) in Settings > Graphics: impact frames, speed lines and move-name cards for abilities, supers, Combo Domains, parries and clashes. Off by default' },
+      { cat: 'Setting', text: 'Pixel Effects are now off by default and stay out of boss and cinematic visuals' },
+      { cat: 'Story',   text: 'The Creator and Cosmic Axiom fights have new film-style phase scenes', spoilerLevel: 2 },
+      { cat: 'Visual',  text: 'The Fallen God has his own look, his own lines and a new recovery when he falls', spoilerLevel: 2 },
+      { cat: 'Fix',     text: 'Prequels: a hit during a grab could leave an enemy frozen for good, and grabbing a blocking enemy kept its guard up' },
+    ],
+  },
+  {
     version: '4.8.0',
     title: 'NO MORE WALLS',
     date: '2026-11-01',
     flavor: 'Boss fights save your progress, the Fight Ladder teaches as you climb, and the toughest fights give you real openings.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story',   text: 'Boss chapters have checkpoints at 75%, 50% and 25% of the fight. Retry from Checkpoint brings you back there with full health and lives, and skips the intro' },
       { cat: 'Mode',    text: 'Fight Ladder: every rung now teaches one skill, from stringing hits to breaking a guard and timing your super. The tip shows when the fight starts, on the rung card and after a loss' },
@@ -1313,7 +1334,7 @@ let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-const GAME_VERSION = '4.8.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.9.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 let debugMode          = false;
