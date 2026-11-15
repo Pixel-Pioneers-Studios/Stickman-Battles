@@ -1564,7 +1564,7 @@ class Fighter {
     // Melee arc hitbox: sample points along the swing. Uses _prevAtkTimer so the final frame still hits,
     // so weaponHit is set before the whiff-stun check.
     // Swing startup (swingStartupFrames, smb-globals.js). SIM_SWING_STARTUP (dev sims) overrides it.
-    const _startup = this.isBoss ? 0 : typeof SIM_SWING_STARTUP !== 'undefined' ? SIM_SWING_STARTUP : swingStartupFrames(this.attackDuration);
+    const _startup = this._swingStartup();
     if (_prevAtkTimer > 0 && this.weapon.type === 'melee' && !this.weapon.noSwingHitbox && this._atkAge >= _startup) {
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
@@ -2630,6 +2630,16 @@ class Fighter {
     this._degradeVisual = vis;
   }
 
+  // Frames before this fighter's swing can hit. Bosses have none.
+  _swingStartup() {
+    return this.isBoss ? 0 : typeof SIM_SWING_STARTUP !== 'undefined' ? SIM_SWING_STARTUP : swingStartupFrames(this.attackDuration);
+  }
+  // The same startup as a share of the swing, for swingPose(): the weapon stays cocked back that long.
+  _swingLead() {
+    if (this.isBoss || !this.weapon || this.weapon.type !== 'melee' || this.weapon.noSwingHitbox || !(this.attackDuration > 0)) return 0;
+    return Math.min(0.8, this._swingStartup() / this.attackDuration);
+  }
+
   // Returns weapon-tip world position during a melee swing, or null if not attacking.
   getWeaponTipPos() {
     if (this.attackTimer <= 0) return null;
@@ -2641,12 +2651,14 @@ class Fighter {
     const atkP       = 1 - this.attackTimer / this.attackDuration;
     // Knight: fist sweeps from low to high.
     let ang, reachFrac = 1;
+    const _lead = this._swingLead();
     if (this.charClass === 'megaknight') {
+      const _mp = swingArcP(Math.min(1, Math.max(0, atkP)), _lead).p;
       ang = this.facing > 0
-        ? lerp(1.2, -1.1, atkP)
-        : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP);
+        ? lerp(1.2, -1.1, _mp)
+        : lerp(Math.PI - 1.2, Math.PI + 1.1, _mp);
     } else {
-      const _sp = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt);
+      const _sp = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt, _lead);
       ang = _sp.ang;
       reachFrac = _sp.reachFrac;
     }
@@ -2695,21 +2707,24 @@ class Fighter {
     // Snap and iai easings cross most of the arc in a few frames. Sub-frame interpolation closes the gaps
     // a per-frame angle leaves (playtest: 'I can't hit anything' was real whiffs through moving targets).
     const poses = [];
+    const _lead = this._swingLead();
     if (this.charClass === 'megaknight') {
+      const _mp = swingArcP(Math.min(1, Math.max(0, atkP)), _lead).p;
       poses.push({
-        ang: this.facing > 0 ? lerp(1.2, -1.1, atkP) : lerp(Math.PI - 1.2, Math.PI + 1.1, atkP),
+        ang: this.facing > 0 ? lerp(1.2, -1.1, _mp) : lerp(Math.PI - 1.2, Math.PI + 1.1, _mp),
         reachFrac: 1,
       });
     } else {
-      const _now  = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt);
+      const _now  = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt, _lead);
       poses.push(_now);
       if (this.attackDuration > 0) {
-        const prevP = Math.max(0, 1 - (this.attackTimer + 1) / this.attackDuration);
-        const _prev = swingPose(this.weaponKey, prevP, this.facing, this._jabAlt);
+        // Never back into the startup hold: the cocked-back pose is not part of the hitting arc.
+        const prevP = Math.min(atkP, Math.max(_lead, 1 - (this.attackTimer + 1) / this.attackDuration));
+        const _prev = swingPose(this.weaponKey, prevP, this.facing, this._jabAlt, _lead);
         const dAng  = Math.abs(_now.ang - _prev.ang);
         const steps = Math.min(3, Math.floor(dAng / 0.14)); // one extra sample per ~0.14 rad swept
         for (let _si2 = 1; _si2 <= steps; _si2++) {
-          poses.push(swingPose(this.weaponKey, prevP + (atkP - prevP) * _si2 / (steps + 1), this.facing, this._jabAlt));
+          poses.push(swingPose(this.weaponKey, prevP + (atkP - prevP) * _si2 / (steps + 1), this.facing, this._jabAlt, _lead));
         }
       }
     }
@@ -5621,11 +5636,14 @@ class Fighter {
       lAng = spinA + Math.PI;
     } else if (s === 'attacking') {
       // Swing grammar drives the weapon arm; balance arm keeps the legacy counter-pose.
+      // Finisher poses drive the swing directly, so they take no startup hold.
+      const _lead = (this._finPoseP !== null && this._finPoseP !== undefined) ? 0 : this._swingLead();
       if (this.charClass === 'megaknight') {
-        rAng = f > 0 ? lerp(1.2, -1.1, atkProgress) : lerp(Math.PI - 1.2, Math.PI + 1.1, atkProgress);
+        const _mp = swingArcP(Math.min(1, Math.max(0, atkProgress)), _lead).p;
+        rAng = f > 0 ? lerp(1.2, -1.1, _mp) : lerp(Math.PI - 1.2, Math.PI + 1.1, _mp);
         this._swingArmStretch = 1;
       } else {
-        const _sp = (typeof swingPose === 'function') ? swingPose(this.weaponKey, atkProgress, f, this._jabAlt) : null;
+        const _sp = (typeof swingPose === 'function') ? swingPose(this.weaponKey, atkProgress, f, this._jabAlt, _lead) : null;
         rAng = _sp ? _sp.ang
                    : (f > 0 ? lerp(-0.45, 1.1, atkProgress) : lerp(Math.PI + 0.45, Math.PI - 1.1, atkProgress));
         // Thrust/jab weapons: arm visibly extends with the reach curve

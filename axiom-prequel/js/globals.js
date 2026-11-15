@@ -6,8 +6,52 @@ const ctx    = canvas.getContext('2d');
 
 const GAME_W = 960;
 const GAME_H = 540;
-canvas.width  = GAME_W;
-canvas.height = GAME_H;
+// Backing store at screen resolution; every draw call stays in GAME_W x GAME_H units.
+const RENDER_SCALE = Math.min(3, Math.ceil((window.devicePixelRatio || 1) * Math.max(1, screen.width / GAME_W)));
+canvas.width  = GAME_W * RENDER_SCALE;
+canvas.height = GAME_H * RENDER_SCALE;
+canvas.style.width  = GAME_W + 'px';
+canvas.style.height = GAME_H + 'px';
+ctx.scale(RENDER_SCALE, RENDER_SCALE);
+
+// ─── Chapter progress ─────────────────────────────────────────────────────────
+// Chapters unlock in order. Inside Stickman Evolution the main game owns the
+// save (per account) and sends it in on load; standalone play keeps its own copy.
+const PREQUEL_KEY = 'axiom';
+let chaptersCleared = 0;
+try { chaptersCleared = Number(localStorage.getItem('smbPrequel_' + PREQUEL_KEY)) || 0; } catch (e) {}
+
+// Inside Stickman Evolution the main story also gates chapters, so nothing here
+// shows a twist before The 95th reveals it. The main game sends how many chapters
+// its story progress allows (storyCap) and what to finish next (storyCapNote).
+// Framed, everything stays shut until that message arrives; standalone, it's all open.
+let storyCap     = window.parent !== window ? 0 : Infinity;
+let storyCapNote = '';
+
+function isChapterUnlocked(idx) { return idx <= chaptersCleared && idx < storyCap; }
+
+// Why a chapter is shut, for the chapter-select note.
+function chapterLockText(idx) {
+  if (idx >= storyCap) return storyCapNote || 'LOCKED \u2014 KEEP PLAYING THE 95TH';
+  return 'LOCKED \u2014 FINISH THE CHAPTER BEFORE IT';
+}
+
+function recordChapterCleared(idx) {
+  if (idx + 1 > chaptersCleared) {
+    chaptersCleared = idx + 1;
+    try { localStorage.setItem('smbPrequel_' + PREQUEL_KEY, String(chaptersCleared)); } catch (e) {}
+  }
+  if (window.parent !== window) window.parent.postMessage({ smbPrequel: PREQUEL_KEY, cleared: idx + 1 }, '*');
+}
+
+window.addEventListener('message', e => {
+  const n = e.data && e.data.smbPrequelProgress;
+  if (typeof n === 'number') chaptersCleared = n;
+  const cap = e.data && e.data.smbPrequelStoryCap;
+  if (typeof cap === 'number') storyCap = cap;
+  const note = e.data && e.data.smbPrequelStoryNote;
+  if (typeof note === 'string') storyCapNote = note;
+});
 
 // ─── Physics ──────────────────────────────────────────────────────────────────
 const GRAVITY  = 0.55;

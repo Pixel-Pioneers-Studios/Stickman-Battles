@@ -61,9 +61,34 @@
   }
   </script>
 
-  <link rel="stylesheet" href="SMB.css?v=4.9.118">
+  <link rel="stylesheet" href="SMB.css?v=4.9.173">
 </head>
 <body>
+
+<!-- ============================================================
+     OPENING SPLASH SCREEN
+     First thing in <body> so it paints before the ~430 scripts load;
+     the static menu markup under it is the old hub layout until
+     smb-home-v2.js runs. The hint reads "Loading" until the splash
+     script at the end of the body takes over (click or 3 s dismiss).
+     ============================================================ -->
+<div id="splashOverlay" style="position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;transition:opacity 0.6s ease;"
+     onclick="if (window.dismissSplash) dismissSplash()">
+  <canvas id="splashCanvas" aria-label="Stickman Evolution: The 95th"
+       style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
+  <!-- Logo: painted from the first frame (SMB.css and the logo font load in <head>),
+       stays over the animated scene once the scripts arrive. -->
+  <div id="splashLogo" aria-hidden="true">
+    <div class="sl-title">Stickman Evolution</div>
+    <div class="sl-mark"><span>The 95th</span></div>
+  </div>
+  <!-- Subtle click-to-continue hint -->
+  <div id="splashHint" data-ready="0" style="position:absolute;bottom:7%;left:50%;transform:translateX(-50%);
+       color:rgba(255,255,255,0.55);font-size:0.85rem;letter-spacing:3px;text-transform:uppercase;
+       font-family:inherit;pointer-events:none;animation:splashPulse 1.6s ease-in-out infinite;">
+    Loading
+  </div>
+</div>
 
 <!-- ============================================================
      MENU SCREEN — 3-column grid layout
@@ -284,6 +309,10 @@
           <span class="hub-tn">Online</span>
           <span class="hub-td">Lobbies of 10. Invite friends by link.</span>
         </div>
+        <div class="hub-tile" onclick="openPrequels()">
+          <span class="hub-tn">Prequels</span>
+          <span class="hub-td">Two stories from before The 95th.</span>
+        </div>
       </div>
     </div>
 
@@ -344,6 +373,23 @@
           <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bolt"/></svg></div>
           <div class="path-card-title">The Grid</div>
           <div class="path-card-desc">Versus &middot; Online &middot; Minigames &middot; Arcade</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREQUELS PANEL: each prequel is its own game, run in #prequelFrame -->
+    <div class="nexus-panel" id="prequelPanel" style="display:none">
+      <button class="nexus-back" onclick="closePrequels()">&#8592; Back</button>
+      <div class="path-cards">
+        <div class="path-card" id="prequelCard-axiom" onclick="launchPrequel('axiom')">
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg></div>
+          <div class="path-card-title">Axiom</div>
+          <div class="path-card-desc">A man with groceries, three blocks from home. 12 chapters.</div>
+        </div>
+        <div class="path-card" id="prequelCard-sovereign" onclick="launchPrequel('sovereign')">
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg></div>
+          <div class="path-card-title">Sovereign</div>
+          <div class="path-card-desc">A village, and a man who says things a beat early. 20 chapters.</div>
         </div>
       </div>
     </div>
@@ -454,6 +500,7 @@
     <div class="home-quicknav">
       <button class="home-nav-btn" onclick="startTutorial()" title="Replay the first fight: movement, attacking, blocking, abilities and supers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-cap"/></svg><span class="nav-label"> Tutorial</span></button>
       <button id="homeAchBtn" class="home-nav-btn" onclick="showAchievementsModal()" title="Badges you've earned and how to unlock the rest"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg><span class="nav-label"> Achievements</span> <span id="homeAchCount" class="home-ach-count"></span></button>
+      <button id="homeJournalBtn" class="home-nav-btn" onclick="showJournalModal()" title="The Record: what happened, who was there, what it cost"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bookopen"/></svg><span class="nav-label"> Journal</span> <span id="homeJournalCount" class="home-ach-count jr-nav-count"></span></button>
       <button id="cloudLoginBtn" class="home-nav-btn" style="display:none" onclick="toggleCloudLoginNav()" title="Log in with a username to carry your progress between computers"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-globe"/></svg><span class="nav-label"> Log In</span></button>
       <button id="accountsSavesBtn" class="home-nav-btn" onclick="openAccountsModal()" title="Open account, local save, and cloud sync settings"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-user"/></svg><span class="nav-label"> Account &amp; Saves</span></button>
       <button class="home-nav-btn" onclick="openStore()" title="Buy cosmetics and unlocks with coins"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg><span class="nav-label"> Store</span> <span id="coinDisplay" style="color:#ffdd44;font-weight:bold;font-size:0.8em;"></span></button>
@@ -1258,6 +1305,24 @@
 </div>
 
 <!-- ============================================================
+     JOURNAL MODAL (js/smb-journal.js)
+     ============================================================ -->
+<div id="journalModal" onclick="if(event.target===this)closeJournalModal()" style="display:none;">
+  <div class="jr-shell" role="dialog" aria-label="Journal">
+    <div class="jr-header">
+      <h2><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-bookopen"/></svg> Journal</h2>
+      <span class="jr-sub">What happened, who was there, what it cost.</span>
+      <span id="journalCount" class="jr-count"></span>
+      <button class="ach-close jr-close" onclick="closeJournalModal()">Close</button>
+    </div>
+    <div class="jr-body">
+      <div id="journalList" class="jr-list"></div>
+      <div id="journalPage" class="jr-page"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      ACHIEVEMENTS MODAL
      ============================================================ -->
 <div id="achievementsModal" onclick="if(event.target===this)closeAchievementsModal()" style="display:none;">
@@ -1860,7 +1925,7 @@
   <script src="./js/smb-circuit.js?v=4.3.8"></script>
   <script src="./js/smb-data-mapperks.js?v=4.9.53"></script>
   <script src="./js/smb-data-mapperks-draw.js?v=4.3.8"></script>
-  <script src="./js/smb-data-weapons.js?v=4.9.158"></script>
+  <script src="./js/smb-data-weapons.js?v=4.9.167"></script>
   <script src="./js/smb-weapon-lore.js?v=4.9.155"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
@@ -1888,7 +1953,7 @@
   <script src="./js/smb-destruction.js?v=4.9.114"></script>
   <script src="./js/smb-world-react.js?v=4.9.10"></script>
   <script src="./js/smb-heatmap.js?v=4.3.8"></script>
-  <script src="./js/smb-verlet.js?v=4.9.112"></script>
+  <script src="./js/smb-verlet.js?v=4.9.167"></script>
   <!-- Animation substrate + death animation (docs/animation-quality-plan.md) -->
   <script src="./js/smb-anim-core.js?v=4.3.8"></script>
   <script src="./js/smb-anim-fighter.js?v=4.9.149"></script>
@@ -1923,7 +1988,7 @@
   <!-- Fragment weapon manifestation + sprint escalation (must load before smb-fighter.js) -->
   <script src="./js/smb-fragment-manifest.js?v=4.3.9"></script>
   <!-- Fighter base class -->
-  <script src="./js/smb-fighter.js?v=4.9.163"></script>
+  <script src="./js/smb-fighter.js?v=4.9.167"></script>
   <!-- Bomb / Fragment / Knives / Glass Blade / Anchor / Crossbow runtime (must follow smb-fighter.js) -->
   <script src="./js/smb-weapons-ext.js?v=4.9.154"></script>
   <!-- Abilities and supers as scripted, uninterruptible move scenes (must follow smb-weapons-ext.js) -->
@@ -1967,9 +2032,9 @@
   <script src="./js/boss/smb-trueform.js?v=4.9.111"></script>
   <script src="./js/boss/smb-trueform-attacks.js?v=4.9.111"></script>
   <!-- Paradox entity: multiversal being, revive system, TF damage lock, foreshadowing -->
-  <script src="./js/smb-paradox-class.js?v=4.9.111"></script>
+  <script src="./js/smb-paradox-class.js?v=4.9.164"></script>
   <script src="./js/smb-paradox-opening.js?v=4.9.111"></script>
-  <script src="./js/smb-paradox-return-cin.js?v=4.9.151"></script>
+  <script src="./js/smb-paradox-return-cin.js?v=4.9.166"></script>
   <script src="./js/smb-paradox-absorption-update.js?v=4.3.8"></script>
   <script src="./js/smb-paradox-absorption-draw.js?v=4.3.8"></script>
   <script src="./js/smb-paradox-kills-cin.js?v=4.9.100"></script>
@@ -2043,12 +2108,13 @@
   <script src="./js/smb-input.js?v=4.9.154"></script>
   <script src="./js/smb-cheats.js?v=4.9.82"></script>
   <!-- Menu UI, startGame, tutorial -->
-  <script src="./js/smb-menu-ui.js?v=4.9.126"></script>
-  <script src="./js/smb-home-art.js?v=4.9.160"></script>
+  <script src="./js/smb-menu-ui.js?v=4.9.168"></script>
+  <script src="./js/smb-journal.js?v=4.9.167"></script>
+  <script src="./js/smb-home-art.js?v=4.9.169"></script>
   <script src="./js/smb-menu-select.js?v=4.9.154"></script>
   <script src="./js/smb-menu-config.js?v=4.9.113"></script>
   <script src="./js/smb-loadscreen.js?v=4.9.160"></script>
-  <script src="./js/smb-menu-spawn.js?v=4.9.94"></script>
+  <script src="./js/smb-menu-spawn.js?v=4.9.168"></script>
   <script src="./js/smb-menu-startcore.js?v=4.9.158"></script>
   <script src="./js/smb-menu-utils.js?v=4.9.60"></script>
   <!-- Network / online multiplayer -->
@@ -2128,7 +2194,7 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.9.50"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.9.155"></script>
-  <script src="./js/story/smb-story-config.js?v=4.9.149"></script>
+  <script src="./js/story/smb-story-config.js?v=4.9.167"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.9.129"></script>
   <script src="./js/story/smb-story-engine-ui.js?v=4.9.149"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.8"></script>
@@ -2147,11 +2213,12 @@
   <script src="./js/story/scenes/actvoidmind.js?v=4.9.69"></script>
   <script src="./js/story/scenes/side.js?v=4.3.8"></script>
   <script src="./js/smb-figure-rig.js?v=4.9.68"></script>
+  <script src="./js/smb-home-v2.js?v=4.9.172"></script>
   <script src="./js/smb-story-narrative-scene.js?v=4.9.116"></script>
-  <script src="./js/story/smb-story-engine-flow.js?v=4.9.129"></script>
+  <script src="./js/story/smb-story-engine-flow.js?v=4.9.167"></script>
   <script src="./js/story/smb-story-engine-match.js?v=4.9.124"></script>
   <script src="./js/story/smb-story-engine-events.js?v=4.9.115"></script>
-  <script src="./js/story/smb-story-engine-frame.js?v=4.9.129"></script>
+  <script src="./js/story/smb-story-engine-frame.js?v=4.9.167"></script>
   <script src="./js/story/smb-story-levels.js?v=4.9.123"></script>
   <script src="./js/story/levels/ch00.js?v=4.9.66"></script>
   <script src="./js/story/levels/ch01.js?v=4.9.22"></script>
@@ -2999,22 +3066,6 @@ function _renderFightersLog() {
 })();
 </script>
 
-<!-- ============================================================
-     OPENING SPLASH SCREEN
-     Full-screen Game-Page.png shown on first load; click or
-     3-second auto-dismiss fades it out.
-     ============================================================ -->
-<div id="splashOverlay" style="position:fixed;inset:0;z-index:10000;background:#000;cursor:pointer;transition:opacity 0.6s ease;"
-     onclick="dismissSplash()">
-  <canvas id="splashCanvas" aria-label="Stickman Evolution: The 95th"
-       style="position:absolute;inset:0;width:100%;height:100%;display:block;"></canvas>
-  <!-- Subtle click-to-continue hint -->
-  <div id="splashHint" style="position:absolute;bottom:7%;left:50%;transform:translateX(-50%);
-       color:rgba(255,255,255,0.55);font-size:0.85rem;letter-spacing:3px;text-transform:uppercase;
-       font-family:inherit;pointer-events:none;animation:splashPulse 1.6s ease-in-out infinite;">
-    Click to Continue
-  </div>
-</div>
 <style>
   @keyframes splashPulse {
     0%,100% { opacity:0.35; } 50% { opacity:0.85; }
@@ -3065,6 +3116,8 @@ function _renderFightersLog() {
     if (typeof maybeStartFirstRun === 'function') maybeStartFirstRun();
   }
   window.dismissSplash = dismissSplash;
+  var _hint = document.getElementById('splashHint');
+  if (_hint) { _hint.textContent = 'Click to Continue'; _hint.dataset.ready = '1'; }
   // The splash uses the same authored canvas renderer as the mode loading
   // scenes, so it remains crisp and game-native at any aspect ratio.
   if (typeof LoadScene !== 'undefined' && LoadScene.start) {

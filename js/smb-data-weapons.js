@@ -873,16 +873,36 @@ function swingEase(p, type) {
 // Returns { ang, reachFrac } for a weapon mid-swing. atkP in [0,1], facing is +-1,
 // alt toggles the glove high-jab and body-hook. Used by both hitbox and visuals,
 // so never re-derive the angle elsewhere.
-function swingPose(weaponKey, atkP, facing, alt) {
+// Share of each ease that is already wind-up (the weapon barely moves), counted toward the startup hold.
+const SWING_EASE_WINDUP = { heavy: 0.35, iai: 0.25 };
+// Startup hold: for the first `lead` share of a swing the hit can't land (swingStartupFrames), so the
+// weapon stays cocked back and the arc plays in what is left. Returns the arc progress and, during the
+// hold, how far the pull-back has come (wind 0..1). The blade reaches the target when the hit can land.
+function swingArcP(p, lead, easeWindup) {
+  const w = easeWindup || 0;
+  const hold = lead > w ? (lead - w) / (1 - w) : 0;
+  if (hold <= 0) return { p, wind: 0, hold: 0 };
+  if (p < hold) return { p: 0, wind: p / hold, hold };
+  return { p: (p - hold) / (1 - hold), wind: 0, hold };
+}
+function swingPose(weaponKey, atkP, facing, alt, lead) {
   const g = WEAPON_SWINGS[weaponKey];
-  const p = Math.min(1, Math.max(0, atkP));
+  let p = Math.min(1, Math.max(0, atkP));
   let ang, reachFrac = 1;
   if (g) {
     let a0 = g.a0, a1 = g.a1;
     // altOff lets a weapon set its own two-pose alternation (the whip).
     if (g.alternate) { const off = alt ? (g.altOff ? g.altOff[0] : 0.30) : (g.altOff ? g.altOff[1] : -0.12); a0 += off; a1 += off; }
+    const arc = lead > 0 ? swingArcP(p, lead, g.reach ? 0 : SWING_EASE_WINDUP[g.ease]) : null;
+    if (arc) p = arc.p;
     ang = a0 + (a1 - a0) * swingEase(p, g.ease);
     if (g.reach) reachFrac = g.reach.r0 + (g.reach.r1 - g.reach.r0) * swingEase(p, g.reach.ease);
+    if (arc && arc.wind > 0) {
+      // Cocking back: a thrust draws the hand in, a cut lifts the blade away from its arc.
+      const k = 1 - (1 - arc.wind) * (1 - arc.wind);
+      if (g.reach) reachFrac -= 0.10 * k;
+      else ang -= Math.sign(a1 - a0) * Math.min(0.28, arc.hold * 0.7) * k;
+    }
   } else {
     ang = -0.45 + (1.1 - -0.45) * p;
   }

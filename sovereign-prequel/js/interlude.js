@@ -40,6 +40,13 @@ function updateInterlude() {
   // The last line keeps ticking (its fade-IN is driven off the same timer) but
   // is floored once the hold starts, so it sits there while the world goes out
   // from under it instead of expiring into an empty fade.
+  // A line someone is waiting on runs at reading pace, and the attack key moves
+  // on to the next one. Neither touches a `delayBefore` pause or the final hold.
+  if (_ilActive && _ilHold === 0) {
+    const shown = _ilActive.maxTimer - _ilActive.timer;
+    if (_ilQueue.length > 0 && shown >= _ilReadFrames(_ilActive.text)) _ilActive.timer = Math.min(_ilActive.timer, 30);
+    if (just('confirm') && shown >= 20) _ilActive.timer = Math.min(_ilActive.timer, 14);
+  }
   if (_ilActive) {
     const floor = _ilHold > 0 ? 45 : 0;
     _ilActive.timer = Math.max(floor, _ilActive.timer - 1);
@@ -65,6 +72,8 @@ function updateInterlude() {
     };
   }
 
+  if (!_ilDone) _ilExtendWorld();
+
   const ch = CHAPTERS[currentChapter];
   const walkedOut = ch?.endTriggerX && sov.x + sov.w >= ch.endTriggerX;
   const spent     = _ilPending.length === 0 && _ilQueue.length === 0 && _ilGap <= 0;
@@ -80,11 +89,35 @@ function updateInterlude() {
 
 function isInterludeComplete() { return _ilDone; }
 
+// How long a line needs on screen to be read, in frames. A line only drops to
+// this when the next one is already waiting; otherwise it keeps its duration.
+function _ilReadFrames(text) {
+  return Math.max(100, 45 + 3 * (text?.length ?? 0));
+}
+
+function _ilTalking() {
+  return _ilPending.length > 0 || _ilQueue.length > 0 || !!_ilActive || _ilGap > 0;
+}
+
+// The text runs longer than the walk, so until the chapter is over the map keeps
+// going ahead of him instead of ending in a wall: the floor stretches and the
+// roofs and grass are already drawn far past any map's end. Props stay put.
+function _ilExtendWorld() {
+  const need = Math.ceil(sov.x + sov.w + VIEW_W + 240);
+  if (need <= levelWidth) return;
+  levelWidth = need;
+  let floor = -1;
+  for (let i = 0; i < platforms.length; i++) {
+    if (floor < 0 || platforms[i].w > platforms[floor].w) floor = i;
+  }
+  if (floor >= 0) platforms[floor] = { ...platforms[floor], w: levelWidth - platforms[floor].x };
+}
+
 function drawInterlude() {
   const ch = CHAPTERS[currentChapter];
 
-  if (ch?.endTriggerX) {
-    const tx = ch.endTriggerX - camX;
+  if (ch?.endTriggerX && !_ilTalking()) {
+    const tx = toScreenX(ch.endTriggerX);
     if (tx > 20 && tx < GAME_W + 40) {
       const g = ctx.createLinearGradient(Math.max(0, tx - 90), 0, tx, 0);
       g.addColorStop(0, 'transparent');
@@ -114,6 +147,7 @@ function drawInterlude() {
   if (_ilActive) {
     if (_ilActive.isCaption) _drawCaption(_ilActive);
     else                     _drawBubble(_ilActive);
+    if (_ilHold === 0) _drawSkipHint();
   }
 }
 
@@ -145,8 +179,8 @@ function _drawBubble(s) {
   const entity = key === 'him' ? sov : actors.find(v => v.name?.toLowerCase() === key);
   if (!entity) return;
 
-  const anchorX = entity.cx() - camX;
-  const anchorY = entity.y;
+  const anchorX = toScreenX(entity.cx());
+  const anchorY = toScreenY(entity.y);
 
   ctx.save();
   ctx.globalAlpha = aIn * aOut;
@@ -189,5 +223,24 @@ function _drawBubble(s) {
   ctx.font      = '14px Courier New';
   ctx.fillText(s.text, bx + 10, by + bh - 10);
 
+  ctx.restore();
+}
+
+// True while `entity` has a line on screen, so it can talk with its hands.
+function isSpeaking(entity) {
+  if (!_ilActive || !_ilActive.speaker) return false;
+  const key = _ilActive.speaker.toLowerCase();
+  return key === 'him' ? entity === sov : entity.name?.toLowerCase() === key;
+}
+
+// Faint corner hint that the attack key moves the text on.
+function _drawSkipHint() {
+  if (_ilActive.maxTimer - _ilActive.timer < 20 || _ilActive.timer < 20) return;
+  ctx.save();
+  ctx.globalAlpha = 0.32;
+  ctx.fillStyle   = '#9a9280';
+  ctx.font        = '11px Courier New';
+  ctx.textAlign   = 'right';
+  ctx.fillText(keyLabel('confirm') + '  next', GAME_W - 14, GAME_H - 12);
   ctx.restore();
 }

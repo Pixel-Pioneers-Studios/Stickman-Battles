@@ -7,6 +7,9 @@ function gameLoop() {
 
   frameCount++;
 
+  // Sovereign's spirit presses its keys before anything reads input (spirit.js).
+  spiritTick();
+
   // ── Update ──────────────────────────────────────────────────────────────────
   switch (gamePhase) {
     case 'menu':
@@ -61,6 +64,7 @@ function gameLoop() {
       break;
   }
 
+  drawSpiritTag();
   ctx.restore();
 
   // Always clear just-pressed buffer last
@@ -95,6 +99,9 @@ function _updatePlaying() {
 
   // Vanguard resolve meter (no-op outside a vanguard chapter)
   updateVanguard();
+
+  // Act IV moves, effects and figures (no-op before the void)
+  act4Update();
 
   // Weapon pickups
   updateWeaponPickups();
@@ -137,6 +144,7 @@ function _checkChapterState() {
 function _completeChapter() {
   // Prevent double-fire
   gamePhase = 'cinematic';
+  recordChapterCleared(currentChapter);
 
   startPostText(currentChapter, () => {
     const next = currentChapter + 1;
@@ -180,6 +188,7 @@ function _updateInterludeChapter() {
   updateParticles();
   updateCamera();
   updateInterlude();
+  act4Update();
 
   if (isInterludeComplete()) {
     _completeChapter();
@@ -198,6 +207,7 @@ function _drawWorld() {
   if (!ch) return;
 
   drawBackground(ch.background);
+  beginWorldZoom();
   drawPlatforms();
   drawWeaponPickups();
   drawVanguardOverlay();
@@ -212,8 +222,12 @@ function _drawWorld() {
   for (const e of dead)  e.draw();
   for (const e of alive) e.draw();
 
+  act4DrawWorld();
+
   // Axiom on top
   if (axiomPlayer) axiomPlayer.draw();
+  endWorldZoom();
+  act4DrawOverlay();
 
   // Paused overlay
   if (paused) {

@@ -576,4 +576,5 @@ function loadChapter(idx) {
   }
 
   resetCamera();
+  initAct4(ch);
 }

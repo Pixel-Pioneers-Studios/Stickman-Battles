@@ -120,7 +120,15 @@ function drawCinematic() {
   ctx.fillStyle = '#f0eedd';
   ctx.font      = 'bold 30px Courier New';
   ctx.textAlign = 'center';
-  ctx.fillText(card.text, GAME_W / 2, GAME_H / 2 - (card.sub ? 24 : 0));
+  const lines = [];
+  let line = '';
+  for (const w of card.text.split(' ')) {
+    if (line && ctx.measureText(line + ' ' + w).width > GAME_W - 100) { lines.push(line); line = w; }
+    else line = line ? line + ' ' + w : w;
+  }
+  lines.push(line);
+  const lineY = GAME_H / 2 - (card.sub ? 24 : 0) - (lines.length - 1) * 19;
+  lines.forEach((l, i) => ctx.fillText(l, GAME_W / 2, lineY + i * 38));
 
   // Sub-line
   if (card.sub) {
@@ -138,7 +146,7 @@ function drawCinematic() {
     ctx.fillStyle = 'rgba(160,150,120,0.6)';
     ctx.font      = '13px Courier New';
     ctx.textAlign = 'center';
-    ctx.fillText('[J]  continue', GAME_W / 2, GAME_H - 28);
+    ctx.fillText(`[${keyLabel('confirm')}]  continue`, GAME_W / 2, GAME_H - 28);
   }
 
   ctx.globalAlpha = 1;
@@ -569,7 +577,7 @@ function _drawEnding() {
       ctx.globalAlpha = Math.min(1, (_endingTimer - 130) / 40) * 0.45;
       ctx.fillStyle   = 'rgba(120,110,90,0.8)';
       ctx.font        = '11px Courier New';
-      ctx.fillText('[J]  RETURN TO MENU', GCX, GAME_H - 30);
+      ctx.fillText(`[${keyLabel('confirm')}]  RETURN TO MENU`, GCX, GAME_H - 30);
     }
     ctx.shadowBlur  = 0;
     ctx.globalAlpha = 1;

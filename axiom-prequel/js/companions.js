@@ -124,7 +124,10 @@ class Companion {
       const myDx     = axiomCX - this.cx();
       if (Math.abs(myDx) > formDist) {
         this.facing = myDx > 0 ? 1 : -1;
-        this.vx     = lerp(this.vx, this.facing * this.speed * 0.7, 0.12);
+        // On a walk he runs faster than their stroll; once he has pulled well
+        // ahead they jog to close the gap instead of falling off screen mid-line.
+        const pace  = gamePhase === 'interlude' && Math.abs(myDx) > formDist + 120 ? 1.5 : 0.7;
+        this.vx     = lerp(this.vx, this.facing * this.speed * pace, 0.12);
         this.state  = 'follow';
         if (this.onGround && ++this.legTimer % 9 === 0) this.legPhase = (this.legPhase + 1) % 4;
       } else {
@@ -179,59 +182,26 @@ class Companion {
     ctx.restore();
   }
 
+  _figureState(scale) {
+    const st = this.stateTimer;
+    switch (this.state) {
+      case 'follow':
+      case 'chase':     return Math.abs(this.vx) > 0.3 ? ['run', rigRunTime(this, scale)] : ['idle', frameCount];
+      case 'attack':    return ['attack', st < 8 ? 14 + st * 0.75 : 20 + (st - 8) * 1.25];
+      case 'hurt':      return ['hit', st * 2];
+      case 'knockdown': return ['fall', st];
+      default:          return ['idle', frameCount];
+    }
+  }
+
   _drawBody(sx, sy) {
-    const mx         = sx + this.w / 2;
-    const HEAD_Y     = sy + 9;
-    const NECK_Y     = sy + 18;
-    const SHOULDER_Y = sy + 20;
-    const HIP_Y      = sy + 34;
-    const FOOT_Y     = sy + this.h;
-
-    ctx.strokeStyle = '#111';
-    ctx.lineWidth   = 2;
-    ctx.lineCap     = 'round';
-
-    // Head
-    ctx.fillStyle = this.skinColor;
-    ctx.beginPath();
-    ctx.arc(mx, HEAD_Y, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Eye
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(mx + this.facing * 3, HEAD_Y, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Body
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth   = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(mx, NECK_Y);
-    ctx.lineTo(mx, HIP_Y);
-    ctx.stroke();
-
-    // Arms
-    ctx.lineWidth = 2;
-    const armSwing = this.state === 'attack' && this.stateTimer >= 8 && this.stateTimer <= 14
-      ? this.facing * 16 : 0;
-    ctx.beginPath();
-    ctx.moveTo(mx, SHOULDER_Y);
-    ctx.lineTo(mx - 11, SHOULDER_Y + 11);
-    ctx.moveTo(mx, SHOULDER_Y);
-    ctx.lineTo(mx + armSwing + 11, SHOULDER_Y + 11 - Math.abs(armSwing) * 0.4);
-    ctx.stroke();
-
-    // Legs
-    const swing = (this.state === 'chase' || this.state === 'follow')
-      ? Math.sin(this.legPhase * Math.PI / 2) * 9 : 0;
-    ctx.beginPath();
-    ctx.moveTo(mx, HIP_Y);
-    ctx.lineTo(mx + 7 + swing, FOOT_Y);
-    ctx.moveTo(mx, HIP_Y);
-    ctx.lineTo(mx - 7 - swing, FOOT_Y);
-    ctx.stroke();
+    const headR = 7;
+    const scale = (this.h - headR * 1.9) / RIG_NECK_HEIGHT;
+    const [state, t] = this._figureState(scale);
+    this._seed = this._seed ?? Math.random() * 400;
+    const j = rigPose(state, t, sx + this.w / 2, sy + this.h, this.h, headR, this.facing, this._seed);
+    drawRigFigure(j, { headR, skin: this.skinColor, body: this.color, limbs: '#111', limbW: 2.8, torsoW: 3.2 });
+    return j;
   }
 }
 
@@ -335,6 +305,6 @@ function createCompanion(name, x, y) {
     case 'anders': return new Anders(x, y);
     case 'seraph': return new Seraph(x, y);
     case 'vael':   return new VAEL(x, y);
-    default:       return new Anders(x, y);
+    default:       return createAct4Companion(name, x, y) ?? new Anders(x, y);
   }
 }

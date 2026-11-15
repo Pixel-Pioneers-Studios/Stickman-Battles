@@ -479,6 +479,57 @@ rewritten as structural recognition instead.
 
 ---
 
+## SOVEREIGN — BODY, FIGHTING, AND HOW HE DIES
+
+(Settled Nov 13 2026.) He is not only a mind. He is the most experienced fighter alive, and his body runs on law God deleted.
+
+**He does not see the future.** He recognises. He cannot foresee his own loss any more than any other event; inside a fight he reads the next exchanges from the catalogue, never the ending. This is why he walks into the lab at all: he does not take contested prizes, and by his model the lab is not contested.
+
+**He has a fight record.** The catalogue is made of the ten thousand people he has fought, in person, across forty-five thousand years. In the God War, God's moves arrived deniably, and many of them arrived as people: a rival, a killer, an army at the right hour. He outlived every one. In the main story he beats Kael at the Act 4 gate, and in one descent he takes God's weakened form and rips the kernel out of Axiom, who even diminished is far stronger than Kael. He is lethal before his intellect enters the room; the intellect only chooses which technique.
+
+**Deprecated techniques.** Every technique he had was an exploit of some constant, and God answered by revising the constant under him mid-use. He kept every previous version in the pocket and kept running it on himself. His style is therefore a collection of moves that are no longer possible: each one mattered enough that God rewrote the universe to stop it. The three named in canon:
+- **No wind-up.** He moves under a draft in which his body carried almost no inertia. He starts and stops instantly, with no visible effort. Recognition tells him where to be; this law is how he is there first. (Film 4 Dominating: the answer is in place before the commitment.)
+- **Force that does not fall off.** A strike keeps its whole force through what it hits and into what is behind it. One palm puts Kael through the Lab floor.
+- **The Null Blade's edge.** Forged in the pocket under a draft in which a cut did not require force. It parts whatever it touches. This is why it is the only arm that is truly his.
+He never runs the First Laws themselves (they would erase the self running them; see THE FIRST LAWS). His drafts stop at the earliest one that still has a term for a self — and that draft is very early. The older the law, the more violent it is: the first draft let a star collapse in a heartbeat, and the drafts just after it were written for a cosmos barely less empty. Run on one body, through one strike, that is how a man from a planet hits hard enough to hurt a fragment bearer who has stood inside Cosmic Axiom's supernovas. **His output is not the size of the event; it is the force of the event, put into one point.** Cosmic Axiom spends a star to fill an arena. Sovereign spends the same violence on the width of a palm.
+
+**Wounds do not finish.** He lives in the pocket, where time does not run properly; that is why he does not age. The same fact governs his body: he can be cut, and the cut does not progress. He does not bleed out, does not tire the way a body should, does not die of what would kill a man. He is not immortal. He is unfinished, and so is every wound he has ever taken.
+
+**How he dies — the anchor.** A fragment is a First Law that current law froze into a crystal, and it can only exist inside the universe. Kael's fully integrated fragment, held against him at close enough range, pins Sovereign into current law: the pocket will not open, his deprecated techniques stop working, and a wound finishes. **Only two things can end him.** (1) An *integrated* fragment in contact — the anchor. A degrading bond cannot hold it: none of the ninety-four could have, and Calix's two fragments are carried, not integrated. In the lab arc Kael is the only being alive who can do it. (2) The Void Mind, which does not wound at all; it removes. Nothing else in the story qualifies: God revised the law under him and he kept the old one, Axiom's domain cannot address him, and every ordinary injury stays unfinished. This is the one fact about himself he has never filed, because filing it would mean admitting there are exactly two ways he ends and he built one of them.
+
+**The anchor costs Kael the same thing.** Holding a being in current law takes the whole integrated fragment; Kael has nothing left over to fight with, so inside the anchor he is also only a trained body under current law. Kael gives up his power to take away Sovereign's. For the first time in fifty thousand years Sovereign is a man from a planet fighting under the same rules as everyone else, against another one — and both are still good, so the last exchange is a fight, not an execution. He sees the final strike coming. Recognition can read it perfectly; nothing in the catalogue answers it, because nothing in the catalogue was ever anchored. Kael's interference as such does nothing to him (film 4: the rings pass through); the anchor is contact, not broadcast. Why he does not flee once the fight turns: at TYRANT he is reciting, and recitation is commitment; the first answers that stop fitting read as noise, and by the time he concedes the file is wrong he is inside the finishing exchange.
+
+**Writing rules.**
+- Never give him foresight of events, including his own death. Short-range reading inside a fight only
+- Name deprecated techniques in the law/draft/revision register only — never code, versions, or files (apex-aesthetic rule)
+- His power is concentrated, not spread. He does not destroy landscapes or stars; he puts star-scale force into one strike where it ends the fight. Scenery damage should look small and exact (a clean hole through every floor), never a wide blast
+- Inside the anchor both fighters are at peak-human under current law. Neither has powers in the last exchange
+- Unanchored, nothing in the story kills him. Anchored, a single clean cut does
+
+### Powerscaling profile (out of universe, for fun)
+
+VS Battles–style. Feat ratings are what the story shows; scaling notes are argument, not canon.
+
+| Stat | Rating | Basis |
+|------|--------|-------|
+| Tier | **High 4-C** (Large Star level), **Peak Human when anchored** | Scales above lab-arc Kael, who survives and contests Cosmic Axiom's supernovas |
+| Attack potency | **Large Star level** through one point; **ignores durability with the Null Blade** | Injures post-Cosmic-Axiom Kael; rips the kernel out of Axiom, who even diminished is stronger than Kael. Low destructive *area* by design: near-first-draft force in a palm's width (a clean hole through every Lab floor, not a crater) |
+| Speed | **Speed of Light combat and reaction by scaling, effectively higher** | Keeps pace with Kael, who fights inside Cosmic Axiom's gamma-ray bursts; no-inertia movement means zero acceleration time, and recognition puts him in place before the attacker commits |
+| Lifting / striking | Stellar lifting by scaling; **Large Star class** striking | Carries God's weakened form and the kernel in one descent |
+| Durability | **Large Star level**, plus **non-standard immortality** | Takes Kael's full output; wounds do not progress while he is unanchored. **Anchored: Peak Human** — and so is Kael, who is spending the fragment on the anchor |
+| Stamina | Effectively limitless | Does not age or tire normally; time does not run properly on him |
+| Range | Extended melee; **pocket-portal reach** | Draws arms from the pocket mid-exchange; the pocket can store matter (and a captured prize) outside the universe |
+| Intelligence | **Supergenius**, the foremost analyst in canon | Outplayed God's revisions, Axiom (five thousand years), and Kael's whole route through God's domain |
+| Standard equipment | Null Blade; red copies of Kael's arms (each the answer to the arm Kael holds); the pocket | See SOVEREIGN'S ARMS |
+
+**Powers and abilities:** physics manipulation (self-applied, deprecated laws only); durability negation (Null Blade); pocket dimension (storage, portal draws, matter kept off the substrate); non-existence in Axiom's domain (the registry cannot read or delete him); precognition by analysis (pattern recognition against a ten-thousand-fighter catalogue, short range only); information analysis; non-standard immortality (unfinished body); master swordsman and hand-to-hand fighter (ten thousand fights); manipulation through masks and other people.
+
+**Weaknesses:** cannot run the First Laws; no foresight beyond the current fight; his catalogue is thin on the present era and has no integrated bearer in it; a fragment in contact anchors him into current law, removing his techniques and his unfinished body at once; will not take a contested prize, which also means he has almost never fought a fight his model said he could lose.
+
+**Against the rest of the hierarchy:** about equal to Cosmic Axiom in force per strike, far below him in scale (Cosmic Axiom collapses stars and opens black holes across an arena; Sovereign puts that force into one point and cannot spread it). Axiom's domain cannot address him, which is why he outplays Axiom without needing to out-power him. Lab-arc Kael is roughly High 4-C as well: he contests Cosmic Axiom through interference, not output, and Sovereign is the stronger of the two until the anchor. Below God in every power sense; he survived God because God fought deniably and then withdrew, not because he could overpower it.
+
+---
+
 ## THE SAVING MOMENT — END OF THE COSMIC AXIOM FIGHT
 
 The Cosmic Axiom fight does not end with a death. It ends with a recognition.
@@ -720,6 +771,7 @@ After all absorptions:
 - Sovereign brings both kernel and God's form to the lab and fuses them → Absolute Axiom
 - Absolute Axiom = God's form (vessel) + Axiom's kernel (identity core). Engineered by Sovereign. Not a natural merging
 - The player fights Awakened Sovereign in the lab arc, after the fusion but before Absolute Axiom is engaged
+- Kael kills Sovereign by anchoring him: the integrated fragment, in contact, pins him into current law, so his deprecated techniques stop and a wound finishes. Not by surprise alone and not by out-powering him. Sovereign has no foresight of the end (see SOVEREIGN — BODY, FIGHTING, AND HOW HE DIES)
 - The player absorbs the kernel (Axiom's compressed identity) and God's creative force when Absolute Axiom falls. "Absolute Kael" carries the man from Tuesday
 - God is not dead at the end of the God fight — its form is taken by Sovereign while weakened. God's creative force remains inside that form until Absolute Axiom falls
 - Kael and Axiom enter God's domain hunting Sovereign — but Sovereign is not there. It calculated both of their paths (it has Kael's complete behavioral model and has read Axiom since before the war). They unknowingly weaken God — and themselves — for Sovereign. This is not ambiguous: Sovereign outplayed them completely, and the story must make this land as a gut-punch when Sovereign arrives the instant God falls and takes both prizes at once

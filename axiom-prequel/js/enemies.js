@@ -229,81 +229,42 @@ class Enemy {
     ctx.ellipse(sx + this.w / 2, sy + this.h + 2, 12, 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Knockdown tips the whole body over at the feet
+    if (this.state === 'knockdown' || this.state === 'getup') {
+      const fx = sx + this.w / 2, fy = sy + this.h;
+      const progress = this.state === 'getup' ? this.stateTimer / 28 : 0;
+      ctx.translate(fx, fy);
+      ctx.rotate(lerp(Math.PI / 2.2, 0, progress) * -this.facing);
+      ctx.translate(-fx, -fy);
+    }
     this._drawBody(sx, sy);
     ctx.restore();
 
     this._drawHealthBar(sx, sy);
   }
 
+  _figureState(scale) {
+    const st = this.stateTimer;
+    if (this.blocking) return ['guard', st];
+    switch (this.state) {
+      case 'chase':     return Math.abs(this.vx) > 0.3 ? ['run', rigRunTime(this, scale)] : ['idle', frameCount];
+      case 'attack':    return ['attack', st < 8 ? 14 + st * 0.75 : 20 + (st - 8)];
+      case 'hurt':      return ['hit', st * 2];
+      case 'knockdown': return ['idle', 0];
+      case 'getup':     return ['idle', 0];
+      default:          return ['idle', frameCount];
+    }
+  }
+
   _drawBody(sx, sy) {
-    const mx  = sx + this.w / 2;
-    const HEAD_Y     = sy + 10;
-    const NECK_Y     = sy + 19;
-    const SHOULDER_Y = sy + 21;
-    const HIP_Y      = sy + 36;
-    const FOOT_Y     = sy + this.h;
-    const fw = this._flashWhite;
-
-    ctx.strokeStyle = fw ? '#ffffff' : '#111';
-    ctx.lineWidth   = 2;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-
-    // Head
-    ctx.fillStyle = fw ? '#ffffff' : this.skinColor;
-    ctx.beginPath();
-    ctx.arc(mx, HEAD_Y, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Eye
-    ctx.fillStyle = fw ? '#aaaaaa' : '#111';
-    ctx.beginPath();
-    ctx.arc(mx + this.facing * 3.5, HEAD_Y, 1.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Torso
-    ctx.strokeStyle = fw ? '#ffffff' : this.color;
-    ctx.lineWidth   = 3;
-    ctx.beginPath();
-    ctx.moveTo(mx, NECK_Y);
-    ctx.lineTo(mx, HIP_Y);
-    ctx.stroke();
-
-    // Arms
-    ctx.strokeStyle = fw ? '#ffffff' : this.color;
-    ctx.lineWidth   = 2;
-    let armOffset = 0;
-    if (this.state === 'attack' && this.stateTimer >= 8 && this.stateTimer <= 16) {
-      armOffset = this.facing * 14;
-    }
-    if (this.blocking) {
-      // Arms crossed in front
-      ctx.beginPath();
-      ctx.moveTo(mx, SHOULDER_Y);
-      ctx.lineTo(mx + this.facing * 14, SHOULDER_Y + 8);
-      ctx.moveTo(mx, SHOULDER_Y);
-      ctx.lineTo(mx + this.facing * 14, SHOULDER_Y + 14);
-      ctx.stroke();
-    } else {
-      ctx.beginPath();
-      ctx.moveTo(mx, SHOULDER_Y);
-      ctx.lineTo(mx - 12, SHOULDER_Y + 12);
-      ctx.moveTo(mx, SHOULDER_Y);
-      ctx.lineTo(mx + armOffset + 12, SHOULDER_Y + 12 - (armOffset !== 0 ? 8 : 0));
-      ctx.stroke();
-    }
-
-    // Legs
-    const swing = (this.state === 'chase') ? Math.sin(this.legPhase * Math.PI / 2) * 10 : 0;
-    ctx.lineWidth   = 2;
-    ctx.strokeStyle = fw ? '#ffffff' : '#111';
-    ctx.beginPath();
-    ctx.moveTo(mx, HIP_Y);
-    ctx.lineTo(mx + 8 + swing, FOOT_Y);
-    ctx.moveTo(mx, HIP_Y);
-    ctx.lineTo(mx - 8 - swing, FOOT_Y);
-    ctx.stroke();
+    const headR = 7;
+    const scale = (this.h - headR * 1.9) / RIG_NECK_HEIGHT;
+    const [state, t] = this._figureState(scale);
+    this._seed = this._seed ?? Math.random() * 400;
+    const j = rigPose(state, t, sx + this.w / 2, sy + this.h, this.h, headR, this.facing, this._seed);
+    drawRigFigure(j, { headR, skin: this.skinColor, body: this.color, limbs: '#111',
+                       limbW: 2.8, torsoW: 3.4, white: this._flashWhite });
+    return j;
   }
 
   _drawHealthBar(sx, sy) {
@@ -349,14 +310,18 @@ class Enforcer extends Enemy {
   }
 
   _drawBody(sx, sy) {
-    super._drawBody(sx, sy);
-    // Armour plate on torso
-    const mx = sx + this.w / 2;
+    const j = super._drawBody(sx, sy);
+    // Armour plate on torso, tilted with the spine
+    ctx.save();
+    ctx.translate((j.shoulder.x + j.hip.x) / 2, (j.shoulder.y + j.hip.y) / 2);
+    ctx.rotate(Math.atan2(j.shoulder.y - j.hip.y, j.shoulder.x - j.hip.x) + Math.PI / 2);
     ctx.fillStyle   = '#555577';
     ctx.strokeStyle = '#333355';
     ctx.lineWidth   = 1;
-    ctx.fillRect(mx - 8, sy + 21, 16, 14);
-    ctx.strokeRect(mx - 8, sy + 21, 16, 14);
+    ctx.fillRect(-8, -7, 16, 14);
+    ctx.strokeRect(-8, -7, 16, 14);
+    ctx.restore();
+    return j;
   }
 }
 
@@ -373,17 +338,18 @@ class Lieutenant extends Enemy {
   }
 
   _drawBody(sx, sy) {
-    super._drawBody(sx, sy);
-    // Distinctive coat
-    const mx = sx + this.w / 2;
-    ctx.fillStyle   = '#1a1a2a';
+    const j = super._drawBody(sx, sy);
+    // Distinctive coat, hung from the shoulders and flaring past the hips
+    const lift = (j.hip.y - j.shoulder.y) * 0.25;
+    ctx.fillStyle = '#1a1a2a';
     ctx.beginPath();
-    ctx.moveTo(mx - 10, sy + 20);
-    ctx.lineTo(mx - 13, sy + 40);
-    ctx.lineTo(mx + 13, sy + 40);
-    ctx.lineTo(mx + 10, sy + 20);
+    ctx.moveTo(j.shoulder.x - 9, j.shoulder.y);
+    ctx.lineTo(j.hip.x - 13, j.hip.y + lift);
+    ctx.lineTo(j.hip.x + 13, j.hip.y + lift);
+    ctx.lineTo(j.shoulder.x + 9, j.shoulder.y);
     ctx.closePath();
     ctx.fill();
+    return j;
   }
 }
 
@@ -446,6 +412,6 @@ function createEnemy(type, x, y) {
     case 'enforcer':   return new Enforcer(x, y);
     case 'lieutenant': return new Lieutenant(x, y);
     case 'scout':      return new DimensionalScout(x, y);
-    default:           return new Thug(x, y);
+    default:           return createAct4Enemy(type, x, y) ?? new Thug(x, y);
   }
 }

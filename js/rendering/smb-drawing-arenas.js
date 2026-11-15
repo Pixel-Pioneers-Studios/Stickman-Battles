@@ -3690,6 +3690,7 @@ function _resetSdFloor() {
 }
 
 function backToMenu() {
+  if (typeof journalUpdateNav === 'function') journalUpdateNav(); // new entries from the match just played
   // Leaving a Public Server match leaves the lobby too
   if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.leave(true);
   _cancelRematchCountdown();

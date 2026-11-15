@@ -1,92 +1,96 @@
 'use strict';
 
 // ─── Shared stickman figure ───────────────────────────────────────────────────
-// One silhouette, value-ramped rather than keylined (matches the main game's
-// grounded art direction). Bone angles are absolute, facing right; mirroring is
-// done by the caller flipping the x scale, not by negating angles.
+// Poses come from Stickman Evolution's keyframed rig (../js/smb-figure-rig.js),
+// so he walks, strikes and falls the way the main game's story figures do. The
+// look stays this game's own: one silhouette, value-ramped rather than keylined.
 
+const RIG_HEIGHT = 89;   // foot to crown at scale 1, with this game's smaller head
+const RIG_STRIDE = 46;   // px travelled per walk cycle at scale 1
+// The rig's legs reach below its anchor; this lifts a standing figure onto the floor.
+const RIG_FOOT_DROP = (() => {
+  const j = FigureRig.solve(FigureRig.sample('idle', 0), 0, 0, 1, 1);
+  return Math.max(j.footF.y, j.footB.y);
+})();
+
+// Joints for a rig clip at time t (frames), standing on (x, footY), h px tall.
+function rigPose(state, t, x, footY, h, facing, seed) {
+  const pose  = FigureRig.sample(state, t, { phase: seed || 0 }) || FigureRig.sample('idle', t);
+  const scale = h / RIG_HEIGHT;
+  return FigureRig.solve(pose, x, footY - RIG_FOOT_DROP * scale, scale, facing);
+}
+
+// Walk time from distance travelled, so the feet plant instead of skating.
+function rigWalkTime(dist, h) {
+  return dist / (RIG_STRIDE * h / RIG_HEIGHT) * FigureRig.CLIPS.walk.dur;
+}
+
+// opt: h, facing, state (a rig clip), t (frames into it), dist (px walked),
+// tone, rim, alpha, seed (offsets idle loops so figures don't breathe in step).
 function drawFigure(sx, by, opt) {
-  const o       = opt || {};
-  const h       = o.h ?? 84;
-  const facing  = o.facing ?? 1;
-  const phase   = o.phase ?? 0;       // gait phase, radians
-  const moving  = o.moving ?? false;
-  const tone    = o.tone ?? '#1d1c1a';
-  const rim     = o.rim ?? 'rgba(210,200,180,0.16)';
-  const alpha   = o.alpha ?? 1;
-
-  const u       = h / 84;             // unit scale
-  const hipY    = by - 34 * u;
-  const shY     = by - 60 * u;
-  const headR   = 7.5 * u;
-  const headY   = shY - 10 * u;
-
-  const swing   = moving ? Math.sin(phase) : 0;
-  const bob     = moving ? Math.abs(Math.cos(phase)) * 1.6 * u : 0;
-  // Idle needs a STANCE. With every limb offset driven only by `swing`, a
-  // standing figure collapses into one vertical line and reads as a post.
-  const idle    = moving ? 0 : 1;
-  const breath  = idle * Math.sin(frameCount * 0.032) * 0.7 * u;
+  const o      = opt || {};
+  const h      = o.h ?? 84;
+  const facing = o.facing ?? 1;
+  const tone   = o.tone ?? '#1d1c1a';
+  const rim    = o.rim ?? 'rgba(210,200,180,0.16)';
+  const state  = o.state ?? 'idle';
+  const t      = state === 'walk' ? rigWalkTime(o.dist ?? 0, h) : (o.t ?? frameCount);
+  const j      = rigPose(state, t, sx, by, h, facing, o.seed);
+  const u      = j.scale;
 
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(sx, -bob);
-  ctx.scale(facing, 1);
+  ctx.globalAlpha = o.alpha ?? 1;
 
   // Contact shadow
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.beginPath();
-  ctx.ellipse(0, by + bob + 2, 13 * u, 3.4 * u, 0, 0, Math.PI * 2);
+  ctx.ellipse(sx, by + 2, 13 * u, 3.4 * u, 0, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.strokeStyle = tone;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
 
-  const shYb = shY + breath;
+  // Far limbs, torso, near limbs
+  ctx.lineWidth = 4.4 * u; _bone(j.hip, j.kneeB, j.footB);
+  ctx.lineWidth = 3.8 * u; _bone(j.shoulder, j.elbowB, j.handB);
+  ctx.lineWidth = 5.8 * u; _bone(j.hip, j.neck);
+  ctx.lineWidth = 4.4 * u; _bone(j.hip, j.kneeF, j.footF);
 
-  // Legs — lead leg forward, trailing leg back, even at rest
-  ctx.lineWidth = 5.4 * u;
-  _limb(0, hipY,  7 * u * swing + 2.6 * u * idle, by, -6 * u * swing + 4.4 * u * idle);
-  _limb(0, hipY, -7 * u * swing - 1.8 * u * idle, by,  6 * u * swing - 3.8 * u * idle);
-
-  // Torso
-  ctx.lineWidth = 6.4 * u;
-  ctx.beginPath();
-  ctx.moveTo(0, hipY);
-  ctx.lineTo(1.2 * u, shYb);
-  ctx.stroke();
-
-  // Arms — hang slightly off the body line at rest
-  ctx.lineWidth = 4.6 * u;
-  _limb(1.2 * u, shYb, -6 * u * swing - 2.6 * u * idle, shYb + 26 * u, -3 * u * swing - 3.4 * u * idle);
-  _limb(1.2 * u, shYb,  6 * u * swing + 3.0 * u * idle, shYb + 26 * u,  3 * u * swing + 4.0 * u * idle);
-
-  // Head
+  // Head sits on the neck along the spine line
+  const headR = 7.5 * u;
+  const dx = j.head.x - j.neck.x, dy = j.head.y - j.neck.y;
+  const dl = Math.hypot(dx, dy) || 1;
+  const hx = j.neck.x + dx / dl * headR * 0.9;
+  const hy = j.neck.y + dy / dl * headR * 0.9;
   ctx.fillStyle = tone;
   ctx.beginPath();
-  ctx.arc(1.6 * u, headY + breath, headR, 0, Math.PI * 2);
+  ctx.arc(hx, hy, headR, 0, Math.PI * 2);
   ctx.fill();
+
+  ctx.lineWidth = 3.8 * u; _bone(j.shoulder, j.elbowF, j.handF);
 
   // Rim light down the leading edge
   ctx.strokeStyle = rim;
   ctx.lineWidth   = 1.4 * u;
+  const off = 2.6 * u * facing;
   ctx.beginPath();
-  ctx.moveTo(4 * u, shYb + 2 * u);
-  ctx.lineTo(3.2 * u, hipY);
+  ctx.moveTo(j.neck.x + off, j.neck.y + 2 * u);
+  ctx.lineTo(j.hip.x + off, j.hip.y);
   ctx.stroke();
+  const a0 = facing > 0 ? -1.1 : Math.PI - 0.5;
   ctx.beginPath();
-  ctx.arc(1.6 * u, headY + breath, headR - 0.7, -1.1, 0.5);
+  ctx.arc(hx, hy, headR - 0.7, a0, a0 + 1.6);
   ctx.stroke();
 
   ctx.restore();
+  return j;
 }
 
-function _limb(x0, y0, dxMid, yEnd, dxEnd) {
-  const midY = (y0 + yEnd) / 2;
+function _bone(a, b, c) {
   ctx.beginPath();
-  ctx.moveTo(x0, y0);
-  ctx.lineTo(x0 + dxMid, midY);
-  ctx.lineTo(x0 + dxEnd, yEnd);
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
+  if (c) ctx.lineTo(c.x, c.y);
   ctx.stroke();
 }

@@ -10,6 +10,7 @@ const ACHIEVEMENT_CATEGORIES = [
   { id: 'br',     title: 'Battle Royale' },
   { id: 'bosses', title: 'Bosses' },
   { id: 'story',  title: 'Story & Worlds' },
+  { id: 'prequels', title: 'Prequels' },
   { id: 'complete', title: 'Completion' },
 ];
 
@@ -64,6 +65,14 @@ const ACHIEVEMENTS = [
   { id: 'ship_builder',        cat: 'story', tier: 'gold',   icon: 'rocket',        title: 'Axiom Ship Complete',  desc: 'Build the Axiom Ship',                              hint: 'Collect every part: 5 Hull plates, the Engine, the Core and the Crystal' },
   { id: 'branch_conqueror',    cat: 'story', tier: 'gold',   icon: 'branches',      title: 'Branch Conqueror',     desc: 'Clear all three Fracture branches',                 hint: 'Build the ship, then defeat Vael, Kael and Sora in their own branches' },
 // Completion, checked by checkCompletionAchievements() below
+  { id: 'prequel_axiom_begin',    cat: 'prequels', tier: 'bronze', icon: 'bookopen', title: 'Three Blocks From Home', desc: 'Finish Tuesday in the Axiom prequel',             hint: 'Open Prequels on the home screen and pick Axiom' },
+  { id: 'prequel_axiom_act1',     cat: 'prequels', tier: 'silver', icon: 'users',    title: 'Word Spreads',           desc: 'Finish Act I of the Axiom prequel',               hint: 'Clear the first six Axiom chapters' },
+  { id: 'prequel_axiom_complete', cat: 'prequels', tier: 'gold',   icon: 'portal',   title: 'He Kept His Name',       desc: 'Finish Act III of the Axiom prequel',             hint: 'Clear the first 12 Axiom chapters' },
+  { id: 'prequel_axiom_act4',     cat: 'prequels', tier: 'gold',   icon: 'hammer',   title: 'What He Built',          desc: 'Finish Act IV of the Axiom prequel',              hint: 'Finish The 95th, then clear all 17 Axiom chapters' },
+  { id: 'prequel_sov_begin',      cat: 'prequels', tier: 'bronze', icon: 'eye',      title: 'Rain Before It Rains',   desc: 'Finish the first chapter of the Sovereign prequel', hint: 'Open Prequels on the home screen and pick Sovereign' },
+  { id: 'prequel_sov_act2',       cat: 'prequels', tier: 'silver', icon: 'target',   title: 'Bad Luck, Consistent',   desc: 'Finish Act II of the Sovereign prequel',          hint: 'Clear the first nine Sovereign chapters' },
+  { id: 'prequel_sov_complete',   cat: 'prequels', tier: 'gold',   icon: 'crown',    title: 'Right About All of It',  desc: 'Finish the Sovereign prequel',                    hint: 'Clear all 20 Sovereign chapters' },
+  { id: 'prequels_both',          cat: 'prequels', tier: 'gold',   icon: 'book',     title: 'Before The 95th',        desc: 'Finish both prequels',                            hint: 'Clear every chapter of Axiom and Sovereign' },
   { id: 'story_100',           cat: 'complete', tier: 'mythic', icon: 'star',     title: 'Every Stone Turned',   desc: 'Earn a star on every Story level',                  hint: 'A level\'s star needs it cleared and every hidden cache in it opened. Look for dark shafts in the ground' },
   { id: 'game_100',            cat: 'complete', tier: 'mythic', icon: 'crown',    title: 'The Whole Evolution',  desc: 'Star every Story level, own every skin and weapon theme, and earn every other achievement', hint: 'Everything. Every level, every cache, every cosmetic, every achievement' },
 ];

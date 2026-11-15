@@ -69,6 +69,14 @@ const CUTS = {
     shots: [['film-z0-gallery', 1291], ['film-z1-observe', 1196], 'film-z2a-predict', ['film-z2b-real', 170, 31], ['film-z2b-real', 390, 288], ['film-z2b-real', 345, 750], 'film-z3-dominate'],
     bed: [['audio/music/story-embers.mp3', 0, 0, 0.55, 1.5, 21.0, 1.2], ['audio/music/boss-threshold.mp3', 22.0, 0, 0.72, 0.4, 41.2, 1.2], ['audio/music/story-embers.mp3', 42.2, 0, 0.5, 1.0, 62.0, 0.5], ['audio/music/boss-threshold.mp3', 62.4, 0, 0.78, 0.1, null, 1.5]],
   },
+  // The whole film through TYRANT and the fall, title card last. The fight bed cuts out on the last cut (115.0 s) and the
+  // aftermath plays on embers.
+  sovereignAct4: {
+    name: 'film-sovereign-act4-draft-1080p60',
+    shots: [['film-z0-gallery', 1291], ['film-z1-observe', 1196], 'film-z2a-predict', ['film-z2b-real', 170, 31], ['film-z2b-real', 390, 288], ['film-z2b-real', 345, 750], 'film-z3-dominate', 'film-z4-tyrant'],
+    title: 240,
+    bed: [['audio/music/story-embers.mp3', 0, 0, 0.55, 1.5, 21.0, 1.2], ['audio/music/boss-threshold.mp3', 22.0, 0, 0.72, 0.4, 41.2, 1.2], ['audio/music/story-embers.mp3', 42.2, 0, 0.5, 1.0, 62.0, 0.5], ['audio/music/boss-threshold.mp3', 62.4, 0, 0.78, 0.1, 114.9, 0.25], ['audio/music/story-embers.mp3', 115.6, 0, 0.42, 2.5, null, 2.5]],
+  },
   // "Kael vs The Creator" draft: cold open + Act 1 (game tracks as a temp bed until it is scored).
   creatorAct1: {
     name: 'film-creator-act1-draft-1080p60',

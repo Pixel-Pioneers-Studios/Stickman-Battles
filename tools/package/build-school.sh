@@ -22,6 +22,8 @@ mkdir -p "$STAGE"
 cd "$ROOT"
 cp index.html SMB.css favicon.svg live-config.json "$STAGE/"
 cp -R js fonts audio "$STAGE/"
+# The prequels run inside the home screen's Prequels frame.
+cp -R axiom-prequel sovereign-prequel "$STAGE/"
 mkdir -p "$STAGE/images"
 # Loading-screen art, share/icon images and the weapon sprites. images/store
 # (portal covers) and images/unused are not loaded by the game.
@@ -54,6 +56,8 @@ done
 # Comments out, locals renamed, whitespace gone: reading the copy in VS Code
 # stops being a guided tour. Behaviour is unchanged (see minify.js).
 node "$ROOT/tools/package/minify.js" "$STAGE"
+# ~430 script tags -> a few bundles, so the game starts faster (see bundle.js).
+node "$ROOT/tools/package/bundle.js" "$STAGE"
 
 find "$STAGE" \( -name '.DS_Store' -o -name '*.smbreplay' -o -name '*.md' -o -name '*.map' \) -delete
 

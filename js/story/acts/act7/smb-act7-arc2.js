@@ -325,7 +325,7 @@ STORY_CHAPTER_REGISTRY.push(
       },
     ],
     tokenReward: 50,
-    postText: 'Sovereign stepped into the open floor of the lab. Unconstrained. Fully adaptive. Every encounter you had ever given it, refined into readiness. It had no kernel to guard and no form to carry — nothing left but itself, and itself was the thing Axiom built to be unkillable. It had been preparing this fight since the moment it woke up free. So had you. You just hadn\'t known it.',
+    postText: 'Sovereign stepped into the open floor of the lab. Unconstrained. Fully adaptive. Every encounter you had ever given it, refined into readiness. It had no kernel to guard and no form to carry — nothing left but itself, and itself was the thing fifty thousand years had failed to kill. It had been preparing this fight since the moment it woke up free. So had you. You just hadn\'t known it.',
   },
 
   {
@@ -344,7 +344,7 @@ STORY_CHAPTER_REGISTRY.push(
       { frame: 620, text: 'It is adapting mid-exchange — but so are you, and your last teacher thought at fragment speed.', color: '#ffd27f', timer: 260 },
       { frame: 900, text: '"You are off-model." It says it like an error report. Stay off-model.', color: '#ff44aa', timer: 240 },
     ],
-    postText: 'Sovereign stilled. Not destroyed the way a fighter is destroyed — concluded, the way a process ends when its last file closes with the wrong result. The thing Axiom built to be unkillable had one unpriced variable left in the world, and it was standing over it, breathing hard, still here. Behind you, the lab was silent. Below you, through the floor, through the substrate, you could feel it: the domain being rewritten. Absolute Axiom was rebuilding the oldest architecture in existence around itself. The way down was open. There was exactly one thing left.',
+    postText: 'Sovereign stilled. Not destroyed the way a fighter is destroyed — concluded, the way a process ends when its last file closes with the wrong result. The man fifty thousand years had failed to kill had one unpriced variable left in the world, and it was standing over it, breathing hard, still here. Behind you, the lab was silent. Below you, through the floor, through the substrate, you could feel it: the domain being rewritten. Absolute Axiom was rebuilding the oldest architecture in existence around itself. The way down was open. There was exactly one thing left.',
   },
 
   {

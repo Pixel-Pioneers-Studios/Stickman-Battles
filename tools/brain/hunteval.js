@@ -19,6 +19,8 @@
  *        [--turnaway=9]      the hunter turns away from its opponent only after asking for N frames running
  *        [--turndz=40]       ...and within N px of its opponent's x every turn counts as away
  *        [--objective=none|pressure|punish|antiair]  the hunter arm plays that goal-conditioned objective
+ *        [--habitread=know:parry[:shift[:rest]]]  the hunter arm answers the habit by script (js/smb-brain.js _habitRead):
+ *                            time know|mean|learn, answer parry|hold|break|auto, optional clock error in frames
  *        [--brainkit=rangedClass]  the challenger (mirror and hunter arms) always holds that kit (js/smb-brain.js resolveKit)
  */
 const fs = require('fs'), path = require('path'), http = require('http');
@@ -28,6 +30,7 @@ const args = Object.fromEntries(process.argv.slice(2).map(a => {
 const ROOT = path.resolve(__dirname, '..', '..'), PORT = parseInt(args.port, 10) || 8129;
 const EPS = parseInt(args.eps, 10) || 100, SEED = parseInt(args.seed, 10) || 1;
 const OBJECTIVE = Math.max(0, ['none', 'pressure', 'punish', 'antiair'].indexOf(String(args.objective || 'none')));
+const HABITREAD = args.habitread ? (([time, ans, shift, rest]) => ({ time, ans: ans || 'auto', shift: parseInt(shift, 10) || 0, rest: rest === 'rest' }))(String(args.habitread).split(':')) : null;
 const ARMS = args['no-mirror'] ? ['hunter'] : ['mirror', 'hunter'];
 const load = p => { const j = JSON.parse(fs.readFileSync(path.resolve(ROOT, p), 'utf8')); return { pi: j.pi || j, iter: j.iter }; };
 const HUNTER = load(args.ckpt || 'data/brain-hunter/latest.json');
@@ -54,7 +57,7 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
     await new Promise(r => setTimeout(r, 2500));
     await page.evaluate(() => { try { backToHome(); } catch (e) {} });
     console.log(`Hunter iteration ${HUNTER.iter} vs target iteration ${TARGET.iter}${args.habit ? ' with habit ' + args.habit : ''}, ${EPS} matches per arm, seed ${SEED}, both top choice`);
-    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe, turnAway, turnDz, sample, brainKit, objective) => {
+    const res = await page.evaluate((hunter, target, eps, seed, arms, habit, wipe, turnAway, turnDz, sample, brainKit, objective, habitRead) => {
       const rnd = Math.random;
       const seeded = s => () => { s = (s + 0x6D2B79F5) >>> 0; let t = s;
         t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
@@ -66,7 +69,7 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
       const out = {};
       for (const [arm, w] of [['mirror', target], ['hunter', hunter]].filter(([a]) => arms.includes(a))) {
         Math.random = seeded(seed * 7919);
-        const r = Brain.rollout({ weights: w, hunt: target, maxFrames: 7200, opponents: [spec], episodes: eps, greedy: !(sample && arm === 'hunter'), memWipe: arm === 'hunter' ? wipe : 0, turnAway: arm === 'hunter' ? turnAway : 0, turnDz, objective: arm === 'hunter' ? objective : 0 });
+        const r = Brain.rollout({ weights: w, hunt: target, maxFrames: 7200, opponents: [spec], episodes: eps, greedy: !(sample && arm === 'hunter'), memWipe: arm === 'hunter' ? wipe : 0, turnAway: arm === 'hunter' ? turnAway : 0, turnDz, objective: arm === 'hunter' ? objective : 0, habitRead: arm === 'hunter' ? habitRead : null });
         const a = { win: 0, k: 0, d: 0, fr: 0, stats: {} };
         for (const e of r.episodes) {
           a.win += e.win; a.k += e.oLost; a.d += e.bLost; a.fr += e.frames;
@@ -76,16 +79,17 @@ const TARGET = load(args.target || 'data/brain-hunter/target.json');
       }
       Math.random = rnd;
       return out;
-    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0, parseInt(args.turnaway, 10) || 0, parseInt(args.turndz, 10) || 0, !!args.sample, args.brainkit || null, OBJECTIVE);
+    }, HUNTER.pi, TARGET.pi, EPS, SEED, ARMS, args.habit || null, parseInt(args.wipe, 10) || 0, parseInt(args.turnaway, 10) || 0, parseInt(args.turndz, 10) || 0, !!args.sample, args.brainkit || null, OBJECTIVE, HABITREAD);
     const M = res.mirror, H = res.hunter;
     const se = Math.sqrt(0.25 / EPS) * 100;
     if (args.json) {
       const head = a => a && { win: 100 * a.win / EPS, taken: a.k, lost: a.d, habitFires: a.stats.habitFires, habitDealt: a.stats.habitDealt, habitTaken: a.stats.habitTaken,
         habitFiresLate: a.stats.habitFiresLate, habitDealtLate: a.stats.habitDealtLate, habitTakenLate: a.stats.habitTakenLate, frames: a.fr, stats: a.stats };
       fs.writeFileSync(path.resolve(ROOT, args.json), JSON.stringify({ hunterIter: HUNTER.iter, targetIter: TARGET.iter,
-        eps: EPS, seed: SEED, se, habit: args.habit || null, wipe: parseInt(args.wipe, 10) || 0, mirror: head(M), hunter: head(H) }) + '\n');
+        eps: EPS, seed: SEED, se, habit: args.habit || null, habitRead: args.habitread || null, wipe: parseInt(args.wipe, 10) || 0, mirror: head(M), hunter: head(H) }) + '\n');
     }
-    if (!M) { console.log(`\n  hunter  win ${(100 * H.win / EPS).toFixed(0)}%  stocks taken/lost ${H.k}/${H.d}   (one standard error ~${se.toFixed(0)} pts)`); return; }
+    if (!M) { console.log(`\n  hunter  win ${(100 * H.win / EPS).toFixed(1)}%  stocks taken/lost ${H.k}/${H.d}   (one standard error ~${se.toFixed(0)} pts)` +
+      (HABITREAD ? `  read ${args.habitread}: answers/match ${((H.stats.readTries || 0) / EPS).toFixed(1)}, parries/match ${((H.stats.parries || 0) / EPS).toFixed(2)}, stuns dealt/match ${((H.stats.stuns || 0) / EPS).toFixed(1)}, hits taken/match ${((H.stats.hitsTaken || 0) / EPS).toFixed(1)}` : '')); return; }
     console.log(`\n  mirror  win ${(100 * M.win / EPS).toFixed(0)}%  stocks taken/lost ${M.k}/${M.d}`);
     console.log(`  hunter  win ${(100 * H.win / EPS).toFixed(0)}%  stocks taken/lost ${H.k}/${H.d}   (one standard error ~${se.toFixed(0)} pts)`);
     const perMin = (a, k) => a.stats[k] / Math.max(1, a.fr) * 3600;

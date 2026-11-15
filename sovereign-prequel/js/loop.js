@@ -108,7 +108,7 @@ function _updateInterludeChapter() {
 
 function _updateReadChapter() {
   updateChapterTitle();
-  // He stands still through a read, and takes no input at all — J is both
+  // He stands still through a read, and takes no input at all — attack is both
   // "commit" and "swing", so reading input here makes him lash out at nothing
   // on the frame the player chooses.
   if (sov) { sov.vx = 0; sov.frozen = true; sov.update(); }
@@ -204,6 +204,7 @@ function _enterChapter(ch) {
 function _completeChapter() {
   const ch = CHAPTERS[currentChapter];
   gamePhase = 'transition';
+  recordChapterCleared(currentChapter);
 
   startPostText(ch.postText, () => {
     // Advance to the next BUILT chapter; unbuilt ones are skipped rather than
@@ -229,6 +230,7 @@ function _drawWorld() {
   if (!ch) return;
 
   drawBackground(ch.background);
+  beginWorldZoom();
   drawPlatforms();
   drawChannel(ch);
   drawProps();
@@ -236,6 +238,7 @@ function _drawWorld() {
   for (const a of actors) if (!a.alive) a.draw();
   for (const a of actors) if (a.alive)  a.draw();
   if (sov) sov.draw();
+  endWorldZoom();
 
   if (paused) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -303,8 +306,8 @@ function drawFightHUD() {
                          : 'There was nothing to read.', GAME_W / 2, GAME_H / 2 - 10);
     ctx.fillStyle = '#5e5747';
     ctx.font      = '12px Courier New';
-    ctx.fillText(hadRead ? '[ J ]  read it again'
-                         : '[ J ]  again', GAME_W / 2, GAME_H / 2 + 22);
+    ctx.fillText(hadRead ? `[ ${keyLabel('confirm')} ]  read it again`
+                         : `[ ${keyLabel('confirm')} ]  again`, GAME_W / 2, GAME_H / 2 + 22);
   }
 }
 

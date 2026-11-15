@@ -3,14 +3,15 @@
 let menuState = 'title';   // 'title' | 'chapter_select'
 let menuPulse = 0;
 let menuSel   = 0;
-let menuNote  = 0;         // frames left on the "not built yet" note
+let menuNote  = 0;         // frames left on the note below the grid
+let menuNoteText = '';
 
 function updateMenu() {
   menuPulse += 0.03;
   if (menuNote > 0) menuNote--;
 
   if (menuState === 'title') {
-    if (just('confirm')) { menuState = 'chapter_select'; menuSel = 0; }
+    if (just('confirm')) { menuState = 'chapter_select'; menuSel = Math.max(0, Math.min(chaptersCleared, storyCap - 1, CHAPTERS.length - 1)); }
     return;
   }
 
@@ -19,7 +20,8 @@ function updateMenu() {
   if (just('right')) menuSel = (menuSel + 1) % CHAPTERS.length;
 
   if (just('confirm')) {
-    if (!isChapterBuilt(menuSel)) { menuNote = 150; return; }
+    if (!isChapterBuilt(menuSel))    { menuNote = 150; menuNoteText = 'NOT BUILT YET'; return; }
+    if (!isChapterUnlocked(menuSel)) { menuNote = 150; menuNoteText = chapterLockText(menuSel); return; }
     currentChapter = menuSel;
     loadChapter(menuSel);
     _enterChapter(CHAPTERS[menuSel]);
@@ -53,7 +55,7 @@ function _drawTitleScreen() {
 
   ctx.fillStyle = `rgba(150,140,110,${0.55 + Math.sin(menuPulse * 2) * 0.25})`;
   ctx.font      = '14px Courier New';
-  ctx.fillText('[ press J to begin ]', GAME_W / 2, GAME_H * 0.63);
+  ctx.fillText(`[ press ${keyLabel('confirm')} to begin ]`, GAME_W / 2, GAME_H * 0.63);
 
   ctx.fillStyle = '#4a4436';
   ctx.font      = 'italic 12px Courier New';
@@ -79,6 +81,8 @@ function _drawChapterSelect() {
     const cy  = startY + r * (cardH * 0.62 + gap) + cardH / 2 - 20;
     const on  = i === menuSel;
     const built = !!ch.built;
+    const open  = isChapterUnlocked(i);
+    ctx.globalAlpha = open ? 1 : 0.35;
 
     ctx.fillStyle   = built ? (on ? '#221f18' : '#16140f') : '#100f0c';
     ctx.strokeStyle = on ? '#9b8c66' : (built ? '#3a3528' : '#221f19');
@@ -93,13 +97,18 @@ function _drawChapterSelect() {
 
     ctx.fillStyle = built ? '#ded5c0' : '#4b463a';
     ctx.font      = '11px Courier New';
-    _wrap(ch.subtitle, cx, cy - cardH / 2 + 50, cardW - 16, 13);
+    _wrap(i >= storyCap ? '\u00b7 \u00b7 \u00b7' : ch.subtitle, cx, cy - cardH / 2 + 50, cardW - 16, 13);
 
     if (!built) {
       ctx.fillStyle = '#5a5244';
       ctx.font      = '9px Courier New';
       ctx.fillText('— unbuilt —', cx, cy + cardH * 0.31 - 4);
+    } else if (!open) {
+      ctx.fillStyle = '#8b8069';
+      ctx.font      = '9px Courier New';
+      ctx.fillText(i >= storyCap ? '— the 95th —' : '— locked —', cx, cy + cardH * 0.31 - 4);
     }
+    ctx.globalAlpha = 1;
   }
 
   const sel = CHAPTERS[menuSel];
@@ -112,12 +121,12 @@ function _drawChapterSelect() {
   if (menuNote > 0) {
     ctx.fillStyle = `rgba(190,150,90,${Math.min(1, menuNote / 40)})`;
     ctx.font      = 'bold 12px Courier New';
-    ctx.fillText('NOT BUILT YET', GAME_W / 2, GAME_H - 64);
+    ctx.fillText(menuNoteText, GAME_W / 2, GAME_H - 64);
   }
 
   ctx.fillStyle = '#4a4436';
   ctx.font      = '11px Courier New';
-  ctx.fillText('← →  CHOOSE    J  START    ESC  BACK', GAME_W / 2, GAME_H - 22);
+  ctx.fillText(`← →  CHOOSE    ${keyLabel('confirm')}  START    ESC  BACK`, GAME_W / 2, GAME_H - 22);
 }
 
 function _wrap(text, cx, y, maxW, lh) {

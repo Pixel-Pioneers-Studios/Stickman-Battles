@@ -41,6 +41,8 @@ cd "$ROOT"
 # portal, so it stays out and its loader is stripped below.
 cp index.html SMB.css favicon.svg live-config.json "$STAGE/"
 cp -R js fonts "$STAGE/"
+# The prequels run inside the home screen's Prequels frame.
+cp -R axiom-prequel sovereign-prequel "$STAGE/"
 # Original music + SFX (see their READMEs). audio/voice is ~970 files, which
 # would break the CrazyGames 1500 and itch 1000 file caps; story narration
 # falls back to Web Speech on portals.
@@ -92,6 +94,10 @@ if [ "$SAGA" != "full" ]; then
 
   echo "stamped: ACTIVE_SAGA=$SAGA  title=\"$SAGA_TITLE\""
 fi
+
+# ~430 script tags -> a few bundles: fewer requests is most of the portal load time.
+# Runs last so it bundles the stamped/stripped files (see bundle.js).
+node "$ROOT/tools/package/bundle.js" "$STAGE"
 
 cd "$STAGE"
 zip -qr "$ZIP" . -x '.*'

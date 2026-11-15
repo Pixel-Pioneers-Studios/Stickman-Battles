@@ -57,8 +57,8 @@ function updateRead() {
     readFocus = Math.min(rd.focus.length - 1, Math.floor(readTimer / perFocus));
 
     const f = rd.focus[readFocus];
-    _camTarget = lerp(_camTarget, _focusX(f) - GAME_W / 2, 0.045);
-    camX = clamp(_camTarget, 0, Math.max(0, levelWidth - GAME_W));
+    _camTarget = lerp(_camTarget, _focusX(f) - VIEW_W / 2, 0.045);
+    camX = clampCamX(_camTarget);
 
     const done = readTimer >= (rd.loopFrames ?? 420);
     if (done || (readTimer > READ_MIN_OBSERVE && just('confirm'))) {
@@ -70,8 +70,8 @@ function updateRead() {
 
   if (readStage === 'choose') {
     // Drift back to where he is standing while the player decides
-    _camTarget = lerp(_camTarget, sov.cx() - GAME_W / 2, 0.04);
-    camX = clamp(_camTarget, 0, Math.max(0, levelWidth - GAME_W));
+    _camTarget = lerp(_camTarget, sov.cx() - VIEW_W / 2, 0.04);
+    camX = clampCamX(_camTarget);
 
     if (just('left'))  readSel = (readSel - 1 + rd.edits.length) % rd.edits.length;
     if (just('right')) readSel = (readSel + 1) % rd.edits.length;
@@ -121,7 +121,7 @@ function drawRead() {
     ctx.fillText(f.note, GAME_W / 2, GAME_H - 44);
     ctx.fillStyle = 'rgba(120,112,92,' + (0.4 + Math.sin(frameCount * 0.05) * 0.2).toFixed(2) + ')';
     ctx.font      = '10px Courier New';
-    if (readTimer > READ_MIN_OBSERVE) ctx.fillText('[ J ]  seen enough', GAME_W / 2, GAME_H - 26);
+    if (readTimer > READ_MIN_OBSERVE) ctx.fillText(`[ ${keyLabel('confirm')} ]  seen enough`, GAME_W / 2, GAME_H - 26);
     ctx.restore();
     return;
   }
@@ -158,8 +158,8 @@ function _focusY(f) {
 }
 
 function _annotate(f) {
-  const sx = _focusX(f) - camX;
-  const sy = _focusY(f);
+  const sx = toScreenX(_focusX(f));
+  const sy = toScreenY(_focusY(f));
   const pulse = 0.5 + Math.sin(frameCount * 0.07) * 0.22;
 
   ctx.save();
@@ -167,7 +167,7 @@ function _annotate(f) {
   ctx.lineWidth   = 1.2;
 
   // Bracket rather than a ring — it reads as a note taken, not a target lock
-  const w = f.w ?? 78, h = f.h ?? 96;
+  const w = (f.w ?? 78) * CAM_ZOOM, h = (f.h ?? 96) * CAM_ZOOM;
   const x = sx - w / 2, y = sy - h / 2;
   const c = 14;
   ctx.beginPath();
@@ -182,8 +182,8 @@ function _annotate(f) {
     ctx.setLineDash([4, 5]);
     ctx.strokeStyle = 'rgba(214,190,140,0.30)';
     ctx.beginPath();
-    ctx.moveTo(f.arc[0] - camX, sy + h / 2);
-    ctx.lineTo(f.arc[1] - camX, sy + h / 2);
+    ctx.moveTo(toScreenX(f.arc[0]), sy + h / 2);
+    ctx.lineTo(toScreenX(f.arc[1]), sy + h / 2);
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -191,7 +191,10 @@ function _annotate(f) {
   ctx.fillStyle = '#cdbe98';
   ctx.font      = 'bold 11px Courier New';
   ctx.textAlign = 'center';
-  ctx.fillText(f.label.toUpperCase(), sx, y - 10);
+  // The camera is still panning when a new focus starts; keep its label on screen
+  const label = f.label.toUpperCase();
+  const half  = ctx.measureText(label).width / 2 + 8;
+  ctx.fillText(label, clamp(sx, half, GAME_W - half), y - 10);
   ctx.restore();
 }
 
@@ -236,7 +239,7 @@ function _drawEditPicker(rd) {
 
   ctx.fillStyle = '#4a4436';
   ctx.font      = '11px Courier New';
-  ctx.fillText('← →  CHOOSE     J  COMMIT', GAME_W / 2, y + cardH + 40);
+  ctx.fillText(`← →  CHOOSE     ${keyLabel('confirm')}  COMMIT`, GAME_W / 2, y + cardH + 40);
 
   ctx.fillStyle = '#3f3a2f';
   ctx.font      = 'italic 11px Courier New';

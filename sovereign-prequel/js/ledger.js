@@ -98,7 +98,7 @@ function drawLedgerHUD() {
   ctx.fillStyle = (shut || (inFight && !avail.length)) ? '#3e3a31' : '#7d7460';
   ctx.fillText(shut ? 'THE LEDGER — WILL NOT OPEN'
              : !inFight ? 'THE LEDGER'
-             : avail.length ? '[ K ]  THE LEDGER'
+             : avail.length ? `[ ${keyLabel('law')} ]  THE LEDGER`
              : 'THE LEDGER — SPENT', x, y);
 
   for (let i = 0; i < ledgerBanked.length; i++) {
@@ -225,7 +225,7 @@ function drawLedgerChapter() {
   if (ledgerChapterStage === 'page') {
     ctx.fillStyle = 'rgba(150,140,110,' + (0.5 + Math.sin(frameCount * 0.06) * 0.3).toFixed(2) + ')';
     ctx.font      = '12px Courier New';
-    ctx.fillText('[ J ]  keep a copy', GAME_W / 2, py + ph - 24);
+    ctx.fillText(`[ ${keyLabel('confirm')} ]  keep a copy`, GAME_W / 2, py + ph - 24);
   } else {
     ctx.fillStyle = '#8d836c';
     ctx.font      = '12px Courier New';

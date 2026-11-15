@@ -99,8 +99,9 @@ class Paradox {
   cy() { return this.y + this.h / 2; }
 
   update() {
-    if (!this.done) this.alpha = Math.min(1, this.alpha + 0.05);
-    else            this.alpha = Math.max(0, this.alpha - 0.06);
+    if (this.done)                     this.alpha = Math.max(0, this.alpha - 0.06);
+    else if (this.fade !== undefined)  this.alpha += (this.fade - this.alpha) * 0.1;   // a cinematic holds it part-faded
+    else                               this.alpha = Math.min(1, this.alpha + 0.05);
 
     this._flicker++;
     this._glitchTick--;

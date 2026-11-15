@@ -17,7 +17,8 @@ class Walker {
     this.name      = o.name ?? null;
     this.tone      = o.tone ?? '#1d1c1a';
     this.isPlayer  = o.isPlayer ?? false;
-    this.gait      = 0;
+    this.gait      = 0;      // px walked, drives the walk cycle
+    this.seed      = Math.random() * 400;
     this.patrol    = o.patrol ?? null;   // [x0, x1] — walks it, forever
     this._patrolTo = 1;
   }
@@ -64,9 +65,9 @@ class Walker {
     this.x = clamp(this.x, 0, levelWidth - this.w);
 
     const moving = this.grounded && Math.abs(this.vx) > 0.4;
-    // Gait phase is driven by distance travelled, not by a fixed timer —
+    // Gait is driven by distance travelled, not by a fixed timer —
     // a fixed timer is what makes feet skate.
-    if (moving) this.gait += Math.abs(this.vx) * 0.105;
+    if (moving) this.gait += Math.abs(this.vx);
   }
 
   _collide() {
@@ -83,12 +84,20 @@ class Walker {
     }
   }
 
+  // Rig clip and time for this frame.
+  _figureState() {
+    if (!this.grounded)                        return { state: 'run', t: 6 };
+    if (Math.abs(this.vx) > 0.4)               return { state: 'walk' };
+    if (typeof isSpeaking === 'function' && isSpeaking(this)) return { state: 'talk', t: frameCount };
+    return { state: 'idle', t: frameCount };
+  }
+
   draw() {
+    const fs = this._figureState();
     drawFigure(this.cx() - camX, this.y + this.h, {
       h: this.h,
       facing: this.facing,
-      phase: this.gait,
-      moving: this.grounded && Math.abs(this.vx) > 0.4,
+      state: fs.state, t: fs.t, dist: this.gait, seed: this.seed,
       tone: this.tone,
       rim: this.isPlayer ? 'rgba(236,226,200,0.40)' : 'rgba(206,196,176,0.10)',
     });

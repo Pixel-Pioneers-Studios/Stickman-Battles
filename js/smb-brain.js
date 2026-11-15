@@ -626,6 +626,89 @@ const Brain = (() => {
     else if (h.resp === 'back')    { act[0] = away; act[1] = 0; act[2] = 0; act[3] = 0; }
   }
 
+  // opts.habitRead { time, ans, shift } (eval only, tools/brain/hunteval.js --habitread): a scripted answer to the
+  // main opponent's habit, laid over the net's keys. It measures what knowing a habit's timing is worth.
+  //   time 'know'   the window start is read from the habit itself (the ceiling)
+  //        'mean'   it sees the triggers but assumes the average delay (15 f) for every opponent: no memory
+  //        'learn'  it sees the triggers and uses the delays it has watched earlier in this match
+  //   ans  'parry'  raise a fresh guard as the window opens      'hold'  no basic swings during the window
+  //        'break'  ability (guard break) as the window opens    'auto'  parry an attack habit, hold on a guard habit
+  //   shift frames added to the predicted start (a deliberately wrong clock).
+  //   rest  true = the net never touches the guard key itself; only the read raises it ('none' + rest is the control).
+  function _newHabitRead() {
+    return { stun: false, atk: false, sh: false, hp0: 0, trig: -1, kind: 0, open: false, d: [[], []], nA: 0, nG: 0, at: -1, gId: -1, gFrom: -1 };
+  }
+  function _habitRead(hr, o, brain, main, act, frame, st) {
+    const stun = (main.stunTimer || 0) > 0, atk = (main.attackTimer || 0) > 0, sh = !!main.shielding;
+    // Readout for the answer just given: what reached the brain in the 15 frames after it began.
+    if (hr.gOpen) {
+      if (atk) hr.gSw = true;
+      if (brain.shielding) hr.gUp = true;
+      if (frame >= hr.gFrom + 15) {
+        hr.gOpen = false;
+        st.rdBlocks = (st.rdBlocks || 0) + st.blocks - hr.b0; st.rdParries = (st.rdParries || 0) + st.parries - hr.p0;
+        st.rdHits = (st.rdHits || 0) + st.hitsTaken - hr.h0;
+        if (hr.gSw) st.rdOppSwung = (st.rdOppSwung || 0) + 1;
+        if (hr.gUp) st.rdUp = (st.rdUp || 0) + 1;
+      }
+    }
+    // rest: the net's own guard key is dropped, so the guard is rested (parry needs 20 frames down) when the read wants it.
+    if (o.rest) act[2] = 0;
+    if (atk && !hr.atk) hr.hp0 = brain.health;
+    // The habit's triggers as seen from outside: its stun just ended, or its swing ended without landing.
+    const wake = hr.stun && !stun, whiff = hr.atk && !atk && brain.health >= hr.hp0;
+    // Its first swing or guard inside 48 frames of a trigger is filed as that trigger's delay.
+    if (hr.open && frame - hr.trig <= 48) {
+      const on = atk && !hr.atk ? 1 : sh && !hr.sh ? 2 : 0;
+      if (on) {
+        hr.d[hr.kind].push(frame - (on === 1 ? (main._atkAge || 0) : 0) - hr.trig);
+        if (on === 1) hr.nA++; else hr.nG++;
+        hr.open = false;
+      }
+    }
+    hr.stun = stun; hr.atk = atk; hr.sh = sh;
+    if (wake || whiff) {
+      hr.trig = frame; hr.kind = wake ? 0 : 1; hr.open = true;
+      const L = hr.d[hr.kind].slice().sort((a, b) => a - b);
+      hr.at = frame + (o.time === 'learn' && L.length ? L[L.length >> 1] : 15);
+    }
+    let at = -1, id = -1, resp = null;
+    if (o.time === 'know') {
+      const h = main._habit;
+      if (h && h.from >= 0 && frame < h.until + (o.shift | 0) + 6) {
+        id = h.from; resp = h.resp;
+        // It cannot act before its endlag runs out. A shifted clock (the control) skips that correction.
+        at = o.shift ? h.from : Math.max(h.from, frame + (main.attackEndlag || 0));
+        if (at >= h.until) at = -1;
+      }
+    } else if (hr.trig >= 0 && frame - hr.trig <= 60) {
+      id = hr.trig; at = hr.at;
+      resp = hr.nA + hr.nG ? (hr.nA >= hr.nG ? 'attack' : 'guard') : 'attack';
+    }
+    if (at < 0 || stun || (brain.stunTimer || 0) > 0) return;
+    at += o.shift | 0;
+    const reach = ((main.weapon && main.weapon.range) || 60) * 1.4 + 30;
+    if (Math.abs(main.cx() - brain.cx()) >= reach || Math.abs(main.cy() - brain.cy()) >= 140) return;
+    const ans = o.ans === 'auto' ? (resp === 'guard' ? 'hold' : 'parry') : o.ans;
+    const first = () => {
+      if (hr.gId === id) return false;
+      hr.gId = id; hr.gFrom = frame; st.readTries = (st.readTries || 0) + 1;
+      hr.gOpen = true; hr.gSw = atk; hr.gUp = false; hr.b0 = st.blocks; hr.p0 = st.parries; hr.h0 = st.hitsTaken;
+      if ((brain.attackTimer || 0) > 0 || (brain.attackEndlag || 0) > 0) st.rdBusy = (st.rdBusy || 0) + 1;
+      if (!brain.onGround) st.rdAir = (st.rdAir || 0) + 1;
+      if ((brain._shieldDownFrames || 0) >= 20 && (brain.shieldHP || 0) >= 1) st.rdRested = (st.rdRested || 0) + 1;
+      return true;
+    };
+    if (ans === 'parry') {
+      if (frame >= at - 3 && frame < at + 6) first();
+      if (hr.gId === id && frame < hr.gFrom + 9) { act[0] = 1; act[1] = 0; act[2] = 1; act[3] = 0; }
+    } else if (ans === 'hold') {
+      if (frame >= at - 3 && frame < at + 24) { first(); if (act[3] === 1) act[3] = 0; }
+    } else if (ans === 'break') {
+      if (frame >= at && frame < at + 24) { if (first()) act[3] = 2; else if (act[3] === 1) act[3] = 0; }
+    }
+  }
+
   function _makeOpponent(spec, x, slot) {
     const kit = resolveKit(spec.kit);
     let f;
@@ -859,6 +942,7 @@ const Brain = (() => {
       // match's scores. Eval only.
       const pf = opts.portfolio ? _pfStart(opts.portfolio, brain, opps[0]) : null;
       const trace = opts.trace ? [] : null;
+      const hr = opts.habitRead ? _newHabitRead() : null;
 
       while (true) {
         const main = primary() || opps[0];
@@ -909,6 +993,7 @@ const Brain = (() => {
             }
           }
         }
+        if (hr) _habitRead(hr, opts.habitRead, brain, main, act, frame, st);
         if (shieldMode === 'hold') holdKey(brain, act);
         applyKeys(brain, act);
         if (shieldMode === 'none' || shieldMode === 'dec') oracleKey(brain, act);

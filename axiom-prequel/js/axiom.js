@@ -6,7 +6,7 @@
 //
 // Controls:
 //   Move:   ← → (or A/D)
-//   Jump:   ↑ / W / Space  (no double jump — he's human)
+//   Jump:   ↑ / W / Space  (no double jump — he's human; Act IV's second jump is the gravity flip)
 //   Light:  J/Z  (3-hit combo: jab → cross → hook)
 //   Heavy:  K/X  (slow overhead slam — launches enemies)
 //   Grab:   L/C  (grab → headbutt → throw)
@@ -95,6 +95,10 @@ class Axiom {
   // ── Public damage entry (called by dealDamage()) ──────────────────────────
   enterHurt() {
     if (this.state === 'dead' || this.state === 'knockdown') return;
+    // A hit breaks his hold. Without this the held enemy kept `grabbed` set and
+    // never ran its AI again: frozen where it was pinned (off the map at the
+    // left wall), and the chapter's last "1 REMAINING" never cleared.
+    this._releaseGrab();
     this._setState('hurt');
     this.flashTimer = 10;
   }
@@ -118,9 +122,6 @@ class Axiom {
       if (this.comboTimer === 0) this.comboStage = 0;
     }
 
-    // Weapon pickup
-    if (just('pickup')) this._handlePickup();
-
     switch (this.state) {
       case 'idle':
       case 'run':
@@ -137,6 +138,11 @@ class Axiom {
 
       case 'jump':
       case 'fall':
+        // Act IV: what came out of the void is not limited to one jump
+        if (just('jump') && !this._flipped && cosmicLevel() >= 1) {
+          this._flipped = true;
+          cosmicGravityFlip(this);
+        }
         this._handleAirMovement();
         this._handleAirCombat();
         break;
@@ -243,10 +249,11 @@ class Axiom {
       this._startLight();
     } else if (just('heavy')) {
       this._startHeavy();
-    } else if (just('grab')) {
-      this._startGrab();
     } else if (just('super')) {
-      this._handleSuper();
+      if (this.superMeter >= this.maxSuper)  cosmicLevel() >= 3 ? cosmicCollapse(this) : this._activateSuper();
+      else if (this.nearPickup || this.weapon) this._handlePickup();
+      else if (cosmicLevel() >= 2)           cosmicCommand(this);
+      else                                   this._startGrab();
     }
   }
 
@@ -334,7 +341,11 @@ class Axiom {
     this.comboTimer     = 0;
     this.heavyWindup    = 0;
     this.heavyTimer     = 0;
-    this._attackData    = { type: 'heavy', damage: 26, kb: 14, launch: true, range: 85 };
+    // Act IV: the size shift. He grows for the slam and it lands on both sides.
+    const giant = cosmicLevel() >= 1;
+    this._attackData    = giant
+      ? { type: 'heavy', damage: 30, kb: 16, launch: true, range: 160, giant: true }
+      : { type: 'heavy', damage: 26, kb: 14, launch: true, range: 85 };
     this._attackMaxTimer = 30;
     this.attackTimer    = 30;
     this.attackHitSet   = new Set();
@@ -358,11 +369,11 @@ class Axiom {
         if (e.health <= 0 || this.attackHitSet.has(e)) continue;
         const dx = (e.cx() - this.cx()) * this.facing;
         const dy = Math.abs(e.cy() - this.cy());
-        if (dx > -15 && dx < d.range && dy < (this.h + e.h) * 0.6) {
+        if (dx > (d.giant ? -d.range : -15) && dx < d.range && dy < (this.h + e.h) * (d.giant ? 1.2 : 0.6)) {
           this.attackHitSet.add(e);
           dealDamage(this, e, d.damage, d.kb, d.launch);
           spawnHeavyImpact(e.cx(), e.cy());
-          shake(12);
+          shake(d.giant ? 16 : 12);
           applyHitStop(8);
           if (this.weapon === 'chain') this.weaponDurability--;
         }
@@ -450,7 +461,11 @@ class Axiom {
     if (!closest) return;
     this.grabTarget    = closest;
     closest.grabbed    = this;
+    // A grab beats a guard. A held enemy never runs its AI, so a block it had
+    // up stayed up for the whole hold and every headbutt did nothing.
+    closest.blocking   = false;
     this.grabTimer     = 50;
+    this.grabTotal     = 0;
     this._setState('grab');
   }
 
@@ -459,15 +474,18 @@ class Axiom {
     if (!t || t.health <= 0 || t.state === 'dead') { this._releaseGrab(); return; }
 
     // Pin enemy in front of Axiom
-    t.x  = this.x + this.facing * (this.w + 2);
+    t.x  = clamp(this.x + this.facing * (this.w + 2), 0, levelWidth - t.w);
     t.y  = this.y + 2;
     t.vx = 0;
     t.vy = 0;
 
     this.grabTimer--;
+    // Each headbutt re-arms the timer, so mashing could hold forever: after
+    // three seconds he throws, whatever is pressed.
+    if (++this.grabTotal > 180) this.grabTimer = 0;
 
     // Headbutt
-    if (just('light') || just('heavy')) {
+    if ((just('light') || just('heavy')) && this.grabTimer > 0) {
       dealDamage(this, t, 18, 0, false);
       spawnHitSpark(t.cx(), t.cy(), this.facing);
       shake(5);
@@ -570,6 +588,7 @@ class Axiom {
     const wasGrounded = this.onGround;
     this.onGround = applyPlatformCollisions(this);
 
+    if (this.onGround) this._flipped = false;
     if (this.onGround && !wasGrounded && this.vy === 0) {
       // Land
       if (this.state === 'jump' || this.state === 'fall') this._setState('idle');
@@ -682,126 +701,90 @@ class Axiom {
       ctx.fillStyle    = 'rgba(255,220,80,0.85)';
       ctx.font         = 'bold 11px Courier New';
       ctx.textAlign    = 'center';
-      ctx.fillText('[E] PICK UP', sx + this.w / 2, sy - 16);
+      ctx.fillText(`[${keyLabel('super')}] PICK UP`, sx + this.w / 2, sy - 16);
+    }
+  }
+
+  // Rig clip and time for the current state.
+  _figureState(scale) {
+    const st = this.stateTimer;
+    switch (this.state) {
+      case 'run':       return ['run', rigRunTime(this, scale)];
+      case 'jump':
+      case 'fall':      return ['run', 6];
+      case 'attack':    return ['attack', rigStrikeTime(1 - this.attackTimer / this._attackMaxTimer)];
+      case 'heavy':     return ['attack', this.heavyTimer < 10 ? this.heavyTimer * 2 : 20 + (this.heavyTimer - 10)];
+      case 'grab':      return ['reach', st];
+      case 'dodge':     return ['crouch', st * 3];
+      case 'brace':     return ['brace', st];
+      case 'hurt':      return ['hit', st * 2];
+      case 'knockdown': return ['idle', 0];
+      default:          return ['idle', frameCount];
     }
   }
 
   _drawStickman(sx, sy) {
-    const mx  = sx + this.w / 2;
-    const HX  = sy + 10;   // head center y
-    const NX  = sy + 19;   // neck y
-    const SX  = sy + 21;   // shoulder y
-    const HIX = sy + 37;   // hip y
-    const FX  = sy + this.h; // foot y
+    const headR = 7.5;
+    const scale = (this.h - headR * 1.9) / RIG_NECK_HEIGHT;
+    const [state, t] = this._figureState(scale);
+    const footX = sx + this.w / 2, footY = sy + this.h;
+    const j = rigPose(state, t, footX, footY, this.h, headR, this.facing);
+    this._rig = j;
 
-    ctx.strokeStyle = '#111';
-    ctx.lineWidth   = 2.5;
-    ctx.lineCap     = 'round';
-    ctx.lineJoin    = 'round';
-
-    // Knockdown — draw slumped
+    ctx.save();
+    // Knockdown tips the whole body over at the feet
     if (this.state === 'knockdown' || this.state === 'getup') {
-      ctx.save();
       const progress = this.state === 'getup' ? this.stateTimer / 28 : 0;
-      ctx.translate(mx, sy + this.h);
+      ctx.translate(footX, footY);
       ctx.rotate(lerp(Math.PI / 2.2, 0, progress) * this.facing);
-      ctx.translate(-mx, -(sy + this.h));
-      this._drawBodyParts(mx, HX, NX, SX, HIX, FX);
+      ctx.translate(-footX, -footY);
+    }
+    // Act IV: the size shift swells him about his feet for the slam
+    if (this.state === 'heavy' && this._attackData?.giant) {
+      const ht = this.heavyTimer;
+      const g  = 1 + 0.75 * (ht <= 8 ? ht / 8 : ht <= 14 ? 1 : Math.max(0, 1 - (ht - 14) / 14));
+      ctx.translate(footX, footY);
+      ctx.scale(g, g);
+      ctx.translate(-footX, -footY);
+    }
+    const look = act4AxiomLook();
+    if (look) {
+      ctx.shadowColor = look.glow;
+      ctx.shadowBlur  = 10;
+      const head = drawRigFigure(j, { headR, skin: look.skin, body: look.body, limbs: look.limbs,
+                                      line: look.line, edge: look.edge, eye: false, limbW: 3.2, torsoW: 3.8 });
+      ctx.shadowBlur = 0;
+      ctx.fillStyle  = look.eye;
+      ctx.beginPath();
+      ctx.arc(head.x + this.facing * head.r * 0.42, head.y, 1.8, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
+      act4DrawShellForming(footX, footY - this.h / 2);
       return;
     }
+    drawRigFigure(j, { headR, skin: '#d4a574', body: '#1a1a1a', limbs: '#1a1a1a', limbW: 3.2, torsoW: 3.8 });
 
-    this._drawBodyParts(mx, HX, NX, SX, HIX, FX);
-  }
-
-  _drawBodyParts(mx, HX, NX, SX, HIX, FX) {
-    // Head (slightly larger than enemies — Axiom is distinctive)
-    ctx.fillStyle = '#d4a574';
-    ctx.beginPath();
-    ctx.arc(mx, HX, 9, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // Eye (follows facing)
-    ctx.fillStyle = '#111';
-    ctx.beginPath();
-    ctx.arc(mx + this.facing * 4, HX, 2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Torso
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.lineWidth   = 3;
-    ctx.beginPath();
-    ctx.moveTo(mx, NX);
-    ctx.lineTo(mx, HIX);
-    ctx.stroke();
-
-    // Arms (angle-driven)
-    const ARM_LEN   = 14;
-    const FORE_LEN  = 12;
-    ctx.lineWidth   = 2.5;
-    ctx.strokeStyle = '#1a1a1a';
-
-    const rElbow = {
-      x: mx + Math.cos(this.armAngleR) * ARM_LEN,
-      y: SX  + Math.sin(this.armAngleR) * ARM_LEN,
-    };
-    const rHand = {
-      x: rElbow.x + Math.cos(this.armAngleR - 0.35 * this.facing) * FORE_LEN,
-      y: rElbow.y + Math.sin(this.armAngleR - 0.35 * this.facing) * FORE_LEN,
-    };
-    ctx.beginPath();
-    ctx.moveTo(mx, SX);
-    ctx.lineTo(rElbow.x, rElbow.y);
-    ctx.lineTo(rHand.x,  rHand.y);
-    ctx.stroke();
-
-    const lElbow = {
-      x: mx + Math.cos(this.armAngleL) * ARM_LEN,
-      y: SX  + Math.sin(this.armAngleL) * ARM_LEN,
-    };
-    const lHand = {
-      x: lElbow.x + Math.cos(this.armAngleL + 0.35 * this.facing) * FORE_LEN,
-      y: lElbow.y + Math.sin(this.armAngleL + 0.35 * this.facing) * FORE_LEN,
-    };
-    ctx.beginPath();
-    ctx.moveTo(mx, SX);
-    ctx.lineTo(lElbow.x, lElbow.y);
-    ctx.lineTo(lHand.x,  lHand.y);
-    ctx.stroke();
-
-    // Knuckle wraps on dominant hand (Axiom's signature look)
+    // Knuckle wraps on the lead hand (Axiom's signature look)
     ctx.fillStyle   = '#6b3320';
     ctx.strokeStyle = '#4a2010';
     ctx.lineWidth   = 1;
     ctx.beginPath();
-    ctx.arc(rHand.x, rHand.y, 4.5, 0, Math.PI * 2);
+    ctx.arc(j.handF.x, j.handF.y, 4.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
-
-    // Legs
-    const swing = this.state === 'run'
-      ? Math.sin(this.legPhase * Math.PI / 2) * 12 : 0;
-    const LEG_W = 8;
-    ctx.lineWidth   = 2.5;
-    ctx.strokeStyle = '#1a1a1a';
-
-    ctx.beginPath();
-    ctx.moveTo(mx, HIX);
-    ctx.lineTo(mx + LEG_W + swing,  FX);
-    ctx.moveTo(mx, HIX);
-    ctx.lineTo(mx - LEG_W - swing, FX);
-    ctx.stroke();
+    ctx.restore();
   }
 
   _drawWeapon(sx, sy) {
-    const mx  = sx + this.w / 2;
-    const SX  = sy + 21;
+    const j = this._rig;
+    if (!j) return;
+    // Forearm direction: the weapon carries on from it
+    const foreA = Math.atan2(j.handF.y - j.elbowF.y, j.handF.x - j.elbowF.x);
 
     if (this.weapon === 'chain') {
       // Chain trails from the right hand / swings outward
-      const handX = mx + Math.cos(this.armAngleR) * 14 + Math.cos(this.armAngleR - 0.35 * this.facing) * 12;
-      const handY = SX + Math.sin(this.armAngleR) * 14 + Math.sin(this.armAngleR - 0.35 * this.facing) * 12;
+      const handX = j.handF.x;
+      const handY = j.handF.y;
       const swingX = handX + this.facing * 36 + Math.sin(this.chainSwingAngle) * 12;
       const swingY = handY + 8 + Math.cos(this.chainSwingAngle * 0.7) * 8;
 
@@ -830,9 +813,9 @@ class Axiom {
 
     if (this.weapon === 'sword') {
       // Sword in right hand, blade angle follows swing progress
-      const handX = mx + Math.cos(this.armAngleR) * 14 + Math.cos(this.armAngleR - 0.35 * this.facing) * 12;
-      const handY = SX + Math.sin(this.armAngleR) * 14 + Math.sin(this.armAngleR - 0.35 * this.facing) * 12;
-      const bladeAngle = this.armAngleR - 0.5;
+      const handX = j.handF.x;
+      const handY = j.handF.y;
+      const bladeAngle = foreA - 0.5 * this.facing;
       const len        = 30;
 
       ctx.save();
@@ -841,15 +824,16 @@ class Axiom {
       ctx.lineCap     = 'round';
       ctx.beginPath();
       ctx.moveTo(handX, handY);
-      ctx.lineTo(handX + Math.cos(bladeAngle) * len * this.facing,
+      ctx.lineTo(handX + Math.cos(bladeAngle) * len,
                  handY + Math.sin(bladeAngle) * len);
       ctx.stroke();
       // Guard
       ctx.strokeStyle = '#886644';
       ctx.lineWidth   = 3;
       ctx.beginPath();
-      ctx.moveTo(handX - 6 * this.facing, handY - 2);
-      ctx.lineTo(handX + 6 * this.facing, handY + 2);
+      const gx = Math.cos(bladeAngle + Math.PI / 2) * 6, gy = Math.sin(bladeAngle + Math.PI / 2) * 6;
+      ctx.moveTo(handX - gx, handY - gy);
+      ctx.lineTo(handX + gx, handY + gy);
       ctx.stroke();
       ctx.restore();
     }

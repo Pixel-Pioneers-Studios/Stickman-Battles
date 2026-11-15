@@ -393,7 +393,7 @@ class PlayerRagdoll {
     if (s === 'attacking') {
       const p = f.attackDuration > 0 ? 1 - f.attackTimer / f.attackDuration : 0;
       const _sp = (typeof swingPose === 'function' && f.charClass !== 'megaknight')
-        ? swingPose(f.weaponKey, p, face, f._jabAlt) : null;
+        ? swingPose(f.weaponKey, p, face, f._jabAlt, f._swingLead ? f._swingLead() : 0) : null;
       // Lunge: the stance opens through the strike and half closes on recovery. Either facing,
       // widening rLeg/lLeg apart puts the front foot forward and the back foot behind.
       const _lunge = (typeof animHiQ === 'function' && animHiQ())

@@ -12,7 +12,6 @@ body {
   min-height: 100vh;
   font-family: 'Courier New', Courier, monospace;
   overflow: hidden;
-  cursor: none;
 }
 
 #wrapper {
@@ -22,6 +21,4 @@ body {
 
 canvas {
   display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
 }

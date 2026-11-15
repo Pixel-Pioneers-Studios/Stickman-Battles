@@ -32,8 +32,12 @@ function updateInterlude() {
   }
   _ilQueue.sort((a, b) => a.x - b.x);
 
-  // Tick active speech
+  // Tick active speech. A line someone is waiting on runs at reading pace, and
+  // the attack key moves on to the next line.
   if (_ilActive) {
+    const shown = _ilActive.maxTimer - _ilActive.timer;
+    if (_ilQueue.length > 0 && shown >= _ilReadFrames(_ilActive.text)) _ilActive.timer = Math.min(_ilActive.timer, 30);
+    if (just('confirm') && shown >= 20) _ilActive.timer = Math.min(_ilActive.timer, 14);
     _ilActive.timer--;
     if (_ilActive.timer <= 0) _ilActive = null;
   }
@@ -41,6 +45,7 @@ function updateInterlude() {
   if (!_ilActive && _ilQueue.length > 0) {
     const raw    = _ilQueue.shift();
     const dur    = raw.duration ?? 230;
+    if (raw.event) act4Fire(raw.event);
     _ilActive    = {
       speaker:   raw.speaker ?? null,
       text:      raw.text,
@@ -49,6 +54,8 @@ function updateInterlude() {
       isCaption: !raw.speaker,
     };
   }
+
+  if (_ilTalking()) _ilExtendWorld();
 
   // Completion: Axiom past endTriggerX, nothing pending or active
   const ch = CHAPTERS[currentChapter];
@@ -63,13 +70,41 @@ function updateInterlude() {
 
 function isInterludeComplete() { return _ilDone; }
 
+// How long a line needs on screen to be read, in frames. A line only drops to
+// this when the next one is already waiting; otherwise it keeps its duration.
+function _ilReadFrames(text) {
+  return Math.max(100, 45 + 3 * (text?.length ?? 0));
+}
+
+// True while the chapter still has something to say.
+function _ilTalking() {
+  return _ilPending.length > 0 || _ilQueue.length > 0 || !!_ilActive;
+}
+
+// The text runs longer than the walk, so while lines are still to come the map
+// keeps going ahead of him instead of ending in a wall: the floor stretches and
+// the scenery repeats (rendering.js _bgWrap). Once the text is spent he is past
+// endTriggerX and the chapter ends.
+function _ilExtendWorld() {
+  const need = Math.ceil(axiomPlayer.x + axiomPlayer.w + VIEW_W + 240);
+  if (need <= levelWidth) return;
+  levelWidth = need;
+  let floor = -1;
+  for (let i = 0; i < platforms.length; i++) {
+    if (floor < 0 || platforms[i].w > platforms[floor].w) floor = i;
+  }
+  // A copy, never the chapter's own platform, or the stretch outlives the chapter.
+  if (floor >= 0) platforms[floor] = { ...platforms[floor], w: levelWidth - platforms[floor].x };
+}
+
 // ── Draw ──────────────────────────────────────────────────────────────────────
 function drawInterlude() {
   const ch = CHAPTERS[currentChapter];
 
-  // Subtle right-edge cue when close to end trigger
-  if (ch?.endTriggerX) {
-    const tx = ch.endTriggerX - camX;
+  // Subtle right-edge cue when close to end trigger (only once nothing is left
+  // to say, since until then the map runs on past it)
+  if (ch?.endTriggerX && !_ilTalking()) {
+    const tx = toScreenX(ch.endTriggerX);
     if (tx > 20 && tx < GAME_W + 40) {
       const g = ctx.createLinearGradient(Math.max(0, tx - 80), 0, tx, 0);
       g.addColorStop(0, 'transparent');
@@ -96,6 +131,7 @@ function drawInterlude() {
     } else {
       _drawBubble(_ilActive);
     }
+    _drawSkipHint();
   }
 }
 
@@ -135,8 +171,8 @@ function _drawBubble(speech) {
   }
   if (!entity) return;
 
-  const anchorX = entity.cx() - camX;
-  const anchorY = entity.y;
+  const anchorX = toScreenX(entity.cx());
+  const anchorY = toScreenY(entity.y);
 
   ctx.save();
   ctx.globalAlpha = a;
@@ -181,5 +217,17 @@ function _drawBubble(speech) {
   ctx.font      = '14px Courier New';
   ctx.fillText(speech.text, bx + 10, by + 36);
 
+  ctx.restore();
+}
+
+// Faint corner hint that the attack key moves the text on.
+function _drawSkipHint() {
+  if (_ilActive.maxTimer - _ilActive.timer < 20 || _ilActive.timer < 20) return;
+  ctx.save();
+  ctx.globalAlpha = 0.32;
+  ctx.fillStyle   = '#9a9280';
+  ctx.font        = '11px Courier New';
+  ctx.textAlign   = 'right';
+  ctx.fillText(keyLabel('confirm') + '  next', GAME_W - 14, GAME_H - 12);
   ctx.restore();
 }

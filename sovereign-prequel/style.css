@@ -8,7 +8,6 @@ body {
   min-height: 100vh;
   font-family: 'Courier New', Courier, monospace;
   overflow: hidden;
-  cursor: none;
 }
 
 #wrapper { position: relative; line-height: 0; }

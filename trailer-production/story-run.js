@@ -75,6 +75,23 @@ const probe = () => {
   for (let i = 0; i < 240; i++) { if (await s.eval(() => !!(Brain.live && Brain.live.f))) break; await s.wait(250); await s.step(1); pre++; }
   console.log('pre-roll frames', pre);
   await quiet(s);
+  // CAMZ=<zoom>: hold the gameplay camera at least this close, centred on the AI and its nearest foe. Picture only:
+  // the brain reads game state, not pixels. In wide story levels the solver pulls back until fighters are tiny.
+  if (process.env.CAMZ) await s.eval(z => {
+    const u0 = window.updateCamera;
+    window.updateCamera = function () {
+      u0.apply(this, arguments);
+      const h = Brain.live && Brain.live.f;
+      if (!h || h.health <= 0 || activeCinematic || isCinematic) return;
+      const foes = minions.concat(players).filter(e => e && e !== h && e.health > 0 && !areAlliedEntities(h, e));
+      let n = null; for (const e of foes) if (!n || Math.abs(e.cx() - h.cx()) < Math.abs(n.cx() - h.cx())) n = e;
+      const pair = n && Math.abs(n.cx() - h.cx()) < 260 && Math.abs(n.cy() - h.cy()) < 200;
+      const tx = pair ? (h.cx() + n.cx()) / 2 : h.cx(), ty = (pair ? (h.cy() + n.cy()) / 2 : h.cy()) - 40;
+      const S = window.__camS || (window.__camS = { x: tx, y: ty });
+      S.x += (tx - S.x) * 0.12; S.y += (ty - S.y) * 0.08;
+      camZoomCur = Math.max(camZoomCur, z); camXCur = S.x; camYCur = S.y;
+    };
+  }, Number(process.env.CAMZ));
   console.log('ready', JSON.stringify(await s.eval(probe)));
   const out = path.join(__dirname, 'work', profName, `story-${id}-${take}`);
   const { log } = await record(s, out, Number(framesArg || 5400), { fps: 60, probe, cropW: prof.cropW });

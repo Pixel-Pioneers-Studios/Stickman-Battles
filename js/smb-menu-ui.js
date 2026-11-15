@@ -201,6 +201,193 @@ function closeSimulator() {
   if (pathCards) pathCards.style.display = '';
 }
 
+// Each prequel is a separate game with its own globals, so it runs in a frame, never in this page.
+const PREQUEL_PATHS = {
+  axiom:     'axiom-prequel/index.html',
+  sovereign: 'sovereign-prequel/index.html',
+};
+
+function openPrequels() {
+  _hideAllSimPanels();
+  const pathCards = document.getElementById('pathCards');
+  const panel     = document.getElementById('prequelPanel');
+  if (pathCards) pathCards.style.display = 'none';
+  if (panel)     panel.style.display     = '';
+  _applyPrequelStoryLocks();
+}
+
+// ─── Story gates ──────────────────────────────────────────────────────────────
+// The prequels show things The 95th reveals late (who the companions were, that
+// Sovereign was never Axiom's, what the Void Mind is), so each part waits for the
+// main story to get there first. Gates are registry ids; players see id + 1.
+const PREQUEL_GATE_VAEL      = 118; // last companion domain
+const PREQUEL_GATE_AWAKENED  = 164; // the lab arc's Awakened Sovereign fight
+
+function _storyChapterBeaten(id) {
+  if (typeof _story2 === 'undefined' || !_story2) return false;
+  if (_story2.storyComplete) return true;
+  return Array.isArray(_story2.defeated) && _story2.defeated.includes(id);
+}
+
+function _storyFinished() {
+  return typeof _story2 !== 'undefined' && !!_story2 && !!_story2.storyComplete;
+}
+
+// { cap: chapters the story allows, note: what to finish next }
+function getPrequelStoryCap(key) {
+  const OPEN = 999;
+  const finish = function(id) { return 'Finish chapter ' + (id + 1) + ' of The 95th to unlock'; };
+  if (_storyFinished()) return { cap: OPEN, note: '' };
+  if (key === 'axiom') {
+    // Tuesday is always open: it's meant to be played before The 95th
+    if (_storyChapterBeaten(PREQUEL_GATE_AWAKENED)) return { cap: 12, note: 'Finish The 95th to unlock' };
+    if (_storyChapterBeaten(PREQUEL_GATE_VAEL))     return { cap: 11, note: finish(PREQUEL_GATE_AWAKENED) };
+    return { cap: 1, note: finish(PREQUEL_GATE_VAEL) };
+  }
+  if (key === 'sovereign') {
+    if (_storyChapterBeaten(PREQUEL_GATE_AWAKENED)) return { cap: 13, note: 'Finish The 95th to unlock' };
+    return { cap: 0, note: finish(PREQUEL_GATE_AWAKENED) };
+  }
+  return { cap: OPEN, note: '' };
+}
+
+// A prequel the story hasn't opened at all keeps its card shut, and its blurb
+// hidden: the Sovereign one says what he was before.
+function _applyPrequelStoryLocks() {
+  Object.keys(PREQUEL_PATHS).forEach(function(key) {
+    const card = document.getElementById('prequelCard-' + key);
+    if (!card) return;
+    const desc = card.querySelector('.path-card-desc');
+    if (desc && !desc.dataset.blurb) desc.dataset.blurb = desc.textContent;
+    const gate = getPrequelStoryCap(key);
+    const shut = gate.cap <= 0;
+    card.classList.toggle('locked', shut);
+    if (desc) desc.textContent = shut ? 'Locked. ' + gate.note + '.' : desc.dataset.blurb;
+  });
+}
+
+function closePrequels() {
+  const pathCards = document.getElementById('pathCards');
+  const panel     = document.getElementById('prequelPanel');
+  if (panel)     panel.style.display     = 'none';
+  if (pathCards) pathCards.style.display = '';
+}
+
+function launchPrequel(key) {
+  const src = PREQUEL_PATHS[key];
+  if (!src) return;
+  const gate = getPrequelStoryCap(key);
+  if (gate.cap <= 0) return;
+  let wrap = document.getElementById('prequelFrameWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'prequelFrameWrap';
+    wrap.innerHTML = '<iframe id="prequelFrame" title="Prequel"></iframe>' +
+      '<button class="prequel-exit" onclick="exitPrequel()">&#8592; Back to The 95th</button>';
+    document.body.appendChild(wrap);
+  }
+  const frame = wrap.querySelector('iframe');
+  frame.onload = function() {
+    frame.contentWindow.postMessage({
+      smbPrequelProgress:  getPrequelCleared(key),
+      smbPrequelStoryCap:  gate.cap,
+      smbPrequelStoryNote: gate.note ? gate.note.toUpperCase() : '',
+    }, '*');
+    try { frame.contentWindow.focus(); } catch (e) {}
+  };
+  frame.src = src;
+  wrap.style.display = '';
+  document.body.classList.add('prequel-open');
+  _pauseHomeForPrequel();
+  _fitPrequelFrame();
+}
+
+// The frame covers the home screen, but its two full-window canvas loops kept
+// drawing underneath and the prequel lagged. Stop them while a prequel is open.
+function _pauseHomeForPrequel() {
+  menuLoopRunning = false;
+  if (typeof _stopHomeCanvas === 'function') _stopHomeCanvas();
+}
+
+function _resumeHomeAfterPrequel() {
+  if (typeof gameRunning !== 'undefined' && gameRunning) return;
+  const menuEl = document.getElementById('menu');
+  if (!menuEl || menuEl.style.display === 'none') return;
+  if (!menuLoopRunning) {
+    menuLoopRunning = true;
+    requestAnimationFrame(menuBgLoop);
+  }
+  if (!_homeCanvasRAF) _initHomeCanvas();
+}
+
+// Chapters cleared, per account, mirroring the Fight Ladder's save.
+function getPrequelCleared(key) {
+  let n = 0;
+  try {
+    const acctVal = (window.GameState && GameState.getActiveAccount)
+      ? GameState.getActiveAccount()?.data?.unlocks?.['prequel_' + key] : undefined;
+    n = Number(acctVal ?? localStorage.getItem('smb_prequel_' + key)) || 0;
+  } catch (e) {}
+  return Math.max(0, n);
+}
+
+function _setPrequelCleared(key, n) {
+  if (n <= getPrequelCleared(key)) return;
+  try {
+    if (typeof setAccountFlagWithRuntime === 'function') {
+      setAccountFlagWithRuntime(['unlocks', 'prequel_' + key], n, function () {});
+    }
+  } catch (e) {}
+  try { localStorage.setItem('smb_prequel_' + key, String(n)); } catch (e) {}
+}
+
+// [chapters cleared, achievement id]
+const PREQUEL_MILESTONES = {
+  axiom:     [[1, 'prequel_axiom_begin'], [6, 'prequel_axiom_act1'], [12, 'prequel_axiom_complete'], [17, 'prequel_axiom_act4']],
+  sovereign: [[1, 'prequel_sov_begin'],   [9, 'prequel_sov_act2'],   [20, 'prequel_sov_complete']],
+};
+
+function _awardPrequelAchievements() {
+  if (typeof unlockAchievement !== 'function') return;
+  let both = true;
+  Object.keys(PREQUEL_MILESTONES).forEach(function(key) {
+    const n = getPrequelCleared(key);
+    const steps = PREQUEL_MILESTONES[key];
+    steps.forEach(function(m) { if (n >= m[0]) unlockAchievement(m[1]); });
+    if (n < steps[steps.length - 1][0]) both = false;
+  });
+  if (both) unlockAchievement('prequels_both');
+}
+
+window.addEventListener('message', function(e) {
+  const frame = document.getElementById('prequelFrame');
+  if (!frame || e.source !== frame.contentWindow) return;
+  const d = e.data || {};
+  if (!PREQUEL_MILESTONES[d.smbPrequel] || typeof d.cleared !== 'number') return;
+  _setPrequelCleared(d.smbPrequel, d.cleared);
+  _awardPrequelAchievements();
+});
+
+function _fitPrequelFrame() {
+  const frame = document.getElementById('prequelFrame');
+  if (!frame) return;
+  const s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
+  frame.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
+}
+window.addEventListener('resize', _fitPrequelFrame);
+
+function exitPrequel() {
+  const wrap = document.getElementById('prequelFrameWrap');
+  if (!wrap) return;
+  const frame = wrap.querySelector('iframe');
+  frame.onload = null;
+  // Blanking the frame stops the prequel's loop and audio; hiding it alone would not.
+  frame.src = 'about:blank';
+  wrap.style.display = 'none';
+  document.body.classList.remove('prequel-open');
+  _resumeHomeAfterPrequel();
+}
+
 function openRefight() {
   _hideAllSimPanels();
   const refightPanel = document.getElementById('refightPanel');
@@ -1275,6 +1462,8 @@ function _initHomeCanvas() {
   if (!_homeCanvasT0) _homeCanvasT0 = performance.now();
 
   function frame() {
+    // The menu observer can restart this while a prequel covers the screen
+    if (document.body.classList.contains('prequel-open')) { _homeCanvasRAF = null; return; }
     if (typeof gameRunning !== 'undefined' && gameRunning) {
       _homeCanvasRAF = requestAnimationFrame(frame);
       return;
@@ -1288,6 +1477,7 @@ function _initHomeCanvas() {
 
     // Painted scene from smb-home-art.js; the older scene below is the fallback.
     if (typeof _homeArtScene === 'function' && !window.HOME_ART_CLASSIC && _homeArtScene(ctx, W, H, t)) {
+      if (typeof _homeV2Scene === 'function') _homeV2Scene(ctx, W, H, t);
       _homeCanvasRAF = requestAnimationFrame(frame);
       return;
     }

@@ -74,7 +74,7 @@ class Brawler extends Walker {
     }
 
     if (this.frozen) {
-      // Read phases freeze him: no input, no AI, no swing. J is both "commit"
+      // Read phases freeze him: no input, no AI, no swing. Attack is both "commit"
       // and "swing", so without this he lashes out at nothing on the frame the
       // player commits an edit.
     } else if (this.isPlayer) {
@@ -132,11 +132,11 @@ class Brawler extends Walker {
                : !this.alive       ? '#2e2a24'
                : this.tone;
 
+    const fs = this._figureState();
     drawFigure(this.cx() - camX, this.y + this.h, {
       h: this.h,
       facing: this.facing,
-      phase: this.gait,
-      moving: this.grounded && Math.abs(this.vx) > 0.4,
+      state: fs.state, t: fs.t, dist: this.gait, seed: this.seed,
       tone,
       // He is the same black shape as everyone else — the only thing that
       // separates him at this size is how much light he catches.
@@ -146,6 +146,13 @@ class Brawler extends Walker {
 
     if (swinging) this._drawSwing();
     if (this.alive && !this.isPlayer) this._drawHealth();
+  }
+
+  _figureState() {
+    if (!this.alive)          return { state: 'fall',   t: this.deathTimer ?? 0 };
+    if (this.hurtTimer > 0)   return { state: 'hit',    t: (12 - this.hurtTimer) * 2 };
+    if (this.swingTimer > 0)  return { state: 'attack', t: 20 + (12 - this.swingTimer) * 1.7 };
+    return super._figureState();
   }
 
   _drawSwing() {

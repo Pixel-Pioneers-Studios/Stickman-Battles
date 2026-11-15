@@ -90,6 +90,7 @@ Script load order in `index.html` — files may only reference globals from earl
 82. `js/smb-input.js` — `processInput`, shield constants, key normalization
 83. `js/smb-cheats.js` — `applyCode`, all cheat code logic
 84. `js/smb-menu-ui.js` — Mode selection, cosmetics/store, bot toggle
+84a. `js/smb-journal.js` — `JOURNAL_ENTRIES`, `showJournalModal`, `journalUpdateNav` (lore journal; unlock gates use story ids and prequel progress from smb-menu-ui.js)
 85. `js/smb-menu-select.js` — Card grids, arena/lives/settings selection, changelog
 86. `js/smb-menu-config.js` — Custom weapons panel, stats log, weapon/class resolution
 87. `js/smb-menu-spawn.js` — `startGame`, arena spawn bounds, safe spawn helpers
@@ -129,6 +130,8 @@ Script load order in `index.html` — files may only reference globals from earl
 121. `js/smb-designer.js` — Level designer tool
 122. `js/smb-test-tools.js` — Test/QA tooling
 123. `js/smb-replay.js` — Match replay recording, storage (IndexedDB, up to 3 replays), download, and viewer (loaded last)
+
+Not in the numbered list yet (the list predates them): `js/smb-figure-rig.js` (`FigureRig`) and, right after it, `js/smb-home-v2.js` — the game-screen home (`_homeV2On`, `_homeV2Scene`, `HOME_V2_MODES`); drawn by the home canvas loop in `smb-menu-ui.js`, `?classichome` turns it off.
 
 Dependencies: GSAP 3.12.5 and PeerJS 1.5.4, vendored in `js/vendor/` (the game is handed around as a zip and run from local folders, where CDNs can be blocked). Player build: `tools/package/build-school.sh` -> `dist/stickman-evolution.zip`.
 

@@ -4,6 +4,13 @@
 // Each background key maps to a draw function.
 // The camera offset (camX) is already applied for world-space elements.
 
+// A walking chapter can run past the map's own end while lines are still to come
+// (interlude.js), so every fixed list of scenery repeats every `period` screen px.
+// Inside the original map nothing moves: items only wrap once they are off screen.
+function _bgWrap(sx, period) {
+  return ((sx + 260) % period + period) % period - 260;
+}
+
 function drawBackground(key) {
   switch (key) {
     case 'alley':       _drawAlley();      break;
@@ -13,7 +20,7 @@ function drawBackground(key) {
     case 'warehouse':   _drawWarehouse();  break;
     case 'plaza':       _drawPlaza();      break;
     case 'portal':      _drawPortalBg();   break;
-    default:            _drawAlley();
+    default:            if (ACT4_PLATFORM_COLORS[key]) drawAct4Background(key); else _drawAlley();
   }
 }
 
@@ -45,7 +52,7 @@ function _drawAlley() {
   // Streetlamps (parallax at 0.7x)
   const lampPositions = [180, 550, 950, 1300];
   for (const lx of lampPositions) {
-    const sx = lx - camX * 0.7;
+    const sx = _bgWrap(lx - camX * 0.7, 1600);
     if (sx < -40 || sx > GAME_W + 40) continue;
     ctx.strokeStyle = '#444';
     ctx.lineWidth   = 3;
@@ -69,8 +76,8 @@ function _drawAlley() {
   }
 
   // Dumpsters (world space)
-  _drawDumpster(310 - camX, GAME_H - 120);
-  _drawDumpster(690 - camX, GAME_H - 120);
+  _drawDumpster(_bgWrap(310 - camX, 1200), GAME_H - 120);
+  _drawDumpster(_bgWrap(690 - camX, 1200), GAME_H - 120);
 }
 
 function _drawDumpster(sx, sy) {
@@ -109,7 +116,7 @@ function _drawStreetDay() {
     { x: 1200, w: 200, h: 200, c: '#28282e' },
   ];
   for (const b of buildings) {
-    const bsx = b.x - camX * 0.4;
+    const bsx = _bgWrap(b.x - camX * 0.4, 1500);
     if (bsx > GAME_W + 10 || bsx + b.w < -10) continue;
     ctx.fillStyle = b.c;
     ctx.fillRect(bsx, GAME_H - 80 - b.h, b.w, b.h);
@@ -136,10 +143,10 @@ function _drawStreetDay() {
   ctx.setLineDash([]);
 
   // Parked cars
-  _drawCar(200 - camX, GAME_H - 120, '#303028');
-  _drawCar(500 - camX, GAME_H - 120, '#282828');
-  _drawCar(820 - camX, GAME_H - 120, '#302828');
-  _drawCar(1100 - camX, GAME_H - 120, '#283028');
+  _drawCar(_bgWrap(200 - camX, 1400), GAME_H - 120, '#303028');
+  _drawCar(_bgWrap(500 - camX, 1400), GAME_H - 120, '#282828');
+  _drawCar(_bgWrap(820 - camX, 1400), GAME_H - 120, '#302828');
+  _drawCar(_bgWrap(1100 - camX, 1400), GAME_H - 120, '#283028');
 }
 
 // ── Street (Ch 1) ─────────────────────────────────────────────────────────────
@@ -162,7 +169,7 @@ function _drawStreet() {
     { x: 1200, w: 200, h: 200, c: '#1c1c22' },
   ];
   for (const b of buildings) {
-    const bsx = b.x - camX * 0.4;
+    const bsx = _bgWrap(b.x - camX * 0.4, 1500);
     if (bsx > GAME_W + 10 || bsx + b.w < -10) continue;
     ctx.fillStyle = b.c;
     ctx.fillRect(bsx, GAME_H - 80 - b.h, b.w, b.h);
@@ -189,10 +196,10 @@ function _drawStreet() {
   ctx.setLineDash([]);
 
   // Parked cars (world space elements at parallax 1x)
-  _drawCar(260 - camX, GAME_H - 120, '#2a3a2a');
-  _drawCar(560 - camX, GAME_H - 120, '#3a2a2a');
-  _drawCar(870 - camX, GAME_H - 120, '#2a2a3a');
-  _drawCar(1170 - camX, GAME_H - 120, '#3a3020');
+  _drawCar(_bgWrap(260 - camX, 1400), GAME_H - 120, '#2a3a2a');
+  _drawCar(_bgWrap(560 - camX, 1400), GAME_H - 120, '#3a2a2a');
+  _drawCar(_bgWrap(870 - camX, 1400), GAME_H - 120, '#2a2a3a');
+  _drawCar(_bgWrap(1170 - camX, 1400), GAME_H - 120, '#3a3020');
 }
 
 function _drawCar(sx, sy, color) {
@@ -233,7 +240,7 @@ function _drawMarket() {
     { x: 1480, color: '#334422' },
   ];
   for (const s of stalls) {
-    const sx = s.x - camX * 0.5;
+    const sx = _bgWrap(s.x - camX * 0.5, 1720);
     if (sx < -120 || sx > GAME_W + 10) continue;
     ctx.fillStyle = s.color;
     ctx.beginPath();
@@ -278,7 +285,7 @@ function _drawWarehouse() {
   // Overhead lights
   const lightPositions = [180, 520, 860, 1200, 1540, 1880];
   for (const lx of lightPositions) {
-    const sx = lx - camX * 0.6;
+    const sx = _bgWrap(lx - camX * 0.6, 2200);
     if (sx < -60 || sx > GAME_W + 60) continue;
     const flicker = 0.7 + Math.sin(frameCount * 0.15 + lx) * 0.05;
     const lg = ctx.createRadialGradient(sx, 70, 0, sx, 70, 180);
@@ -293,9 +300,9 @@ function _drawWarehouse() {
   }
 
   // Stack of crates (world space)
-  _drawCrates(380 - camX, GAME_H - 170);
-  _drawCrates(800 - camX, GAME_H - 170);
-  _drawCrates(1280 - camX, GAME_H - 170);
+  _drawCrates(_bgWrap(380 - camX, 1700), GAME_H - 170);
+  _drawCrates(_bgWrap(800 - camX, 1700), GAME_H - 170);
+  _drawCrates(_bgWrap(1280 - camX, 1700), GAME_H - 170);
 }
 
 function _drawCrates(sx, sy) {
@@ -321,7 +328,8 @@ function _drawPlaza() {
   // Stars (parallax 0.1x)
   ctx.fillStyle = 'rgba(200,200,220,0.6)';
   for (let i = 0; i < 60; i++) {
-    const sx = ((i * 137 + 50) % levelWidth) - camX * 0.1;
+    const starW = CHAPTERS[currentChapter]?.width ?? 2000;
+    const sx = _bgWrap(((i * 137 + 50) % starW) - camX * 0.1, starW);
     if (sx < 0 || sx > GAME_W) continue;
     const sy = (i * 79 + 30) % (GAME_H * 0.55);
     const r  = 0.5 + (i % 3) * 0.5;
@@ -446,6 +454,7 @@ function drawPlatforms() {
     if (bg === 'warehouse') { topColor = '#1e1c1a'; bodyColor = '#161412'; }
     if (bg === 'plaza')     { topColor = '#1e1e2a'; bodyColor = '#141418'; }
     if (bg === 'portal')    { topColor = '#1a1028'; bodyColor = '#100a1e'; }
+    if (ACT4_PLATFORM_COLORS[bg]) [topColor, bodyColor] = ACT4_PLATFORM_COLORS[bg];
 
     ctx.fillStyle = bodyColor;
     ctx.fillRect(sx, p.y + 4, p.w, p.h);
@@ -499,7 +508,7 @@ function drawHUD() {
     ctx.fillStyle = `rgba(100,150,255,${pulse + 0.2})`;
     ctx.fillRect(p - 1, sbY - 1, hbW + 2, 7);
     // "READY" label
-    const readyLabel = frameCount % 40 < 20 ? 'SUPER  [Q]' : '▶ SUPER  [Q] ◀';
+    const readyLabel = frameCount % 40 < 20 ? `SUPER  [${keyLabel('super')}]` : `▶ SUPER  [${keyLabel('super')}] ◀`;
     ctx.fillStyle = '#aabbff';
     ctx.font      = 'bold 10px Courier New';
     ctx.textAlign = 'left';
@@ -576,9 +585,9 @@ function drawHUD() {
     ctx.font        = '13px Courier New';
     ctx.textAlign   = 'center';
     ctx.fillText(
-      vanguardActive()
-        ? 'J — LIGHT   K — HEAVY   L — GRAB   SHIFT — DODGE   Q — SUPER   S — BRACE'
-        : 'J — LIGHT   K — HEAVY   L — GRAB   SHIFT — DODGE   Q — SUPER   E — PICK UP',
+      `${keyLabel('light')} — LIGHT   ${keyLabel('heavy')} — HEAVY   ` +
+      (vanguardActive() ? `${keyLabel('brace')} — BRACE   ` : `${keyLabel('dodge')} — DODGE   `) +
+      `${keyLabel('super')} — ` + (cosmicLevel() >= 2 ? 'SUPER / COMMAND' : 'SUPER / PICK UP / GRAB'),
       GAME_W / 2, GAME_H - 8);
     ctx.globalAlpha = 1;
   }
@@ -614,14 +623,15 @@ function drawChapterTitle() {
   ctx.fillRect(0, 0, GAME_W, 68);
   ctx.fillRect(0, GAME_H - 52, GAME_W, 52);
 
+  // Centred, clear of the health bar and the enemy counter
   ctx.fillStyle = ch.type === 'interlude' ? '#557766' : '#776655';
-  ctx.font      = '12px Courier New';
-  ctx.textAlign = 'left';
-  ctx.fillText(ch.type === 'interlude' ? '— INTERLUDE' : ch.title, 36, 30);
+  ctx.font      = 'bold 13px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText(ch.type === 'interlude' ? '— INTERLUDE —' : ch.title, GAME_W / 2, GAME_H * 0.36);
 
   ctx.fillStyle = '#eeeecc';
-  ctx.font      = 'bold 22px Courier New';
-  ctx.fillText(ch.subtitle, 36, 58);
+  ctx.font      = 'bold 30px Courier New';
+  ctx.fillText(ch.subtitle, GAME_W / 2, GAME_H * 0.36 + 36);
 
   ctx.shadowBlur  = 0;
   ctx.globalAlpha = 1;
@@ -638,8 +648,8 @@ function drawSuperFlash() {
   ctx.fillRect(0, 0, GAME_W, GAME_H);
   // Radial burst centred on Axiom
   if (axiomPlayer) {
-    const cx = axiomPlayer.cx() - camX;
-    const cy = axiomPlayer.cy();
+    const cx = toScreenX(axiomPlayer.cx());
+    const cy = toScreenY(axiomPlayer.cy());
     const gr = ctx.createRadialGradient(cx, cy, 0, cx, cy, 300);
     gr.addColorStop(0, `rgba(255,240,255,${a * 0.8})`);
     gr.addColorStop(1, 'transparent');
@@ -671,7 +681,7 @@ function drawGameOver() {
     ctx.fillText('FALLEN', GAME_W / 2, GAME_H / 2);
     ctx.fillStyle   = '#aaaaaa';
     ctx.font        = '15px Courier New';
-    ctx.fillText('[J]  TRY AGAIN', GAME_W / 2, GAME_H / 2 + 44);
+    ctx.fillText(`[${keyLabel('confirm')}]  TRY AGAIN`, GAME_W / 2, GAME_H / 2 + 44);
     ctx.shadowBlur  = 0;
     ctx.globalAlpha = 1;
     ctx.restore();

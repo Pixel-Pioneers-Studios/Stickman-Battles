@@ -5,6 +5,8 @@ let menuFrame   = 0;
 let menuPulse   = 0;
 let menuState   = 'title';  // 'title' | 'chapter_select'
 let selectedCh  = 0;
+let lockedNote  = 0;        // frames left on the "locked" note
+const CH_PER_ROW = 6;
 
 function updateMenu() {
   menuFrame++;
@@ -12,17 +14,22 @@ function updateMenu() {
 
   if (menuState === 'title') {
     if (just('confirm')) {
-      menuState = 'chapter_select';
+      menuState  = 'chapter_select';
+      selectedCh = Math.max(0, Math.min(chaptersCleared, storyCap - 1, CHAPTERS.length - 1));
     }
   } else if (menuState === 'chapter_select') {
+    if (lockedNote > 0) lockedNote--;
     if (just('left') || held('left') && menuFrame % 10 === 0) {
       selectedCh = Math.max(0, selectedCh - 1);
     }
     if (just('right') || held('right') && menuFrame % 10 === 0) {
       selectedCh = Math.min(CHAPTERS.length - 1, selectedCh + 1);
     }
+    if (just('jump')  && selectedCh - CH_PER_ROW >= 0)              selectedCh -= CH_PER_ROW;
+    if (just('brace') && selectedCh + CH_PER_ROW < CHAPTERS.length) selectedCh += CH_PER_ROW;
     if (just('confirm')) {
-      _launchChapter(selectedCh);
+      if (isChapterUnlocked(selectedCh)) _launchChapter(selectedCh);
+      else lockedNote = 150;
     }
     if (just('back')) {
       menuState = 'title';
@@ -75,7 +82,7 @@ function _drawTitleScreen() {
   const promptAlpha = 0.4 + Math.sin(menuPulse * 2.2) * 0.25;
   ctx.fillStyle = `rgba(200,180,140,${promptAlpha})`;
   ctx.font      = '13px Courier New';
-  ctx.fillText('[ press J to begin ]', GAME_W / 2, GAME_H * 0.65);
+  ctx.fillText(`[ press ${keyLabel('confirm')} to begin ]`, GAME_W / 2, GAME_H * 0.65);
 
   // Bottom lore line
   ctx.fillStyle = '#5c5444';
@@ -89,14 +96,17 @@ function _drawChapterSelect() {
   ctx.font      = 'bold 12px Courier New';
   ctx.fillText('SELECT CHAPTER', GAME_W / 2, 36);
 
-  const totalW  = CHAPTERS.length * 140;
-  const startX  = GAME_W / 2 - totalW / 2 + 70;
+  const rows    = Math.ceil(CHAPTERS.length / CH_PER_ROW);
+  const startX  = GAME_W / 2 - (CH_PER_ROW - 1) * 70;
+  const startY  = GAME_H / 2 - (rows - 1) * 50;
 
   for (let i = 0; i < CHAPTERS.length; i++) {
     const ch   = CHAPTERS[i];
-    const cx   = startX + i * 140;
-    const cy   = GAME_H / 2;
+    const cx   = startX + (i % CH_PER_ROW) * 140;
+    const cy   = startY + Math.floor(i / CH_PER_ROW) * 100;
     const sel  = i === selectedCh;
+    const open = isChapterUnlocked(i);
+    ctx.globalAlpha = open ? 1 : 0.35;
 
     // Card — interlude chapters get a cooler, muted look
     const cardW = 120, cardH = 80;
@@ -133,8 +143,9 @@ function _drawChapterSelect() {
       ? (isIl ? '#c0d0e4' : '#f0e0b8')
       : (isIl ? '#7090b0' : '#998a6c');
     ctx.font      = `bold ${sel ? 12 : 11}px Courier New`;
-    const words   = ch.subtitle.split(' ');
-    let line = '', lineY = (isIl || ch.type === 'vanguard') ? cy - 6 : cy - 12;
+    // A chapter The 95th hasn't caught up to keeps its name hidden too
+    const words   = (i >= storyCap ? '\u00b7 \u00b7 \u00b7' : ch.subtitle).split(' ');
+    let line = '', lineY = (isIl || ch.type === 'vanguard') ? cy + 4 : cy - 6;
     for (const w of words) {
       if ((line + ' ' + w).trim().length > 14) {
         ctx.fillText(line.trim(), cx, lineY);
@@ -145,12 +156,25 @@ function _drawChapterSelect() {
       }
     }
     ctx.fillText(line.trim(), cx, lineY);
+
+    if (!open) {
+      ctx.fillStyle = '#776650';
+      ctx.font      = '9px Courier New';
+      ctx.fillText(i >= storyCap ? '\u2014 the 95th \u2014' : '\u2014 locked \u2014', cx, cy + 32);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  if (lockedNote > 0) {
+    ctx.fillStyle = `rgba(190,150,90,${Math.min(1, lockedNote / 40)})`;
+    ctx.font      = 'bold 12px Courier New';
+    ctx.fillText(chapterLockText(selectedCh), GAME_W / 2, GAME_H - 48);
   }
 
   // Nav hints
   ctx.fillStyle = '#8a8070';
   ctx.font      = '11px Courier New';
-  ctx.fillText('← →  CHOOSE   J  START   ESC  BACK', GAME_W / 2, GAME_H - 24);
+  ctx.fillText(`← → ↑ ↓  CHOOSE   ${keyLabel('confirm')}  START   ESC  BACK`, GAME_W / 2, GAME_H - 24);
 }
 
 // ─── Launch a chapter ─────────────────────────────────────────────────────────

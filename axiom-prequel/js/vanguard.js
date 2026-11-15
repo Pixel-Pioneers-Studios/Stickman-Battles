@@ -287,7 +287,7 @@ function drawVanguardHUD() {
   // Brace state readout
   ctx.font      = 'bold 11px Courier New';
   ctx.fillStyle = axiomPlayer?.bracing ? '#e8d090' : '#6a6250';
-  ctx.fillText(axiomPlayer?.bracing ? 'BRACED' : '[S] BRACE', GAME_W / 2, by + bh + 14);
+  ctx.fillText(axiomPlayer?.bracing ? 'BRACED' : `[${keyLabel('brace')}] BRACE`, GAME_W / 2, by + bh + 14);
 
   // First-chapter teach line
   if (_vgHintTimer > 0) {
@@ -295,7 +295,7 @@ function drawVanguardHUD() {
     ctx.globalAlpha = a;
     ctx.fillStyle   = '#d8c89a';
     ctx.font        = 'italic 14px Courier New';
-    ctx.fillText('They will be reached first unless you are in the way.', GAME_W / 2, GAME_H * 0.24);
+    ctx.fillText(CHAPTERS[currentChapter]?.vgText?.hint ?? 'They will be reached first unless you are in the way.', GAME_W / 2, GAME_H * 0.24);
     ctx.globalAlpha = 1;
   }
 
@@ -320,13 +320,13 @@ function drawVanguardFail() {
   ctx.textAlign   = 'center';
   ctx.fillStyle   = '#c8a850';
   ctx.font        = 'bold 32px Courier New';
-  ctx.fillText('THEY WENT FIRST', GAME_W / 2, GAME_H / 2 - 6);
+  ctx.fillText(CHAPTERS[currentChapter]?.vgText?.fail ?? 'THEY WENT FIRST', GAME_W / 2, GAME_H / 2 - 6);
   ctx.fillStyle   = '#8a7f66';
   ctx.font        = 'italic 14px Courier New';
-  ctx.fillText('That was the one thing he was for.', GAME_W / 2, GAME_H / 2 + 26);
+  ctx.fillText(CHAPTERS[currentChapter]?.vgText?.failLine ?? 'That was the one thing he was for.', GAME_W / 2, GAME_H / 2 + 26);
   ctx.fillStyle   = '#aaaaaa';
   ctx.font        = '15px Courier New';
-  ctx.fillText('[J]  TRY AGAIN', GAME_W / 2, GAME_H / 2 + 62);
+  ctx.fillText(`[${keyLabel('confirm')}]  TRY AGAIN`, GAME_W / 2, GAME_H / 2 + 62);
   ctx.shadowBlur  = 0;
   ctx.restore();
 }

@@ -293,6 +293,36 @@ SPECS.shatter = () => {
   return { n: 39, L, music: { file: 'audio/music/arena-neon.mp3', at: 0, from: 27.0, gain: 0.7, fadeIn: 0.1, fadeOut: 0.8 }, overlays: o.concat(endCard(L.T)) };
 };
 
+SPECS.domain = () => {
+  const open = fr(M.open), clear = fr(M.clear);
+  const L = timeline([
+    { at: 3, to: open - 2 },
+    { at: open - 2, to: open + 14, speed: 0.5 },
+    { at: open + 14, to: Math.min(J.frames - 1, clear + 54) },
+  ]);
+  const o = [{ type: 'vignette', a: 0.3 }];
+  // Hit counter from the logged count; one swing can land two hits, so it may skip a number.
+  const hits = M.hits.filter(h => h[1] <= 10);
+  hits.forEach((h, i) => {
+    const a = i === 0 ? -4 : L.out(fr(h[0])), b = i + 1 < hits.length ? L.out(fr(hits[i + 1][0])) : L.out(open) + 12;
+    const ten = h[1] >= 10;
+    o.push(slam(a, b, h[1] + ' / 10', 0.27, ten ? 160 : 140, { bar: false, fill: ten ? '#ffaa55' : '#ffffff', steady: !ten }));
+  });
+  o.push(slam(-4, L.out(open), ['10 HITS IN A ROW', 'OPENS HIS DOMAIN.'], 0.13, 84, { bar: false }));
+  o.push(slam(L.out(open), L.out(clear), 'GATEFALL.', 0.13, 120, { bar: false, fill: '#ffaa55' }));
+  // Foes left, from the logged deaths.
+  const deaths = Object.values(M.dead).map(fr).sort((a, b) => a - b);
+  const steps = [...new Set(deaths)];
+  let left = 5, from = L.out(open) + 12;
+  for (const d of steps) {
+    o.push(slam(from, L.out(d), left + ' LEFT', 0.27, 140, { bar: false, fill: '#ff5a5a', steady: true }));
+    left -= deaths.filter(x => x === d).length; from = L.out(d);
+  }
+  o.push(slam(from, L.T, left + ' LEFT', 0.27, 160, { bar: false, fill: '#7ff3ff' }));
+  o.push(slam(L.out(clear) + 6, L.T, ['EVERY HIT', 'WAS A QUAKE.'], 0.13, 104, { bar: false, fill: '#7ff3ff' }));
+  return { n: 49, L, music: { file: 'audio/music/arena-neon.mp3', at: 0, from: 27.0, gain: 0.7, fadeIn: 0.1, fadeOut: 0.8 }, overlays: o.concat(endCard(L.T)) };
+};
+
 (async () => {
   const spec = SPECS[NAME] && SPECS[NAME]();
   if (!spec) throw new Error('usage: node moves-cut.js <' + Object.keys(SPECS).join('|') + '> [profile]');

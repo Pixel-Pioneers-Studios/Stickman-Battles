@@ -1636,6 +1636,97 @@ SCENES.shatter = {
   },
 };
 
+// Combo Domain: ten hits in a row opens the hammer's domain (Gatefall), and every hit inside it sends a
+// shockwave. He starts at 6 / 10 among five; the swings are the game's own at the hammer's real cooldown.
+SCENES.domain = {
+  arena: 'city', frames: 250,
+  match: { p1: 'hammer', p1Class: 'none', p1Color: '#00d4ff', p2: 'axe', p2Class: 'none', p2Color: '#ff3a3a' },
+  install(H) {
+    const D = H.D, p1 = players[0], p2 = players[1];
+    const fl = H.floor();
+    D.floorY = fl.y;
+    settings.finishers = false;
+    settings.animeSuperFx = true;
+    ComboDomain.drawHUD = () => {};
+    const extra = [['sword', '#ff9a2a'], ['spear', '#ffe03a'], ['katana', '#ff5ab0'], ['flail', '#ff7a3a']].map(([wk, col]) => {
+      const f = new Fighter(0, fl.y - 60, col, wk, { left: null, right: null, jump: null, attack: null, ability: null, super: null }, true, 'easy');
+      f.updateAI = function () {}; f.aiTickInterval = 1;
+      f.lives = 1; f.playerNum = players.length + 1; f.name = '';
+      players.push(f);
+      return f;
+    });
+    D.foes = [p2, ...extra];
+    for (const f of D.foes) { f.target = p1; f._domainSuperCount = 0; f.lives = 1; }
+    // Right: axe (first victim) and sword behind it. Left: spear, katana, flail.
+    H.place(p1, 450, fl.y, 1);
+    H.place(p2, 498, fl.y, -1);
+    H.place(extra[0], 590, fl.y, -1);
+    H.place(extra[1], 360, fl.y, 1);
+    H.place(extra[2], 300, fl.y, 1);
+    H.place(extra[3], 640, fl.y, -1);
+    p1.health = p1.maxHealth;
+    // The game's hit flash is a white box the size of the hitbox: reads as a glitch on a phone.
+    for (const f of players) Object.defineProperty(f, '_hitFlashTimer', { configurable: true, get: () => 0, set() {} });
+    // helpersInstall hides the axe fighter's i-frames behind a getter, but a dead body is only drawn while invincible > 0.
+    Object.defineProperty(p2, 'invincible', { configurable: true, writable: true, value: 0 });
+    p1._cdomHits = 6; p1._cdomLast = frameCount;
+    D.log.hits = [[0, 6]];
+    D.order = [p2, extra[1], p2, extra[2]];
+    D.k = 0;
+    H.snap(450, p1.cy() - 40, 1.5);
+  },
+  tick(H) {
+    const D = H.D, p1 = players[0], foes = D.foes;
+    const alive = foes.filter(f => f.health > 0);
+    const faceTo = f => { p1.facing = f.cx() > p1.cx() ? 1 : -1; };
+    const near = () => alive.slice().sort((a, b) => Math.abs(a.cx() - p1.cx()) - Math.abs(b.cx() - p1.cx()))[0];
+    const swingAt = f => { if (!f) return false; faceTo(f); p1.stunTimer = 0; p1.attackEndlag = 0; if (p1.cooldown > 0) return false; p1.attack(f); return true; };
+    // Foes walk in and stop at arm's length; they never get a turn (the scene is about his count).
+    for (const f of alive) {
+      f.facing = p1.cx() > f.cx() ? 1 : -1;
+      const gap = Math.abs(f.cx() - p1.cx());
+      f.vx = gap > 62 ? f.facing * (D.phase === 'build' ? 1.6 : 3.2) : 0;
+      f.cooldown = Math.max(f.cooldown, 2); f.invincible = 0; f.shielding = false;
+    }
+    switch (D.phase) {
+      case 'start': H.go('build'); break;
+      case 'build': {
+        const tgt = D.order[D.k % D.order.length];
+        const t2 = tgt && tgt.health > 0 && Math.abs(tgt.cx() - p1.cx()) < 110 ? tgt : near();
+        if (D.t > 1 && swingAt(t2)) D.k++;
+        // Nobody dies before the domain: the count is the stake.
+        for (const f of foes) if (f.health < f.maxHealth * 0.5) f.health = f.maxHealth;
+        if (p1._comboDomain) { D.log.open = D.f; slowMotion = 0.35; H.go('open'); }
+        if (D.t > 400) H.go('open');
+        break;
+      }
+      case 'open': {
+        // From here a shockwave finishes anyone it reaches.
+        for (const f of alive) { f.health = Math.min(f.health, 10); }
+        if (D.t > 24 && slowMotion < 1) slowMotion = Math.min(1, slowMotion + 0.05);
+        if (D.t > 16) H.go('quake');
+        break;
+      }
+      case 'quake': {
+        for (const f of alive) { f.health = Math.min(f.health, 10); }
+        if (alive.length) swingAt(near()); else if (!D.log.clear) D.log.clear = D.f;
+        break;
+      }
+    }
+    // A kill mid-hit left the body undrawn until the death check caught up (~40 frames), then it stood back up
+    // to play its fall. Start the game's own death animation the frame the foe drops, and keep the body drawn.
+    for (const f of foes) if (f.health <= 0 && !f._death) { f.lives = 0; f.invincible = 999; DeathAnim.begin(f); }
+    p1.lives = 3; p1.vx *= 0.8;
+    const h = p1._cdomHits || 0;
+    if (!p1._comboDomain && D.log.hits[D.log.hits.length - 1][1] !== h) D.log.hits.push([D.f, h]);
+    for (const f of foes) if (f.health <= 0 && !(D.log.dead || (D.log.dead = {}))[foes.indexOf(f)]) D.log.dead[foes.indexOf(f)] = D.f;
+    const cx = 470;
+    CinCam.setFocus(cx, p1.cy() - 50, 1.5);
+    H.tickPoses();
+    window.__focusScreen = () => H.focus(cx);
+  },
+};
+
 const probe = () => {
   const D = window.__dir || {};
   const p1 = players[0], p2 = players[1];

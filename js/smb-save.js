@@ -495,6 +495,7 @@ function _refreshRuntimeFromSave(data) {
     data.unlocks.achievements.forEach(function(id) { earnedAchievements.add(id); });
     if (typeof _achUpdateNavCount === 'function') _achUpdateNavCount();
   }
+  if (typeof journalUpdateNav === 'function') journalUpdateNav();
 
   // Settings is a const object: mutate its properties, don't replace it
   if (data.settings) {

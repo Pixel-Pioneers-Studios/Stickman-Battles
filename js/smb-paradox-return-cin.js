@@ -104,7 +104,8 @@ function _makeTFKicksParadoxOutCinematic(tf) {
 
 // Paradox return at 10% HP (startTFParadoxReturn1000). Staged shot by shot: Paradox tears back in,
 // the two of them land three hits, the Axiom catches the fourth, kicks Kael away, and burns Paradox
-// out with a point-blank burst. Paradox crawls to Kael and hands over what is left (absorption).
+// out with a point-blank burst. Paradox goes down, Kael runs to him, and Paradox hands over what is
+// left while he fades (absorption). A silent hold over the empty floor, then Kael rises.
 // Bodies are posed (CinRig): Kael through a CinPerf performance, Paradox through its `pose` field.
 
 function _retFloorY() {
@@ -157,7 +158,7 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
   let rec = null;
   const subs = [];   // { who, text, color, from, to } in frames
   const say = (F, who, text, color, len) => subs.push({ who, text, color, from: F, to: F + (len || 120) });
-  let F = -1;
+  let F = -1, pdxStop = 70, kaelDir = 1;
 
   // Kael and Paradox fight with the same body proportions, so one helper places either so that its
   // right hand lands on (x, y).
@@ -186,8 +187,27 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
   };
   const tfIdle = () => { tf.state = 'idle'; tf.attackTimer = 0; tf.ragdollTimer = 0; };
 
+  const P = Math.PI, LP = CIN_PERF_POSES;
+  const POSE = {
+    fallen: { ...LP.slump, torso: 0.95, headTilt: 0.62, hipDrop: 20 },
+    look:   { ...LP.slump, torso: 0.42, headTilt: -0.06, headOff: 3 },
+    give:   { ...LP.slump, torso: 0.36, headTilt: -0.08, headOff: 3, rArm: P * 0.03, rFore: -P * 0.05, rArmLen: 1.25 },
+    catch:  { ...LP.kneel, torso: 0.30, headTilt: 0.14, rArm: P * 0.12, rFore: P * 0.02, lArm: P * 0.30, lFore: P * 0.10 },
+    stay:   { ...LP.kneel, torso: 0.22, headTilt: 0.10 },
+    grief:  { ...LP.slump, torso: 0.50, headTilt: 0.58 },
+    rise:   { ...LP.stand, torso: 0.18, headTilt: 0.42, rArm: P * 0.54, rFore: P * 0.46, lArm: P * 0.46, lFore: P * 0.40 },
+  };
+  // CinRig leans the torso by facing but takes limb angles as given, so a left-facing pose is mirrored here.
+  const faced = (pose, dir) => {
+    if (dir >= 0) return pose;
+    const o = { ...pose };
+    for (const k of ['rArm', 'rFore', 'lArm', 'lFore', 'rLeg', 'rShin', 'lLeg', 'lShin']) o[k] = P - o[k];
+    o.headOff = -(o.headOff || 0); o.headTilt = -(o.headTilt || 0);
+    return o;
+  };
+
   return {
-    durationFrames: 640,
+    durationFrames: 1230,
 
     update(t) {
       if (!tf || !hero) return;
@@ -348,46 +368,97 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
         paradoxEntity.noGravity = true;
         if (typeof SoundManager !== 'undefined' && SoundManager.explosion) SoundManager.explosion();
       }
-      if (F > 342 && F <= 380) { paradoxEntity.x = Math.max(70, paradoxEntity.x - 4.6); paradoxEntity.y = Math.min(fy - paradoxEntity.h, paradoxEntity.y + (F < 360 ? -0.6 : 2.2)); }
-      if (F === 380) { paradoxEntity.noGravity = false; pdx.go('kneel', 10); tfIdle(); }
+      // Paradox is thrown back but lands short of Kael, so Kael has ground to cover to reach him.
+      if (F === 342) pdxStop = Math.min(paradoxEntity.x, Math.max(70, hero.cx() + 120));
+      if (F > 342 && F <= 380) { paradoxEntity.x = Math.max(pdxStop, paradoxEntity.x - 4.6); paradoxEntity.y = Math.min(fy - paradoxEntity.h, paradoxEntity.y + (F < 360 ? -0.6 : 2.2)); }
+      if (F === 380) {
+        paradoxEntity.noGravity = false; tfIdle();
+        pdx.go(POSE.fallen, 16, 'outQuad');
+        paradoxEntity.fade = 0.8;
+      }
 
-      // S9: Paradox on his knees next to Kael. Kael gets to him.
-      if (F === 392) {
-        kael.go('stand', 10); rec.exprs = [{ at: 0, expr: 'neutral' }];
+      // S9: Paradox is down and coming apart. Kael runs to him and drops beside him.
+      if (F === 398) {
+        kael.go('charge', 6); rec.exprs = [{ at: 0, expr: 'afraid' }];
         hero._from = { x: hero.x };
-        CinCam.snap((hero.cx() + paradoxEntity.cx()) / 2, fy - 45, 2.0);
+        kaelDir = paradoxEntity.cx() > hero.cx() ? 1 : -1;
+        CinCam.snap((hero.cx() + paradoxEntity.cx()) / 2, fy - 50, 1.7);
       }
-      if (F > 392 && F <= 410) {
-        const goal = paradoxEntity.cx() + 52 - hero.w / 2;
-        hero.x = hero._from.x + (goal - hero._from.x) * ((F - 392) / 18);
-        hero.facing = paradoxEntity.cx() > hero.cx() ? 1 : -1;
+      if (F >= 398 && F < 1030) hero.facing = kaelDir;
+      if (F > 398 && F <= 422) {
+        const goal = paradoxEntity.cx() - kaelDir * 66 - hero.w / 2;
+        const u = (F - 398) / 24;
+        hero.x = hero._from.x + (goal - hero._from.x) * (1 - (1 - u) * (1 - u));
       }
-      if (F === 412) { kael.go('kneel', 12); paradoxEntity.facing = hero.cx() < paradoxEntity.cx() ? -1 : 1; }
-      if (F === 418) say(F, 'PARADOX', 'Take it. All of it.', '#7ff', 100);
-      if (F === 470) {
-        paradoxEntity.done = true;
-        paradoxEntity.fx.push({ type: 'ring', x: hero.cx(), y: hero.cy(), r: 90, life: 40, max: 40, color: '#00ffff' });
+      if (F === 420) {
+        kael.go(faced(POSE.catch, kaelDir), 14, 'outQuad');
+        CinCam.setFocus((hero.cx() + paradoxEntity.cx()) / 2, fy - 42, 2.25);
       }
-      if (F > 470 && F < 520 && settings.particles && paradoxEntity) {
-        for (let i = 0; i < 3 && particles.length < MAX_PARTICLES; i++) {
-          const _p = _getParticle();
-          _p.x = paradoxEntity.cx() + (Math.random() - 0.5) * 24; _p.y = paradoxEntity.cy() + (Math.random() - 0.5) * 60;
-          _p.vx = (hero.cx() - _p.x) / 22; _p.vy = (hero.cy() - _p.y) / 22;
-          _p.color = Math.random() < 0.6 ? '#00ffff' : '#ffffff'; _p.size = 1.5 + Math.random() * 2.5;
-          _p.life = 22; _p.maxLife = 22; particles.push(_p);
+      if (F === 444) { pdx.go(faced(POSE.look, -kaelDir), 22, 'inOutQuad'); paradoxEntity.facing = -kaelDir; paradoxEntity.expr = 'hurt'; }
+      if (F === 462) say(F, 'PARADOX', "That went all the way through. I'm not getting up.", '#7ff', 120);
+      if (F === 480) { kael.go(faced(POSE.stay, kaelDir), 24, 'inOutQuad'); rec.exprs = [{ at: 0, expr: 'hurt' }]; }
+
+      // S10: the handover is Paradox's own act. The light crosses slowly and he thins as it goes.
+      if (F === 590) pdx.go(faced(POSE.give, -kaelDir), 20, 'inOutQuad');
+      if (F === 612) say(F, 'PARADOX', 'Take it. All of it.', '#7ff', 110);
+      if (F >= 624 && F < 790) {
+        const u = (F - 624) / 166;
+        paradoxEntity.fade = 0.8 - u * 0.72;
+        const src = _retHand(faced(POSE.give, -kaelDir), paradoxEntity.facing);
+        const sx = paradoxEntity.cx() + src.x, sy = paradoxEntity.y + paradoxEntity.h + src.y;
+        const hx = hero.cx(), hy = hero.y + hero.h * 0.56;
+        if (settings.particles) {
+          for (let i = 0; i < 2 && particles.length < MAX_PARTICLES; i++) {
+            const _p = _getParticle();
+            const body = Math.random() < 0.5;
+            _p.x = body ? paradoxEntity.cx() + (Math.random() - 0.5) * 22 : sx;
+            _p.y = body ? paradoxEntity.cy() + (Math.random() - 0.5) * 56 : sy + (Math.random() - 0.5) * 6;
+            _p.vx = (hx - _p.x) / 34; _p.vy = (hy - _p.y) / 34;
+            _p.color = Math.random() < 0.6 ? '#00ffff' : '#ffffff'; _p.size = 1.5 + Math.random() * 2.2;
+            _p.life = 34; _p.maxLife = 34; particles.push(_p);
+          }
+        }
+        if (F % 26 === 0) {
+          paradoxEntity.fx.push({ type: 'slash', x0: sx, y0: sy, x1: hx, y1: hy, bend: 0, lw: 2.5, life: 22, max: 22, color: '#bffcff' });
+          paradoxEntity.fx.push({ type: 'ring', x: hx, y: hy, r: 22 + u * 16, life: 26, max: 26, color: '#00ffff' });
         }
       }
-      // S10: it takes. Kael comes up lit, and the Axiom answers.
-      if (F === 500) { kael.go('roar', 14, 'outBack'); rec.exprs = [{ at: 0, expr: 'angry' }]; CinCam.setFocus(hero.cx(), hero.cy() - 10, 1.9); }
-      if (F === 508) {
+      if (F === 740) pdx.go(faced(POSE.fallen, -kaelDir), 40, 'inQuad');
+      if (F === 790) {
+        // Faded out but kept until onEnd: a `done` entity is removed, and its fx with it.
+        paradoxEntity.fade = 0;
+        paradoxEntity.fx.push({ type: 'ring', x: paradoxEntity.cx(), y: paradoxEntity.cy() + 10, r: 46, flat: 0.5, life: 50, max: 50, color: '#bffcff' });
+      }
+
+      // S11: nobody speaks. Kael stays over the empty floor, and the Axiom only watches.
+      if (F === 800) { kael.go(faced(POSE.grief, kaelDir), 36, 'inOutQuad'); CinCam.setFocus(hero.cx() + kaelDir * 22, fy - 40, 2.4); }
+      if (F > 790 && F < 900 && F % 9 === 0 && settings.particles && paradoxEntity && particles.length < MAX_PARTICLES) {
+        const _p = _getParticle();
+        _p.x = paradoxEntity.cx() + (Math.random() - 0.5) * 30; _p.y = fy - 8 - Math.random() * 40;
+        _p.vx = (Math.random() - 0.5) * 0.5; _p.vy = -0.7 - Math.random() * 0.8;
+        _p.color = '#bffcff'; _p.size = 1 + Math.random() * 1.6; _p.life = 60; _p.maxLife = 60; particles.push(_p);
+      }
+      if (F === 940) {
+        CinCam.snap(tf.cx(), tf.y + 24, 2.3);
+        say(F + 8, 'COSMIC AXIOM', 'One of you.', '#c9a6ff', 76);
+      }
+
+      // S12: Kael gets up slowly. Then it takes, and the Axiom answers.
+      if (F === 1030) {
+        CinCam.snap(hero.cx(), fy - 50, 2.0);
+        kael.go(POSE.rise, 44, 'inOutQuad'); rec.exprs = [{ at: 0, expr: 'angry' }];
+        hero.facing = tf.cx() > hero.cx() ? 1 : -1;
+      }
+      if (F === 1090) { kael.go('roar', 14, 'outBack'); CinCam.setFocus(hero.cx(), hero.cy() - 10, 1.9); }
+      if (F === 1098) {
         rec.color = '#7ffcff'; rec.glow = true;
         CinFX.shockwave(hero.cx(), hero.cy(), '#00ffff', { count: 2, maxR: 130, lw: 3, dur: 26 });
         CinFX.speedLines(hero.cx(), hero.cy(), '#bffcff', { count: 24, maxLen: 200, dur: 14 });
         spawnParticles(hero.cx(), hero.cy(), '#00ffff', 34);
         screenShake = Math.max(screenShake, 22);
       }
-      if (F === 528) kael.go('guard', 12);
-      if (F === 546) {
+      if (F === 1118) kael.go('guard', 12);
+      if (F === 1136) {
         CinCam.snap(tf.cx(), tf.y + 24, 2.3);
         say(F, 'COSMIC AXIOM', 'You took his power. Show me what it is worth.', '#c9a6ff', 92);
       }

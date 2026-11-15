@@ -61,12 +61,12 @@ function startGame(_skipVote) {
     // Start the scene after the overlay shows. A display:none canvas has no size, so the backing store would be 0.
     if (typeof LoadScene !== 'undefined') LoadScene.start(info.scene);
     const bar = document.getElementById('loadBar');
-    if (bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.transition = 'width 0.75s ease'; bar.style.width = '100%'; }); }
+    if (bar) { bar.style.width = '0%'; requestAnimationFrame(() => { bar.style.transition = 'width 0.25s ease'; bar.style.width = '100%'; }); }
   }
   if (fadeOv) fadeOv.style.opacity = '1';
   gameLoading = true; // freeze input and physics until the game has started
 
-  // Hold the loading screen for 800 ms. Seamless story swaps skip it (~120 ms dip).
+  // Hold the loading screen for 250 ms: long enough to cover setup and show the title. Seamless story swaps skip it (~120 ms dip).
   setTimeout(() => {
     _startGameCore();
     if (loadOv && !_seamless) setTimeout(() => {
@@ -77,7 +77,7 @@ function startGame(_skipVote) {
     if (fadeOv) setTimeout(() => { fadeOv.style.opacity = '0'; }, _seamless ? 60 : 300);
     // Unfreeze only after the overlays fade out (~350 ms), so bots can't act behind the loading screen.
     setTimeout(() => { gameLoading = false; }, _seamless ? 220 : 480);
-  }, _seamless ? 120 : 800);
+  }, _seamless ? 120 : 250);
 }
 
 // Safe spawn point on a platform in the preferred half of the arena.

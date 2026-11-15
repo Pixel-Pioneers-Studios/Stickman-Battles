@@ -794,7 +794,7 @@ function _launchChapter2FightImmediate(ch) {
     noAbility:     _caps.noAbility    !== undefined ? _caps.noAbility    : !_sk.weaponAbility,
     noSuper:       _caps.noSuper      !== undefined ? _caps.noSuper      : !_sk.superMeter,
     noClass:       _caps.noClass      !== undefined ? _caps.noClass      : !_sk.classUnlock,
-    dmgMult:       1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0),
+    dmgMult:       1.0 + (_sk.heavyHit2 ? 0.25 : _sk.heavyHit1 ? 0.15 : 0) * (typeof _storyBuffScale === 'function' ? _storyBuffScale() : 1),
     speedMult:     1.0 + (_sk.fastMove2 ? 0.20 : _sk.fastMove1 ? 0.10 : 0),
     jumpMult:      1.0 + (_sk.highJump2 ? 0.25 : _sk.highJump1 ? 0.15 : 0),
   };
@@ -802,7 +802,7 @@ function _launchChapter2FightImmediate(ch) {
   // Per-weapon mastery: fold the equipped weapon's damage bonus into the override
   if (typeof _weaponMasteryDmgBonus === 'function') {
     const _eqWeapon = storyPlayerOverride.weapon || storyLoadoutValues().weapon;
-    storyPlayerOverride.dmgMult *= (1 + _weaponMasteryDmgBonus(_eqWeapon));
+    storyPlayerOverride.dmgMult *= (1 + _weaponMasteryDmgBonus(_eqWeapon) * (typeof _storyBuffScale === 'function' ? _storyBuffScale() : 1));
   }
 
   // Stripped-powers trial: override all ability gates: only human physicality

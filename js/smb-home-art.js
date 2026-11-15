@@ -449,12 +449,15 @@ function _homeArtScene(ctx, W, H, t) {
              y: launchY + (heroY - launchY) * p - Math.sin(Math.PI * p) * 22 * u };
   };
 
-  if (typeof _homeRift === 'function') _homeRift(ctx, riftX, riftY, riftH, u, t);
+  // The game-screen home (smb-home-v2.js) puts your own fighter on a ledge instead of Kael's leap,
+  // and its mode list sits where the rift is.
+  var v2 = typeof _homeV2On !== 'undefined' && _homeV2On;
+  if (!v2 && typeof _homeRift === 'function') _homeRift(ctx, riftX, riftY, riftH, u, t);
 
   // Speed streaks out of the rift, along Kael's line of travel.
   ctx.save();
   ctx.lineCap = 'round';
-  for (var i = 0; i < 9; i++) {
+  for (var i = 0; i < (v2 ? 0 : 9); i++) {
     var ph = (t * 0.55 + i * 0.111) % 1;
     var p0 = arc(ph * 0.92), p1 = arc(ph * 0.92 + 0.02);
     var dir = Math.atan2(p1.y - p0.y, p1.x - p0.x);
@@ -470,7 +473,7 @@ function _homeArtScene(ctx, W, H, t) {
   }
   ctx.restore();
 
-  for (var k = 3; k >= 1; k--) {
+  for (var k = v2 ? 0 : 3; k >= 1; k--) {
     var gp = arc(1 - k * 0.22);
     _homeArtFighter(ctx, gp.x, gp.y, {
       u: hu, face: 1, pose: 'soar', rot: HERO_ROT - k * 0.10, color: '#b48cff', alpha: 0.07 * (4 - k)
@@ -486,17 +489,18 @@ function _homeArtScene(ctx, W, H, t) {
   for (var n = 0; n < foes.length; n++) {
     var fo = foes[n];
     var drift = Math.sin(t * fo.sp + fo.ph) * 11 * u;
-    _homeArtFighter(ctx, W * fo.x - drift, bandY + H * fo.y + Math.sin(t * fo.sp * 1.3 + fo.ph) * 4 * u, {
+    _homeArtFighter(ctx, W * fo.x - drift, (v2 ? H * 0.21 : bandY) + H * fo.y + Math.sin(t * fo.sp * 1.3 + fo.ph) * 4 * u, {
       u: u * fo.s, face: -1, pose: fo.pose, rot: fo.rot, color: HUNTER, weapon: fo.w,
       alpha: Math.min(1, 0.50 + fo.s * 0.34), glow: 5
     });
   }
 
-  _homeArtFighter(ctx, heroX, heroY + Math.sin(t * 1.15) * 4 * u, {
+  if (!v2) _homeArtFighter(ctx, heroX, heroY + Math.sin(t * 1.15) * 4 * u, {
     u: hu, face: 1, pose: 'soar', rot: HERO_ROT, color: KAEL, weapon: 'sword', scarf: true, glow: 8, t: t
   });
 
-  // Lower scrim, last, so the hub cards read whatever sits behind them.
+  // Lower scrim, last, so the hub cards read whatever sits behind them. v2 draws its own.
+  if (v2) return true;
   var scrim = ctx.createLinearGradient(0, H * 0.34, 0, H * 0.66);
   scrim.addColorStop(0, 'rgba(6,4,12,0)');
   scrim.addColorStop(1, 'rgba(6,4,12,0.58)');

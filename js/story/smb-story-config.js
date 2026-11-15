@@ -233,8 +233,11 @@ const STORY_DIFFICULTIES = {
     name: 'Evolution', color: '#ff6644',
     tagline: 'Evolve or die. Permanent.',
     lines: ['Enemies are ten chapters ahead of you, faster and sharper', 'Expert bot intelligence', 'Enemies adapt to any move you repeat: vary your attacks',
-            'No beginner mercy', 'An extra enemy joins every duel', 'Double tokens', 'Can never be changed without wiping story progress'],
-    shift: 10, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1, cd: 0.88, speed: 1.08,
+            'No beginner mercy', 'An extra enemy joins every duel', 'Enemies have 25% more health and hit 15% harder',
+            'Shop and skill-tree damage and health bonuses are halved', 'Double tokens', 'Can never be changed without wiping story progress'],
+    // buffs: share of the shop / skill-tree / weapon-mastery damage and health bonuses the player keeps.
+    // At full strength they stack to ~2.4x damage, which made this tier easy for a levelled player.
+    shift: 10, hpCap: 1.25, dmgCap: 1, hp: 1.25, dmg: 1.15, buffs: 0.5, cd: 0.88, speed: 1.08,
     predict: 0.08, dodge: 0.06, ai: 'expert', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [160, 240], earlyHit: [17, 22], duelExtra: 1, reward: 2, atkSlots: 0, cpMarks: [0.5],
   },
 };
@@ -245,6 +248,7 @@ function _storyDifficulty() {
   return STORY_DIFFICULTIES[d] ? d : 'normal';
 }
 function _storyDiffCfg() { return STORY_DIFFICULTIES[_storyDifficulty()]; }
+function _storyBuffScale() { const b = _storyDiffCfg().buffs; return b === undefined ? 1 : b; }
 function _storyTokenReward(n) { return Math.round((n || 0) * (_storyDiffCfg().reward || 1)); }
 
 // Evolution: enemies build resistance to whichever move keeps hitting them. A move is
@@ -937,7 +941,7 @@ function _storyBuildShopItems() {
       key: 'meta_damage',
       icon: '⚔️',
       name: 'Damage Upgrade',
-      desc: 'Permanent +8% story damage. Cost scales each rank.',
+      desc: 'Permanent +' + Math.round(8 * _storyBuffScale()) + '% story damage. Cost scales each rank.',
       tokenCost: 28 + up.damage * 20,
       canBuy: () => up.damage < 6,
       buy() { up.damage++; },
@@ -946,7 +950,7 @@ function _storyBuildShopItems() {
       key: 'meta_survivability',
       icon: '🛡️',
       name: 'Survivability Upgrade',
-      desc: 'Permanent +10 max HP and minor damage reduction in Story Mode.',
+      desc: 'Permanent +' + Math.round(10 * _storyBuffScale()) + ' max HP and minor damage reduction in Story Mode.',
       tokenCost: 30 + up.survivability * 22,
       canBuy: () => up.survivability < 6,
       buy() { up.survivability++; },
@@ -1096,7 +1100,7 @@ function _applySkillTreeToPlayer(p) {
   if (p._storyNoDoubleJump !== undefined) p._storyNoDoubleJump = !sk.doubleJump;
   // HP bonus (stacking tiers)
   const wKey    = p.weaponKey || 'sword';
-  const hpBonus = (sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0) + _weaponMasteryHpBonus(wKey);
+  const hpBonus = Math.round(((sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0) + _weaponMasteryHpBonus(wKey)) * _storyBuffScale());
   if (hpBonus > 0) {
     p.maxHealth = (p.maxHealth || 100) + hpBonus;
     p.health    = Math.min(p.health + hpBonus, p.maxHealth);
@@ -1106,7 +1110,7 @@ function _applySkillTreeToPlayer(p) {
   const speedBonus = sk.fastMove3 ? 0.30 : sk.fastMove2 ? 0.20 : sk.fastMove1 ? 0.10 : 0;
   if (speedBonus > 0) p._storySpeedMult = 1.0 + speedBonus;
   const dmgBonus = sk.heavyHit2 ? 0.25 : sk.heavyHit1 ? 0.15 : 0;
-  if (dmgBonus > 0) p._storyDmgMult = 1.0 + dmgBonus;
+  if (dmgBonus > 0) p._storyDmgMult = 1.0 + dmgBonus * _storyBuffScale();
   // Skill flags (consumed by game systems already checking _story2.skillTree)
   p._skillImpactShield   = !!sk.impactShield;
   p._skillDimensionalPatch = !!sk.dimensionalPatch;

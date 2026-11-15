@@ -374,10 +374,11 @@ function _storyApplyFightStartBuffs() {
     if (p1 && !p1.isAI) {
       p1._story2BaseDmg = p1.dmgMult || 1;
       const meta = _story2.metaUpgrades || { damage: 0, survivability: 0, healUses: 0 };
-      p1.maxHealth += meta.survivability * 10;
+      const _bs = typeof _storyBuffScale === 'function' ? _storyBuffScale() : 1;   // Evolution keeps half
+      p1.maxHealth += Math.round(meta.survivability * 10 * _bs);
       p1.health = Math.min(p1.maxHealth, Math.max(1, Math.round(p1.maxHealth * _storyGetCarryHealthPct())));
-      p1.dmgMult = (p1.dmgMult || 1) * (1 + meta.damage * 0.08);
-      p1.damageReductionMult = Math.max(0.70, (p1.damageReductionMult || 1) - meta.survivability * 0.025);
+      p1.dmgMult = (p1.dmgMult || 1) * (1 + meta.damage * 0.08 * _bs);
+      p1.damageReductionMult = Math.max(0.70, (p1.damageReductionMult || 1) - meta.survivability * 0.025 * _bs);
       _applyStory2Abilities(p1);
       // Multiverse worlds: apply accumulated dimensional bonuses to the player
       if (typeof MultiverseScalingSystem !== 'undefined' && typeof MultiverseManager !== 'undefined') {

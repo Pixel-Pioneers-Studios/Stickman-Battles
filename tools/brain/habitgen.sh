@@ -10,6 +10,7 @@
 #
 # Usage: tools/brain/habitgen.sh [hours=3] [habits="masher,blocker,none"] [dir name=gen] [eval habits=habits]
 # Eval habits may include ones it never trained on (seq-test: cycles held out of seq-train).
+# Extra train.js flags: HABIT_TRAIN_ARGS="--twitchpen=0.008".
 # Waits for AC power first. Results: data/brain-habit/ceiling.log
 cd "$(dirname "$0")/../.." || exit 1
 HOURS=${1:-3}; HABITS=${2:-"masher,blocker,none"}
@@ -48,7 +49,7 @@ it0=$(iterof); t0=$SECONDS
 for try in 1 2 3; do
   left=$(echo "$HOURS - ($SECONDS - $t0) / 3600" | bc -l)
   [ $(echo "$left < 0.1" | bc) = 1 ] && break
-  node tools/brain/train.js --dir=$d --hunt=$d/target.json --habit=$HABITS --torch --threads=2 --workers=3 --hours=$left >> $d/train.out 2>&1
+  node tools/brain/train.js --dir=$d --hunt=$d/target.json --habit=$HABITS --torch --threads=2 --workers=3 --hours=$left $HABIT_TRAIN_ARGS >> $d/train.out 2>&1
   say "generalist stopped (try $try, iter $it0 -> $(iterof)): $(tail -1 $d/train.out)"
 done
 [ "$(iterof)" = "$it0" ] && { say "generalist never trained (iter still $it0), skipping evals"; exit 1; }
