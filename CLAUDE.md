@@ -85,6 +85,7 @@ All docs are in `docs/`.
 | [docs/implementation-checklist.md](docs/implementation-checklist.md) | Step-by-step refactor checklist — execute in order, test after each step |
 | [docs/refactoring-plan.md](docs/refactoring-plan.md) | Globals-based modularity patterns; which files are too large and how to split them |
 | [docs/sovereign.md](docs/sovereign.md) | Sovereign hub: what ships, every experiment and its numbers, settled conclusions. Add a row after every Sovereign run or fight |
+| [docs/god-of-war-plan.md](docs/god-of-war-plan.md) | Draft plan for connected realms + dungeons: what's remade vs reused, vertical slice, open decisions |
 | [docs/gameplay-notes.md](docs/gameplay-notes.md) | Playtested feel: combat pacing, boss difficulty, adaptive AI goals, story onboarding, online state |
 
 ---
