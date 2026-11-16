@@ -43,6 +43,9 @@ function _exploreRemainingFoes() {
 // The level's own objective as a reason string, or null when nothing is outstanding.
 // This makes 'retrieve the caches' a real requirement, not set dressing.
 function _exploreObjectivePending() {
+  // A story realm (smb-realm.js) can hold the exit until something in its side rooms is done.
+  const _realmNeed = typeof realmExitBlocker === 'function' ? realmExitBlocker() : null;
+  if (_realmNeed) return _realmNeed;
   if (typeof scavengeModeActive !== 'undefined' && scavengeModeActive &&
       typeof scavengeItems !== 'undefined' && scavengeItems && scavengeItems.length) {
     const left = scavengeItems.filter(s => !s.collected).length;

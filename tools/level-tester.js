@@ -323,7 +323,30 @@ async function runAttempt(browser, ch, attempt) {
         if (typeof realmActive === 'undefined' || !realmActive || realmHost !== 'story' || !realmSave) return [];
         return _realmStoryGates().filter(g => !realmGateOpen(g));
       }
+      // Dungeon route (a realm holding the chapter exit): in a room, fight, then burn, then the next door on the
+      // def's route (or the way out after the last room); outside, the entrance into its first room.
+      function realmDungeonWaypoint(h) {
+        if (typeof realmExitBlocker !== 'function' || !realmExitBlocker() || realmFade !== 0) return null;
+        const def = REALM_DEFS[realmKey], save = realmSave;
+        if (!realmRoomKey) {
+          const first = def.route ? def.route[0] : null;
+          const ent = _realmStoryEntrances().find(e => e.room === first && !(e.oneWay && !save.flags['open_' + e.id]));
+          return ent ? { x: ent.x, y: null, act: true } : null;
+        }
+        if (_realmRoomFoesAlive() || _realmCharge) return null;
+        const R = def.rooms[realmRoomKey];
+        const b = (R.burn || []).find(q => !save.flags['burn_' + q.id]);
+        if (b) return { x: b.x, y: null, act: true };
+        const i = (def.route || []).indexOf(realmRoomKey);
+        const nextRoom = def.route && def.route[i + 1];
+        const d = (R.doors || []).find(q => q.to && (nextRoom ? q.to[0] === nextRoom : q.to[0] === '@main' && q.id !== 'in'));
+        if (!d) return null;
+        if (d.kind === 'edge') return { x: d.side === 'l' ? -40 : R.w + 40, y: null };
+        return { x: d.x, y: null, act: true };
+      }
       function realmWaypoint(h) {
+        const dw = realmDungeonWaypoint(h);
+        if (dw) return dw;
         const gates = realmClosedGates();
         if (!gates.length || realmFade !== 0) return null;
         const g = gates[0], save = realmSave, rooms = REALM_DEFS[realmKey].rooms;

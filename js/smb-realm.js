@@ -10,6 +10,10 @@
 //         or up a ladder; the art says which.
 //   drop  x0..x1, a hole in the floor. Fall through it to the room below.
 //   fall  x. Arrival only: where a drop lands you, from above.
+// foes: [{ x, name, weaponKey, classKey, aiDiff, color, health, armor }] spawn on entry until the room is clear;
+// every door in the room stays shut while any of them stands (story host). burn: [{ id, x, art, line }] are
+// machines destroyed with F (a charge, then fire); burning one sets flag 'burn_<id>'. A door with needs only
+// opens once that flag is set. say: a line shown on entry.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
 // wall (back-wall colour).
@@ -81,6 +85,73 @@ const REALM_DEFS = {
       },
     },
   },
+  // The trial wing (story id 69, "What the Lab Taught"): the chapter text has Kael and Calix burn it in order,
+  // intake, the columns, the rig, the data core last. Here they do it room by room.
+  trialwing: {
+    name: 'The Trial Wing',
+    theme: 'storyLab',
+    start: { room: 'intake', door: 'in' },
+    route: ['intake', 'columns', 'rig', 'core'],
+    rooms: {
+      intake: {
+        name: 'Intake', gx: 0, gy: 0, w: 1200, back: true, wall: '#242b2a',
+        say: 'Calix: "Intake first. This is where they logged us in."',
+        ledges: [[300, 440, 160], [620, 400, 140]],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'labdoor', to: ['@main', 'wing'] },
+          { id: 'next', kind: 'edge', side: 'r', needs: 'burn_intake', to: ['columns', 'in'] },
+        ],
+        foes: [
+          { x: 760, name: 'Intake Drone', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#446688' },
+          { x: 980, name: 'Intake Drone', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#445577' },
+        ],
+        burn: [{ id: 'intake', x: 1000, art: 'terminal', line: 'The intake logs go up first.' }],
+      },
+      columns: {
+        name: 'Stasis Columns', gx: 1, gy: 0, w: 1400, back: true, wall: '#22302c',
+        say: 'Calix: "The columns. Don\'t read the labels."',
+        ledges: [[260, 430, 150], [600, 360, 200], [1000, 430, 150]],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['intake', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', needs: 'burn_columns', to: ['rig', 'in'] },
+        ],
+        foes: [
+          { x: 700, name: 'Facility Drone', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#446688' },
+          { x: 900, name: 'Facility Drone', weaponKey: 'axe', classKey: 'warrior', aiDiff: 'hard', color: '#445577' },
+          { x: 1150, name: 'Column Warden', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#334466', health: 150, armor: ['helmet'] },
+        ],
+        burn: [{ id: 'columns', x: 1180, art: 'columns', line: 'The columns crack and go dark, one after another.' }],
+      },
+      rig: {
+        name: 'The Trial Rig', gx: 2, gy: 0, w: 1300, back: true, wall: '#2a2a30', dark: 0.2,
+        say: 'Calix: "The rig. It tested both of mine against each other. Twice."',
+        ledges: [[280, 420, 160], [860, 420, 160]],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['columns', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', needs: 'burn_rig', to: ['core', 'in'] },
+        ],
+        foes: [
+          { x: 820, name: 'Rig Handler', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', color: '#3a3f55', health: 140 },
+          { x: 1040, name: 'Rig Handler', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', color: '#2f3448', health: 140 },
+        ],
+        burn: [{ id: 'rig', x: 640, art: 'rig', line: 'The rig tears itself apart in the heat.' }],
+      },
+      core: {
+        name: 'Data Core', gx: 3, gy: 0, w: 1100, back: true, wall: '#1c2228', dark: 0.3,
+        say: 'Calix: "Data core last. Everything they learned is in there."',
+        ledges: [[240, 420, 150], [700, 420, 150]],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['rig', 'next'] },
+          { id: 'out', kind: 'arch', x: 1000, art: 'labdoor', needs: 'burn_core', to: ['@main', 'coreExit'] },
+        ],
+        foes: [
+          { x: 760, name: 'Trial Overseer', weaponKey: 'scythe', classKey: 'warrior', aiDiff: 'expert', color: '#5a2a55', health: 260, armor: ['helmet', 'chestplate'] },
+        ],
+        burn: [{ id: 'core', x: 520, art: 'core', line: 'The core burns. Everything this place learned goes with it.' }],
+      },
+    },
+  },
+
   // Side rooms of the Abandoned Research Facility (story ids 66-69). Entrances live in REALM_STORY.facility.
   facility: {
     name: 'Abandoned Research Facility',
@@ -109,8 +180,20 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  // exitNeeds: the chapter's exit stays sealed until that flag is set (exitReason is the sealed-exit text).
+  trialwing: {
+    chapters: [69],
+    exitNeeds: { 69: 'burn_core' },
+    exitReason: 'the trial wing still stands',
+    entrances: [
+      { id: 'wing', ch: 69, x: 3400, art: 'labdoor', room: 'intake', door: 'in' },
+      { id: 'coreExit', ch: 69, x: 5150, art: 'labdoor', room: 'core', door: 'out', oneWay: true,
+        lockedText: 'Sealed from the other side.' },
+    ],
+    gates: [],
+  },
   facility: {
-    chapters: [66, 67, 68, 69],
+    chapters: [66, 67, 68],
     entrances: [
       { id: 'supply',  ch: 66, x: 1000, art: 'labdoor', room: 'supply',  door: 'out' },
       { id: 'records', ch: 67, x: 470,  art: 'labdoor', room: 'records', door: 'in',
@@ -157,6 +240,10 @@ const REALM_SHOP_WARN = [
 ];
 const REALM_SHOP_KILL_LINE = 'I did warn you.';
 const REALM_SHOP_KILL_F = 70;   // frames of the lantern going out; the killing starts halfway
+var _realmFoesRoom = null;      // room whose enemies are out; dead enemies leave minions[], so this remembers it
+var _realmCharge = null;        // { room, id, t } a planted charge counting down
+const REALM_CHARGE_F = 110;
+var _realmSealNag = 0;
 var _realmShopHits = 0;
 var _realmShopKill = 0;         // >0 while he is killing you
 var _realmPrevAtk = 0, _realmPrevAbil = 0;
@@ -350,7 +437,12 @@ function realmInteract() {
   if (!realmActive || !p || p.health <= 0 || realmFade !== 0 || !_realmNear) return false;
   if (realmHost === 'story' && !realmRoomKey) return _realmStoryInteract(p);
   if (_realmNear.kind === 'chest') { _realmOpenChest(_realmNear.ref, p); return true; }
-  if (_realmNear.kind === 'arch') { _realmGo(_realmNear.ref.to); return true; }
+  if (_realmNear.kind === 'burn') { _realmPlantCharge(_realmNear.ref); return true; }
+  if (_realmNear.kind === 'arch') {
+    var shut = _realmDoorShut(_realmNear.ref);
+    if (shut) { _realmTell(shut, '#ff7766'); return true; }
+    _realmGo(_realmNear.ref.to); return true;
+  }
   if (_realmNear.kind === 'npc' && _realmNear.ref.kind === 'shop' && typeof openShopFromWorld === 'function') { openShopFromWorld(); return true; }
   return false;
 }
@@ -374,6 +466,13 @@ function _realmFindNear(p) {
     var d = Math.abs(p.cx() - n.x);
     if (d < 70 && Math.abs(feet - REALM_FLOOR_Y) < 30) { best = { kind: 'npc', ref: n }; bestD = d; }
   });
+  if (!_realmRoomFoesAlive() && !_realmCharge) {
+    (R.burn || []).forEach(function (b) {
+      if (realmSave.flags['burn_' + b.id]) return;
+      var d = Math.abs(p.cx() - b.x);
+      if (d < 70 && Math.abs(feet - REALM_FLOOR_Y) < 30) { best = { kind: 'burn', ref: b }; bestD = d; }
+    });
+  }
   return best;
 }
 
@@ -432,11 +531,18 @@ function updateRealm() {
     if (!d.to) continue;
     if (d.kind === 'edge') {
       var out = d.side === 'l' ? p.x <= REALM_EDGE_ZONE : p.x + p.w >= R.w - REALM_EDGE_ZONE;
-      if (out) { _realmGo(d.to); return; }
+      if (out) {
+        var shut = _realmDoorShut(d);
+        if (!shut) { _realmGo(d.to); return; }
+        p.x = d.side === 'l' ? REALM_EDGE_ZONE + 2 : R.w - REALM_EDGE_ZONE - p.w - 2;
+        if (frameCount - _realmSealNag > 150) { _realmSealNag = frameCount; _realmTell(shut, '#ff7766'); }
+      }
     } else if (d.kind === 'drop') {
       if (feet > REALM_FLOOR_Y + 60 && p.cx() > d.x0 && p.cx() < d.x1) { _realmGo(d.to); return; }
     }
   }
+  _realmRoomFoesTick(R);
+  _realmChargeTick(R);
   _realmNear = _realmFindNear(p);
 
   // The shopkeeper speaks once each time you come into his room and walk near him.
@@ -655,6 +761,7 @@ function drawRealmWorld() {
     }
   });
   var p = players[0];
+  (R.burn || []).forEach(function (b) { _realmDrawBurnTarget(b); });
   (R.npcs || []).forEach(function (n) { _realmDrawShopkeeper(n, p); });
   if (_realmSay) {
     var a = _realmSay.t < 20 ? _realmSay.t / 20 : _realmSay.t > 230 ? (260 - _realmSay.t) / 30 : 1;
@@ -674,12 +781,62 @@ function drawRealmWorld() {
     if (_realmNear.kind === 'npc') ny = REALM_FLOOR_Y;
     var isItem = _realmNear.kind === 'chest' && n.gives && n.gives.indexOf('item:') === 0;
     var py = _realmNear.kind === 'npc' ? ny - 168 : isItem ? ny - 84 : _realmNear.kind === 'chest' ? ny - 54 : n.art === 'hatch' ? ny - 80 : n.art === 'ladder' ? ny - 130 : ny - REALM_ARCH_H - 34;
-    var verb = _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
+    if (_realmNear.kind === 'burn') { ny = REALM_FLOOR_Y; py = ny - 190; }
+    var verb = _realmNear.kind === 'burn' ? 'Burn' : _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
     ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(n.x - 34, py - 14, 68, 20);
     ctx.fillStyle = '#ffd27a';
     ctx.fillText('F  ' + verb, n.x, py);
+  }
+  ctx.restore();
+}
+
+// Trial-wing machines. Burned ones stay as black frames with fire along them; a planted charge blinks on the base.
+function _realmDrawBurnTarget(b) {
+  var f = typeof frameCount !== 'undefined' ? frameCount : 0;
+  var x = b.x, g = REALM_FLOOR_Y;
+  var burned = realmSave && realmSave.flags['burn_' + b.id];
+  var body = burned ? '#141010' : '#2c3438', edge = burned ? '#3a2018' : '#5a6a70';
+  ctx.save();
+  if (b.art === 'columns') {
+    for (var k = -1; k <= 1; k++) {
+      var cx = x + k * 70;
+      ctx.fillStyle = body; ctx.fillRect(cx - 24, g - 20, 48, 20); ctx.fillRect(cx - 24, g - 230, 48, 16);
+      ctx.fillStyle = burned ? 'rgba(40,20,10,0.6)' : 'rgba(120,220,200,0.28)';
+      ctx.fillRect(cx - 18, g - 214, 36, 194);
+      ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.strokeRect(cx - 18, g - 214, 36, 194);
+    }
+  } else if (b.art === 'rig') {
+    ctx.fillStyle = body; ctx.fillRect(x - 90, g - 200, 14, 200); ctx.fillRect(x + 76, g - 200, 14, 200); ctx.fillRect(x - 90, g - 210, 180, 16);
+    ctx.strokeStyle = edge; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(x - 76, g - 150); ctx.lineTo(x - 20, g - 110); ctx.moveTo(x + 76, g - 150); ctx.lineTo(x + 20, g - 110); ctx.stroke();
+    ctx.fillStyle = body; ctx.fillRect(x - 30, g - 24, 60, 24);
+  } else if (b.art === 'core') {
+    ctx.fillStyle = body; ctx.fillRect(x - 60, g - 260, 120, 260);
+    for (var row = 0; row < 10; row++) {
+      ctx.fillStyle = burned ? '#2a1a12' : ((row + Math.floor(f / 8)) % 3 ? '#2a6a8a' : '#7fd8ff');
+      ctx.fillRect(x - 46, g - 244 + row * 24, 92, 10);
+    }
+  } else {
+    ctx.fillStyle = body; ctx.fillRect(x - 70, g - 70, 140, 70); ctx.fillRect(x - 50, g - 150, 100, 70);
+    ctx.fillStyle = burned ? '#1a1210' : '#3a9a7a'; ctx.fillRect(x - 42, g - 142, 84, 54);
+  }
+  if (burned) {
+    for (var i = 0; i < 6; i++) {
+      var fx = x - 60 + i * 24, fl = 18 + 14 * Math.sin(f * 0.21 + i * 1.7);
+      ctx.fillStyle = 'rgba(255,' + (120 + (i * 23) % 80) + ',40,' + (0.55 + 0.25 * Math.sin(f * 0.3 + i)) + ')';
+      ctx.beginPath(); ctx.moveTo(fx - 8, g); ctx.quadraticCurveTo(fx, g - fl * 2, fx + 8, g); ctx.fill();
+    }
+    var glow = ctx.createRadialGradient(x, g - 60, 10, x, g - 60, 220);
+    glow.addColorStop(0, 'rgba(255,120,40,0.18)'); glow.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = glow; ctx.fillRect(x - 220, g - 280, 440, 300);
+  }
+  if (_realmCharge && _realmCharge.id === b.id && _realmCharge.room === realmRoomKey) {
+    var on = Math.floor(_realmCharge.t / (_realmCharge.t < 40 ? 4 : 10)) % 2 === 0;
+    ctx.fillStyle = '#1a1a1a'; ctx.fillRect(x - 10, g - 14, 20, 14);
+    ctx.fillStyle = on ? '#ff3322' : '#551510';
+    ctx.beginPath(); ctx.arc(x, g - 18, 4, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 }
@@ -932,8 +1089,12 @@ function _realmStoryEnterRoom(roomKey, doorId) {
   if (!R || !p) return;
   if (!realmRoomKey) {
     _realmStash = { arena: currentArena, minions: minions.splice(0), projectiles: projectiles, spawnX: p.spawnX, spawnY: p.spawnY };
-    projectiles = [];
+  } else {
+    minions.length = 0;   // the room you left was clear, or its door would not have opened
   }
+  projectiles = [];
+  _realmCharge = null;
+  _realmFoesRoom = null;
   realmRoomKey = roomKey;
   ARENAS.__realmroom__ = realmMakeArena(roomKey);
   currentArena = ARENAS.__realmroom__;
@@ -952,6 +1113,76 @@ function _realmStoryEnterRoom(roomKey, doorId) {
   _realmShopHits = 0; _realmShopKill = 0;
   realmBanner = 120;
   _realmStore();
+  if (R.say && !realmSave.flags['said_' + roomKey]) {
+    realmSave.flags['said_' + roomKey] = true;
+    _realmTell(R.say, '#aaddff');
+  }
+  _realmSpawnRoomFoes(roomKey, R, p);
+}
+
+// Room enemies come back until the room is cleared once; a cleared room stays clear.
+function _realmSpawnRoomFoes(roomKey, R, p) {
+  if (!R.foes || !R.foes.length || realmSave.flags['clear_' + roomKey] || typeof _exploreSpawnEnemy !== 'function') return;
+  R.foes.forEach(function (f) {
+    _exploreSpawnEnemy({ wx: f.x, exactX: f.x, name: f.name, weaponKey: f.weaponKey, classKey: f.classKey,
+      aiDiff: f.aiDiff, color: f.color, health: f.health, armor: f.armor, isElite: !!f.health }, p);
+    var m = minions[minions.length - 1];
+    if (m) { m._realmRoom = roomKey; m._aiHoldUntil = frameCount + 60; }
+  });
+  _realmFoesRoom = roomKey;
+}
+
+function _realmRoomFoesAlive() {
+  if (!realmRoomKey) return false;
+  return minions.some(function (m) { return m._realmRoom === realmRoomKey && m.health > 0; });
+}
+
+function _realmRoomFoesTick(R) {
+  if (!R.foes || !R.foes.length || realmSave.flags['clear_' + realmRoomKey]) return;
+  if (_realmFoesRoom !== realmRoomKey || _realmRoomFoesAlive()) return;
+  _realmFoesRoom = null;
+  realmSave.flags['clear_' + realmRoomKey] = true;
+  _realmStore();
+  var b = (R.burn || [])[0];
+  _realmTell(b && !realmSave.flags['burn_' + b.id] ? 'Room clear. Plant the charge.' : 'Room clear.', '#88ffcc');
+}
+
+// Why a door will not open, or null. Live enemies seal every door in the room.
+function _realmDoorShut(d) {
+  if (_realmRoomFoesAlive()) return 'Sealed. Not with enemies still standing.';
+  if (d.needs && !realmSave.flags[d.needs]) return d.needs.indexOf('burn_') === 0 ? 'Sealed. Burn this room first.' : (d.lockedText || 'Sealed.');
+  return null;
+}
+
+function _realmPlantCharge(b) {
+  if (_realmCharge || realmSave.flags['burn_' + b.id]) return;
+  _realmCharge = { room: realmRoomKey, id: b.id, t: REALM_CHARGE_F };
+  _realmTell('Charge set. Get clear.', '#ffb070');
+}
+
+function _realmChargeTick(R) {
+  if (!_realmCharge || _realmCharge.room !== realmRoomKey) return;
+  if (--_realmCharge.t > 0) return;
+  var b = (R.burn || []).find(function (q) { return q.id === _realmCharge.id; });
+  _realmCharge = null;
+  if (!b) return;
+  realmSave.flags['burn_' + b.id] = true;
+  _realmStore();
+  if (typeof spawnParticles === 'function') {
+    spawnParticles(b.x, REALM_FLOOR_Y - 80, '#ff8a2a', 40);
+    spawnParticles(b.x, REALM_FLOOR_Y - 120, '#ffd27a', 24);
+    spawnParticles(b.x, REALM_FLOOR_Y - 60, '#3a2a20', 30);
+  }
+  if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 16);
+  _realmTell(b.line, '#ffb070');
+}
+
+// Story: the chapter's exit waits on a realm flag (REALM_STORY[key].exitNeeds). Read by _exploreObjectivePending.
+function realmExitBlocker() {
+  if (!realmActive || realmHost !== 'story' || !realmSave) return null;
+  var d = REALM_STORY[realmKey];
+  var need = d && d.exitNeeds && d.exitNeeds[_realmStoryChId];
+  return need && !realmSave.flags[need] ? (d.exitReason || 'something is left undone') : null;
 }
 
 function _realmStoryReturn(entranceId) {
@@ -968,6 +1199,7 @@ function _realmStoryReturn(entranceId) {
   }
   realmRoomKey = null;
   _realmSay = null;
+  _realmFoesRoom = null; _realmCharge = null;
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   if (e && e.oneWay && !realmSave.flags['open_' + e.id]) {
     realmSave.flags['open_' + e.id] = true;
