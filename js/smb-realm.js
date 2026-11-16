@@ -143,7 +143,7 @@ const REALM_DEFS = {
         chests: [{ id: 'spoils', x: 775, y: 420, gives: 'tokens:50' }],
         doors: [
           { id: 'in', kind: 'edge', side: 'l', to: ['rig', 'next'] },
-          { id: 'out', kind: 'arch', x: 1000, art: 'labdoor', needs: 'burn_core', to: ['@main', 'coreExit'] },
+          { id: 'out', kind: 'edge', side: 'r', needs: 'burn_core', to: ['@main', 'coreExit'] },
         ],
         foes: [
           { x: 760, name: 'Trial Overseer', weaponKey: 'scythe', classKey: 'warrior', aiDiff: 'hard', color: '#5a2a55', health: 200, armor: ['helmet'] },

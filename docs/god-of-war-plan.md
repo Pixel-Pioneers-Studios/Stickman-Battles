@@ -78,6 +78,8 @@ Your chapter 70 (registry id 69, "What the Lab Taught"). The chapter text always
 
 New realm room fields: `foes`, `burn`, `say`, door `needs`. Documented at the top of smb-realm.js.
 
+Balance (brain 20011, Normal, --progress=auto): first build was too harsh (the finale's lives pool had to cover the duel plus four rooms; 0/2, died in Intake and the Rig). Rebalanced: lighter room foes, the Overseer at 200 HP with a helmet only, and each burn heals 35% (the dungeon's health stone). The Data Core's way out is now its right edge (the pilot stalled in front of an F door). After that: a full clear in 193 s; the losses all came in the chapter's original lockdown duel, before the wing. Chests: Records Office +30 tokens, Stasis Columns high-ledge cache +60 EXP, Data Core +50 tokens.
+
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
 
 The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.
