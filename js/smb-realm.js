@@ -188,8 +188,9 @@ function _realmStore() {
   try { localStorage.setItem('smb_realm_' + realmKey, JSON.stringify(copy)); } catch (e) {}
 }
 
-// Console: realmReset() starts the realm over.
-function realmReset() {
+// Console: realmReset() starts the current realm over; realmReset('facility') resets that one (account and local copy).
+function realmReset(key) {
+  if (key && REALM_DEFS[key]) realmKey = key;
   try { localStorage.removeItem('smb_realm_' + realmKey); } catch (e) {}
   realmSave = { checkpoint: { room: _realmDef().start.room, door: _realmDef().start.door }, looted: {}, visited: {} };
   _realmStore();

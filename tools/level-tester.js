@@ -19,6 +19,7 @@
  *   --out         output dir                     (default data/level-test/<stamp>)
  *   --headful     show the browser
  *   --shots       also screenshot every N seconds (debugging a chapter)
+ *   --startup     flat swing startup in frames for all non-boss fighters (0 = pre-Nov 10 behaviour)
  *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
  *                 net that drives the shipped Sovereign fight, pressing virtual keys)
  *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/latest.json)
@@ -67,6 +68,8 @@ const STALL_S    = parseInt(args.stall, 10) || 45;
 const PORT       = parseInt(args.port, 10) || 8131;
 const HEADFUL    = !!args.headful;
 const SHOTS_S    = parseInt(args.shots, 10) || 0;
+// --startup=N: flat swing startup for every non-boss fighter (SIM_SWING_STARTUP); 0 = hits land on frame 1 as before Nov 10.
+const STARTUP    = args.startup != null ? parseInt(args.startup, 10) : null;
 const CP_RETRIES = parseInt(args.cpretries, 10) || 0;
 const PILOT      = args.pilot === 'brain' ? 'brain' : 'cascade';
 
@@ -171,6 +174,7 @@ async function bootPage(browser) {
     ['prologueOverlay', 'storyPrologueOverlay', 'storyIntroOverlay', 'storyUnlockOverlay', 'storyDifficultyOverlay']
       .forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
   });
+  if (STARTUP != null) await page.evaluate(n => { window.SIM_SWING_STARTUP = n; }, STARTUP);
   await sleep(400);
   return { ctx, page, errors, consoleErrors };
 }
@@ -724,7 +728,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
   if (misaligned.length) console.warn(`[lt] ${misaligned.length} chapters have id != index; using id`);
   const pick = parseChapters(args.chapters, all.length - 1);
   const chapters = pick ? all.filter(c => pick.includes(c.id)) : all;
-  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT} · ${PARALLEL} parallel · out ${OUT}`);
+  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT}${STARTUP != null ? ' · startup ' + STARTUP : ''} · ${PARALLEL} parallel · out ${OUT}`);
 
   const jobs = [];
   const rows = new Map();
