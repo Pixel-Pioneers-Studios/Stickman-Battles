@@ -653,7 +653,8 @@ function _launchChapter2Fight(ch) {
   }
 
   // Boss fight: show a cinematic intro first (async, delays startGame). A checkpoint retry goes straight back in.
-  if (ch.isBossFight && !(typeof storyBossCpResuming === 'function' && storyBossCpResuming(ch))) {
+  // The Axiom encounter skips it: its own scene already set it up, and the card names the Creator.
+  if (ch.isBossFight && !ch._axiomTeaser && !(typeof storyBossCpResuming === 'function' && storyBossCpResuming(ch))) {
     if (typeof triggerEvent === 'function') triggerEvent('BOSS_INTRO', { ch }, true);
     const _bossCinDuration = 7800;
     // Single pending launch only: clicking Retry inside the 7.8s window used to
@@ -824,6 +825,7 @@ function _launchChapter2FightImmediate(ch) {
     const _chOrigId = ch._origId !== undefined ? ch._origId : ch.id;
     let _obj;
     if (ch.isTrueFormFight)  _obj = 'Defeat Cosmic Axiom';
+    else if (ch._axiomTeaser) _obj = 'Face Axiom';
     else if (ch.isBossFight) _obj = ch.bossType === 'fallen_god' ? 'Defeat the Fallen God' : 'Defeat the Creator';
     else if (ch.isSovereignFight) _obj = 'Defeat the Sovereign';
     else if (ch.isAbsoluteAxiomFight) _obj = 'Defeat Absolute Axiom';
@@ -945,13 +947,15 @@ function _launchChapter2FightImmediate(ch) {
   if (ch.trial) _storyArmTrial(ch);
   else if (typeof resetTrialState === 'function') resetTrialState();
 
-  // Axiom teaser (ch63): recolor the boss, skip threshold cinematics, 1 life.
+  // Axiom teaser: Axiom in his Creator form (canon: the outer shell). Recolor, skip threshold cinematics, 1 life.
   if (ch._axiomTeaser) {
+    _axiomForcedPlayerLoss = false; _axiomNextStrike = 0;
     setTimeout(() => {
       if (!gameRunning) return;
       const _axiomBoss = players && players.find(p => p && p.isBoss);
       if (_axiomBoss) {
         _axiomBoss.color = '#cc44ff';
+        _axiomBoss.name  = 'Axiom';
         if (_axiomBoss._cinematicFired) {
           ['75','paradox50','40','10','phase2','phase3','rage','desp','warn'].forEach(k => _axiomBoss._cinematicFired.add(k));
         }

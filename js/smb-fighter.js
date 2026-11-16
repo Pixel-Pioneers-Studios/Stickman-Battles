@@ -3146,7 +3146,10 @@ class Fighter {
       if (settings.screenShake) screenShake = Math.max(screenShake, hitCount > 0 ? 18 : 7);
       return;
     }
-    const _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0) || minions.find(m => m.health > 0);
+    let _safeTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this && p.health > 0) || minions.find(m => m.health > 0);
+    // Alone: a player's Q still fires, aimed at a point ahead. Weapon abilities and move scenes only measure
+    // distance to the target and write plain fields on it; dealDamage ignores the stand-in.
+    if (!_safeTarget && !this.isAI) _safeTarget = _abilityStandIn(this);
     if (!_safeTarget) return; // no valid target. Avoids a null crash in weapon ability functions.
     if (!this.weapon || typeof this.weapon.ability !== 'function') return; // weapon not loaded yet
     this._abilityCdOverride = null;
@@ -8008,4 +8011,14 @@ class Fighter {
       ctx.restore();
     }
   }
+}
+
+// A target-shaped point 250 px ahead of a fighter, for an ability used with nobody around.
+function _abilityStandIn(f) {
+  return {
+    _abilityStandIn: true, isAI: true, x: f.cx() + f.facing * 250 - 11, y: f.y, w: 22, h: f.h,
+    vx: 0, vy: 0, health: 1, maxHealth: 1, facing: -f.facing, onGround: true,
+    stunTimer: 0, ragdollTimer: 0, hurtTimer: 0, attackTimer: 0, invincible: 0,
+    cx() { return this.x + this.w / 2; }, cy() { return this.y + this.h / 2; },
+  };
 }

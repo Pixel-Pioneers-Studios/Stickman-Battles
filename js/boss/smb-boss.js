@@ -138,8 +138,23 @@ class Boss extends Fighter {
   }
 
   // Phase-based, more aggressive, respects the shield cooldown.
+  // The Axiom encounter (story _axiomTeaser): he faces you and does nothing, except swat you off when you crowd him.
+  _teaserCalmAI() {
+    const t = players.find(p => p !== this && !p.isBoss && p.health > 0);
+    this.vx *= 0.8;
+    if (!t) return;
+    this.facing = t.cx() < this.cx() ? -1 : 1;
+    const close = Math.abs(t.cx() - this.cx()) < 110 && Math.abs(t.cy() - this.cy()) < 120;
+    if (close && frameCount >= (this._teaserSwatAt || 0)) {
+      this._teaserSwatAt = frameCount + 220;
+      dealDamage(this, t, 1, 22);
+      if (typeof spawnParticles === 'function') spawnParticles(t.cx(), t.cy(), '#cc44ff', 10);
+    }
+  }
+
   updateAI() {
     if (activeCinematic || gameFrozen) return; // freeze during cinematics and freeze frames
+    if (this._teaserCalm) { this._teaserCalmAI(); return; }
 
     // Watchdog: bossTeleport's setTimeouts can bail if gameRunning flickers, which
     // would strand an invisible boss. Force-restore after the 2.5 s hide window.

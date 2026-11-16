@@ -59,6 +59,9 @@ Your chapters 67-70 (registry ids 66-69). `REALM_STORY.facility` + `REALM_DEFS.f
 - The standalone Realm mode is off the home list; it stays reachable from the console (`selectMode('realm')`) as a room test bed.
 
 Level tester: the walker now routes realm gates from the realm's own data (`realmWaypoint` in `tools/level-tester.js`): terminal, else the door to the room holding the needed item, the item, then out by the door nearest the gate, pressing F through the real key handler. Foes behind a closed gate are not targets. Results print `realm F xN [flags]`. Nov 15, brain 20011, ch67: 1 of 2 cleared, both attempts opened the gate (5 presses each); the loss was the fight after.
+- No hit crosses a closed gate (swings, Q/E, projectiles, both ways): `realmBlocksHit`, checked in `dealDamage`. Added Nov 15 after the user hit the guard through the door.
+- Shopkeeper: hitting him (a swing or Q started next to him, facing him) gets two warnings, then the lantern goes out and he kills you (a real death; costs a life in story). Counter resets each time you enter his room.
+- Q with no one around now fires for players (`_abilityStandIn` in smb-fighter.js aims it 250 px ahead; dealDamage ignores the stand-in). All 29 player weapons checked; bomb and knives behave as designed (aim-then-throw, recall with nothing out).
 - Closed gates also hold the player on the near side every frame: Q/E move scenes set position directly and skip collision, and the brain lunged through the door at the guard before this. Pre-existing, not from this work: ch67's floor has 20 px steps (x 900, x 2000) that must be jumped, and walk-fight chapters' timed fight lines play while you walk (including inside rooms).
 
 ## Design decisions (Nov 15, after step 1)

@@ -150,6 +150,16 @@ var _realmNear   = null;   // { kind: 'arch'|'chest'|'npc', ref } the F prompt p
 var _realmSay    = null;   // { npc, text, t } a line the shopkeeper is saying
 var _realmSaidIn = null;   // room key the shopkeeper last greeted you in
 var _realmSayIdx = 0;
+// Hitting the shopkeeper: two warnings, then he ends you. He never moves; the lantern goes out instead.
+const REALM_SHOP_WARN = [
+  'Careful. I only deal in tokens.',
+  'That is twice. There will not be a third.',
+];
+const REALM_SHOP_KILL_LINE = 'I did warn you.';
+const REALM_SHOP_KILL_F = 70;   // frames of the lantern going out; the killing starts halfway
+var _realmShopHits = 0;
+var _realmShopKill = 0;         // >0 while he is killing you
+var _realmPrevAtk = 0, _realmPrevAbil = 0;
 const REALM_SHOP_LINES = [
   'You again. Or the first time. It is hard to tell with you.',
   'Everything here was left behind by someone. Now it is for sale.',
@@ -260,6 +270,7 @@ function _realmEnterRoom(roomKey, doorId) {
   realmSave.visited[roomKey] = true;
   _realmSaidIn = null;
   _realmSay = null;
+  _realmShopHits = 0; _realmShopKill = 0;
   realmSave.room = roomKey;
   if (door.checkpoint) {
     var was = realmSave.checkpoint;
@@ -435,6 +446,39 @@ function updateRealm() {
     _realmSaidIn = realmRoomKey;
     _realmSay = { npc: n, text: REALM_SHOP_LINES[_realmSayIdx++ % REALM_SHOP_LINES.length], t: 0 };
   });
+  _realmShopTick(p, R);
+}
+
+// A swing or Q started next to the shopkeeper, facing him, counts as hitting him.
+function _realmShopTick(p, R) {
+  var n = (R.npcs || []).find(function (q) { return q.kind === 'shop'; });
+  var atk = p.attackTimer || 0, abil = p.abilityCooldown || 0;
+  var started = (atk > 0 && _realmPrevAtk === 0) || (abil > _realmPrevAbil + 1);
+  _realmPrevAtk = atk; _realmPrevAbil = abil;
+  if (!n) return;
+  if (_realmShopKill > 0) {
+    _realmShopKill--;
+    p.shielding = false;
+    // The lantern is out by now. Damage with no attacker is capped at 14 a frame, so it runs until he is done.
+    if (_realmShopKill < REALM_SHOP_KILL_F / 2 && p.health > 0 && typeof dealDamage === 'function') {
+      // Each hit grants i-frames; his blows land through them.
+      p.invincible = 0;
+      dealDamage(null, p, 14, 0, 1, false, 0);
+    }
+    if (p.health <= 0) { _realmShopKill = 0; _realmShopHits = 0; }
+    return;
+  }
+  var dx = n.x - p.cx();
+  if (!started || Math.abs(dx) > 100 || (Math.abs(dx) > 24 && Math.sign(dx) !== p.facing)) return;
+  _realmShopHits++;
+  if (typeof spawnParticles === 'function') spawnParticles(n.x, REALM_FLOOR_Y - 90, '#7a66b8', 10);
+  if (_realmShopHits <= REALM_SHOP_WARN.length) {
+    _realmSay = { npc: n, text: REALM_SHOP_WARN[_realmShopHits - 1], t: 0, warn: true };
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 4);
+    return;
+  }
+  _realmSay = { npc: n, text: REALM_SHOP_KILL_LINE, t: 0, warn: true };
+  _realmShopKill = REALM_SHOP_KILL_F;
 }
 
 // Camera: follow P1, held inside the room so the view never shows past its walls.
@@ -620,7 +664,7 @@ function drawRealmWorld() {
     var sx = Math.max(tw / 2 + 12, Math.min(R.w - tw / 2 - 12, _realmSay.npc.x));
     ctx.fillStyle = 'rgba(8,6,12,0.72)';
     ctx.fillRect(sx - tw / 2 - 10, REALM_FLOOR_Y - 214, tw + 20, 26);
-    ctx.fillStyle = '#e9ddff';
+    ctx.fillStyle = _realmSay.warn ? '#ff9a8a' : '#e9ddff';
     ctx.fillText(_realmSay.text, sx, REALM_FLOOR_Y - 196);
     ctx.globalAlpha = 1;
   }
@@ -648,6 +692,7 @@ function _realmDrawShopkeeper(n, p) {
   var face = p && p.cx() < x ? -1 : 1;
   var sway = Math.sin(f * 0.025) * 2.5;
   var flick = 0.75 + 0.25 * Math.sin(f * 0.31) * Math.sin(f * 0.17);
+  if (_realmShopKill > 0) flick *= Math.max(0, (_realmShopKill - REALM_SHOP_KILL_F / 2) / (REALM_SHOP_KILL_F / 2));
   ctx.save();
   // Lantern glow on the ground and the cloak.
   var lx = x + face * 30 + sway, ly = g - 96;
@@ -732,6 +777,7 @@ function drawRealmHUD() {
     ctx.globalAlpha = 1;
   }
 
+  _realmDrawShopDark();
   if (realmFade !== 0) {
     var fa = realmFade > 0 ? 1 - realmFade / REALM_FADE_F : -realmFade / REALM_FADE_F;
     ctx.globalAlpha = Math.max(0, Math.min(1, fa));
@@ -797,6 +843,14 @@ function _realmStoryAttach() {
     plats.push({ x: g.x - 25, y: -600, w: 50, h: 600 + fy, noDraw: true, _realmGate: g.id });
   });
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
+}
+
+// dealDamage asks this: no hit crosses a closed gate, either way.
+function realmBlocksHit(a, t) {
+  if (!realmActive || realmHost !== 'story' || realmRoomKey || !realmSave || !a || !t || !a.cx || !t.cx) return false;
+  return _realmStoryGates().some(function (g) {
+    return !realmSave.flags['gate_' + g.id] && (a.cx() > g.x) !== (t.cx() > g.x);
+  });
 }
 
 // Spawns that would land behind a closed gate come in on the player's side of it instead.
@@ -895,6 +949,7 @@ function _realmStoryEnterRoom(roomKey, doorId) {
   }
   realmSave.visited[roomKey] = true;
   _realmSaidIn = null; _realmSay = null;
+  _realmShopHits = 0; _realmShopKill = 0;
   realmBanner = 120;
   _realmStore();
 }
@@ -988,7 +1043,17 @@ function _realmStoryDrawPrompt() {
 }
 
 // Story HUD: the room name on the way in, and the fade. Screen space; the caller set the transform.
+function _realmDrawShopDark() {
+  if (_realmShopKill <= 0) return;
+  var k = 1 - _realmShopKill / REALM_SHOP_KILL_F;
+  ctx.globalAlpha = Math.min(0.92, k * 1.6);
+  ctx.fillStyle = '#020104';
+  ctx.fillRect(0, 0, GAME_W, GAME_H);
+  ctx.globalAlpha = 1;
+}
+
 function _realmDrawFadeAndBanner(R) {
+  _realmDrawShopDark();
   if (realmBanner > 0 && R && realmRoomKey) {
     ctx.globalAlpha = realmBanner > 90 ? (120 - realmBanner) / 30 : Math.min(1, realmBanner / 30);
     ctx.textAlign = 'center';

@@ -121,6 +121,9 @@ function _startGameCore() {
     currentArenaKey = (storyModeActive && selectedArena === '__storyarena__' && ARENAS.__storyarena__ && ARENAS.__storyarena__.isBossArena) ? '__storyarena__' : 'creator';
     // The Fallen God fights in the open between dimensions, not inside the Creator's construct.
     if (currentArenaKey === 'creator' && _isFallenGodFight() && ARENAS.space) currentArenaKey = 'space';
+    // The Axiom encounter happens at the threshold of the Void, not inside his construct.
+    if (storyModeActive && typeof _activeStory2Chapter !== 'undefined' && _activeStory2Chapter &&
+        _activeStory2Chapter._axiomTeaser && ARENAS.void) currentArenaKey = 'void';
   } else if (isTrainingMode) {
     currentArenaKey = 'training';
   } else if (isTrueFormMode) {

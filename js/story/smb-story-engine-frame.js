@@ -41,19 +41,34 @@ function storyCheckEvents() {
     if (Math.random() < 0.10) triggerScene('fallen_warrior_memory');
   }
 
-  // Axiom encounter (ch 63): invincible, then a scripted defeat at 20s.
-  // Phase expansion reassigns ch.id; the original id lives in ch._origId.
-  if (ch && (ch._origId !== undefined ? ch._origId : ch.id) === 63 && !ch.noFight) {
+  // Axiom encounter (the _axiomTeaser chapter): untouchable, calm, then one scripted strike at ~20s.
+  // Keyed to the flag, not an id: renumbering moved it from 63 to 70 and left this checking another chapter.
+  if (ch && ch._axiomTeaser && !ch.noFight) {
     const _axiom = players && players.find(p => p !== p1 && p.isBoss);
     if (_axiom && _axiom.health > 0) {
-      _axiom.invincible = Math.max(_axiom.invincible || 0, 10);
-      _axiom.health     = _axiom.maxHealth; // undo damage: hits connect visually but deal nothing
+      _axiom.invincible = Math.max(_axiom.invincible || 0, 10);   // hits connect and do nothing
+      _axiom._teaserCalm = true;                                  // Boss.updateAI: not even trying
+      // One-time setup here, not in a launch timeout: the load hold can outlast a timeout and skip it.
+      if (!_axiom._teaserSetUp) {
+        _axiom._teaserSetUp = true;
+        _axiom.color = '#cc44ff';
+        _axiom.name  = 'Axiom';
+        const _hn = document.getElementById('p' + (players.indexOf(_axiom) + 1) + 'HudName');
+        if (_hn) _hn.textContent = 'AXIOM';
+        if (_axiom._cinematicFired) ['75','paradox50','40','10','phase2','phase3','rage','desp','warn'].forEach(k => _axiom._cinematicFired.add(k));
+        p1.lives = 1; p1._maxLives = 1;
+        chosenLives = 1;
+        bossFightLivesLock = false;
+      }
     }
-    // Frame 1200 (~20s): Axiom ends the encounter with one scripted strike.
-    // Use Axiom as attacker so the env-damage cap (14/frame) doesn't nerf the kill.
-    if (frameCount >= 1200 && p1.health > 0 && !_axiomForcedPlayerLoss) {
+    // Axiom as attacker, so the 14-per-frame cap on attacker-less damage can't blunt it. A revive skill
+    // can survive one strike, so it repeats until the encounter is over.
+    if (_axiom && frameCount >= 1200 && p1.health > 0 && frameCount >= (_axiomNextStrike || 0)) {
       _axiomForcedPlayerLoss = true;
-      dealDamage(_axiom || null, p1, p1.maxHealth * 99, 80);
+      _axiomNextStrike = frameCount + 90;
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 18);
+      p1.invincible = 0;
+      dealDamage(_axiom, p1, p1.maxHealth * 99, 80);
     }
   }
 

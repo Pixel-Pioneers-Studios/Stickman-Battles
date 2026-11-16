@@ -402,6 +402,9 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   const _inbound = _netInboundHit; _netInboundHit = null;
   if (activeCinematic) return; // no damage during cinematic pauses
   if (!target || target.health <= 0) return;
+  if (target._abilityStandIn) return; // Fighter.ability's aim point when no one is around
+  // A closed story-realm gate (smb-realm.js) stops hits between its two sides: reach, lunges and projectiles.
+  if (attacker && typeof realmBlocksHit === 'function' && realmBlocksHit(attacker, target)) return;
   // Online: bosses and bots run on every client, so only the victim's own client counts their hits.
   // Host-streamed minigame enemies (_netMinionId) are the exception: the host's copy is the real one.
   // So is a Summoner's familiar, which exists only on its owner's client.

@@ -1626,6 +1626,12 @@
 
   function _render() {
     if (!_canvas) return;
+    // The window can change size mid-scene (devtools closing, rotation). The canvas is sized in pixels, not
+    // stretched, so a stale size leaves the page uncovered beside it.
+    if (_canvas.width !== window.innerWidth || _canvas.height !== window.innerHeight) {
+      _canvas.width = window.innerWidth; _canvas.height = window.innerHeight;
+      _initStars(75, _canvas.width, _canvas.height);
+    }
     _t++; _beatT++;
     if (_trans) { _trans.t++; if (_trans.t > _trans.dur) _trans = null; }
 

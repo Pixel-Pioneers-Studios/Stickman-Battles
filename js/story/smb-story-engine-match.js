@@ -173,6 +173,7 @@ function _showStory2LoseNag(ch) {
 // Set to true by storyCheckEvents when Axiom scripted-defeats the player in ch91.
 // Causes story2OnMatchEnd to auto-advance instead of showing the retry screen.
 let _axiomForcedPlayerLoss = false;
+let _axiomNextStrike = 0;
 
 // Hooked into endGame via storyOnMatchEnd, we intercept after storyModeActive check
 function story2OnMatchEnd(playerWon) {
@@ -203,10 +204,9 @@ function story2OnMatchEnd(playerWon) {
     }
   }
   if (!playerWon) {
-    // Ch63: Axiom scripted defeat, advance automatically, do not show retry screen.
-    // Phase expansion reassigns ch.id; the original id lives in ch._origId.
-    if (_axiomForcedPlayerLoss && (ch._origId !== undefined ? ch._origId : ch.id) === 63) {
-      _axiomForcedPlayerLoss = false;
+    // Axiom encounter: losing is the chapter. Any death in it (his strike, a fall) advances, no retry screen.
+    if (ch._axiomTeaser) {
+      _axiomForcedPlayerLoss = false; _axiomNextStrike = 0;
       _completeChapter2(ch);
       return true;
     }
