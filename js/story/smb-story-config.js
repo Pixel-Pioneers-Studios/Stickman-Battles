@@ -1136,7 +1136,7 @@ function _storyAwardKillExp(amount) {
   _story2.exp = (_story2.exp || 0) + amount;
   _saveStory2();
   if (players[0] && typeof DamageText !== 'undefined') {
-    const dt = new DamageText(`+${amount} EXP`, players[0].cx(), players[0].y - 30, '#aaff88');
+    const dt = new DamageText(players[0].cx(), players[0].y - 30, `+${amount} EXP`, '#aaff88');
     damageTexts.push(dt);
   }
   _storyUpdateExpDisplay();

@@ -102,23 +102,23 @@ const REALM_DEFS = {
           { id: 'next', kind: 'edge', side: 'r', needs: 'burn_intake', to: ['columns', 'in'] },
         ],
         foes: [
-          { x: 760, name: 'Intake Drone', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#446688' },
-          { x: 980, name: 'Intake Drone', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'hard', color: '#445577' },
+          { x: 760, name: 'Intake Drone', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#446688' },
+          { x: 980, name: 'Intake Drone', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#445577' },
         ],
         burn: [{ id: 'intake', x: 1000, art: 'terminal', line: 'The intake logs go up first.' }],
       },
       columns: {
         name: 'Stasis Columns', gx: 1, gy: 0, w: 1400, back: true, wall: '#22302c',
         say: 'Calix: "The columns. Don\'t read the labels."',
-        ledges: [[260, 430, 150], [600, 360, 200], [1000, 430, 150]],
+        ledges: [[260, 430, 150], [600, 360, 200], [1000, 430, 150], [760, 250, 120]],
+        chests: [{ id: 'cache', x: 820, y: 250, gives: 'exp:60' }],
         doors: [
           { id: 'in', kind: 'edge', side: 'l', to: ['intake', 'next'] },
           { id: 'next', kind: 'edge', side: 'r', needs: 'burn_columns', to: ['rig', 'in'] },
         ],
         foes: [
-          { x: 700, name: 'Facility Drone', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#446688' },
-          { x: 900, name: 'Facility Drone', weaponKey: 'axe', classKey: 'warrior', aiDiff: 'hard', color: '#445577' },
-          { x: 1150, name: 'Column Warden', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#334466', health: 150, armor: ['helmet'] },
+          { x: 700, name: 'Facility Drone', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#446688' },
+          { x: 1150, name: 'Column Warden', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#334466', armor: ['helmet'] },
         ],
         burn: [{ id: 'columns', x: 1180, art: 'columns', line: 'The columns crack and go dark, one after another.' }],
       },
@@ -131,8 +131,8 @@ const REALM_DEFS = {
           { id: 'next', kind: 'edge', side: 'r', needs: 'burn_rig', to: ['core', 'in'] },
         ],
         foes: [
-          { x: 820, name: 'Rig Handler', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'expert', color: '#3a3f55', health: 140 },
-          { x: 1040, name: 'Rig Handler', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'expert', color: '#2f3448', health: 140 },
+          { x: 820, name: 'Rig Handler', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#3a3f55' },
+          { x: 1040, name: 'Facility Drone', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#2f3448' },
         ],
         burn: [{ id: 'rig', x: 640, art: 'rig', line: 'The rig tears itself apart in the heat.' }],
       },
@@ -140,12 +140,13 @@ const REALM_DEFS = {
         name: 'Data Core', gx: 3, gy: 0, w: 1100, back: true, wall: '#1c2228', dark: 0.3,
         say: 'Calix: "Data core last. Everything they learned is in there."',
         ledges: [[240, 420, 150], [700, 420, 150]],
+        chests: [{ id: 'spoils', x: 775, y: 420, gives: 'tokens:50' }],
         doors: [
           { id: 'in', kind: 'edge', side: 'l', to: ['rig', 'next'] },
           { id: 'out', kind: 'arch', x: 1000, art: 'labdoor', needs: 'burn_core', to: ['@main', 'coreExit'] },
         ],
         foes: [
-          { x: 760, name: 'Trial Overseer', weaponKey: 'scythe', classKey: 'warrior', aiDiff: 'expert', color: '#5a2a55', health: 260, armor: ['helmet', 'chestplate'] },
+          { x: 760, name: 'Trial Overseer', weaponKey: 'scythe', classKey: 'warrior', aiDiff: 'hard', color: '#5a2a55', health: 200, armor: ['helmet'] },
         ],
         burn: [{ id: 'core', x: 520, art: 'core', line: 'The core burns. Everything this place learned goes with it.' }],
       },
@@ -172,7 +173,8 @@ const REALM_DEFS = {
           { id: 'in', kind: 'arch', x: 110, art: 'labdoor', to: ['@main', 'records'] },
           { id: 'up', kind: 'arch', x: 1200, art: 'ladder', to: ['@main', 'shaft'] },
         ],
-        chests: [{ id: 'key', x: 660, y: 370, gives: 'item:oldKey', label: 'OLD ACCESS KEY' }],
+        chests: [{ id: 'key', x: 660, y: 370, gives: 'item:oldKey', label: 'OLD ACCESS KEY' },
+                 { id: 'files', x: 980, y: 440, gives: 'tokens:30' }],
       },
     },
   },
@@ -417,6 +419,19 @@ function _realmOpenChest(c, p) {
   if (c.gives === 'health') {
     p.health = p.maxHealth;
     label = 'HEALED';
+  } else if (c.gives && (c.gives.indexOf('tokens:') === 0 || c.gives.indexOf('exp:') === 0) && typeof _story2 !== 'undefined' && _story2) {
+    // Story currency: tokens for the shopkeeper, EXP for the skill tree. Scaled by difficulty like chapter rewards.
+    var amt = parseInt(c.gives.split(':')[1], 10) || 0;
+    if (c.gives.indexOf('tokens:') === 0) {
+      amt = typeof _storyTokenReward === 'function' ? _storyTokenReward(amt) : amt;
+      _story2.tokens = (_story2.tokens || 0) + amt;
+      label = '+' + amt + ' TOKENS';
+    } else {
+      _story2.exp = (_story2.exp || 0) + amt;
+      if (typeof _storyUpdateExpDisplay === 'function') _storyUpdateExpDisplay();
+      label = '+' + amt + ' EXP';
+    }
+    if (typeof _saveStory2 === 'function') _saveStory2();
   } else if (c.gives && c.gives.indexOf('item:') === 0) {
     realmSave.items[c.gives.slice(5)] = true;
     _realmStore();
@@ -1175,6 +1190,13 @@ function _realmChargeTick(R) {
   }
   if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 16);
   _realmTell(b.line, '#ffb070');
+  // Each burn is a breather: a third of your health back, the dungeon's health stone.
+  var p = players[0];
+  if (p && p.health > 0) {
+    var heal = Math.round(p.maxHealth * 0.35);
+    p.health = Math.min(p.maxHealth, p.health + heal);
+    if (typeof DamageText !== 'undefined') damageTexts.push(new DamageText(p.cx(), p.y - 30, '+' + heal, '#44ff88'));
+  }
 }
 
 // Story: the chapter's exit waits on a realm flag (REALM_STORY[key].exitNeeds). Read by _exploreObjectivePending.

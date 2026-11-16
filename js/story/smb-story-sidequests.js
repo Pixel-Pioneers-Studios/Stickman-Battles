@@ -198,7 +198,7 @@ function _sqComplete(q, p1) {
   if (typeof _saveStory2 === 'function') _saveStory2();
   if (r.exp && typeof _storyAwardKillExp === 'function') _storyAwardKillExp(r.exp);
   if (tokens && typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') {
-    damageTexts.push(new DamageText(`+${tokens} coins`, p1.cx(), p1.y - 52, '#ffcc33'));
+    damageTexts.push(new DamageText(p1.cx(), p1.y - 52, `+${tokens} coins`, '#ffcc33'));
   }
   spawnParticles(q.x, q.floorY - 20, '#9fd8d0', 18);
   if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();

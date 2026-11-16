@@ -64,6 +64,24 @@ Level tester: the walker now routes realm gates from the realm's own data (`real
 - Q with no one around now fires for players (`_abilityStandIn` in smb-fighter.js aims it 250 px ahead; dealDamage ignores the stand-in). All 29 player weapons checked; bomb and knives behave as designed (aim-then-throw, recall with nothing out).
 - Closed gates also hold the player on the near side every frame: Q/E move scenes set position directly and skip collision, and the brain lunged through the door at the guard before this. Pre-existing, not from this work: ch67's floor has 20 px steps (x 900, x 2000) that must be jumped, and walk-fight chapters' timed fight lines play while you walk (including inside rooms).
 
+## First dungeon: the Trial Wing (Nov 15 night, built while the user was away)
+
+Your chapter 70 (registry id 69, "What the Lab Taught"). The chapter text always had Kael and Calix go back and burn the trial wing, "intake, the columns, the rig, the data core last"; it was narration after the fight. Now it is played. `REALM_DEFS.trialwing` + `REALM_STORY.trialwing` in `js/smb-realm.js`.
+
+- Door at x 3400, just past the seam duel. Four rooms joined left to right: Intake, Stasis Columns, The Trial Rig, Data Core.
+- Each room seals while its enemies stand (`foes`); a cleared room stays cleared. Its machine (`burn`) takes a charge with F (about 2 s fuse), then burns and stays burning. The door onward needs that burn (`needs: 'burn_<id>'`).
+- Data Core: the Trial Overseer (scythe, helmet + chestplate). Its door out comes up at x 5150 by the stairwell and stays open after (the shortcut).
+- The chapter exit is sealed until the core burns (`exitNeeds`, read by `_exploreObjectivePending` via `realmExitBlocker`).
+- Calix speaks once on entering each room, using only what the chapter already says about him.
+- Level tester: `realmDungeonWaypoint` walks the route (`REALM_DEFS[key].route`): fight, burn, next door, out.
+- The chapter's postText still narrates the burning afterwards; it now describes what the player just did.
+
+New realm room fields: `foes`, `burn`, `say`, door `needs`. Documented at the top of smb-realm.js.
+
+## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
+
+The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.
+
 ## Design decisions (Nov 15, after step 1)
 
 - **Realms live inside story mode, not as a separate mode.** Story already has walkable chapters (55 `walkFight` chapters, 6000px, checkpoints, tunnel chests) and `STORY_REGIONS` (one region so far, Multiversal Core, ids 32-35). Realm doors, rooms, save and minimap move into that system; the standalone Realm mode becomes a hidden test bed. Chapters stay the unit of progress: no renumbering, no removed chapters.
