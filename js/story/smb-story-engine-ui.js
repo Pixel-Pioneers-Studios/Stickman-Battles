@@ -307,6 +307,7 @@ function openStoryMenuShop() {
 function closeShopModal() {
   const modal = document.getElementById('shopModal');
   if (modal) modal.style.display = 'none';
+  if (_shopPausedMatch) { _shopPausedMatch = false; paused = false; }
 }
 
 // Story keeps its own weapon/class in _story2.loadout. The picker reuses the Versus P1 card and
@@ -464,6 +465,31 @@ function closeSkillTreeModal() {
   if (_skillTreeAnimId) { cancelAnimationFrame(_skillTreeAnimId); _skillTreeAnimId = null; }
   const modal = document.getElementById('skillTreeModal');
   if (modal) modal.style.display = 'none';
+  // Opened from the pause menu: nodes bought mid-chapter take effect now, not at the next chapter.
+  if (gameRunning && storyModeActive && players[0] && typeof _applySkillTreeToPlayer === 'function') _applySkillTreeToPlayer(players[0]);
+}
+
+// Pause menu entry. The story-panel opener also closes the home path cards, which must stay untouched mid-match.
+function openSkillTreeFromPause() {
+  const modal = document.getElementById('skillTreeModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  _renderSkillTreeModal();
+}
+
+function isSkillTreeOrShopOpen() {
+  const st = document.getElementById('skillTreeModal'), sh = document.getElementById('shopModal');
+  return !!((st && st.style.display === 'flex') || (sh && sh.style.display === 'flex'));
+}
+
+// The shopkeeper in the world. The match holds still while you trade and resumes when the shop closes.
+let _shopPausedMatch = false;
+function openShopFromWorld() {
+  const modal = document.getElementById('shopModal');
+  if (!modal) return;
+  if (gameRunning && !paused) { paused = true; _shopPausedMatch = true; }
+  modal.style.display = 'flex';
+  _renderStoryStore2();
 }
 
 // Skill node shape: a diamond, same family as the map's boss stops.

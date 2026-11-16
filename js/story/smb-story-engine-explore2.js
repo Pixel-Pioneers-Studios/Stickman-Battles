@@ -247,6 +247,9 @@ function updateExploration() {
     exploreStartX = null;
   }
 
+  // In a side room (smb-realm.js) the chapter world is set aside: no exit, checkpoint, edge or spawn logic.
+  if (typeof realmInSideRoom === 'function' && realmInSideRoom()) return;
+
 // Reverse loading zone: the left edge of a walk-fight world backtracks to the previous chapter,
 // entering at its exit end. Works from every walkable world; the target resolves at launch
 // (null = hard wall). Arms only after the player walks in, so an edge spawn does not bounce.
@@ -804,6 +807,8 @@ function _exploreSpawnEnemy(def, p1) {
       my = safeSpawn ? safeSpawn.y - 84 : 300;
     }
   }
+  // A closed side-room gate (smb-realm.js) is a wall: a spawn behind it could never reach the player.
+  if (!isGuard && typeof realmClampSpawnX === 'function') mx = realmClampSpawnX(mx, p1);
   const m = new Minion(mx, my, def.color || '#888888', def.weaponKey || 'sword', true, def.aiDiff || 'medium');
   // Minion() only takes (x, y) and hardcodes class, weapon and AI, so the authored values are
   // applied here. Otherwise an aiDiff 'easy' scout would fight at 'hard'.

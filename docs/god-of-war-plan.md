@@ -47,6 +47,33 @@ Staying 2D is cheaper to build (art, camera, animation, AI, testing all reuse wh
 
 Puzzles favour 2D: gravity, timing, weights, chains, line of sight, light beams. They read clearly and the room-graph checker can verify them.
 
+## First story realm: Abandoned Research Facility (Nov 15, in progress)
+
+Your chapters 67-70 (registry ids 66-69). `REALM_STORY.facility` + `REALM_DEFS.facility` in `js/smb-realm.js`.
+
+- **ch66 (Laboratory Infiltration):** Supply Room behind a lab door at x 1000. The shopkeeper (unnamed, there for money) and a ration chest.
+- **ch67 (The Sealed Section):** the blast door at x 2015 is sealed. Its terminal (x 1930) refuses the first time, reroutes power to the Records Office door (x 470) and wakes two drones in the corridor behind you. The office holds the old access key; its ladder climbs out of a floor hatch at x 1800 next to the gate, which stays unbolted after (the shortcut). With the key, the terminal opens the gate.
+- **How rooms work in story:** entering a side room sets the chapter world aside (arena, enemies, projectiles, respawn point); `updateExploration` and the chapter HUD/markers pause while `realmInSideRoom()`; leaving restores it all. Doors refuse while enemies are within 520 px or an arena lock is up. Dying in a side room returns you to the chapter world at the door you used.
+- **Spawn rule:** while a gate is closed, non-guard spawns that would land behind it come in on the player's side (`realmClampSpawnX`, called from `_exploreSpawnEnemy`). Without it, ch67's checkpoint fight spawned behind the gate and the arena lock never released.
+- **State** saves per account under `unlocks.realm.facility` (flags, items, opened chests).
+- The standalone Realm mode is off the home list; it stays reachable from the console (`selectMode('realm')`) as a room test bed.
+
+Level tester: the walker now routes realm gates from the realm's own data (`realmWaypoint` in `tools/level-tester.js`): terminal, else the door to the room holding the needed item, the item, then out by the door nearest the gate, pressing F through the real key handler. Foes behind a closed gate are not targets. Results print `realm F xN [flags]`. Nov 15, brain 20011, ch67: 1 of 2 cleared, both attempts opened the gate (5 presses each); the loss was the fight after.
+- Closed gates also hold the player on the near side every frame: Q/E move scenes set position directly and skip collision, and the brain lunged through the door at the guard before this. Pre-existing, not from this work: ch67's floor has 20 px steps (x 900, x 2000) that must be jumped, and walk-fight chapters' timed fight lines play while you walk (including inside rooms).
+
+## Design decisions (Nov 15, after step 1)
+
+- **Realms live inside story mode, not as a separate mode.** Story already has walkable chapters (55 `walkFight` chapters, 6000px, checkpoints, tunnel chests) and `STORY_REGIONS` (one region so far, Multiversal Core, ids 32-35). Realm doors, rooms, save and minimap move into that system; the standalone Realm mode becomes a hidden test bed. Chapters stay the unit of progress: no renumbering, no removed chapters.
+- **Backtracking is both optional and sometimes forced.** Optional: side rooms with chests, skill-tree upgrades, Journal entries, optional bosses. Forced: some main-path gates need something found elsewhere (a key from a vault, an ability or weapon earned later, the companion). Rule for forced trips: the way back is never the same walk twice. Something has changed (new enemies, a collapsed floor, a shortcut that opens from the far side), and fast travel cuts out any stretch with nothing new.
+- **No level selector until the main story is beaten.** Story opens with Continue, which drops you at your last checkpoint. The star chart and chapter list come back as a post-game chapter select. Internal launch functions stay for the level tester and debug jumps.
+- **Fast travel.** Travel points you unlock by reaching them, used from a map. Between worlds, a canon-fitting form (to decide: the ship/fracture system in `smb-progression.js` may already be the fit).
+
+Impact to handle:
+- **Existing saves.** Players partway through the story need a starting place: put them at the realm (or plain chapter) that holds their next uncleared chapter. Their per-chapter progress is unchanged.
+- **Chapters that aren't walkable** (arena duels, boss arenas, cinematic bridges, branch choices) become events at a place in the world: an arena room you walk into, a scene that plays at a spot.
+- **Retrying** moves from "replay the chapter" to "back to the last checkpoint". Per-chapter stars only mean something in the post-game select.
+- **Skill tree and shop: decided.** The skill tree is in the pause menu (story mode and realms; nodes bought mid-chapter apply on close). The shop is a person in the world: a hooded shopkeeper with a lantern (`npcs: [{ kind: 'shop', x }]` in a realm room), F to trade, a short line when you walk near. Built Nov 15; the story panel's shop and skill tree buttons stay until realms replace the panel. Who the shopkeeper is in canon is still open.
+
 ## Vertical slice: one realm, two dungeons
 
 | Step | Work | Estimate |
@@ -60,6 +87,12 @@ Puzzles favour 2D: gravity, timing, weights, chains, line of sight, light beams.
 Slice total: about 4-5 weeks (was 6-8 before counting the skill tree and BR parts as reuse). The full expansion: about 4-5 months (was ~7).
 
 What the tools don't shrink: the user playing each dungeon and giving a verdict. In past work, getting from first version to approval took about 3x the first build, and that loop is human time. The other part that doesn't shrink is fitting the existing 186 chapters into realms, if we choose to do that.
+
+## Status
+
+**Step 1 built (Nov 15 2026), awaiting the user's playtest.** `js/smb-realm.js`, opened from the home list as "Realm" (Preview). Test realm "The Old Ruins": Courtyard (hub), Collapsed Hall (east), Undercroft (below, through a hole in the hall floor; ladder back up), Inner Shrine (background, through an archway). Door kinds: edge, arch (F), drop, fall. Checkpoint doors, deadly pits (spikes) vs drop holes (glow), chests (heal or weapon), minimap of visited rooms, save per account (`unlocks.realm`). Console `realmReset()` starts over. Rooms are data in `REALM_DEFS`, the format step 2's room editor will write.
+
+Defaults used for the open decisions: new act after the ending (not wired into the story yet), ruins first, death returns to the last checkpoint door, companion fights and talks only.
 
 ## Decisions needed before step 1
 

@@ -65,6 +65,8 @@ function _startGameCore() {
   const isBattleRoyaleMode   = gameMode === 'battleroyale';
   const isEndlessMode        = gameMode === 'endless';
   if (typeof endlessReset === 'function') endlessReset();
+  const isRealmMode          = gameMode === 'realm';
+  if (typeof realmResetState === 'function') realmResetState();
   const isEscortMode         = gameMode === 'escort';
   const isExploreMode        = gameMode === 'exploration';
   const isAdaptiveMode     = gameMode === 'adaptive' || gameMode === 'sovereign';
@@ -136,6 +138,9 @@ function _startGameCore() {
     currentArenaKey = '__endless__';
     endlessBeginRun();
     ARENAS['__endless__'] = endlessMakeArena();
+  } else if (isRealmMode) {
+    currentArenaKey = '__realm__';
+    ARENAS['__realm__'] = realmBeginRun();
   } else if (isMinigamesMode) {
     if (minigameType === 'sports') {
       currentArenaKey = 'soccer';
@@ -169,7 +174,7 @@ function _startGameCore() {
   window._netMatchArena = null;
   isRandomMapMode = (selectedArena === 'random' && !isRandLoadout);
   // Lava/void: no randomization
-  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && currentArenaKey !== 'training' && !isExploreMode && !isBattleRoyaleMode && !isEndlessMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
+  if (currentArenaKey !== 'creator' && currentArenaKey !== 'god_domain' && currentArenaKey !== 'lava' && currentArenaKey !== 'void' && currentArenaKey !== 'soccer' && currentArenaKey !== 'damnation' && currentArenaKey !== 'sovereign' && currentArenaKey !== 'training' && !isExploreMode && !isBattleRoyaleMode && !isEndlessMode && !isRealmMode && !isEscortMode) randomizeArenaLayout(currentArenaKey);
   currentArena = ARENAS[currentArenaKey];
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   initMapPerks(currentArenaKey);
@@ -647,6 +652,12 @@ function _startGameCore() {
     players  = [p1];
     p1.target = null;
     initEndless();
+  } else if (isRealmMode) {
+    p1.isAI  = false;
+    p1.lives = 99;
+    players  = [p1];
+    p1.target = null;
+    initRealm();
   } else if (gameMode === 'escort') {
     // Escort: single player only: NPC and enemies spawned by initEscortMode() later
     p1.isAI   = false;

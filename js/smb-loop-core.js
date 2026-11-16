@@ -461,6 +461,7 @@ function gameLoop(timestamp) {
   // Battle Royale skyline, volcano cone and office interior: behind the platforms.
   if (gameMode === 'battleroyale' && typeof drawBRStructuresBack === 'function') drawBRStructuresBack();
   if (gameMode === 'endless' && typeof drawEndlessBack === 'function') drawEndlessBack();
+  if ((gameMode === 'realm' || gameMode === 'exploration') && typeof drawRealmBack === 'function') drawRealmBack();
   // Conviction tint: screen space, before world entities.
   if (typeof DomainManager !== 'undefined') DomainManager.draw();
   if (typeof ComboDomain !== 'undefined') ComboDomain.draw();
@@ -486,6 +487,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames' && minigameType === 'koth' && typeof drawKothZone === 'function') drawKothZone();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleWorld === 'function') drawBattleRoyaleWorld();
   if (gameMode === 'endless' && typeof drawEndlessWorld === 'function') drawEndlessWorld();
+  if ((gameMode === 'realm' || gameMode === 'exploration') && typeof drawRealmWorld === 'function') drawRealmWorld();
   if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortNPC === 'function') drawEscortNPC();
   if (gameMode === 'shipflight' && typeof drawShipFlight === 'function') drawShipFlight();
   drawBackstagePortals();
@@ -628,6 +630,7 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames') updateMinigame();
   if (gameMode === 'battleroyale' && typeof updateBattleRoyale === 'function') updateBattleRoyale();
   if (gameMode === 'endless' && typeof updateEndless === 'function') updateEndless();
+  if ((gameMode === 'realm' || gameMode === 'exploration') && typeof updateRealm === 'function') updateRealm();
   // The Sewer: barges drift, carry riders, and burn anything in the flow. No-op elsewhere.
   if (typeof updateSewer === 'function') updateSewer();
   // Cataclysm (secret weapon): Convictions, meteors, Axiom. No-op unless someone wields it.
@@ -1186,16 +1189,19 @@ function gameLoop(timestamp) {
   if (gameMode === 'minigames') drawMinigameHUD();
   if (gameMode === 'battleroyale' && typeof drawBattleRoyaleHUD === 'function') drawBattleRoyaleHUD();
   if (gameMode === 'endless' && typeof drawEndlessHUD === 'function') drawEndlessHUD();
+  if ((gameMode === 'realm' || gameMode === 'exploration') && typeof drawRealmHUD === 'function') drawRealmHUD();
   if ((gameMode === 'escort' || (typeof escortActive !== 'undefined' && escortActive)) && typeof drawEscortHUD === 'function') drawEscortHUD();
   if (gameMode === 'assassination' && typeof drawAssassinationHUD === 'function') drawAssassinationHUD();
   if (gameMode === 'gauntlet' && typeof drawGauntletHUD === 'function') drawGauntletHUD();
   // New chaos modifier notification, timer ticked here, drawn in screen-space below
   if (_chaosModNotif && _chaosModNotif.timer > 0) _chaosModNotif.timer--;
-  if (exploreActive && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
-  if (exploreActive && typeof drawSidequestWorld === 'function') drawSidequestWorld();
+  // In a side room (smb-realm.js) the chapter world's markers, HUD and minimap would point at the wrong space.
+  const _inSideRoom = typeof realmInSideRoom === 'function' && realmInSideRoom();
+  if (exploreActive && !_inSideRoom && typeof drawExploreGoalObject === 'function') drawExploreGoalObject();
+  if (exploreActive && !_inSideRoom && typeof drawSidequestWorld === 'function') drawSidequestWorld();
   // Story mode: void fog (drawn in game-world space)
   if (storyModeActive) drawStoryVoidFog();
-  if (exploreActive && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
+  if (exploreActive && !_inSideRoom && typeof drawExploreWorldModeOverlay === 'function') drawExploreWorldModeOverlay();
   // Absolute Axiom multiverse: dead-universe darkness + location title card
   if (typeof AAMultiverse !== 'undefined') AAMultiverse.drawOverlay(finalScX, finalScY, camCX, camCY);
   if (typeof OwnerTools !== 'undefined') OwnerTools.drawWorld(ctx);
@@ -1246,13 +1252,13 @@ function gameLoop(timestamp) {
   }
   if ((currentArena && currentArena.isBossArena || window.FORCE_ATTACK_MODE) && typeof drawBossDialogue === 'function') drawBossDialogue(finalScX, finalScY, camCX, camCY);
   if (typeof drawHitEffectivenessHUD === 'function') drawHitEffectivenessHUD();
-  if (gameMode === 'exploration') {
+  if (gameMode === 'exploration' && !_inSideRoom) {
     drawExploreHUD();
     if (typeof drawExploreMinimap === 'function') drawExploreMinimap();
     if (typeof drawSidequestHUD === 'function') drawSidequestHUD();
   }
   if (typeof _interludeActive !== 'undefined' && _interludeActive && typeof drawInterlude === 'function') drawInterlude();
-  if (exploreActive && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();
+  if (exploreActive && !_inSideRoom && typeof drawExploreModeOverlay === 'function') drawExploreModeOverlay();
   if (abilityUnlockToast && abilityUnlockToast.timer > 0) drawAbilityUnlockToast();
   if ((gameMode === 'trueform' || gameMode === 'absoluteaxiom') && typeof drawQTE === 'function') drawQTE(ctx, canvas.width, canvas.height);
   if (typeof drawCutscene === 'function') drawCutscene(ctx, canvas.width, canvas.height);

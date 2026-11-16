@@ -80,6 +80,7 @@ Script load order in `index.html` — files may only reference globals from earl
 72. `js/rendering/smb-drawing-arenas2.js` — Cave, mirror, underwater, volcano, cyberpunk, etc.
 73. `js/rendering/smb-drawing-arenas3.js` — Online/large arenas + home world arenas
 74. `js/smb-minigames.js` — Survival, KotH, Chaos Match systems
+    - `js/smb-realm.js` loads after `js/smb-endless.js` (both sit between minigames and the QTE files) — Realm mode: `REALM_DEFS`, `realmBeginRun`, `initRealm`, `updateRealm`, `realmInteract`, `realmCameraTarget`, `drawRealmBack/World/HUD`, `realmReset`
 75. `js/smb-qte-core.js` — QTE phase defs, state, public API, trigger detection, `_startQTE`
 76. `js/smb-qte-engine.js` — QTE stage tickers, prompt logic, round failure, `_endQTE`
 77. `js/smb-qte-draw.js` — QTE draw functions (background, prompts, HUD, combo text)

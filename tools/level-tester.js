@@ -311,7 +311,42 @@ async function runAttempt(browser, ch, attempt) {
       };
 
       // Objective walker: only drives when Sovereign has nothing alive to fight.
+      // Story realms (js/smb-realm.js): a closed gate needs its terminal, and the terminal may want an item
+      // from a side room. Route from the realm's own data: terminal, else the door to the room holding the
+      // item, then the item, then out by the door that comes out nearest the gate. `act` = press F on arrival.
+      function realmGateOpen(g) { return realmSave && realmSave.flags['gate_' + g.id]; }
+      function realmClosedGates() {
+        if (typeof realmActive === 'undefined' || !realmActive || realmHost !== 'story' || !realmSave) return [];
+        return _realmStoryGates().filter(g => !realmGateOpen(g));
+      }
+      function realmWaypoint(h) {
+        const gates = realmClosedGates();
+        if (!gates.length || realmFade !== 0) return null;
+        const g = gates[0], save = realmSave, rooms = REALM_DEFS[realmKey].rooms;
+        if (realmRoomKey) {
+          const R = rooms[realmRoomKey];
+          const item = (R.chests || []).find(c => c.gives === 'item:' + g.needs && !_realmLooted(c.id));
+          if (item) return { x: item.x, y: (item.y || REALM_FLOOR_Y) - 20, act: true };
+          const ents = _realmStoryEntrances();
+          const outs = (R.doors || []).filter(d => d.to && d.to[0] === '@main');
+          if (!outs.length) return null;
+          const exitX = d => { const e = ents.find(q => q.id === d.to[1]); return e ? Math.abs(e.x - g.termX) : 1e9; };
+          const d = outs.reduce((a, b) => exitX(b) < exitX(a) ? b : a);
+          return { x: d.x, y: null, act: true };
+        }
+        if (save.items[g.needs] || (g.setsFlag && !save.flags[g.setsFlag])) return { x: g.termX, y: null, act: true };
+        const roomKey = Object.keys(rooms).find(k => (rooms[k].chests || []).some(c => c.gives === 'item:' + g.needs));
+        const ent = _realmStoryEntrances().find(e => e.room === roomKey &&
+          !(e.needs && !save.flags[e.needs]) && !(e.oneWay && !save.flags['open_' + e.id]));
+        return ent ? { x: ent.x, y: null, act: true } : null;
+      }
+      // A foe on the far side of a closed gate can't be reached; chasing it pins the pilot to the door.
+      function behindGate(me, c) {
+        return realmClosedGates().some(g => (c.cx() > g.x) !== (me.cx() > g.x));
+      }
       function waypoint(h) {
+        const rw = realmWaypoint(h);
+        if (rw) return rw;
         if (typeof puzzleModeActive !== 'undefined' && puzzleModeActive && puzzleSwitches[puzzleStep])
           return puzzleSwitches[puzzleStep];
         if (typeof damnationActive !== 'undefined' && damnationActive) {
@@ -372,8 +407,8 @@ async function runAttempt(browser, ch, attempt) {
         const nav = { lastX: h.x, stuck: 0, backoff: 0, dir: 1, dropPl: null, dropSide: 1 };
         // Optional foes (cache guards, side-portal elites) don't gate the exit;
         // chasing one into a cache tunnel is how he got lost. Fight them only up close.
-        const farOptional = (me, c) => typeof _exploreOptionalFoe === 'function' && _exploreOptionalFoe(c) &&
-          Math.hypot(c.cx() - me.cx(), c.cy() - me.cy()) > 220;
+        const farOptional = (me, c) => (typeof _exploreOptionalFoe === 'function' && _exploreOptionalFoe(c) &&
+          Math.hypot(c.cx() - me.cx(), c.cy() - me.cy()) > 220) || behindGate(me, c);
         if (!BRAIN) {
           const baseInvalid = h._isInvalidAITarget;
           h._isInvalidAITarget = function (c) { return baseInvalid.call(this, c) || farOptional(this, c); };
@@ -403,6 +438,15 @@ async function runAttempt(browser, ch, attempt) {
           }
           if (wp.drop) T.dropFrames++; else T.navFrames++;
           const dx = wp.x - this.cx();
+          // Realm stop (door, terminal, item): press F through the real key handler once it is in reach.
+          if (wp.act && Math.abs(dx) < 30 && this.onGround && typeof _realmNear !== 'undefined' && _realmNear &&
+              T.frames - (T.realmPressF || 0) > 40) {
+            T.realmPressF = T.frames;
+            T.realmPresses = (T.realmPresses || 0) + 1;
+            setTimeout(() => { try { if (realmSave) T.realmFlags = Object.keys(realmSave.flags).concat(Object.keys(realmSave.items)).join('+'); } catch (e) {} }, 50);
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }));
+            document.dispatchEvent(new KeyboardEvent('keyup', { key: 'f', bubbles: true }));
+          }
           if (nav.backoff > 0) nav.backoff--;
           else nav.dir = Math.sign(dx) || 1;
           if (Math.abs(this.x - nav.lastX) < 0.6 && Math.abs(dx) > 20) nav.stuck++; else nav.stuck = Math.max(0, nav.stuck - 2);
@@ -707,7 +751,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
       results.get(ch.id).push(r);
       console.log(`[lt] ${done} · ch ${ch.id} ${ch.title} #${a + 1}: ${r.result}${r.note ? ' — ' + r.note : ''}` +
         (r.livesStart != null ? ` (${r.cls}/${r.weapon}, deaths ${r.deaths}/${r.livesStart}, dmg taken ${Math.round(r.dmgTaken)}` +
-          ` dealt ${Math.round(r.dmgDealt)}, falls ${r.falls} (saved ${r.fallSaves | 0}), hurt by ${JSON.stringify(Object.fromEntries(Object.entries(r.hurtBy || {}).map(([k, v]) => [k, Math.round(v)])))}, furthest x ${Math.round(r.maxX)}, walker ${Math.round(100 * r.navFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, drop assist ${Math.round(100 * r.dropFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, ${r.seconds}s)` : ''));
+          ` dealt ${Math.round(r.dmgDealt)}, falls ${r.falls} (saved ${r.fallSaves | 0}), hurt by ${JSON.stringify(Object.fromEntries(Object.entries(r.hurtBy || {}).map(([k, v]) => [k, Math.round(v)])))}, furthest x ${Math.round(r.maxX)}${r.realmPresses ? `, realm F x${r.realmPresses} [${r.realmFlags || ''}]` : ''}, walker ${Math.round(100 * r.navFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, drop assist ${Math.round(100 * r.dropFrames / Math.max(1, r.navFrames + r.aiFrames + r.dropFrames))}%, ${r.seconds}s)` : ''));
       if (results.get(ch.id).length === ATTEMPTS) {
         rows.set(ch.id, summarize(ch, results.get(ch.id)));
         const ordered = chapters.map(c => rows.get(c.id)).filter(Boolean);

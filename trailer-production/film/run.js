@@ -296,7 +296,7 @@ const probe = () => {
   const profName = process.argv[4] || 'draft', prof = PROFILES[profName];
   if (cmd !== 'capture' || !prof) throw new Error('usage: node film/run.js capture <shot> [draft|land]');
   const { s, sc } = await setupShot(name, prof);
-  const out = path.join(__dirname, '..', 'work', profName, 'film-' + name);
+  const out = path.join(__dirname, '..', 'work', profName, 'film-' + name + (process.env.TAG ? '-' + process.env.TAG : ''));
   fs.mkdirSync(path.dirname(out), { recursive: true });
   const { log } = await record(s, out, Number(process.env.FRAMES || sc.frames), { fps: FPS, probe, cropW: prof.cropW });
   const marks = await s.eval(() => Object.assign({ texts: window.__texts }, window.__dir.log));

@@ -77,6 +77,31 @@ const CUTS = {
     title: 240,
     bed: [['audio/music/story-embers.mp3', 0, 0, 0.55, 1.5, 21.0, 1.2], ['audio/music/boss-threshold.mp3', 22.0, 0, 0.72, 0.4, 41.2, 1.2], ['audio/music/story-embers.mp3', 42.2, 0, 0.5, 1.0, 62.0, 0.5], ['audio/music/boss-threshold.mp3', 62.4, 0, 0.78, 0.1, 114.9, 0.25], ['audio/music/story-embers.mp3', 115.6, 0, 0.42, 2.5, null, 2.5]],
   },
+  // The long cut (Nov 15): Tyrant splits after the katana breaks (z4 to c 3.5); the hands, the pocket, the sky and the kill
+  // go between; the film's end card comes up over black and breaks; the fragment brings him back; Tyrant resumes at c 3.6.
+  // plan(at) gets the start frame of each named segment and returns the bed, overlays and stingers.
+  sovereignLong: {
+    name: 'film-sovereign-long-draft-1080p60',
+    shots: [['film-z0-gallery', 1291], ['film-z1-observe', 1196], 'film-z2a-predict', ['film-z2b-real', 170, 31], ['film-z2b-real', 390, 288], ['film-z2b-real', 345, 750], 'film-z3-dominate',
+      { shot: 'film-z4-tyrant-long', len: 289, at: 0, id: 'z4a' }, { shot: 'film-z5-hands', id: 'z5' }, { shot: 'film-z6-pocket', id: 'z6' }, { shot: 'film-z7-sky', id: 'z7' },
+      { shot: 'film-z8-kill', id: 'z8' }, { black: 300, id: 'card' }, { shot: 'film-z9-notdone', id: 'z9' }, { shot: 'film-z4-tyrant-long', len: 1096, at: 294, id: 'z4b' }],
+    title: 240,
+    pageScripts: [path.join(__dirname, 'ovx-break.js')],
+    plan: at => {
+      const s = f => f / 60, KILL = at.z8 + (+process.env.KILLF || 317), CRACK = at.card + 150, BRK = at.z9, CUT = at.z4b + 659;
+      return {
+        bed: [['audio/music/story-embers.mp3', 0, 0, 0.55, 1.5, 21.0, 1.2], ['audio/music/boss-threshold.mp3', 22.0, 0, 0.72, 0.4, 41.2, 1.2], ['audio/music/story-embers.mp3', 42.2, 0, 0.5, 1.0, 62.0, 0.5],
+          ['audio/music/boss-threshold.mp3', 62.4, 0, 0.78, 0.1, s(KILL) - 0.1, 0.25],
+          ['audio/music/story-embers.mp3', s(KILL) + 0.6, 0, 0.42, 2.0, s(at.card) - 1.0, 1.0],
+          ['trailer-production/audio/kael/notdone/notdone-fx.wav', s(CRACK) + 1.1, 0, 1.0, 0.01, s(CRACK) + 1.1 + 1.4, 0.05],
+          ['audio/music/boss-threshold.mp3', s(BRK), 0, 0.8, 0.05, s(CUT) - 0.1, 0.25],
+          ['audio/music/story-embers.mp3', s(CUT) + 0.7, 0, 0.42, 2.5, null, 2.5]],
+        overlays: [{ type: 'logoBreak', from: at.card + 30, to: BRK + 40, crackAt: CRACK, breakAt: BRK, y: 0.42, size: 120, lines: ['STICKMAN', 'EVOLUTION'], cx: 0.5, cy: 0.47 }],
+        stingers: [[0, 'hitSnap', 2.2, 0.6], [0.18, 'hitZap', 1.6, 0.5], [0.42, 'hitSnap', 2.4, 0.5], [0.7, 'hitSnap', 2.6, 0.45]].map(([u, k, g, r]) => ({ at: CRACK + Math.round(u * (BRK - CRACK)), k, g, r }))
+          .concat([{ at: BRK, k: 'explosion', g: 2.4, r: 0.6 }, { at: BRK, k: 'clang', g: 2, r: 0.5 }, { at: BRK, k: 'stingImpact', g: 2.4, r: 0.6 }, { at: BRK + 2, k: 'hitSnap', g: 2.2, r: 0.8 }]),
+      };
+    },
+  },
   // "Kael vs The Creator" draft: cold open + Act 1 (game tracks as a temp bed until it is scored).
   creatorAct1: {
     name: 'film-creator-act1-draft-1080p60',
@@ -100,8 +125,13 @@ function mixBed(parts, dur, out) {
 
 (async () => {
   const C = CUTS[process.argv[2] || 'full'];
-  const segs = C.shots.map(s => Array.isArray(s) ? { shot: s[0], at: s[2] || 0, len: s[1] } : { shot: s, at: 0, len: shotLog('land', s).frames });
+  const segs = C.shots.map(s => Array.isArray(s) ? { shot: s[0], at: s[2] || 0, len: s[1] } : typeof s === 'string' ? { shot: s, at: 0, len: shotLog('land', s).frames }
+    : s.black ? { len: s.black, id: s.id } : { shot: s.shot, at: s.at || 0, len: s.len || shotLog('land', s.shot).frames, id: s.id });
   const T = segs.reduce((a, s) => a + s.len, 0);
+  const at = {}; segs.reduce((t, s) => { if (s.id) at[s.id] = t; return t + s.len; }, 0);
+  const P = C.plan ? C.plan(at) : {};
+  if (P.bed) C.bed = P.bed;
+  if (C.plan) console.log('at', JSON.stringify(at));
   if (C.title) segs.push({ len: C.title });
   const total = T + (C.title || 0);
   let music;
@@ -114,7 +144,7 @@ function mixBed(parts, dur, out) {
   const overlays = C.title
     ? [{ type: 'logo', from: T + 20, to: total, y: 0.42, size: 120, lines: ['STICKMAN', 'EVOLUTION'], fadeOut: 40 }, { type: 'fade', from: total - 30, to: total, out: true }]
     : [{ type: 'fade', from: total - 40, to: total, out: true }];
-  const r = await render({ W: 1920, H: 1080, name: C.name, profile: 'land', segs, overlays, music, sfxGain: 0.85, stingers: [] });
+  const r = await render({ W: 1920, H: 1080, name: C.name, profile: 'land', segs: segs.map(({ id, ...x }) => x), overlays: (P.overlays || []).concat(overlays), music, sfxGain: 0.85, stingers: P.stingers || [], pageScripts: C.pageScripts });
   console.log(r.out, r.frames, 'frames', r.secs.toFixed(1) + 's');
   process.exit(0);
 })().catch(e => { console.error(e); process.exit(1); });

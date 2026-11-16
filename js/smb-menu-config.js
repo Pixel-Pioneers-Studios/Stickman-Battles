@@ -338,6 +338,8 @@ function _getLoadingInfo() {
       return { title: 'BATTLE ROYALE', subtitle: '94 BEARERS. ONE SURVIVOR', scene: 'battleroyale' };
     case 'endless':
       return { title: 'ENDLESS', subtitle: 'CLEAR THE BLOCK. TAKE THE TELEPORTER', scene: 'battleroyale' };
+    case 'realm':
+      return { title: 'THE OLD RUINS', subtitle: 'EVERY DOOR LEADS SOMEWHERE', scene: 'story' };
     case 'minigames':
       return { title: minigameType === 'sports' && typeof SPORTS !== 'undefined' && SPORTS[sportsType]
                         ? SPORTS[sportsType].name : (mgNames[minigameType] || 'MINIGAME'),

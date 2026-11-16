@@ -153,6 +153,12 @@ document.addEventListener('keydown', e => {
 // the pause menu under it, and queued movement would fire when the match resumes.
   if (window._storySceneHold) return;
   if (tfEndingScene && tfEndingScene.skippable && tfEndingScene.phase === 'powers') { trySkipTFEnding(); return; }
+  // Skill tree or shop open over a match: Escape closes it and leaves the pause state as it was.
+  if (e.key === 'Escape' && typeof isSkillTreeOrShopOpen === 'function' && isSkillTreeOrShopOpen()) {
+    if (typeof closeSkillTreeModal === 'function') closeSkillTreeModal();
+    if (typeof closeShopModal === 'function') closeShopModal();
+    return;
+  }
   if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { pauseGame(); return; }
   // Cheat code: type TRUEFORM anywhere in menu to unlock True Form.
   // (Typing GAMECONSOLE no longer opens the console. It is Ctrl+Shift+O then Ctrl+Shift+X, smb-debug-overlay.js.)
@@ -263,6 +269,7 @@ document.addEventListener('keydown', e => {
     if (_nk === 'f') { if (typeof _brPickupNearbyGroundItem === 'function') _brPickupNearbyGroundItem(); return; }
   }
   if (gameRunning && !paused && gameMode === 'endless' && _nk === 'f' && typeof endlessPickup === 'function' && endlessPickup()) return;
+  if (gameRunning && !paused && (gameMode === 'realm' || gameMode === 'exploration') && _nk === 'f' && typeof realmInteract === 'function' && realmInteract()) return;
   // Battle Royale spectate: Q = prev, E = next
   if (gameRunning && gameMode === 'battleroyale' && typeof brSpectating !== 'undefined' && brSpectating) {
     if (_nk === 'q') { if (typeof _brCycleSpectate === 'function') _brCycleSpectate(-1); return; }

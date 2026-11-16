@@ -429,4 +429,121 @@
       c.strokeStyle = '#ffffff'; c.lineWidth = 2 * (1 - k) + 0.4; c.beginPath(); c.moveTo(x - dx, y - dy); c.lineTo(x + dx, y + dy); c.stroke();
     } });
   };
+
+  // ── the long cut (z5 on): shared authoring kit ──
+  // Light along a body's bones, grown from the first joint of each path (k 0..1), with a fixed jag per segment.
+  AS.bodyVeins = function (c, L, key, k, paths, seed, w, col) {
+    if (k <= 0.01) return;
+    const J = L.joints(key), r = srand(seed); col = col || AS.cyan;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.shadowColor = col; c.shadowBlur = 10;
+    c.strokeStyle = col; c.globalAlpha = Math.min(1, k * 1.5) * (0.75 + 0.25 * Math.sin(L.D.c * 23 + seed));
+    for (const [p0, path] of paths) {
+      const u = Math.max(0, Math.min(1, (Math.min(k, 1) - p0) / (1 - p0))) * (path.length - 1);
+      c.lineWidth = (w || 1.6) * (k > 1 ? k : 1); c.beginPath(); c.moveTo(J[path[0]].x, J[path[0]].y);
+      for (let i = 0; i < path.length - 1 && i < u; i++) {
+        const a = J[path[i]], b = J[path[i + 1]], f = Math.min(1, u - i), nx = -(b.y - a.y), ny = b.x - a.x, nl = Math.hypot(nx, ny) || 1;
+        for (let j = 1; j <= 4; j++) { const v = j / 4 * f, o = j < 4 ? (r() - 0.5) * 7 : 0; c.lineTo(a.x + (b.x - a.x) * v + nx / nl * o, a.y + (b.y - a.y) * v + ny / nl * o); }
+      }
+      c.stroke();
+    }
+    c.restore();
+  };
+  AS.ARMS = [[0, ['lHand', 'lElbow', 'shoulder', 'neck']], [0, ['rHand', 'rElbow', 'shoulder']], [0.5, ['neck', 'head']], [0.55, ['shoulder', 'hip', 'lKnee', 'lFoot']], [0.6, ['hip', 'rKnee', 'rFoot']]];
+  // A wound that does not finish (canon: he is unfinished): a still line across the chest, lit, never closing or bleeding.
+  AS.wound = function (c, L, key, k, col, ang, u) {
+    if (k <= 0.01) return;
+    u = u === undefined ? 0.72 : u;
+    const J = L.joints(key), a = { x: J.shoulder.x * u + J.hip.x * (1 - u), y: J.shoulder.y * u + J.hip.y * (1 - u) }, A = ang === undefined ? -0.5 : ang, an = J.face > 0 ? A : P - A, l = 15;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.shadowColor = col || AS.red; c.shadowBlur = 6 + 8 * k;
+    c.globalAlpha = Math.min(1, k); c.strokeStyle = '#ff7050'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(a.x - Math.cos(an) * l, a.y - Math.sin(an) * l * 1.5); c.lineTo(a.x + Math.cos(an) * l, a.y + Math.sin(an) * l * 1.5); c.stroke(); c.restore();
+  };
+  // Reaching back to an older draft: heat coming off him in thin red lines, rising, and the air near him bending. k 0..1.
+  AS.reach = function (c, L, key, k) {
+    if (k <= 0.01) return;
+    const J = L.joints(key), t = L.D.c, r = srand(Math.floor(t * 30));
+    c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = AS.red; c.shadowColor = AS.red; c.shadowBlur = 12; c.lineCap = 'round';
+    for (let i = 0; i < Math.round(18 * k); i++) {
+      const p = [J.head, J.shoulder, J.hip, J.rHand, J.lHand, J.rKnee, J.lKnee][i % 7], x = p.x + (r() - 0.5) * 20, y = p.y + (r() - 0.5) * 16, h = 10 + r() * 34 * k;
+      c.globalAlpha = k * (0.3 + r() * 0.5); c.lineWidth = 0.8 + r() * 1.6;
+      c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + (r() - 0.5) * 10, y - h * 0.5, x + (r() - 0.5) * 6, y - h); c.stroke();
+    }
+    const g = c.createRadialGradient(J.shoulder.x, J.shoulder.y, 4, J.shoulder.x, J.shoulder.y, 90);
+    g.addColorStop(0, 'rgba(255,51,17,' + 0.22 * k + ')'); g.addColorStop(1, 'rgba(255,51,17,0)');
+    c.globalAlpha = 1; c.shadowBlur = 0; c.fillStyle = g; c.beginPath(); c.arc(J.shoulder.x, J.shoulder.y, 90, 0, P * 2); c.fill();
+    c.restore();
+  };
+  // A door into the pocket, standing on the floor: a tall red-rimmed slit, black inside with the racks of his arms far
+  // off in it. (x, foot y), h tall, k 0..1 open.
+  AS.door = function (c, x, y, h, k, t) {
+    if (k <= 0.01) return;
+    const w = 46 * k, cy = y - h / 2;
+    c.save();
+    c.beginPath(); c.ellipse(x, cy, w, h / 2, 0, 0, P * 2); c.fillStyle = '#060102'; c.fill();
+    c.save(); c.clip();
+    const g = c.createRadialGradient(x, cy, 4, x, cy, h * 0.6); g.addColorStop(0, 'rgba(90,6,2,0.9)'); g.addColorStop(1, 'rgba(10,0,0,0)');
+    c.fillStyle = g; c.fillRect(x - w, y - h, w * 2, h);
+    c.strokeStyle = 'rgba(255,80,50,0.35)'; c.lineWidth = 1;
+    for (let i = -3; i <= 3; i++) { const xx = x + i * 11; c.beginPath(); c.moveTo(xx, cy - h * 0.18); c.lineTo(xx + 3, cy + h * 0.1); c.stroke(); }
+    c.restore();
+    c.globalCompositeOperation = 'lighter'; c.shadowColor = AS.red; c.shadowBlur = 20; c.strokeStyle = AS.red; c.lineWidth = 2.6;
+    c.beginPath(); for (let j = 0; j <= 48; j++) { const an = j / 48 * P * 2, q = 1 + 0.04 * Math.sin(an * 9 + t * 14); c.lineTo(x + Math.cos(an) * w * q, cy + Math.sin(an) * h / 2 * q); } c.closePath(); c.stroke();
+    c.lineWidth = 1; c.strokeStyle = '#ffb0a0'; c.beginPath(); c.ellipse(x, cy, w * 0.8, h * 0.46, 0, 0, P * 2); c.stroke();
+    c.restore();
+  };
+  // Choreography kit: beat/position lists for 'k' and 's', sound, clashes, blows, hit-stops. o.lv(lvIndex) → a G to
+  // land particles on, optional. finish() sorts and hands everything to the actors.
+  AS.kit = function (L, o) {
+    o = o || {};
+    const a = L.actors, ev = L.spec.ev, spark = o.spark || '#ffe9a0';
+    const K = { KB: [], SB: [], KP: [], SP: [], KF: [[0, 1]], SF: [[0, -1]], blows: [], stops: [] };
+    K.kb = (t, p, e, x) => K.KB.push([t, p, e || 'io', x]); K.sb = (t, p, e, x) => K.SB.push([t, p, e || 'io', x]);
+    K.kp = (t, x, h, e) => K.KP.push(e ? [t, x, h || 0, e] : [t, x, h || 0]); K.sp = (t, x, h, e) => K.SP.push(e ? [t, x, h || 0, e] : [t, x, h || 0]);
+    K.karc = (t0, x0, h0, t1, x1, h1, pk) => K.KP.push(...CA.arc(t0, x0, h0, t1, x1, h1, pk, 14));
+    K.sarc = (t0, x0, h0, t1, x1, h1, pk) => K.SP.push(...CA.arc(t0, x0, h0, t1, x1, h1, pk, 14));
+    K.kf = (t, f) => K.KF.push([t, f]); K.sf = (t, f) => K.SF.push([t, f]);
+    K.ev = (t, fn) => ev.push([t, fn]);
+    K.sfx = (t, k, g, r) => ev.push([t, l => l.sfx(k, g, r)]);
+    K.swish = (t, r) => K.sfx(t, 'swingHeavy', 0.65, r || 1.15);
+    K.whoosh = (t, r) => K.sfx(t, 'swing', 0.5, r || 1.3);
+    K.clash = (t, stop, col) => {
+      K.stops.push([t, stop || 0.3, 0.07]);
+      ev.push([t + 0.015, l => {
+        const x = AS.cross(l, 'k', 's', t + 0.03);
+        (l.D.log.clash || (l.D.log.clash = {}))[t] = x.d;
+        if (x.d > 16) (l.D.log.miss || (l.D.log.miss = [])).push(['clash', t, x.d]);
+        l.sfx('clang', 0.9, 0.9 + Math.random() * 0.25); l.shake(6);
+        l.debris(x.x, x.y, 12, { kind: 'spark', col: col || spark, v: 4.6, r: 1.7, g: 0.14, spread: 360, life: 22 });
+        l.ring(x.x, x.y, 30, { col: col || spark, w: 2.4, life: 11 });
+      }]);
+    };
+    // A landed blow, aimed by CA.blows: kind light|heavy, col for its sparks.
+    K.hit = (t, by, wth, on, at, kind, shake, col) => {
+      K.blows.push({ t, by, with: wth, on, at, kind: 'none', range: 90, lead: 0.02 }); K.stops.push([t, kind === 'light' ? 0.4 : 0.28, kind === 'light' ? 0.04 : 0.07]);
+      ev.push([t + 0.05, l => { const p = CA.point(on, at, t + 0.06), c2 = col || spark; l.sfx(kind === 'light' ? 'hitBlunt' : 'heavyHit', 0.8, kind === 'light' ? 1.15 : 0.95); l.sfx('hitBlunt', 0.6, 1); l.shake(shake || 8); l.debris(p.x, p.y, 8, { kind: 'spark', col: c2, v: 3.4, r: 1.5, g: 0.08, spread: 360, life: 18 }); l.ring(p.x, p.y, 26, { col: c2, w: 2, life: 10 }); }]);
+    };
+    // A blow turned aside by the other's hand or forearm (aimed: `by` puts `wth` onto `on`'s `at`).
+    K.block = (t, by, wth, on, at) => {
+      K.blows.push({ t, by, with: wth, on, at, kind: 'none', range: 90, lead: 0.02 }); K.stops.push([t, 0.45, 0.04]);
+      ev.push([t + 0.03, l => { const p = CA.point(on, at, t + 0.04); l.sfx('parry', 0.7, 1.1); l.sfx('hitBlunt', 0.5, 1.3); l.shake(3); l.debris(p.x, p.y, 6, { kind: 'spark', col: spark, v: 3, r: 1.3, g: 0.1, spread: 360, life: 14 }); }]);
+    };
+    // After finish(): turn `key`'s weapon arm on its beat at t so the two blades cross there (the clash logged above).
+    K.solveClash = (t, key, R) => {
+      R = R || 60;
+      const bt = a[key].beats.find(q => Math.abs(q[0] - t) < 1e-6); if (!bt) return;
+      const base0 = Object.assign({}, L.POSES.stand, typeof bt[1] === 'string' ? L.POSES[bt[1]] : bt[1], bt[3]); let best = null;
+      for (let d0 = -R; d0 <= R; d0 += 4) for (let d1 = -R; d1 <= R; d1 += 4) {
+        bt._q = L.resolve(bt[1], Object.assign({}, bt[3], { rArm: base0.rArm + d0, rFore: base0.rFore + d1 }));
+        const d = AS.cross(L, 'k', 's', t + 0.03).d, cost = d + 0.03 * (Math.abs(d0) + Math.abs(d1));
+        if (!best || cost < best.cost) best = { d0, d1, cost, d };
+      }
+      bt[3] = Object.assign({}, bt[3], { rArm: base0.rArm + best.d0, rFore: base0.rFore + best.d1 }); bt._q = null;
+      (L.D.log.solve || (L.D.log.solve = {}))[t] = best.d;
+    };
+    K.finish = () => {
+      for (const q of [K.KB, K.SB, K.KP, K.SP, K.KF, K.SF]) q.sort((p, r) => p[0] - r[0]);
+      a.k.beats = K.KB; a.k.pos = K.KP; a.k.face = K.KF; a.s.beats = K.SB; a.s.pos = K.SP; a.s.face = K.SF;
+    };
+    return K;
+  };
 })();

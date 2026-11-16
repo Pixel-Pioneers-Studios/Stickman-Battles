@@ -1101,9 +1101,12 @@ function _applySkillTreeToPlayer(p) {
   // HP bonus (stacking tiers)
   const wKey    = p.weaponKey || 'sword';
   const hpBonus = Math.round(((sk.tankier3 ? 40 : sk.tankier2 ? 25 : sk.tankier1 ? 15 : 0) + _weaponMasteryHpBonus(wKey)) * _storyBuffScale());
-  if (hpBonus > 0) {
-    p.maxHealth = (p.maxHealth || 100) + hpBonus;
-    p.health    = Math.min(p.health + hpBonus, p.maxHealth);
+  // Applied again when the skill tree closes mid-chapter (pause menu), so only the change in bonus is added.
+  const hpDelta = hpBonus - (p._skillHpBonus || 0);
+  p._skillHpBonus = hpBonus;
+  if (hpDelta !== 0) {
+    p.maxHealth = (p.maxHealth || 100) + hpDelta;
+    p.health    = Math.max(1, Math.min(p.health + hpDelta, p.maxHealth));
   }
   // Per-weapon Q-ability cooldown scaling (consumed in Fighter.ability())
   p._weaponAbilityCdMult = _weaponMasteryCdMult(wKey);

@@ -386,6 +386,18 @@ function updateCamera() {
     return;
   }
 
+  // Realm: follow P1, held inside the room's walls.
+  if ((gameMode === 'realm' || (typeof realmInSideRoom === 'function' && realmInSideRoom())) && players[0] && typeof realmCameraTarget === 'function') {
+    camZoomTarget = 1.0;
+    camZoomCur += (camZoomTarget - camZoomCur) * lerp.zoom;
+    const rt = realmCameraTarget(players[0], camZoomCur);
+    camXTarget = rt.x;
+    camYTarget = rt.y + _hudShift;
+    camXCur    += (camXTarget - camXCur) * lerp.pos;
+    camYCur    += (camYTarget - camYCur) * lerp.pos;
+    return;
+  }
+
   if (activePlayers.length > 0) {
     // Exploration: track P1 at a steady zoom.
     if (gameMode === 'exploration' && players[0] && players[0].health > 0) {

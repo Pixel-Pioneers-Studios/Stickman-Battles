@@ -95,6 +95,8 @@ module.exports = {
           aura: [[0, 0.24], [TA, 0.24], [TA + 0.6, 0, 'out']], auraColor: red, eyes: [[0, 1], [TF + 1.6, 1], [15.4, 0, 'in']], eyeColor: red, expr: [[0, 'neutral'], [CROSS, 'hurt'], [CROSS + 0.4, 'neutral'], [ELB, 'hurt'], [11.6, 'neutral'], [TF + 1.4, 'hurt']],
           post: (c, L) => {
             const t = L.D.c;
+            // The long cut: the two wounds from the fight between (z5, z7) are still open from here on.
+            if (window.__ENV.LONG && t >= 3.55) { AS.wound(c, L, 's', 1); AS.wound(c, L, 's', 1, red, 0.15, 0.3); }
             bodyVeins(c, 's', L.curve(anchorK, t)[0], S_PATHS, 29, 1.6);
             // The wound, finishing: a line across him that does not close.
             const wk = L.curve(woundK, t)[0];

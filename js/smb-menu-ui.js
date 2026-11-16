@@ -78,7 +78,7 @@ function selectMode(mode) {
   document.getElementById('p1DifficultyRow').style.display = p1IsBot ? 'flex' : 'none';
   document.getElementById('p2DifficultyRow').style.display = p2IsBot ? 'flex' : 'none';
   // Hide P2 config rows in boss 1P, training, trueform, adaptive, battle royale
-  const isBattleRoyale = mode === 'battleroyale' || mode === 'endless';
+  const isBattleRoyale = mode === 'battleroyale' || mode === 'endless' || mode === 'realm';
   const isEscort       = mode === 'escort';
   const hideP2 = (isBoss && !isBoss2p) || isTraining || isTrueForm || isAdaptive || isBattleRoyale || isEscort;
   document.getElementById('p2ColorRow').style.display     = hideP2 ? 'none' : 'flex';
@@ -156,6 +156,7 @@ function _enterConfigView(mode) {
       'training': 'Training', 'minigames': 'Minigames', 'online': 'Online',
       'battleroyale': 'Battle Royale',
       'endless': 'Endless',
+      'realm': 'Realm',
       'sovereign': 'Sovereign Ω', 'adaptive': 'Adaptive AI',
     };
     modeLabel.textContent = _names[mode] || mode.toUpperCase();
