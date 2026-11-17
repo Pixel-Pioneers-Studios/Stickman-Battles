@@ -1186,6 +1186,26 @@ function _realmStoryAttach() {
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
 }
 
+// Level minimap (drawExploreMinimap): realm doors once the player has come near one, and closed gates.
+// done = the room behind the door has been visited.
+function realmMinimapMarks() {
+  if (!realmActive || realmHost !== 'story' || realmRoomKey || !realmSave || _realmStaleStory()) return [];
+  var p = players[0], out = [];
+  _realmStoryEntrances().forEach(function (e) {
+    if (e.oneWay && !realmSave.flags['open_' + e.id]) return;
+    if (!realmSave.flags['seen_' + e.id] && p && Math.abs(p.cx() - e.x) < 420) {
+      realmSave.flags['seen_' + e.id] = true;
+      _realmStore();
+    }
+    if (!realmSave.flags['seen_' + e.id]) return;
+    out.push({ kind: 'door', x: e.x, y: _realmMainFloorY(e.x), done: !!realmSave.visited[e.room] });
+  });
+  _realmStoryGates().forEach(function (g) {
+    if (!realmSave.flags['gate_' + g.id]) out.push({ kind: 'gate', x: g.x, y: _realmMainFloorY(g.x - 40) });
+  });
+  return out;
+}
+
 // dealDamage asks this: no hit crosses a closed gate, either way.
 function realmBlocksHit(a, t) {
   if (!realmActive || realmHost !== 'story' || realmRoomKey || !realmSave || !a || !t || !a.cx || !t.cx) return false;

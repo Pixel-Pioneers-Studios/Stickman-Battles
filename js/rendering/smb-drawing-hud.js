@@ -570,6 +570,20 @@ function drawExploreMinimap() {
       if (m.done) { ctx.fillStyle = 'rgba(120,160,156,0.55)'; ctx.fill(); }
     }
   }
+  // Side-room doors (smb-realm.js): a small arch once spotted, dimmed once entered; closed gates as a red bar.
+  if (typeof realmMinimapMarks === 'function') {
+    for (const m of realmMinimapMarks()) {
+      const x = Math.round(tx(m.x)) + 0.5, yy = Math.min(ih - 1, Math.round(ty(m.y)));
+      if (m.kind === 'gate') {
+        ctx.strokeStyle = 'rgba(214,96,84,0.9)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, yy - 9); ctx.lineTo(x, yy); ctx.stroke();
+        ctx.lineWidth = 1;
+        continue;
+      }
+      ctx.strokeStyle = m.done ? 'rgba(170,150,120,0.6)' : 'rgba(240,206,130,0.95)';
+      ctx.beginPath(); ctx.moveTo(x - 3, yy); ctx.lineTo(x - 3, yy - 4); ctx.arc(x, yy - 4, 3, Math.PI, 0); ctx.lineTo(x + 3, yy); ctx.stroke();
+    }
+  }
   ctx.fillStyle = 'rgba(204,104,92,0.95)';
   const dot = f => {
     if (!f || f === p1 || !(f.health > 0)) return;
