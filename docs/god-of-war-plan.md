@@ -96,6 +96,16 @@ Fixed while testing: enemies' dash moves carried them through closed gates (the 
 
 Tested in the browser (Nov 16): block push and seat, bars, the walk through to each room, crack break with real swings, the timed run (frame-driven input), bars closing on the player, the lever refusing then opening, the exit at x 2420 with the gate gone. Not yet run by the level tester: it can't push blocks or time a run, so it needs a puzzle step before it can walk this chapter.
 
+## Optional dungeon: Hall of the First Wall (Nov 16)
+
+Your chapter 99 (registry id 98, "The Scale of Things", Titan World). Stone arch at x 1650. Optional. `REALM_DEFS.titanhall`.
+
+- **Titan Stair:** steps 110 and 190 high (single jump is about 214), spikes past them, a cracked wall that takes five hits. Token chest on top of the tall step.
+- **The Weighing of Kings:** two blocks between two latch plates; the bars open only when both are seated (`when` now takes a list: all must hold). The inscription says "Each weight to its own side." Push one block the wrong way into the other and they jam; leaving and coming back resets the room.
+- **Throne of the Dead King:** Ruin Colossus (hammer, helmet and chestplate) and a Titan Patrol. +140 EXP, +90 tokens. Ladder out.
+
+Browser-tested Nov 16: the two-weight puzzle solved with real keys (B right to its plate, then A left), both plates latched and the bars opened; the stair room's look. The level tester's block step now picks the nearest unseated block and works through a `when` list in order.
+
 ## Optional dungeon: the Root Vault (Nov 16)
 
 Your chapter 42 (registry id 41, "The Third Key"). A hatch in the level's root pit (x 1320, the pit floor) leads down. Optional. `REALM_DEFS.rootvault`. Adds two puzzle parts: **lifts** (`lifts: [{ id, x, w, y0, y1, when }]`, shuttle on their own or ride while `when` holds; riders move with them; pause 110 frames at each stop; the top stop must be level with the ledge it serves) and **spikes** (`spikes: [[x0, x1]]`, 12 damage and a bounce, 40-frame cooldown, respects i-frames).
@@ -155,6 +165,8 @@ Slice total: about 4-5 weeks (was 6-8 before counting the skill tree and BR part
 What the tools don't shrink: the user playing each dungeon and giving a verdict. In past work, getting from first version to approval took about 3x the first build, and that loop is human time. The other part that doesn't shrink is fitting the existing 186 chapters into realms, if we choose to do that.
 
 ## Status
+
+**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch42, ch47 and ch99.
 
 **Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel and checkpoint-level resume inside a chapter are not built.
 

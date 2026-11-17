@@ -162,6 +162,51 @@ const REALM_DEFS = {
     },
   },
 
+  // Under the outer ruins of story id 98 (Titan World): optional. Titan-scale steps and a two-weight puzzle.
+  titanhall: {
+    name: 'Hall of the First Wall',
+    theme: 'storyTitan',
+    start: { room: 'stair', door: 'in' },
+    rooms: {
+      stair: {
+        name: 'Titan Stair', gx: 0, gy: 0, w: 1300, back: true, wall: '#2a1c10', dark: 0.2, stone: ['#5a4430', '#76593e'],
+        say: 'Steps cut for something three times your height.',
+        steps: [[300, 110, 120], [560, 190, 120]],
+        spikes: [[700, 880]],
+        chests: [{ id: 'urn', x: 620, y: 370, gives: 'tokens:40' }],
+        cracks: [{ id: 'wall', x: 1060, hits: 5 }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['@main', 'titanhall'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['weigh', 'in'] },
+        ],
+      },
+      weigh: {
+        name: 'The Weighing of Kings', gx: 1, gy: 0, w: 1300, back: true, wall: '#2c1e12', dark: 0.25, stone: ['#5a4430', '#76593e'],
+        say: 'An inscription over the far door: "Each weight to its own side."',
+        blocks: [{ id: 'a', x: 560 }, { id: 'b', x: 760 }],
+        plates: [{ id: 'l', x: 260, latch: true }, { id: 'r', x: 1060, latch: true }],
+        bars: [{ id: 'kings', x: 1180, when: ['plate:l', 'plate:r'] }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['stair', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['throne', 'in'] },
+        ],
+      },
+      throne: {
+        name: 'Throne of the Dead King', gx: 2, gy: 0, w: 1100, back: true, wall: '#301e10', dark: 0.3, stone: ['#5a4430', '#76593e'],
+        ledges: [[220, 430, 150], [730, 430, 150]],
+        chests: [{ id: 'crown', x: 950, gives: 'exp:140' }, { id: 'tithe', x: 805, y: 430, gives: 'tokens:90' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['weigh', 'next'] },
+          { id: 'up', kind: 'arch', x: 1010, art: 'ladder', to: ['@main', 'titanhall'] },
+        ],
+        foes: [
+          { x: 640, name: 'Ruin Colossus', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#884400', health: 240, armor: ['helmet', 'chestplate'] },
+          { x: 860, name: 'Titan Patrol', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', color: '#995500' },
+        ],
+      },
+    },
+  },
+
   // Under the root pit of story id 41 (the Sanctum Cache): optional, like the undercroft. Lifts and spikes.
   rootvault: {
     name: 'The Root Vault',
@@ -348,6 +393,11 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  titanhall: {
+    chapters: [98],
+    entrances: [{ id: 'titanhall', ch: 98, x: 1650, art: 'temple', room: 'stair', door: 'in' }],
+    gates: [],
+  },
   rootvault: {
     chapters: [41],
     entrances: [{ id: 'rootvault', ch: 41, x: 1320, art: 'hatch', room: 'shaft', door: 'in' }],
@@ -1475,9 +1525,10 @@ function _realmPuzPlat(tag, id) {
 }
 
 // A bar's or lever's 'when': 'plate:<id>' (held down now, or latched), 'lever:<id>', 'clear' (the room's foes are
-// beaten), or any save flag.
+// beaten), any save flag, or a list of these (all must hold).
 function _realmCond(w) {
   if (!w) return true;
+  if (Array.isArray(w)) return w.every(_realmCond);
   if (w === 'clear') { var R = _realmRoom(); return !(R.foes && R.foes.length) || (!!realmSave.flags['clear_' + realmRoomKey] && !_realmRoomFoesAlive()); }
   if (w.indexOf('plate:') === 0) { var id = w.slice(6); return !!realmSave.flags['plate_' + id] || ((_realmPuz && _realmPuz.plates[id]) || 0) > 0; }
   if (w.indexOf('lever:') === 0) return !!realmSave.flags['lever_' + w.slice(6)];

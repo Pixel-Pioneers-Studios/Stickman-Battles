@@ -356,12 +356,16 @@ async function runAttempt(browser, ch, attempt) {
       function realmPuzzleWaypoint(h, R) {
         for (const b of (R.bars || [])) {
           if (_realmBarOpen(b)) continue;
-          const w = b.when || '';
+          // A list waits on all of its parts: work on the first one not yet met.
+          const w = (Array.isArray(b.when) ? b.when.find(q => !_realmCond(q)) : b.when) || '';
           if (w.indexOf('plate:') === 0) {
             const pt = (R.plates || []).find(q => q.id === w.slice(6));
             if (!pt) continue;
             if (!pt.latch) return { x: pt.x, y: null };
-            const blk = (R.blocks || []).map(q => _realmPuzPlat('_realmBlock', q.id)).find(Boolean);
+            // The nearest block not already seated in a plate.
+            const blk = (R.blocks || []).filter(q => !(_realmPuz && _realmPuz.seated[q.id]))
+              .map(q => _realmPuzPlat('_realmBlock', q.id)).filter(Boolean)
+              .sort((a, c) => Math.abs(a.x - pt.x) - Math.abs(c.x - pt.x))[0];
             if (!blk) continue;
             const dir = Math.sign(pt.x - (blk.x + blk.w / 2)) || 1;
             return { x: dir > 0 ? blk.x - h.w / 2 : blk.x + blk.w + h.w / 2, y: null, push: dir };
