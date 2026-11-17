@@ -96,6 +96,15 @@ Fixed while testing: enemies' dash moves carried them through closed gates (the 
 
 Tested in the browser (Nov 16): block push and seat, bars, the walk through to each room, crack break with real swings, the timed run (frame-driven input), bars closing on the player, the lever refusing then opening, the exit at x 2420 with the gate gone. Not yet run by the level tester: it can't push blocks or time a run, so it needs a puzzle step before it can walk this chapter.
 
+## Optional rooms: the Cache Crawlspace (Nov 16)
+
+Your chapter 9 (registry id 8, "Cache Discovery"), so a new player meets the side rooms early. A hatch in the tunnel at x 4100, after the Cache Guardian duel (the duel's arena lock covers about x 3000-3500). Optional and gentle: `REALM_DEFS.crawl`.
+
+- **Maintenance Crawl:** one crate onto one latch plate opens a grate. The first block puzzle in the story.
+- **Supply Store:** one Cache Drone (easy AI; story scaling still gives it 200 HP, the standard cap, like the chapter's other foes), +30 tokens, +40 EXP. Ladder back to the tunnel.
+
+Browser-tested Nov 16: the duel releases its lock and the walk continues; the hatch; the crawl solved with real keys; the store; the ladder back to x 4083.
+
 ## Optional dungeon: the Blind Galleries (Nov 16)
 
 Your chapter 97 (registry id 96, "What You Cannot See", Shadow Realm stealth). Stone arch at x 1600. Optional. `REALM_DEFS.galleries`. Adds **lightless rooms** (`lightless: 0.96`: dark except a 150 px circle around you) and **torches** (`torches: [{ id, x }]`, F lights one for good, 300 px of light).
@@ -175,7 +184,7 @@ What the tools don't shrink: the user playing each dungeon and giving a verdict.
 
 ## Status
 
-**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch42, ch47, ch97 and ch99.
+**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch9, ch42, ch47, ch97 and ch99.
 
 **Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel and checkpoint-level resume inside a chapter are not built.
 

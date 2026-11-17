@@ -164,6 +164,39 @@ const REALM_DEFS = {
     },
   },
 
+  // Off the tunnel of story id 8 (Cache Discovery): the first optional rooms a player can find. Gentle on purpose:
+  // one block to push, one weak foe, small rewards.
+  crawl: {
+    name: 'The Cache Crawlspace',
+    theme: 'cave',
+    start: { room: 'crawl', door: 'in' },
+    rooms: {
+      crawl: {
+        name: 'Maintenance Crawl', gx: 0, gy: 0, w: 1100, back: true, wall: '#1a1e24', dark: 0.3, stone: ['#3a4048', '#525a64'],
+        say: 'A crawlspace behind the cache. The grate ahead opens on a weight.',
+        blocks: [{ id: 'crate', x: 330 }],
+        plates: [{ id: 'grate', x: 640, latch: true }],
+        bars: [{ id: 'grate', x: 900, when: 'plate:grate' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'hatch', to: ['@main', 'crawl'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['store', 'in'] },
+        ],
+      },
+      store: {
+        name: 'Supply Store', gx: 1, gy: 0, w: 900, back: true, wall: '#1c2026', dark: 0.25, stone: ['#3a4048', '#525a64'],
+        ledges: [[520, 440, 140]],
+        chests: [{ id: 'kit', x: 590, y: 440, gives: 'tokens:30' }, { id: 'notes', x: 700, gives: 'exp:40' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['crawl', 'next'] },
+          { id: 'up', kind: 'arch', x: 820, art: 'ladder', to: ['@main', 'crawl'] },
+        ],
+        foes: [
+          { x: 560, name: 'Cache Drone', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'easy', color: '#446688' },
+        ],
+      },
+    },
+  },
+
   // Off the sentinel road of story id 96 (Shadow Realm): optional, and dark. Torches you light stay lit.
   galleries: {
     name: 'The Blind Galleries',
@@ -430,6 +463,11 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  crawl: {
+    chapters: [8],
+    entrances: [{ id: 'crawl', ch: 8, x: 4100, art: 'hatch', room: 'crawl', door: 'in' }],
+    gates: [],
+  },
   galleries: {
     chapters: [96],
     entrances: [{ id: 'galleries', ch: 96, x: 1600, art: 'temple', room: 'gallery', door: 'in' }],
