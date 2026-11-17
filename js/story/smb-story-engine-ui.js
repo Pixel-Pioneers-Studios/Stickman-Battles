@@ -292,8 +292,31 @@ function _updateContinueStoryBtn() {
 
 function openStoryMenuChapters() {
   if (typeof closeStoryPath === 'function') closeStoryPath();
+  // Continue: a returning player goes straight into their next chapter. A first visit still opens the
+  // story window, which plays the prologue and asks for a difficulty.
+  if (typeof storyChapterSelectUnlocked === 'function' && !storyChapterSelectUnlocked() &&
+      _story2 && _story2.prologueSeen && _story2.difficulty) {
+    continueStory();
+    return;
+  }
   if (typeof openStoryMenu === 'function') openStoryMenu();
   switchStoryTab('chapters');
+}
+
+// The story panel's first card: Continue until the story is beaten, then Chapters.
+function _refreshStoryContinueCard() {
+  const t = document.getElementById('storyChaptersCardTitle');
+  const d = document.getElementById('storyChaptersCardDesc');
+  if (!t || !d || typeof storyChapterSelectUnlocked !== 'function') return;
+  if (storyChapterSelectUnlocked()) {
+    t.textContent = 'Chapters';
+    d.textContent = 'Replay any chapter';
+    return;
+  }
+  const info = typeof storyNextChapterInfo === 'function' ? storyNextChapterInfo() : null;
+  const fresh = !_story2 || !_story2.prologueSeen;
+  t.textContent = fresh ? 'Begin' : 'Continue';
+  d.textContent = info ? 'Chapter ' + info.num + ': ' + info.title : 'Continue your journey';
 }
 
 function openStoryMenuShop() {

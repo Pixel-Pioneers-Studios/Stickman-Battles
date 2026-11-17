@@ -129,6 +129,8 @@ What the tools don't shrink: the user playing each dungeon and giving a verdict.
 
 ## Status
 
+**Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel and checkpoint-level resume inside a chapter are not built.
+
 **Nov 16:** step 2's puzzle parts built and used in the second dungeon (the Memory Vault, above); step 2's room editor is not built. Awaiting the user's playtest of the facility, the Trial Wing, the ch71 Axiom encounter and the vault.
 
 **Step 1 built (Nov 15 2026), awaiting the user's playtest.** `js/smb-realm.js`, opened from the home list as "Realm" (Preview). Test realm "The Old Ruins": Courtyard (hub), Collapsed Hall (east), Undercroft (below, through a hole in the hall floor; ladder back up), Inner Shrine (background, through an archway). Door kinds: edge, arch (F), drop, fall. Checkpoint doors, deadly pits (spikes) vs drop holes (glow), chests (heal or weapon), minimap of visited rooms, save per account (`unlocks.realm`). Console `realmReset()` starts over. Rooms are data in `REALM_DEFS`, the format step 2's room editor will write.

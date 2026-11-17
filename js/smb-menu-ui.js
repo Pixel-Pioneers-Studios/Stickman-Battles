@@ -535,6 +535,7 @@ function _openStoryPathPanel() {
   if (pathCards) pathCards.style.display = 'none';
   if (storyPathPanel) storyPathPanel.style.display = '';
   if (typeof _refreshStoryLoadoutLabels === 'function') _refreshStoryLoadoutLabels();
+  if (typeof _refreshStoryContinueCard === 'function') _refreshStoryContinueCard();
 }
 
 function openStoryPath() {

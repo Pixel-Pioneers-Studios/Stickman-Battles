@@ -399,10 +399,66 @@ function _powerLabel(num) {
 // Currently-viewed act index in the act-paged level select (null = default to reached act).
 let _storyViewAct = null;
 
+// Chapter select is a post-game reward: until the last chapter is cleared, story is Continue only
+// (docs/god-of-war-plan.md, design decisions). Developer-key and dev accounts keep it for testing.
+function storyChapterSelectUnlocked() {
+  if (typeof hasPermission === 'function' && hasPermission('dev')) return true;
+  if (!_story2 || typeof STORY_CHAPTERS2 === 'undefined') return true;
+  return (_story2.chapter || 0) >= STORY_CHAPTERS2.length;
+}
+
+// The next chapter Continue starts, skipping silent bridge chapters for its title.
+function storyNextChapterInfo() {
+  if (!_story2 || typeof STORY_CHAPTERS2 === 'undefined') return null;
+  const idx = _story2.chapter || 0;
+  let vis = idx;
+  while (STORY_CHAPTERS2[vis] && STORY_CHAPTERS2[vis]._menuHidden) vis++;
+  const ch = STORY_CHAPTERS2[vis] || STORY_CHAPTERS2[idx];
+  if (!ch) return null;
+  return { idx: idx, num: vis + 1, title: ch.title || '', world: ch.world ? String(ch.world).replace(/^[^\w(]+/, '').trim() : '' };
+}
+
+// Locked chapter select: where you are and how far along, in place of the star chart.
+function _renderStoryJourneyPanel(list) {
+  const viewBtn = document.getElementById('storyViewToggle');
+  if (viewBtn) viewBtn.style.display = 'none';
+  if (typeof StoryMap !== 'undefined' && StoryMap.unmount) StoryMap.unmount();
+  const info = storyNextChapterInfo();
+  const total = STORY_CHAPTERS2.length;
+  const done = new Set((Array.isArray(_story2.defeated) ? _story2.defeated : [])
+    .filter(i => Number.isInteger(i) && i >= 0 && i < total)).size;
+  const pct = total ? Math.min(100, Math.round(done / total * 100)) : 0;
+  const box = document.createElement('div');
+  box.style.cssText = 'padding:22px 20px;border:1px solid rgba(255,200,100,0.16);border-radius:10px;background:rgba(255,200,100,0.04);text-align:left;';
+  const kick = document.createElement('div');
+  kick.style.cssText = 'font-size:0.72rem;letter-spacing:0.12em;color:#b89930;text-transform:uppercase;margin-bottom:6px;';
+  kick.textContent = done > 0 ? 'Next' : 'Begin';
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:1.25rem;font-weight:700;color:#ffe7b0;margin-bottom:4px;';
+  title.textContent = info ? 'Chapter ' + info.num + ': ' + info.title : 'Story complete';
+  const where = document.createElement('div');
+  where.style.cssText = 'font-size:0.82rem;color:#9a8a66;margin-bottom:16px;';
+  where.textContent = info && info.world ? info.world : '';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'height:6px;border-radius:3px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:6px;';
+  const fill = document.createElement('div');
+  fill.style.cssText = 'height:100%;width:' + pct + '%;background:linear-gradient(90deg,#b8862a,#ffd27a);';
+  bar.appendChild(fill);
+  const prog = document.createElement('div');
+  prog.style.cssText = 'font-size:0.74rem;color:#776633;margin-bottom:14px;';
+  prog.textContent = done + ' of ' + total + ' chapters cleared · ' + pct + '%';
+  const note = document.createElement('div');
+  note.style.cssText = 'font-size:0.76rem;color:#8a8070;line-height:1.5;';
+  note.textContent = 'Chapter select opens once you finish the story. Until then, the story picks up where you left off.';
+  [kick, title, where, bar, prog, note].forEach(el => box.appendChild(el));
+  list.appendChild(box);
+}
+
 function _renderChapterList() {
   const list = document.getElementById('storyLevelList');
   if (!list) return;
   list.innerHTML = '';
+  if (!storyChapterSelectUnlocked()) { _renderStoryJourneyPanel(list); return; }
 
   // Clamp into the active saga: a fresh save's chapter 0 would lock every tile on Saga II/III.
   // The saved value is never mutated. No-op on 'full'.
