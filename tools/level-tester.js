@@ -20,6 +20,7 @@
  *   --headful     show the browser
  *   --shots       also screenshot every N seconds (debugging a chapter)
  *   --startup     flat swing startup in frames for all non-boss fighters (0 = pre-Nov 10 behaviour)
+ *   --optional    also walk every optional realm dungeon in the chapter (side rooms nothing requires)
  *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
  *                 net that drives the shipped Sovereign fight, pressing virtual keys)
  *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/latest.json)
@@ -70,6 +71,7 @@ const HEADFUL    = !!args.headful;
 const SHOTS_S    = parseInt(args.shots, 10) || 0;
 // --startup=N: flat swing startup for every non-boss fighter (SIM_SWING_STARTUP); 0 = hits land on frame 1 as before Nov 10.
 const STARTUP    = args.startup != null ? parseInt(args.startup, 10) : null;
+const OPTIONAL   = !!args.optional;
 const CP_RETRIES = parseInt(args.cpretries, 10) || 0;
 const PILOT      = args.pilot === 'brain' ? 'brain' : 'cascade';
 
@@ -175,6 +177,7 @@ async function bootPage(browser) {
       .forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
   });
   if (STARTUP != null) await page.evaluate(n => { window.SIM_SWING_STARTUP = n; }, STARTUP);
+  if (OPTIONAL) await page.evaluate(() => { window.__ltOptional = true; });
   await sleep(400);
   return { ctx, page, errors, consoleErrors };
 }
@@ -327,12 +330,21 @@ async function runAttempt(browser, ch, attempt) {
       // Dungeon route (a realm holding the chapter exit): in a room, fight, then burn, then the next door on the
       // def's route (or the way out after the last room); outside, the entrance into its first room.
       // Also a gate with no terminal: its side rooms open it (the Memory Vault), so walk the rooms.
+      // --optional: an entrance whose room has never been visited is a detour to take.
+      function realmOptionalEntrance() {
+        if (!window.__ltOptional || typeof realmActive === 'undefined' || !realmActive || realmHost !== 'story' || !realmSave) return null;
+        return _realmStoryEntrances().find(e => !realmSave.visited[e.room] && !(e.needs && !realmSave.flags[e.needs]) &&
+          !(e.oneWay && !realmSave.flags['open_' + e.id])) || null;
+      }
       function realmDungeonWaypoint(h) {
         if (typeof realmExitBlocker !== 'function' || realmFade !== 0) return null;
         const roomGate = realmClosedGates().some(g => g.termX == null);
-        if (!realmExitBlocker() && !roomGate && !(realmRoomKey && REALM_DEFS[realmKey].route)) return null;
+        const optEnt = realmRoomKey ? null : realmOptionalEntrance();
+        const inRoom = realmRoomKey && (REALM_DEFS[realmKey].route || window.__ltOptional);
+        if (!realmExitBlocker() && !roomGate && !inRoom && !optEnt) return null;
         const def = REALM_DEFS[realmKey], save = realmSave;
         if (!realmRoomKey) {
+          if (optEnt && !realmExitBlocker() && !roomGate) return { x: optEnt.x, y: null, act: true };
           const first = def.route ? def.route[0] : null;
           const ent = _realmStoryEntrances().find(e => e.room === first && !(e.oneWay && !save.flags['open_' + e.id]));
           return ent ? { x: ent.x, y: null, act: true } : null;
@@ -345,15 +357,37 @@ async function runAttempt(browser, ch, attempt) {
         if (pz) return pz;
         const i = (def.route || []).indexOf(realmRoomKey);
         const nextRoom = def.route && def.route[i + 1];
-        const d = (R.doors || []).find(q => q.to && (nextRoom ? q.to[0] === nextRoom : q.to[0] === '@main' && q.id !== 'in'));
+        let d = (R.doors || []).find(q => q.to && (nextRoom ? q.to[0] === nextRoom : q.to[0] === '@main' && q.id !== 'in'));
+        // No route (an optional dungeon): a door into a room not yet seen, else the way out.
+        if (!def.route) {
+          d = (R.doors || []).find(q => q.to && q.to[0] !== '@main' && !save.visited[q.to[0]]) ||
+              (R.doors || []).find(q => q.to && q.to[0] === '@main' && q.id !== 'in') ||
+              (R.doors || []).find(q => q.to && q.to[0] === '@main');
+        }
         if (!d) return null;
         if (d.kind === 'edge') return { x: d.side === 'l' ? -40 : R.w + 40, y: null };
-        return { x: d.x, y: null, act: true };
+        if (d.kind === 'drop') return { x: (d.x0 + d.x1) / 2, y: null };
+        // A door up on a ledge served by a lift: get on, ride, step off at the top.
+        if (d.y && d.y < REALM_FLOOR_Y - 100 && Math.abs(h.y + h.h - d.y) > 8) {
+          const l = (R.lifts || []).find(q => Math.abs(q.y1 - d.y) < 20);
+          const pl = l && _realmPuzPlat('_realmLift', l.id);
+          if (pl) {
+            const on = h.onGround && Math.abs(h.y + h.h - pl.y) <= 4 && h.x + h.w > pl.x && h.x < pl.x + pl.w;
+            if (on) return { x: pl.x + pl.w / 2, y: null };
+            // Board only at the bottom stop; wait beside it otherwise.
+            if (pl.y < l.y0 - 2) return { x: pl.x - 30, y: null };
+            // Aim above the deck so the walker jumps on rather than walking under it.
+            return { x: pl.x + pl.w / 2, y: pl.y - 80 };
+          }
+        }
+        return { x: d.x, y: d.y || null, act: true };
       }
       // Puzzle parts (smb-realm.js _realmPuzzleTick), solved as a player would: shut bars first (push the
       // block onto a latch plate, step on a hold plate and the door waypoint does the run, pull the lever),
       // then cracked walls (swing at them), then levers left to pull.
       function realmPuzzleWaypoint(h, R) {
+        const t = (R.torches || []).filter(q => !realmSave.flags['torch_' + q.id]).sort((a, c) => a.x - c.x)[0];
+        if (t) return { x: t.x, y: null, act: true };
         for (const b of (R.bars || [])) {
           if (_realmBarOpen(b)) continue;
           // A list waits on all of its parts: work on the first one not yet met.
@@ -571,6 +605,10 @@ async function runAttempt(browser, ch, attempt) {
         if (T.result) return;
         requestAnimationFrame(tick);
         T.frames++;
+        // Realm progress for the report: flags plus rooms visited (puzzle rooms need no F press to advance).
+        if (T.frames % 60 === 0 && typeof realmSave !== 'undefined' && realmSave && typeof realmActive !== 'undefined' && realmActive) {
+          try { T.realmFlags = Object.keys(realmSave.flags).concat(Object.keys(realmSave.items), Object.keys(realmSave.visited).map(k => 'room:' + k)).join('+'); } catch (e) {}
+        }
         try {
           // Advance mid-chapter dialogue. Only the story dialogue panel: a generic
           // "Fight!" click elsewhere starts the home-screen Fight Ladder.
@@ -807,7 +845,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
   if (misaligned.length) console.warn(`[lt] ${misaligned.length} chapters have id != index; using id`);
   const pick = parseChapters(args.chapters, all.length - 1);
   const chapters = pick ? all.filter(c => pick.includes(c.id)) : all;
-  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT}${STARTUP != null ? ' · startup ' + STARTUP : ''} · ${PARALLEL} parallel · out ${OUT}`);
+  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT}${STARTUP != null ? ' · startup ' + STARTUP : ''}${OPTIONAL ? ' · optional dungeons' : ''} · ${PARALLEL} parallel · out ${OUT}`);
 
   const jobs = [];
   const rows = new Map();

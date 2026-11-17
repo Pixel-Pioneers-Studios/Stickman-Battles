@@ -96,6 +96,24 @@ Fixed while testing: enemies' dash moves carried them through closed gates (the 
 
 Tested in the browser (Nov 16): block push and seat, bars, the walk through to each room, crack break with real swings, the timed run (frame-driven input), bars closing on the player, the lever refusing then opening, the exit at x 2420 with the gate gone. Not yet run by the level tester: it can't push blocks or time a run, so it needs a puzzle step before it can walk this chapter.
 
+## Level tester on optional dungeons (Nov 16)
+
+`--optional` makes the walker take every optional dungeon in the chapter: enter any entrance whose room was never visited, then in each room light torches, solve puzzles, fight, and take the door to an unvisited room (floor-hole drops included), else the way out. It boards a lift at its bottom stop (aiming above the deck so it jumps on), rides it, and steps off to a high door. Realm flags and visited rooms are now sampled every second for the report.
+
+Brain 20011, Normal, --progress=auto (Nov 16):
+
+| Chapter (yours) | Dungeon | What the pilot did |
+|---|---|---|
+| 9 | Cache Crawlspace | 1/1 cleared, crate and grate solved, store cleared |
+| 97 | Blind Galleries | 1/1 cleared, all torches lit, Listening Room cleared |
+| 99 | Hall of the First Wall | 2/2 solved wall, steps and two-weight puzzle, reached the throne; then died to the Colossus and the chapter's checkpoint waves |
+| 47 | Beneath the First Collapse | 2/2 broke the wall, dropped, cleared the Sunken Hall, made the timed run, reached the Warden; died to the Warden |
+| 42 | Root Vault | rides the lift to the Thornwalk; can't reach the lever (three ledge hops over spikes is beyond the walker, not a human) |
+
+Fixed because of these runs:
+- **Root Shaft lift sat 40 px short of its exit ledge.** Walking off dropped you through the gap, under the one-way ledge. The lift is now flush with the ledge (x 1000). A real bug for players too; my manual test only crossed it by luck.
+- **Chained swings didn't count as hits on cracked walls (and the shopkeeper).** A swing start was read as the attack timer leaving 0; back-to-back swings never touch 0. Now any upward jump in the timer counts.
+
 ## Optional rooms: the Cache Crawlspace (Nov 16)
 
 Your chapter 9 (registry id 8, "Cache Discovery"), so a new player meets the side rooms early. A hatch in the tunnel at x 4100, after the Cache Guardian duel (the duel's arena lock covers about x 3000-3500). Optional and gentle: `REALM_DEFS.crawl`.

@@ -18,7 +18,7 @@
 // hold }] down while you or a block stand on them (latch: a block locks it for good; hold: frames it stays down
 // after you step off); bars [{ id, x, when }] a portcullis that rises while 'when' holds and stays up once you are
 // past it; levers [{ id, x, y, when, sets, line }] F to pull; cracks [{ id, x, hits }] a wall your swings break;
-// lifts [{ id, x, w, y0, y1, when }] a platform between y0 (low) and y1 (high; level it with the ledge it serves): with 'when' it rises while that holds,
+// lifts [{ id, x, w, y0, y1, when }] a platform between y0 (low) and y1 (high; level and flush with the ledge it serves): with 'when' it rises while that holds,
 // without it shuttles on its own. spikes [[x0, x1]] floor strips that hurt (12) and bounce you up.
 // torches [{ id, x, y }] F lights one for good (flag torch_<id>). lightless: 0-1, a room that is dark but for a
 // small circle around you and the torches you have lit.
@@ -288,7 +288,7 @@ const REALM_DEFS = {
         say: 'Roots older than the sanctum. Something was built down here before it.',
         ledges: [[430, 460, 110], [640, 430, 110], [1130, 250, 170]],
         spikes: [[360, 840]],
-        lifts: [{ id: 'shaft', x: 960, w: 130, y0: 500, y1: 250 }],
+        lifts: [{ id: 'shaft', x: 1000, w: 130, y0: 500, y1: 250 }],
         chests: [{ id: 'sap', x: 690, y: 430, gives: 'tokens:25' }],
         doors: [
           { id: 'in', kind: 'arch', x: 110, art: 'ladder', to: ['@main', 'rootvault'] },
@@ -933,7 +933,8 @@ function updateRealm() {
 function _realmShopTick(p, R) {
   var n = (R.npcs || []).find(function (q) { return q.kind === 'shop'; });
   var atk = p.attackTimer || 0, abil = p.abilityCooldown || 0;
-  var started = (atk > 0 && _realmPrevAtk === 0) || (abil > _realmPrevAbil + 1);
+  // attackTimer counts down; a new swing resets it upward, even when swings chain with no frame at 0.
+  var started = (atk > _realmPrevAtk) || (abil > _realmPrevAbil + 1);
   _realmPrevAtk = atk; _realmPrevAbil = abil;
   _realmStarted = started;
   if (!n) return;
