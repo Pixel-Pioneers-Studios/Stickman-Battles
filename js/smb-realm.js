@@ -18,7 +18,7 @@
 // hold }] down while you or a block stand on them (latch: a block locks it for good; hold: frames it stays down
 // after you step off); bars [{ id, x, when }] a portcullis that rises while 'when' holds and stays up once you are
 // past it; levers [{ id, x, y, when, sets, line }] F to pull; cracks [{ id, x, hits }] a wall your swings break;
-// steps [[x, h, w]] low solid walls to jump.
+// steps [[x, h, w]] low solid walls to jump. Room stone: [base, top edge] colours these parts.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
 // wall (back-wall colour).
@@ -160,6 +160,55 @@ const REALM_DEFS = {
     },
   },
 
+  // Beneath the ruins of story id 46: an optional dungeon off the main walk. Nothing on the main path needs it;
+  // it pays out in EXP and tokens and holds the chapter's only optional mini-boss.
+  undercroft: {
+    name: 'Beneath the First Collapse',
+    theme: 'ruins',
+    start: { room: 'stair', door: 'in' },
+    rooms: {
+      stair: {
+        name: 'Collapsed Stair', gx: 0, gy: 0, w: 1200, back: true, wall: '#2a2018', dark: 0.2, stone: ['#4a3c2c', '#62503a'],
+        floor: [[0, 820], [960, 1200]],
+        ledges: [[1000, 430, 140]],
+        chests: [{ id: 'dust', x: 1070, y: 430, gives: 'tokens:25' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['@main', 'undercroft'] },
+          { id: 'down', kind: 'drop', x0: 820, x1: 960, to: ['sunken', 'top'] },
+        ],
+        cracks: [{ id: 'stair', x: 640, hits: 4 }],
+      },
+      sunken: {
+        name: 'The Sunken Hall', gx: 0, gy: 1, w: 1500, back: true, wall: '#241a14', dark: 0.4, stone: ['#4a3c2c', '#62503a'],
+        ledges: [[520, 450, 130], [880, 450, 130]],
+        steps: [[700, 70, 60], [1060, 70, 60]],
+        doors: [
+          { id: 'top', kind: 'fall', x: 180, checkpoint: true },
+          { id: 'up', kind: 'arch', x: 110, art: 'ladder', to: ['@main', 'undercroft'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['vault', 'in'] },
+        ],
+        foes: [
+          { x: 900, name: 'Tomb Knight', weaponKey: 'axe', classKey: 'warrior', aiDiff: 'hard', color: '#998877', armor: ['helmet'] },
+          { x: 1150, name: 'Rubble Crawler', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'medium', color: '#887766' },
+        ],
+        plates: [{ id: 'run', x: 300, hold: 270 }],
+        bars: [{ id: 'run', x: 1300, when: 'plate:run' }],
+      },
+      vault: {
+        name: 'Vault of the First Collapse', gx: 1, gy: 1, w: 1100, back: true, wall: '#2c2016', dark: 0.3, stone: ['#4a3c2c', '#62503a'],
+        ledges: [[220, 430, 150], [730, 430, 150]],
+        chests: [{ id: 'relic', x: 950, gives: 'exp:120' }, { id: 'coin', x: 805, y: 430, gives: 'tokens:80' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['sunken', 'next'] },
+          { id: 'up', kind: 'arch', x: 1010, art: 'ladder', to: ['@main', 'undercroft'] },
+        ],
+        foes: [
+          { x: 720, name: 'Collapse Warden', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#7a6644', health: 220, armor: ['helmet', 'chestplate'] },
+        ],
+      },
+    },
+  },
+
   // The Fallen God's memory vault: the puzzle dungeon of story id 81. Each room teaches one part.
   vault: {
     name: 'The Memory Vault',
@@ -251,6 +300,11 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  undercroft: {
+    chapters: [46],
+    entrances: [{ id: 'undercroft', ch: 46, x: 1300, art: 'temple', room: 'stair', door: 'in' }],
+    gates: [],
+  },
   // A gate without termX has no terminal: something in the side rooms sets its gate_<id> flag.
   vault: {
     chapters: [81],
@@ -1470,15 +1524,17 @@ function _realmPullLever(l) {
 function _realmDrawPuzzle(R) {
   var f = typeof frameCount !== 'undefined' ? frameCount : 0;
   var g = REALM_FLOOR_Y;
+  // Stone for steps, blocks, pillars and cracked walls: R.stone = [base, top edge], violet by default.
+  var st = R.stone || ['#3e3850', '#5a5270'];
   (R.steps || []).forEach(function (s) {
-    ctx.fillStyle = '#3a3448'; ctx.fillRect(s[0], g - s[1], s[2], s[1]);
-    ctx.fillStyle = '#5a5270'; ctx.fillRect(s[0], g - s[1], s[2], 4);
+    ctx.fillStyle = st[0]; ctx.fillRect(s[0], g - s[1], s[2], s[1]);
+    ctx.fillStyle = st[1]; ctx.fillRect(s[0], g - s[1], s[2], 4);
   });
   (R.plates || []).forEach(function (pt) {
     var down = (_realmPuz && (_realmPuz.plates[pt.id] || 0) > 0) || !!realmSave.flags['plate_' + pt.id];
     var x0 = pt.x - REALM_PLATE_W / 2;
     ctx.fillStyle = '#16131e'; ctx.fillRect(x0 - 4, g - 2, REALM_PLATE_W + 8, 4);
-    ctx.fillStyle = down ? '#4ab8d8' : '#5a5468';
+    ctx.fillStyle = down ? '#4ab8d8' : st[1];
     ctx.fillRect(x0, g - (down ? 3 : 8), REALM_PLATE_W, down ? 3 : 8);
     if (down) {
       ctx.fillStyle = 'rgba(127,224,255,0.18)';
@@ -1496,8 +1552,8 @@ function _realmDrawPuzzle(R) {
     var pl = _realmPuzPlat('_realmBlock', b.id);
     if (!pl) return;
     var lit = (R.plates || []).some(function (pt) { return Math.abs(pl.x + pl.w / 2 - pt.x) < REALM_PLATE_W / 2; });
-    ctx.fillStyle = '#4a4458'; ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
-    ctx.fillStyle = '#5e5772'; ctx.fillRect(pl.x, pl.y, pl.w, 5);
+    ctx.fillStyle = st[0]; ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+    ctx.fillStyle = st[1]; ctx.fillRect(pl.x, pl.y, pl.w, 5);
     ctx.strokeStyle = '#2a2634'; ctx.lineWidth = 2; ctx.strokeRect(pl.x + 1, pl.y + 1, pl.w - 2, pl.h - 2);
     ctx.strokeStyle = lit ? '#7fe0ff' : '#7a7090'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(pl.x + pl.w / 2, pl.y + pl.h / 2, 13, 0, Math.PI * 2); ctx.stroke();
@@ -1524,12 +1580,12 @@ function _realmDrawPuzzle(R) {
   });
   (R.cracks || []).forEach(function (c) {
     if (realmSave.flags['broke_' + c.id]) {
-      ctx.fillStyle = '#3a3448';
+      ctx.fillStyle = st[0];
       for (var r = 0; r < 5; r++) ctx.fillRect(c.x - 40 + r * 17, g - 10 - (r % 2) * 8, 16, 10 + (r % 2) * 8);
       return;
     }
     var hits = (_realmPuz && _realmPuz.crackHits[c.id]) || 0;
-    ctx.fillStyle = '#3e3850'; ctx.fillRect(c.x - 24, g - 1200, 48, 1200);
+    ctx.fillStyle = st[0]; ctx.fillRect(c.x - 24, g - 1200, 48, 1200);
     ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2;
     for (var y = g - 40; y > g - 1200; y -= 40) { ctx.beginPath(); ctx.moveTo(c.x - 24, y); ctx.lineTo(c.x + 24, y); ctx.stroke(); }
     ctx.strokeStyle = '#151220'; ctx.lineWidth = 2 + hits;

@@ -96,6 +96,19 @@ Fixed while testing: enemies' dash moves carried them through closed gates (the 
 
 Tested in the browser (Nov 16): block push and seat, bars, the walk through to each room, crack break with real swings, the timed run (frame-driven input), bars closing on the player, the lever refusing then opening, the exit at x 2420 with the gate gone. Not yet run by the level tester: it can't push blocks or time a run, so it needs a puzzle step before it can walk this chapter.
 
+## Optional dungeon: Beneath the First Collapse (Nov 16)
+
+Your chapter 47 (registry id 46, "What the Ancients Left"). The narration says the fourth Architect hid the diagram "deep in the ruins"; the dungeon is under them, and it is optional: nothing on the main walk needs it. `REALM_DEFS.undercroft` + `REALM_STORY.undercroft`. Stone arch at x 1300.
+
+- **Collapsed Stair:** a cracked wall stands before a hole in the floor. Through the hole is the first story use of a `drop` door: you fall into the room below. A token chest sits on a ledge past the hole.
+- **The Sunken Hall:** Tomb Knight and Rubble Crawler, then a timed plate (270 frames) and bars 1000 px away with two low steps to jump. A clean run arrives with 75 frames to spare. A ladder by the landing goes back up.
+- **Vault of the First Collapse:** the chapter's optional mini-boss, the Collapse Warden (hammer, helmet and chestplate; story scaling makes it about 300 HP at this chapter). +120 EXP and +80 tokens. Its ladder out stays sealed while the Warden stands, so once you drop in you are committed.
+- Rooms take a `stone` colour pair so steps, blocks, plates and cracked walls match the room (ruins brown here; the vault keeps its violet).
+
+Browser-tested Nov 16: entrance, crack (four real swings), drop into the room below, timed run, sealed ladder, chests, ladder out to the chapter world at the entrance. One ladder F press did nothing on the first try and worked on the second; not reproduced, and every other F press in both dungeons worked first time. The level tester ignores optional dungeons (no gate or exit waits on them).
+
+Also Nov 16: the level tester now solves puzzle rooms (`realmPuzzleWaypoint`): pushes blocks onto latch plates with the direction key held, steps on hold plates and runs, pulls levers, swings at cracked walls. Brain 20011, Normal, ch82 (registry 81) x2: one clear with the whole vault solved by the pilot, one loss in fights.
+
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
 
 The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.
