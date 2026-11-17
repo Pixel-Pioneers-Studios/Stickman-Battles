@@ -162,6 +162,18 @@ function gameConsoleRun() {
 
   // Password gate, check on every submission until unlocked
   if (!consoleUnlocked) {
+    // A developer key pasted here unlocks developer powers on this device (smb-admin-session.js).
+    if (raw.indexOf('smbdev_') === 0 && typeof DevKey !== 'undefined') {
+      inp.type = 'text';
+      DevKey.use(raw).then(function (ok) {
+        if (!ok) { inp.type = 'password'; _consoleErr('That developer key is not valid.'); return; }
+        _consoleOk('Developer key accepted. This device has developer powers until you type DEVKEY FORGET.');
+        closeGameConsole();
+        openGameConsole();
+        if (window.AdminSession) AdminSession.refresh().catch(function () {});
+      });
+      return;
+    }
     if (raw === _CONSOLE_PASS) {
       consoleUnlocked = true;
       inp.type = 'text';   // masked only while it holds the password
@@ -208,6 +220,7 @@ function _consoleIsLocalOnlyCommand(raw) {
     cmd === 'KICK' ||
     cmd.startsWith('KICK ') ||
     cmd === 'WHOAMI' ||
+    cmd.startsWith('DEVKEY') ||
     cmd === 'WHO' ||
     cmd === 'ACCOUNTS' ||
     cmd === 'NET STATUS' ||
@@ -1913,6 +1926,11 @@ function _consoleExec(raw) {
     if (s.includes(';') && c0 !== 'macro') { _chain(s); return true; }
 
     switch (c0) {
+      case 'devkey':
+        if (typeof DevKey === 'undefined') { _consoleErr('Developer keys are not loaded.'); return true; }
+        if (String(a1 || '').toLowerCase() === 'forget') { DevKey.forget(); _consoleOk('Developer key removed from this device.'); return true; }
+        _consolePrint(DevKey.active() ? 'This device holds a valid developer key.' : 'No developer key on this device.', '#88bbff');
+        return true;
       case 'debugmenu':
         if (typeof openDebugMenu !== 'function') { _consoleErr('Debug menu not loaded.'); return true; }
         closeGameConsole();

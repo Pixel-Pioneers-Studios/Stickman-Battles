@@ -40,6 +40,7 @@ function isAdmin(accountId) {
 // Admin check for all internal logic. Precedence: local override, server override, ADMIN_IDS,
 // then an ADMIN_EMAILS match on the active account.
 function _isAdmin(id) {
+  if (typeof DevKey !== 'undefined' && DevKey.active() && typeof isSuperuserAccountId === 'function' && isSuperuserAccountId(id)) return true;
   try {
     const overrides = GameState.getPersistent().admin.overrides;
     if (overrides && overrides.hasOwnProperty(id)) return !!overrides[id];

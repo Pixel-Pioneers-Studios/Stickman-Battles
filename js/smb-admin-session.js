@@ -39,15 +39,21 @@ const AdminSession = (() => {
   async function refresh() {
     const base = _serverBase();
     if (!base) return null;
-    if (typeof SupabaseBridge === 'undefined') return null;
-    await SupabaseBridge.ensureReady();
-    const state = SupabaseBridge.getState ? SupabaseBridge.getState() : {};
-    const accessToken = state.session && state.session.access_token;
-    if (!accessToken) return null;
+    let body = null;
+    if (typeof DevKey !== 'undefined' && DevKey.active()) {
+      body = { devKey: DevKey.key() };
+    } else {
+      if (typeof SupabaseBridge === 'undefined') return null;
+      await SupabaseBridge.ensureReady();
+      const state = SupabaseBridge.getState ? SupabaseBridge.getState() : {};
+      const accessToken = state.session && state.session.access_token;
+      if (!accessToken) return null;
+      body = { supabaseAccessToken: accessToken };
+    }
     const res = await fetch(base + '/admin/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ supabaseAccessToken: accessToken }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       logout();
@@ -75,3 +81,63 @@ const AdminSession = (() => {
 })();
 
 window.AdminSession = AdminSession;
+
+// Developer key: a long secret that gives any copy of the game (the site, a portal, a file:// folder copy)
+// developer powers. Paste it into the locked game console where the password goes, or open the game with
+// #devkey=<key> at the end of the URL. The device remembers it until `devkey forget` in the console.
+// Only SHA-256 hashes live in the code, so the source being public does not give the key away. The server
+// checks the same hashes (DEV_KEY_HASHES in server.js) before it grants an admin session.
+// To add or revoke a key, add or remove its hash here and in server.js.
+const DEV_KEY_HASHES = [
+  '5ec0a870c02afee0c7eb693488814a2817ae6e485ec2eb171bc04f44f9f9b99b',
+];
+
+const DevKey = (() => {
+  const STORAGE_KEY = 'smb_dev_key_v1';
+  let _key = '';
+
+  async function _sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Resolves true when the key matches. Wrong keys change nothing.
+  async function use(key) {
+    key = String(key || '').trim();
+    if (!/^smbdev_[A-Za-z0-9_-]{20,}$/.test(key)) return false;
+    if (typeof crypto === 'undefined' || !crypto.subtle) return false;
+    if (DEV_KEY_HASHES.indexOf(await _sha256(key)) === -1) return false;
+    _key = key;
+    try { localStorage.setItem(STORAGE_KEY, key); } catch (e) {}
+    return true;
+  }
+
+  function forget() {
+    _key = '';
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    if (window.AdminSession) AdminSession.logout();
+  }
+
+  async function init() {
+    let fromUrl = '';
+    try {
+      const m = /[#&]devkey=([A-Za-z0-9_-]+)/.exec(location.hash || '');
+      if (m) {
+        fromUrl = m[1];
+        // Take the key out of the address bar so it is not left in history or a shared link.
+        history.replaceState(null, '', location.pathname + location.search);
+      }
+    } catch (e) {}
+    let stored = '';
+    try { stored = localStorage.getItem(STORAGE_KEY) || ''; } catch (e) {}
+    if (fromUrl && await use(fromUrl)) return true;
+    if (stored && await use(stored)) return true;
+    if (stored) forget();   // a revoked key stops working on the next load
+    return false;
+  }
+
+  return { use, forget, init, active: () => !!_key, key: () => _key };
+})();
+
+window.DevKey = DevKey;
+DevKey.ready = DevKey.init();

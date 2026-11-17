@@ -414,7 +414,13 @@ const AccountManager = (() => {
 window.AccountManager = AccountManager;
 
 function isSuperuserAccountId(accountId) {
-  return SUPERUSER_ACCOUNT_IDS.indexOf(String(accountId)) !== -1;
+  if (SUPERUSER_ACCOUNT_IDS.indexOf(String(accountId)) !== -1) return true;
+  // A developer key (smb-admin-session.js) makes the account active on this device a superuser.
+  if (typeof DevKey !== 'undefined' && DevKey.active()) {
+    const active = AccountManager.getActiveAccount();
+    return !!active && active.id === String(accountId);
+  }
+  return false;
 }
 
 // UI

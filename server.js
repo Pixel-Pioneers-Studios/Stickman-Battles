@@ -80,6 +80,16 @@ const ADMIN_EMAILS = new Set(String(process.env.ADMIN_EMAILS || 'gupta.aarush201
   .map(v => v.trim().toLowerCase())
   .filter(Boolean));
 const ADMIN_BOOTSTRAP_KEY = process.env.ADMIN_BOOTSTRAP_KEY || '';
+// SHA-256 hashes of developer keys (smbdev_...), comma-separated. Same list as DEV_KEY_HASHES in
+// js/smb-admin-session.js. A key's hash is safe to publish; the key itself never is.
+const DEV_KEY_HASHES = String(process.env.DEV_KEY_HASHES ||
+  '5ec0a870c02afee0c7eb693488814a2817ae6e485ec2eb171bc04f44f9f9b99b')
+  .split(',').map(v => v.trim().toLowerCase()).filter(v => /^[0-9a-f]{64}$/.test(v));
+function _devKeyValid(key) {
+  if (typeof key !== 'string' || !/^smbdev_[A-Za-z0-9_-]{20,}$/.test(key)) return false;
+  const h = Buffer.from(crypto.createHash('sha256').update(key).digest('hex'));
+  return DEV_KEY_HASHES.some(x => crypto.timingSafeEqual(Buffer.from(x), h));
+}
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -895,9 +905,13 @@ function _handleRequest(req, res) {
     _readBody(req).then(async body => {
       const accessToken = _cleanString(body && body.supabaseAccessToken, 4096);
       const bootstrapKey = _cleanString(body && body.bootstrapKey, 512);
+      const devKey = _cleanString(body && body.devKey, 512);
       let email = '';
       let userId = '';
-      if (accessToken) {
+      if (devKey && _devKeyValid(devKey)) {
+        email = Array.from(ADMIN_EMAILS)[0] || 'dev-key';
+        userId = 'devkey';
+      } else if (accessToken) {
         const user = await _verifySupabaseUser(accessToken);
         email = String(user.email || '').toLowerCase();
         userId = String(user.id || '');
