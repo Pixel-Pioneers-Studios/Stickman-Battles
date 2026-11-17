@@ -107,6 +107,10 @@ Your chapter 47 (registry id 46, "What the Ancients Left"). The narration says t
 
 Browser-tested Nov 16: entrance, crack (four real swings), drop into the room below, timed run, sealed ladder, chests, ladder out to the chapter world at the entrance. One ladder F press did nothing on the first try and worked on the second; not reproduced, and every other F press in both dungeons worked first time. The level tester ignores optional dungeons (no gate or exit waits on them).
 
+Regression after the Nov 16 gate and dungeon changes (brain 20011, Normal, --progress=auto): ch68 (registry 67) 3 of 6 cleared, every clear with the full facility route (terminal, power, key, shortcut, gate); losses were deaths in the checkpoint fights after the first terminal press. Nov 15 baseline 1 of 2. ch70 (registry 69) 0 of 2: one death in the opening lockdown duel (as on Nov 15), one in the Data Core against the Overseer.
+
+The level minimap marks realm doors once you have come within 420 px of one (gold arch; dimmed once you have been inside) and closed gates (red bar). `realmMinimapMarks` in smb-realm.js, drawn by drawExploreMinimap.
+
 Also Nov 16: the level tester now solves puzzle rooms (`realmPuzzleWaypoint`): pushes blocks onto latch plates with the direction key held, steps on hold plates and runs, pulls levers, swings at cracked walls. Brain 20011, Normal, ch82 (registry 81) x2: one clear with the whole vault solved by the pilot, one loss in fights.
 
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
