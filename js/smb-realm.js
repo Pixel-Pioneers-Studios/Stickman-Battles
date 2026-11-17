@@ -165,6 +165,7 @@ const REALM_DEFS = {
     name: 'The Memory Vault',
     theme: 'void',
     start: { room: 'weights', door: 'in' },
+    route: ['weights', 'stair', 'closing', 'seal'],
     rooms: {
       weights: {
         name: 'Hall of Weights', gx: 0, gy: 0, w: 1300, back: true, wall: '#1d1a2a',

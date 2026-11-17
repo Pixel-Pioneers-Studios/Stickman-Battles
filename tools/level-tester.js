@@ -275,7 +275,8 @@ async function runAttempt(browser, ch, attempt) {
         Brain.tickLive = function () {
           const L = Brain.live;
           if (!L || !L.f || typeof gameRunning === 'undefined' || !gameRunning) return;
-          if (L.f.health <= 0 || T.navHold || !L.opp || L.opp.health <= 0) { try { Brain.applyKeys(L.f, [1, 0, 0, 0]); } catch (e) {} return; }
+          // While the walker pushes a realm block it holds the push direction, as a player would.
+          if (L.f.health <= 0 || T.navHold || !L.opp || L.opp.health <= 0) { try { Brain.applyKeys(L.f, [T.pushDir < 0 ? 0 : T.pushDir > 0 ? 2 : 1, 0, 0, 0]); } catch (e) {} return; }
           if (L.t++ % Brain.REPEAT !== 0) return;
           Brain.observe(L.f, L.opp, L.prev, L.obs);
           Brain.sample(Brain.forward(L.net, L.obs, L.h), L.act, true);
@@ -325,8 +326,11 @@ async function runAttempt(browser, ch, attempt) {
       }
       // Dungeon route (a realm holding the chapter exit): in a room, fight, then burn, then the next door on the
       // def's route (or the way out after the last room); outside, the entrance into its first room.
+      // Also a gate with no terminal: its side rooms open it (the Memory Vault), so walk the rooms.
       function realmDungeonWaypoint(h) {
-        if (typeof realmExitBlocker !== 'function' || !realmExitBlocker() || realmFade !== 0) return null;
+        if (typeof realmExitBlocker !== 'function' || realmFade !== 0) return null;
+        const roomGate = realmClosedGates().some(g => g.termX == null);
+        if (!realmExitBlocker() && !roomGate && !(realmRoomKey && REALM_DEFS[realmKey].route)) return null;
         const def = REALM_DEFS[realmKey], save = realmSave;
         if (!realmRoomKey) {
           const first = def.route ? def.route[0] : null;
@@ -337,6 +341,8 @@ async function runAttempt(browser, ch, attempt) {
         const R = def.rooms[realmRoomKey];
         const b = (R.burn || []).find(q => !save.flags['burn_' + q.id]);
         if (b) return { x: b.x, y: null, act: true };
+        const pz = realmPuzzleWaypoint(h, R);
+        if (pz) return pz;
         const i = (def.route || []).indexOf(realmRoomKey);
         const nextRoom = def.route && def.route[i + 1];
         const d = (R.doors || []).find(q => q.to && (nextRoom ? q.to[0] === nextRoom : q.to[0] === '@main' && q.id !== 'in'));
@@ -344,10 +350,40 @@ async function runAttempt(browser, ch, attempt) {
         if (d.kind === 'edge') return { x: d.side === 'l' ? -40 : R.w + 40, y: null };
         return { x: d.x, y: null, act: true };
       }
+      // Puzzle parts (smb-realm.js _realmPuzzleTick), solved as a player would: shut bars first (push the
+      // block onto a latch plate, step on a hold plate and the door waypoint does the run, pull the lever),
+      // then cracked walls (swing at them), then levers left to pull.
+      function realmPuzzleWaypoint(h, R) {
+        for (const b of (R.bars || [])) {
+          if (_realmBarOpen(b)) continue;
+          const w = b.when || '';
+          if (w.indexOf('plate:') === 0) {
+            const pt = (R.plates || []).find(q => q.id === w.slice(6));
+            if (!pt) continue;
+            if (!pt.latch) return { x: pt.x, y: null };
+            const blk = (R.blocks || []).map(q => _realmPuzPlat('_realmBlock', q.id)).find(Boolean);
+            if (!blk) continue;
+            const dir = Math.sign(pt.x - (blk.x + blk.w / 2)) || 1;
+            return { x: dir > 0 ? blk.x - h.w / 2 : blk.x + blk.w + h.w / 2, y: null, push: dir };
+          }
+          if (w.indexOf('lever:') === 0) {
+            const l = (R.levers || []).find(q => q.id === w.slice(6));
+            if (l) return { x: l.x, y: l.y || null, act: true };
+          }
+        }
+        for (const c of (R.cracks || [])) {
+          if (realmSave.flags['broke_' + c.id]) continue;
+          const side = h.cx() < c.x ? -1 : 1;
+          return { x: c.x + side * 60, y: null, hit: -side };
+        }
+        const l = (R.levers || []).find(q => !realmSave.flags['lever_' + q.id] && _realmCond(q.when));
+        if (l) return { x: l.x, y: l.y || null, act: true };
+        return null;
+      }
       function realmWaypoint(h) {
         const dw = realmDungeonWaypoint(h);
         if (dw) return dw;
-        const gates = realmClosedGates();
+        const gates = realmClosedGates().filter(g => g.termX != null);
         if (!gates.length || realmFade !== 0) return null;
         const g = gates[0], save = realmSave, rooms = REALM_DEFS[realmKey].rooms;
         if (realmRoomKey) {
@@ -458,6 +494,8 @@ async function runAttempt(browser, ch, attempt) {
           else if (free) { wp = waypoint(this); if (wp && wp.y != null) wp = dropEdge(this, nav, wp) || wp; }
           T.navHold = !!wp;
           if (!wp) {
+            if (T.pushDir && !BRAIN) { keysDown.delete(this.controls.left); keysDown.delete(this.controls.right); }
+            T.pushDir = 0;
             if (this.onGround) nav.dropPl = null;
             T.aiFrames++;
             recoverFall(this);
@@ -473,6 +511,20 @@ async function runAttempt(browser, ch, attempt) {
             setTimeout(() => { try { if (realmSave) T.realmFlags = Object.keys(realmSave.flags).concat(Object.keys(realmSave.items)).join('+'); } catch (e) {} }, 50);
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }));
             document.dispatchEvent(new KeyboardEvent('keyup', { key: 'f', bubbles: true }));
+          }
+          // Realm block: lean into it with the direction key held (the block reads keys, not velocity).
+          T.pushDir = wp.push && Math.abs(dx) < 40 && this.onGround ? wp.push : 0;
+          const pushKey = wp.push > 0 ? this.controls.right : this.controls.left;
+          if (!BRAIN) {
+            keysDown.delete(this.controls.left); keysDown.delete(this.controls.right);
+            if (T.pushDir) keysDown.add(pushKey);
+          }
+          if (T.pushDir) { this.vx = wp.push * 5.2; this.facing = wp.push; return inner.apply(this, arguments); }
+          // Cracked wall: face it and swing.
+          if (wp.hit && Math.abs(dx) < 16 && this.onGround) {
+            this.facing = wp.hit; this.vx = 0;
+            if (!this.cooldown && !this.attackTimer) { try { this.attack(null); } catch (e) {} }
+            return inner.apply(this, arguments);
           }
           if (nav.backoff > 0) nav.backoff--;
           else nav.dir = Math.sign(dx) || 1;
