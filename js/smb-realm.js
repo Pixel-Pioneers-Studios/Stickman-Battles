@@ -14,6 +14,11 @@
 // every door in the room stays shut while any of them stands (story host). burn: [{ id, x, art, line }] are
 // machines destroyed with F (a charge, then fire); burning one sets flag 'burn_<id>'. A door with needs only
 // opens once that flag is set. say: a line shown on entry.
+// Puzzle parts (see _realmPuzzleTick): blocks [{ id, x }] stone you push along the floor; plates [{ id, x, latch,
+// hold }] down while you or a block stand on them (latch: a block locks it for good; hold: frames it stays down
+// after you step off); bars [{ id, x, when }] a portcullis that rises while 'when' holds and stays up once you are
+// past it; levers [{ id, x, y, when, sets, line }] F to pull; cracks [{ id, x, hits }] a wall your swings break;
+// steps [[x, h, w]] low solid walls to jump.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
 // wall (back-wall colour).
@@ -36,6 +41,8 @@ const REALM_FADE_F = 26;
 const REALM_ARCH_W = 92, REALM_ARCH_H = 150;
 const REALM_REACH = 46;          // horizontal reach for F on arches and chests
 const REALM_DEATH_Y = 1200;   // low enough that a drop finishes its fade before the fall kills
+const REALM_BLOCK = 64;          // stone block size
+const REALM_PLATE_W = 84;
 
 const REALM_DEFS = {
   old_ruins: {
@@ -153,6 +160,67 @@ const REALM_DEFS = {
     },
   },
 
+  // The Fallen God's memory vault: the puzzle dungeon of story id 81. Each room teaches one part.
+  vault: {
+    name: 'The Memory Vault',
+    theme: 'void',
+    start: { room: 'weights', door: 'in' },
+    rooms: {
+      weights: {
+        name: 'Hall of Weights', gx: 0, gy: 0, w: 1300, back: true, wall: '#1d1a2a',
+        say: 'The Fallen God: "What is worth keeping has to be carried. Carry it."',
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', checkpoint: true, to: ['@main', 'vault'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['stair', 'in'] },
+        ],
+        blocks: [{ id: 'stone', x: 360 }],
+        plates: [{ id: 'w', x: 700, latch: true }],
+        bars: [{ id: 'w', x: 1040, when: 'plate:w' }],
+      },
+      stair: {
+        name: 'The Broken Stair', gx: 1, gy: 0, w: 1500, back: true, wall: '#1f1b2c', dark: 0.15,
+        say: 'The Fallen God: "Some doors are not opened. They are broken."',
+        ledges: [[420, 440, 150], [620, 360, 150], [820, 280, 160]],
+        chests: [{ id: 'ledge', x: 900, y: 280, gives: 'tokens:40' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['weights', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['closing', 'in'] },
+        ],
+        foes: [
+          { x: 760, name: 'Threshold Guard', weaponKey: 'sword', classKey: 'warrior', aiDiff: 'medium', color: '#ccaa44' },
+          { x: 1000, name: 'Threshold Guard', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#aa8822' },
+        ],
+        cracks: [{ id: 'stair', x: 1250, hits: 4 }],
+      },
+      closing: {
+        name: 'The Closing Door', gx: 2, gy: 0, w: 1400, back: true, wall: '#1b1828', dark: 0.2,
+        say: 'The Fallen God: "I sealed every wall in time. Be as quick as I was."',
+        ledges: [[560, 450, 130], [900, 450, 130]],
+        steps: [[700, 70, 60]],
+        chests: [{ id: 'past', x: 1300, gives: 'exp:60' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['stair', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['seal', 'in'] },
+        ],
+        plates: [{ id: 'run', x: 190, hold: 260 }],
+        bars: [{ id: 'run', x: 1180, when: 'plate:run' }],
+      },
+      seal: {
+        name: 'Seal Chamber', gx: 3, gy: 0, w: 1100, back: true, wall: '#241c30', dark: 0.25,
+        say: 'The Fallen God: "The last lock is guarded. Take it from what guards it."',
+        ledges: [[230, 430, 150], [720, 430, 150]],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['closing', 'next'] },
+          { id: 'out', kind: 'edge', side: 'r', needs: 'gate_seal', lockedText: 'Sealed. Pull the seal lever.', to: ['@main', 'sealExit'] },
+        ],
+        foes: [
+          { x: 760, name: 'Vault Sentinel', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', color: '#8a6a22', health: 170, armor: ['helmet'] },
+        ],
+        levers: [{ id: 'seal', x: 900, sets: 'gate_seal', when: 'clear', line: 'The seal lifts. Somewhere behind you, stone grinds open.' }],
+      },
+    },
+  },
+
   // Side rooms of the Abandoned Research Facility (story ids 66-69). Entrances live in REALM_STORY.facility.
   facility: {
     name: 'Abandoned Research Facility',
@@ -182,6 +250,16 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  // A gate without termX has no terminal: something in the side rooms sets its gate_<id> flag.
+  vault: {
+    chapters: [81],
+    entrances: [
+      { id: 'vault', ch: 81, x: 2050, art: 'temple', room: 'weights', door: 'in' },
+      { id: 'sealExit', ch: 81, x: 2420, art: 'temple', room: 'seal', door: 'out', oneWay: true,
+        lockedText: 'Sealed from the other side.' },
+    ],
+    gates: [{ id: 'seal', ch: 81, x: 2250 }],
+  },
   // exitNeeds: the chapter's exit stays sealed until that flag is set (exitReason is the sealed-exit text).
   trialwing: {
     chapters: [69],
@@ -248,6 +326,8 @@ const REALM_CHARGE_F = 110;
 var _realmSealNag = 0;
 var _realmShopHits = 0;
 var _realmShopKill = 0;         // >0 while he is killing you
+var _realmPuz = null;           // puzzle parts' per-visit state (_realmPuzzleReset)
+var _realmStarted = false;      // a swing or Q started this frame (set by _realmShopTick)
 var _realmPrevAtk = 0, _realmPrevAbil = 0;
 const REALM_SHOP_LINES = [
   'You again. Or the first time. It is hard to tell with you.',
@@ -304,6 +384,21 @@ function realmMakeArena(roomKey) {
   (R.ledges || []).forEach(function (l) {
     platforms.push({ x: l[0], y: l[1], w: l[2], h: 16, passUnder: true });
   });
+  // Puzzle parts that are solid: stone blocks, portcullis bars and cracked walls (full height, so nothing jumps
+  // them), and steps (low solid walls you jump). Drawn by drawRealmBack / drawRealmWorld.
+  (R.steps || []).forEach(function (s) {
+    platforms.push({ x: s[0], y: REALM_FLOOR_Y - s[1], w: s[2], h: s[1], noDraw: true, _realmStep: true });
+  });
+  (R.blocks || []).forEach(function (b) {
+    platforms.push({ x: b.x - REALM_BLOCK / 2, y: REALM_FLOOR_Y - REALM_BLOCK, w: REALM_BLOCK, h: REALM_BLOCK, noDraw: true, _realmBlock: b.id });
+  });
+  (R.bars || []).forEach(function (b) {
+    platforms.push({ x: b.x - 14, y: -600, w: 28, h: REALM_FLOOR_Y + 600, noDraw: true, _realmBar: b.id });
+  });
+  (R.cracks || []).forEach(function (c) {
+    if (realmSave && realmSave.flags && realmSave.flags['broke_' + c.id]) return;
+    platforms.push({ x: c.x - 24, y: -600, w: 48, h: REALM_FLOOR_Y + 600, noDraw: true, _realmCrack: c.id });
+  });
   var src = (typeof ARENAS !== 'undefined' && ARENAS[_realmDef().theme]) || {};
   return {
     id: '__realm__',
@@ -336,6 +431,7 @@ function _realmEnterRoom(roomKey, doorId) {
   realmRoomKey = roomKey;
   ARENAS.__realm__ = realmMakeArena(roomKey);
   currentArena = ARENAS.__realm__;
+  _realmPuzzleReset(roomKey);
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   if (typeof minions !== 'undefined') minions.length = 0;
   if (typeof projectiles !== 'undefined') projectiles = [];
@@ -453,6 +549,7 @@ function realmInteract() {
   if (realmHost === 'story' && !realmRoomKey) return _realmStoryInteract(p);
   if (_realmNear.kind === 'chest') { _realmOpenChest(_realmNear.ref, p); return true; }
   if (_realmNear.kind === 'burn') { _realmPlantCharge(_realmNear.ref); return true; }
+  if (_realmNear.kind === 'lever') { _realmPullLever(_realmNear.ref); return true; }
   if (_realmNear.kind === 'arch') {
     var shut = _realmDoorShut(_realmNear.ref);
     if (shut) { _realmTell(shut, '#ff7766'); return true; }
@@ -476,6 +573,11 @@ function _realmFindNear(p) {
     if (dr.kind !== 'arch') return;
     var d = Math.abs(p.cx() - dr.x);
     if (d < bestD && Math.abs(feet - (dr.y || REALM_FLOOR_Y)) < 30) { best = { kind: 'arch', ref: dr }; bestD = d; }
+  });
+  (R.levers || []).forEach(function (l) {
+    if (realmSave.flags['lever_' + l.id]) return;
+    var d = Math.abs(p.cx() - l.x);
+    if (d < bestD && Math.abs(feet - (l.y || REALM_FLOOR_Y)) < 30) { best = { kind: 'lever', ref: l }; bestD = d; }
   });
   (R.npcs || []).forEach(function (n) {
     var d = Math.abs(p.cx() - n.x);
@@ -523,6 +625,14 @@ function updateRealm() {
       if (realmSave.flags['gate_' + g.id]) return;
       var edge = g.x - 25;
       if (p.x + p.w > edge) { p.x = edge - p.w; if (p.vx > 0) p.vx = 0; }
+      // Enemies too: each stays on the side of the gate it was first seen on.
+      minions.forEach(function (m) {
+        if (m.health <= 0) return;
+        if (!m._realmGateSide) m._realmGateSide = {};
+        var side = m._realmGateSide[g.id] || (m._realmGateSide[g.id] = (m._guardX != null ? m._guardX : m.cx()) > g.x ? 1 : -1);
+        if (side > 0 && m.x < g.x + 25) { m.x = g.x + 25; if (m.vx < 0) m.vx = 0; }
+        else if (side < 0 && m.x + m.w > edge) { m.x = edge - m.w; if (m.vx > 0) m.vx = 0; }
+      });
     });
     _realmNear = _realmStoryFindNear(p);
     return;
@@ -568,6 +678,7 @@ function updateRealm() {
     _realmSay = { npc: n, text: REALM_SHOP_LINES[_realmSayIdx++ % REALM_SHOP_LINES.length], t: 0 };
   });
   _realmShopTick(p, R);
+  _realmPuzzleTick(p, R);
 }
 
 // A swing or Q started next to the shopkeeper, facing him, counts as hitting him.
@@ -576,6 +687,7 @@ function _realmShopTick(p, R) {
   var atk = p.attackTimer || 0, abil = p.abilityCooldown || 0;
   var started = (atk > 0 && _realmPrevAtk === 0) || (abil > _realmPrevAbil + 1);
   _realmPrevAtk = atk; _realmPrevAbil = abil;
+  _realmStarted = started;
   if (!n) return;
   if (_realmShopKill > 0) {
     _realmShopKill--;
@@ -743,6 +855,7 @@ function drawRealmWorld() {
   var R = _realmRoom();
   if (!R) return;
   ctx.save();
+  _realmDrawPuzzle(R);
   (R.chests || []).forEach(function (c) {
     var open = _realmLooted(c.id);
     var x = c.x, y = c.y || REALM_FLOOR_Y;
@@ -797,7 +910,8 @@ function drawRealmWorld() {
     var isItem = _realmNear.kind === 'chest' && n.gives && n.gives.indexOf('item:') === 0;
     var py = _realmNear.kind === 'npc' ? ny - 168 : isItem ? ny - 84 : _realmNear.kind === 'chest' ? ny - 54 : n.art === 'hatch' ? ny - 80 : n.art === 'ladder' ? ny - 130 : ny - REALM_ARCH_H - 34;
     if (_realmNear.kind === 'burn') { ny = REALM_FLOOR_Y; py = ny - 190; }
-    var verb = _realmNear.kind === 'burn' ? 'Burn' : _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
+    if (_realmNear.kind === 'lever') py = ny - 90;
+    var verb = _realmNear.kind === 'burn' ? 'Burn' : _realmNear.kind === 'lever' ? 'Pull' : _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
     ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(n.x - 34, py - 14, 68, 20);
@@ -1038,7 +1152,7 @@ function realmClampSpawnX(x, p) {
 function _realmStoryThreat(p) {
   if (typeof exploreArenaLock !== 'undefined' && exploreArenaLock) return true;
   return minions.some(function (m) {
-    if (m.health <= 0 || Math.abs(m.cx() - p.cx()) > 520) return false;
+    if (m.health <= 0 || Math.abs(m.cx() - p.cx()) > 520 || realmBlocksHit(m, p)) return false;
     return typeof isHostileTarget === 'function' ? isHostileTarget(p, m) : true;
   });
 }
@@ -1050,7 +1164,7 @@ function _realmStoryFindNear(p) {
     if (d < bestD && Math.abs(feet - _realmMainFloorY(e.x)) < 30) { best = { kind: 'entrance', ref: e }; bestD = d; }
   });
   _realmStoryGates().forEach(function (g) {
-    if (realmSave.flags['gate_' + g.id]) return;
+    if (realmSave.flags['gate_' + g.id] || g.termX == null) return;
     var d = Math.abs(p.cx() - g.termX);
     if (d < bestD && Math.abs(feet - _realmMainFloorY(g.termX)) < 30) { best = { kind: 'terminal', ref: g }; bestD = d; }
   });
@@ -1113,6 +1227,7 @@ function _realmStoryEnterRoom(roomKey, doorId) {
   realmRoomKey = roomKey;
   ARENAS.__realmroom__ = realmMakeArena(roomKey);
   currentArena = ARENAS.__realmroom__;
+  _realmPuzzleReset(roomKey);
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   var door = (R.doors || []).find(function (d) { return d.id === doorId; }) || R.doors[0];
   var a = _realmArrival(R, door);
@@ -1199,6 +1314,246 @@ function _realmChargeTick(R) {
   }
 }
 
+// ── Puzzle parts ────────────────────────────────────────────────────────────────────────────────────────────
+// Room state that resets on entry (block positions, timed plates, bar travel, crack damage). What is solved for
+// good lives in realmSave.flags: plate_<id> (a block latched it), bar_<id> (you got past it), lever_<id>, broke_<id>.
+
+function _realmPuzzleReset(roomKey) {
+  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {} };
+  var R = _realmRoom(roomKey);
+  // A latch plate solved on an earlier visit still holds its block.
+  var free = (R.blocks || []).slice();
+  (R.plates || []).forEach(function (pt) {
+    if (!pt.latch || !realmSave.flags['plate_' + pt.id] || !free.length) return;
+    var b = free.shift(), pl = _realmPuzPlat('_realmBlock', b.id);
+    if (pl) { pl.x = pt.x - pl.w / 2; _realmPuz.seated[b.id] = true; }
+  });
+  (R.bars || []).forEach(function (b) {
+    if (!_realmBarOpen(b)) return;
+    _realmPuz.barT[b.id] = 1;
+    var pl = _realmPuzPlat('_realmBar', b.id);
+    if (pl) pl.isFloorDisabled = true;
+  });
+}
+
+function _realmPuzPlat(tag, id) {
+  var ps = (currentArena && currentArena.platforms) || [];
+  for (var i = 0; i < ps.length; i++) if (ps[i][tag] === id) return ps[i];
+  return null;
+}
+
+// A bar's or lever's 'when': 'plate:<id>' (held down now, or latched), 'lever:<id>', 'clear' (the room's foes are
+// beaten), or any save flag.
+function _realmCond(w) {
+  if (!w) return true;
+  if (w === 'clear') { var R = _realmRoom(); return !(R.foes && R.foes.length) || (!!realmSave.flags['clear_' + realmRoomKey] && !_realmRoomFoesAlive()); }
+  if (w.indexOf('plate:') === 0) { var id = w.slice(6); return !!realmSave.flags['plate_' + id] || ((_realmPuz && _realmPuz.plates[id]) || 0) > 0; }
+  if (w.indexOf('lever:') === 0) return !!realmSave.flags['lever_' + w.slice(6)];
+  return !!realmSave.flags[w];
+}
+function _realmBarOpen(b) { return !!realmSave.flags['bar_' + b.id] || _realmCond(b.when); }
+
+function _realmPuzzleTick(p, R) {
+  if (!_realmPuz || _realmPuz.room !== realmRoomKey) _realmPuzzleReset(realmRoomKey);
+  var graphDirty = false;
+
+  // Blocks: walk into one and it slides, slower than you walk. Only along the floor; puzzle rooms with blocks
+  // have no holes. Anything solid stops it.
+  var inv = false;
+  (R.blocks || []).forEach(function (b) {
+    var pl = _realmPuzPlat('_realmBlock', b.id);
+    if (!pl || _realmPuz.seated[b.id] || !p.onGround || p.y + p.h <= pl.y + 6 || p.y >= pl.y + pl.h) return;
+    var dir = 0;
+    if (keysDown.has(p.controls.right) && Math.abs(p.x + p.w - pl.x) <= 3) dir = 1;
+    else if (keysDown.has(p.controls.left) && Math.abs(p.x - (pl.x + pl.w)) <= 3) dir = -1;
+    if (!dir) return;
+    var nx = Math.max(8, Math.min(R.w - pl.w - 8, pl.x + dir * 2.4));
+    var hit = currentArena.platforms.some(function (q) {
+      return q !== pl && !q.isFloor && !q.passUnder && !q.isFloorDisabled &&
+        nx < q.x + q.w && nx + pl.w > q.x && pl.y < q.y + q.h && pl.y + pl.h > q.y;
+    });
+    if (hit) return;
+    // A latch plate's groove catches a block slid onto it; it stays seated.
+    (R.plates || []).forEach(function (pt) {
+      if (!pt.latch) return;
+      var c0 = pl.x + pl.w / 2, c1 = nx + pl.w / 2;
+      if ((c0 - pt.x) * (c1 - pt.x) <= 0) { nx = pt.x - pl.w / 2; _realmPuz.seated[b.id] = true; }
+    });
+    pl.x = nx;
+    p.x = dir > 0 ? pl.x - p.w : pl.x + pl.w;
+    if (frameCount % 9 === 0 && typeof spawnParticles === 'function') spawnParticles(pl.x + (dir > 0 ? pl.w : 0), REALM_FLOOR_Y - 4, 'rgba(170,160,190,0.8)', 3);
+  });
+
+  // Plates: down while you or a block stand on them. A block latches a latch plate for good; a hold plate stays
+  // down that many frames after you step off.
+  (R.plates || []).forEach(function (pt) {
+    var x0 = pt.x - REALM_PLATE_W / 2, x1 = pt.x + REALM_PLATE_W / 2;
+    var byBlock = (R.blocks || []).some(function (b) {
+      var pl = _realmPuzPlat('_realmBlock', b.id);
+      return pl && pl.x + pl.w / 2 > x0 && pl.x + pl.w / 2 < x1;
+    });
+    var on = byBlock || (p.onGround && p.health > 0 && p.y + p.h >= REALM_FLOOR_Y - 2 && p.cx() > x0 && p.cx() < x1);
+    var was = (_realmPuz.plates[pt.id] || 0) > 0 || !!realmSave.flags['plate_' + pt.id];
+    if (on && byBlock && pt.latch && !realmSave.flags['plate_' + pt.id]) {
+      realmSave.flags['plate_' + pt.id] = true;
+      _realmStore();
+    }
+    _realmPuz.plates[pt.id] = on ? (pt.hold || 1) : Math.max(0, (_realmPuz.plates[pt.id] || 0) - 1);
+    if (!pt.hold && !on) _realmPuz.plates[pt.id] = 0;
+    if (on && !was) {
+      if (typeof spawnParticles === 'function') spawnParticles(pt.x, REALM_FLOOR_Y - 4, '#7fe0ff', 12);
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 3);
+    }
+  });
+
+  // Bars rise while their condition holds and stay up once you are past them.
+  (R.bars || []).forEach(function (b) {
+    var open = _realmBarOpen(b);
+    var t = _realmPuz.barT[b.id] || 0;
+    t = open ? Math.min(1, t + 0.07) : Math.max(0, t - 0.1);
+    _realmPuz.barT[b.id] = t;
+    var pl = _realmPuzPlat('_realmBar', b.id);
+    var solid = t < 0.5;
+    if (pl && !!pl.isFloorDisabled === solid) { pl.isFloorDisabled = !solid; graphDirty = true; }
+    if (solid) {
+      [p].concat(minions).forEach(function (f) {
+        if (!f || f.health <= 0 || f.x + f.w <= b.x - 14 || f.x >= b.x + 14) return;
+        f.x = f.cx() < b.x ? b.x - 14 - f.w : b.x + 14;
+      });
+    }
+    if (open && t >= 1 && !realmSave.flags['bar_' + b.id] && p.x > b.x + 30) {
+      realmSave.flags['bar_' + b.id] = true;
+      _realmStore();
+    }
+  });
+
+  // Cracked walls: swings and Q started next to one, facing it, chip it until it falls.
+  (R.cracks || []).forEach(function (c) {
+    if (realmSave.flags['broke_' + c.id] || !_realmStarted) return;
+    var dx = c.x - p.cx();
+    if (Math.abs(dx) > 110 || Math.sign(dx) !== p.facing) return;
+    var n = (_realmPuz.crackHits[c.id] || 0) + 1;
+    _realmPuz.crackHits[c.id] = n;
+    if (typeof spawnParticles === 'function') spawnParticles(c.x - p.facing * 24, p.cy(), '#8a8098', 10);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 5);
+    if (n < (c.hits || 4)) return;
+    realmSave.flags['broke_' + c.id] = true;
+    _realmStore();
+    var ps = currentArena.platforms;
+    for (var i = ps.length - 1; i >= 0; i--) if (ps[i]._realmCrack === c.id) ps.splice(i, 1);
+    graphDirty = true;
+    if (typeof spawnParticles === 'function') {
+      for (var k = 0; k < 4; k++) spawnParticles(c.x, REALM_FLOOR_Y - 60 - k * 70, '#6a6278', 14);
+    }
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 14);
+    _realmTell('The wall gives way.', '#ccbbee');
+  });
+
+  if (graphDirty && typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
+}
+
+function _realmPullLever(l) {
+  if (realmSave.flags['lever_' + l.id]) return;
+  if (!_realmCond(l.when)) {
+    _realmTell(l.when === 'clear' ? 'It will not move. Not with enemies standing.' : 'It will not move.', '#ff7766');
+    return;
+  }
+  realmSave.flags['lever_' + l.id] = true;
+  if (l.sets) realmSave.flags[l.sets] = true;
+  _realmStore();
+  if (typeof spawnParticles === 'function') spawnParticles(l.x, (l.y || REALM_FLOOR_Y) - 50, '#ffd27a', 16);
+  if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 8);
+  _realmTell(l.line || 'Something opens.', '#88ffcc');
+}
+
+function _realmDrawPuzzle(R) {
+  var f = typeof frameCount !== 'undefined' ? frameCount : 0;
+  var g = REALM_FLOOR_Y;
+  (R.steps || []).forEach(function (s) {
+    ctx.fillStyle = '#3a3448'; ctx.fillRect(s[0], g - s[1], s[2], s[1]);
+    ctx.fillStyle = '#5a5270'; ctx.fillRect(s[0], g - s[1], s[2], 4);
+  });
+  (R.plates || []).forEach(function (pt) {
+    var down = (_realmPuz && (_realmPuz.plates[pt.id] || 0) > 0) || !!realmSave.flags['plate_' + pt.id];
+    var x0 = pt.x - REALM_PLATE_W / 2;
+    ctx.fillStyle = '#16131e'; ctx.fillRect(x0 - 4, g - 2, REALM_PLATE_W + 8, 4);
+    ctx.fillStyle = down ? '#4ab8d8' : '#5a5468';
+    ctx.fillRect(x0, g - (down ? 3 : 8), REALM_PLATE_W, down ? 3 : 8);
+    if (down) {
+      ctx.fillStyle = 'rgba(127,224,255,0.18)';
+      ctx.fillRect(x0, g - 40, REALM_PLATE_W, 37);
+    }
+    if (pt.hold && _realmPuz) {
+      var left = (_realmPuz.plates[pt.id] || 0) / pt.hold;
+      if (left > 0 && left < 1) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(pt.x - 40, g - 60, 80, 6);
+        ctx.fillStyle = left < 0.3 ? '#ff7766' : '#7fe0ff'; ctx.fillRect(pt.x - 40, g - 60, 80 * left, 6);
+      }
+    }
+  });
+  (R.blocks || []).forEach(function (b) {
+    var pl = _realmPuzPlat('_realmBlock', b.id);
+    if (!pl) return;
+    var lit = (R.plates || []).some(function (pt) { return Math.abs(pl.x + pl.w / 2 - pt.x) < REALM_PLATE_W / 2; });
+    ctx.fillStyle = '#4a4458'; ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+    ctx.fillStyle = '#5e5772'; ctx.fillRect(pl.x, pl.y, pl.w, 5);
+    ctx.strokeStyle = '#2a2634'; ctx.lineWidth = 2; ctx.strokeRect(pl.x + 1, pl.y + 1, pl.w - 2, pl.h - 2);
+    ctx.strokeStyle = lit ? '#7fe0ff' : '#7a7090'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(pl.x + pl.w / 2, pl.y + pl.h / 2, 13, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pl.x + pl.w / 2, pl.y + pl.h / 2 - 13); ctx.lineTo(pl.x + pl.w / 2, pl.y + pl.h / 2 + 13); ctx.stroke();
+  });
+  (R.bars || []).forEach(function (b) {
+    var t = (_realmPuz && _realmPuz.barT[b.id]) || 0;
+    var lintel = g - 300;
+    ctx.fillStyle = '#2a2636'; ctx.fillRect(b.x - 34, lintel - 900, 68, 900);
+    ctx.fillStyle = '#3c3650'; ctx.fillRect(b.x - 40, lintel - 18, 80, 18);
+    var bottom = g - t * 270;
+    var open = _realmBarOpen(b);
+    ctx.fillStyle = '#5c5870';
+    for (var k = -1.5; k <= 1.5; k++) ctx.fillRect(b.x + k * 12 - 3, lintel, 6, bottom - lintel);
+    for (var cy = bottom - 30; cy > lintel; cy -= 70) ctx.fillRect(b.x - 24, cy, 48, 5);
+    ctx.fillStyle = '#5c5870';
+    for (var j = -1.5; j <= 1.5; j++) {
+      ctx.beginPath(); ctx.moveTo(b.x + j * 12 - 4, bottom); ctx.lineTo(b.x + j * 12, bottom + 8); ctx.lineTo(b.x + j * 12 + 4, bottom); ctx.fill();
+    }
+    ctx.fillStyle = open ? '#7fe0ff' : '#7a3a4a';
+    ctx.globalAlpha = open ? 0.9 : 0.6 + 0.3 * Math.sin(f * 0.08);
+    ctx.fillRect(b.x - 6, lintel - 13, 12, 8);
+    ctx.globalAlpha = 1;
+  });
+  (R.cracks || []).forEach(function (c) {
+    if (realmSave.flags['broke_' + c.id]) {
+      ctx.fillStyle = '#3a3448';
+      for (var r = 0; r < 5; r++) ctx.fillRect(c.x - 40 + r * 17, g - 10 - (r % 2) * 8, 16, 10 + (r % 2) * 8);
+      return;
+    }
+    var hits = (_realmPuz && _realmPuz.crackHits[c.id]) || 0;
+    ctx.fillStyle = '#3e3850'; ctx.fillRect(c.x - 24, g - 1200, 48, 1200);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2;
+    for (var y = g - 40; y > g - 1200; y -= 40) { ctx.beginPath(); ctx.moveTo(c.x - 24, y); ctx.lineTo(c.x + 24, y); ctx.stroke(); }
+    ctx.strokeStyle = '#151220'; ctx.lineWidth = 2 + hits;
+    ctx.beginPath();
+    ctx.moveTo(c.x - 6, g - 260); ctx.lineTo(c.x + 8, g - 200); ctx.lineTo(c.x - 4, g - 140); ctx.lineTo(c.x + 10, g - 80); ctx.lineTo(c.x, g);
+    if (hits > 0) { ctx.moveTo(c.x + 8, g - 200); ctx.lineTo(c.x + 22, g - 230); ctx.moveTo(c.x - 4, g - 140); ctx.lineTo(c.x - 22, g - 120); }
+    if (hits > 1) { ctx.moveTo(c.x + 10, g - 80); ctx.lineTo(c.x + 22, g - 50); ctx.moveTo(c.x - 6, g - 260); ctx.lineTo(c.x - 20, g - 300); }
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(200,190,230,' + (0.05 + 0.04 * Math.sin(f * 0.07)) + ')';
+    ctx.fillRect(c.x - 24, g - 300, 48, 300);
+  });
+  (R.levers || []).forEach(function (l) {
+    var y = l.y || g;
+    var pulled = !!realmSave.flags['lever_' + l.id];
+    var ready = pulled || _realmCond(l.when);
+    ctx.fillStyle = '#2a2636'; ctx.fillRect(l.x - 16, y - 22, 32, 22);
+    var ang = pulled ? 0.6 : -0.6;
+    ctx.strokeStyle = '#8a8098'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(l.x, y - 16); ctx.lineTo(l.x + Math.sin(ang) * 44, y - 16 - Math.cos(ang) * 44); ctx.stroke();
+    ctx.lineCap = 'butt';
+    ctx.fillStyle = pulled ? '#7fe0ff' : ready ? '#ffd27a' : '#7a3a4a';
+    ctx.beginPath(); ctx.arc(l.x + Math.sin(ang) * 44, y - 16 - Math.cos(ang) * 44, 6, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
 // Story: the chapter's exit waits on a realm flag (REALM_STORY[key].exitNeeds). Read by _exploreObjectivePending.
 function realmExitBlocker() {
   if (!realmActive || realmHost !== 'story' || !realmSave) return null;
@@ -1221,7 +1576,10 @@ function _realmStoryReturn(entranceId) {
   }
   realmRoomKey = null;
   _realmSay = null;
-  _realmFoesRoom = null; _realmCharge = null;
+  _realmFoesRoom = null; _realmCharge = null; _realmPuz = null;
+  // A gate the side rooms opened (no terminal) stops being a wall.
+  var plats = currentArena.platforms;
+  for (var gi = plats.length - 1; gi >= 0; gi--) if (plats[gi]._realmGate && realmSave.flags['gate_' + plats[gi]._realmGate]) plats.splice(gi, 1);
   if (typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
   if (e && e.oneWay && !realmSave.flags['open_' + e.id]) {
     realmSave.flags['open_' + e.id] = true;
@@ -1260,6 +1618,7 @@ function _realmStoryDrawMain() {
       ctx.fillStyle = '#4a5256';
       ctx.fillRect(g.x - 30, top, 60, 22);
     }
+    if (g.termX == null) return;
     // Terminal.
     var tx = g.termX, ty = _realmMainFloorY(tx);
     ctx.fillStyle = '#1e2426';
