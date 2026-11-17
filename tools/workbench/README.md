@@ -7,7 +7,29 @@ the panels into `index.html` as it serves it, and the game never loads `tools/`.
 node tools/workbench/server.js        # opens http://localhost:8140/index.html
 # weapons:  /index.html            (?weapon=katana opens a weapon straight away)
 # figures:  /index.html?wb=figures
+# realms:   /index.html?wb=realm
 ```
+
+## Realm studio (`?wb=realm`)
+
+Lays out realm rooms (`REALM_DEFS` in `js/smb-realm.js`) on the live game. Pick a realm
+and room, **Open room**: it runs in standalone Realm mode, where room foes don't spawn
+(they show as red markers), so you can walk and test it with A/D/W while you edit.
+
+- Every part has a box over it. Drag to move (10 px grid). Parts with a square on the
+  right edge resize (ledges, spikes, steps, lifts, floor-hole drops). A lift's dashed
+  box is its top stop and drags on its own.
+- Click a part to see its fields as JSON; edit and **Apply part**. Del removes it.
+  **Room fields** covers name, size, colours, `say` and `floor` gaps.
+- **Add part** drops a new ledge, chest, block, plate, bars, crack, lever, spikes, step,
+  lift, foe or arch in the middle of the view. New ids are placeholders; rename them.
+  Wire `when` / `to` / `needs` in the JSON.
+- **Save room** writes that room back into `js/smb-realm.js`
+  (`tools/workbench/realm-patch.js`). It replaces the room's object literal whole, so a
+  comment inside that one room is lost; nothing outside it changes. **New room** adds a
+  room to the realm.
+- Story entrances and gates (`REALM_STORY`) and the chapter side still live in code.
+
 
 ## Figure studio (`?wb=figures`)
 

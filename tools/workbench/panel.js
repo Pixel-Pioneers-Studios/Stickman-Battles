@@ -536,8 +536,8 @@
     try { maybeStartFirstRun = function () {}; } catch (e) {}
     try { if (typeof window.dismissSplash === 'function') window.dismissSplash(); } catch (e) {}
     try { wb.artKeys = await (await fetch('/wb/art/keys')).json(); } catch (e) { wb.artKeys = []; }
-    // ?wb=figures is the figure studio (figures.js); this page then keeps only the API.
-    if (!/[?&]wbheadless\b/.test(location.search) && !/[?&]wb=figures\b/.test(location.search)) { buildUI(); listenArt(); }
+    // ?wb=figures and ?wb=realm are the figure and realm studios (figures.js, realm.js); this page then keeps only the API.
+    if (!/[?&]wbheadless\b/.test(location.search) && !/[?&]wb=(figures|realm)\b/.test(location.search)) { buildUI(); listenArt(); }
     const want = new URLSearchParams(location.search).get('weapon');
     window.__wbReady = true;
     if (want && WEAPONS[want]) open(want).catch(e => log(e.message, 'err'));

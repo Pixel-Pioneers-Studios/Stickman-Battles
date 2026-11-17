@@ -20,6 +20,7 @@ const http = require('http');
 const { execFile } = require('child_process');
 const SP = require('./source-patch');
 const RP = require('./rig-patch');
+const RLM = require('./realm-patch');
 
 const ROOT = path.resolve(__dirname, '../..');
 const RENDER = path.join(ROOT, 'tools/weapon-sprites/render.js');
@@ -100,6 +101,11 @@ async function api(rq, rs, url) {
     if (rq.method !== 'POST') return send(404, { error: 'unknown endpoint' });
 
     const b = await readBody(rq);
+    if (url.pathname === '/wb/realm/save') {
+      const r = RLM.saveRoom(String(b.realm || ''), String(b.room || ''), b.data || {});
+      console.log('[workbench] realm room saved', b.realm + '.' + b.room);
+      return send(200, r);
+    }
     if (url.pathname === '/wb/rig/save') {
       const r = RP.saveRig({ poses: b.poses || {}, clips: b.clips || {} });
       console.log('[workbench] rig saved', JSON.stringify(r.changed));
@@ -140,7 +146,7 @@ async function api(rq, rs, url) {
   }
 }
 
-const PANEL_TAG = '\n<script src="./tools/workbench/panel.js"></script>\n<script src="./tools/workbench/figures.js"></script>\n';
+const PANEL_TAG = '\n<script src="./tools/workbench/panel.js"></script>\n<script src="./tools/workbench/figures.js"></script>\n<script src="./tools/workbench/realm.js"></script>\n';
 
 function start({ port = 8140, quiet = false } = {}) {
   const server = http.createServer((rq, rs) => {
@@ -165,6 +171,7 @@ function start({ port = 8140, quiet = false } = {}) {
       if (!quiet) {
         console.log(`[workbench] weapons: http://localhost:${port}/index.html`);
         console.log(`[workbench] figures: http://localhost:${port}/index.html?wb=figures`);
+        console.log(`[workbench] realms:  http://localhost:${port}/index.html?wb=realm`);
       }
       res(server);
     });
