@@ -5,8 +5,7 @@
 let _consoleOpen      = false;
 let _consoleHistory   = [];  // command history (up/down arrow)
 let _consoleHistIdx   = -1;
-let consoleUnlocked   = false;  // password lock, reset each page load
-const _CONSOLE_PASS   = 'devmode';  // hardcoded password
+let consoleUnlocked   = false;  // locked until a developer key or a dev/admin/mod account; reset each page load
 
 // Intercept native console so game logs appear in the overlay
 const _origLog   = console.log.bind(console);
@@ -113,7 +112,7 @@ function openGameConsole() {
   if (inp) { inp.value = ''; inp.focus(); }
 
   if (!consoleUnlocked) {
-    _consolePrint('Console locked. Enter password to continue.', '#ffaa44');
+    _consolePrint('Console locked. Paste a developer key to continue.', '#ffaa44');
   } else if (_hasModRole) {
     const nameLabel = _acct ? ' (' + (_acct.username || _acct.id) + ')' : '';
     _consolePrint('\u{1F6E1} Mod Console unlocked' + nameLabel + '. Type HELP for commands.', '#44ffcc');
@@ -174,14 +173,7 @@ function gameConsoleRun() {
       });
       return;
     }
-    if (raw === _CONSOLE_PASS) {
-      consoleUnlocked = true;
-      inp.type = 'text';   // masked only while it holds the password
-      _consoleOk('Password accepted. Console unlocked.');
-      _consolePrint('Stickman Evolution Console — type HELP for commands.', '#88bbff');
-    } else {
-      _consoleErr('Incorrect password. Console locked.');
-    }
+    _consoleErr('Console locked. It opens with a developer key.');
     return;
   }
 
