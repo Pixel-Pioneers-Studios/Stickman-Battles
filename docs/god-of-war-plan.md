@@ -96,6 +96,16 @@ Fixed while testing: enemies' dash moves carried them through closed gates (the 
 
 Tested in the browser (Nov 16): block push and seat, bars, the walk through to each room, crack break with real swings, the timed run (frame-driven input), bars closing on the player, the lever refusing then opening, the exit at x 2420 with the gate gone. Not yet run by the level tester: it can't push blocks or time a run, so it needs a puzzle step before it can walk this chapter.
 
+## Optional dungeon: the Root Vault (Nov 16)
+
+Your chapter 42 (registry id 41, "The Third Key"). A hatch in the level's root pit (x 1320, the pit floor) leads down. Optional. `REALM_DEFS.rootvault`. Adds two puzzle parts: **lifts** (`lifts: [{ id, x, w, y0, y1, when }]`, shuttle on their own or ride while `when` holds; riders move with them; pause 110 frames at each stop; the top stop must be level with the ledge it serves) and **spikes** (`spikes: [[x0, x1]]`, 12 damage and a bounce, 40-frame cooldown, respects i-frames).
+
+- **Root Shaft:** spike floor crossed on stepping ledges (a token chest on one), then a shuttle lift up to an arch on a high ledge.
+- **Thornwalk:** spikes under the whole room, a ledge route to a lever on the highest ledge, which opens a gate of roots at the far end. EXP chest on the way.
+- **The Root Vault:** Root Keeper (hammer, helmet; about 300 HP after story scaling) and a Sanctum Scout. +100 EXP, +60 tokens. Ladder back to the root pit.
+
+Single jump clears about 214 px, double about 318 (measured); every hop in these rooms is 120 px or less. Browser-tested Nov 16: spikes, the lift ride (rider stays on every frame), stepping off at the top, the lever and gate, the fight room, the ladder out, and the minimap mark turning to visited. Found and fixed while testing: the lift's top stop was 12 px under the ledge (one-way ledges can't be stepped up onto), and the 70-frame pause at the top was too short.
+
 ## Optional dungeon: Beneath the First Collapse (Nov 16)
 
 Your chapter 47 (registry id 46, "What the Ancients Left"). The narration says the fourth Architect hid the diagram "deep in the ruins"; the dungeon is under them, and it is optional: nothing on the main walk needs it. `REALM_DEFS.undercroft` + `REALM_STORY.undercroft`. Stone arch at x 1300.

@@ -18,6 +18,8 @@
 // hold }] down while you or a block stand on them (latch: a block locks it for good; hold: frames it stays down
 // after you step off); bars [{ id, x, when }] a portcullis that rises while 'when' holds and stays up once you are
 // past it; levers [{ id, x, y, when, sets, line }] F to pull; cracks [{ id, x, hits }] a wall your swings break;
+// lifts [{ id, x, w, y0, y1, when }] a platform between y0 (low) and y1 (high; level it with the ledge it serves): with 'when' it rises while that holds,
+// without it shuttles on its own. spikes [[x0, x1]] floor strips that hurt (12) and bounce you up.
 // steps [[x, h, w]] low solid walls to jump. Room stone: [base, top edge] colours these parts.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
@@ -156,6 +158,52 @@ const REALM_DEFS = {
           { x: 760, name: 'Trial Overseer', weaponKey: 'scythe', classKey: 'warrior', aiDiff: 'hard', color: '#5a2a55', health: 200, armor: ['helmet'] },
         ],
         burn: [{ id: 'core', x: 520, art: 'core', line: 'The core burns. Everything this place learned goes with it.' }],
+      },
+    },
+  },
+
+  // Under the root pit of story id 41 (the Sanctum Cache): optional, like the undercroft. Lifts and spikes.
+  rootvault: {
+    name: 'The Root Vault',
+    theme: 'forest',
+    start: { room: 'shaft', door: 'in' },
+    rooms: {
+      shaft: {
+        name: 'Root Shaft', gx: 0, gy: 1, w: 1300, back: true, wall: '#141c10', dark: 0.35, stone: ['#3a3226', '#54483a'],
+        say: 'Roots older than the sanctum. Something was built down here before it.',
+        ledges: [[430, 460, 110], [640, 430, 110], [1130, 250, 170]],
+        spikes: [[360, 840]],
+        lifts: [{ id: 'shaft', x: 960, w: 130, y0: 500, y1: 250 }],
+        chests: [{ id: 'sap', x: 690, y: 430, gives: 'tokens:25' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'ladder', to: ['@main', 'rootvault'] },
+          { id: 'up', kind: 'arch', x: 1225, y: 250, art: 'temple', to: ['thorn', 'in'] },
+        ],
+      },
+      thorn: {
+        name: 'Thornwalk', gx: 1, gy: 0, w: 1500, back: true, wall: '#162012', dark: 0.25, stone: ['#3a3226', '#54483a'],
+        ledges: [[300, 460, 100], [480, 390, 100], [600, 270, 120], [700, 440, 100], [900, 380, 100], [1100, 450, 100]],
+        spikes: [[240, 1250]],
+        chests: [{ id: 'nest', x: 950, y: 380, gives: 'exp:40' }],
+        levers: [{ id: 'thorn', x: 660, y: 270, line: 'Somewhere ahead, a gate of roots pulls apart.' }],
+        bars: [{ id: 'thorn', x: 1360, when: 'lever:thorn' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['shaft', 'up'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['vault', 'in'] },
+        ],
+      },
+      vault: {
+        name: 'The Root Vault', gx: 2, gy: 0, w: 1100, back: true, wall: '#18200f', dark: 0.3, stone: ['#3a3226', '#54483a'],
+        ledges: [[220, 430, 150], [730, 430, 150]],
+        chests: [{ id: 'heart', x: 950, gives: 'exp:100' }, { id: 'cache', x: 805, y: 430, gives: 'tokens:60' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['thorn', 'next'] },
+          { id: 'up', kind: 'arch', x: 1010, art: 'ladder', to: ['@main', 'rootvault'] },
+        ],
+        foes: [
+          { x: 640, name: 'Root Keeper', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#2c3a1c', health: 200, armor: ['helmet'] },
+          { x: 860, name: 'Sanctum Scout', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'medium', color: '#334422' },
+        ],
       },
     },
   },
@@ -300,6 +348,11 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  rootvault: {
+    chapters: [41],
+    entrances: [{ id: 'rootvault', ch: 41, x: 1320, art: 'hatch', room: 'shaft', door: 'in' }],
+    gates: [],
+  },
   undercroft: {
     chapters: [46],
     entrances: [{ id: 'undercroft', ch: 46, x: 1300, art: 'temple', room: 'stair', door: 'in' }],
@@ -453,6 +506,10 @@ function realmMakeArena(roomKey) {
   (R.cracks || []).forEach(function (c) {
     if (realmSave && realmSave.flags && realmSave.flags['broke_' + c.id]) return;
     platforms.push({ x: c.x - 24, y: -600, w: 48, h: REALM_FLOOR_Y + 600, noDraw: true, _realmCrack: c.id });
+  });
+  // Lifts start at their low stop; _realmPuzzleTick moves them.
+  (R.lifts || []).forEach(function (l) {
+    platforms.push({ x: l.x, y: l.y0, w: l.w || 120, h: 14, passUnder: true, noDraw: true, _realmLift: l.id });
   });
   var src = (typeof ARENAS !== 'undefined' && ARENAS[_realmDef().theme]) || {};
   return {
@@ -1394,7 +1451,7 @@ function _realmChargeTick(R) {
 // good lives in realmSave.flags: plate_<id> (a block latched it), bar_<id> (you got past it), lever_<id>, broke_<id>.
 
 function _realmPuzzleReset(roomKey) {
-  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {} };
+  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, spikeCd: 0 };
   var R = _realmRoom(roomKey);
   // A latch plate solved on an earlier visit still holds its block.
   var free = (R.blocks || []).slice();
@@ -1524,6 +1581,39 @@ function _realmPuzzleTick(p, R) {
     _realmTell('The wall gives way.', '#ccbbee');
   });
 
+  // Lifts: with 'when' they ride up while it holds and sink back when it stops; without one they shuttle,
+  // resting at each stop. Riders move with them so a rising lift never drops anyone through.
+  (R.lifts || []).forEach(function (l) {
+    var pl = _realmPuzPlat('_realmLift', l.id);
+    if (!pl) return;
+    var st = _realmPuz.lift[l.id] || (_realmPuz.lift[l.id] = { dir: 1, wait: 60 });
+    var up = l.when ? _realmCond(l.when) : null;
+    var target = up === null ? (st.dir > 0 ? l.y1 : l.y0) : (up ? l.y1 : l.y0);
+    if (up === null && st.wait > 0) { st.wait--; return; }
+    var dy = Math.max(-1.6, Math.min(1.6, target - pl.y));
+    if (Math.abs(target - pl.y) < 0.5) {
+      if (up === null) { st.dir = -st.dir; st.wait = 110; }
+      return;
+    }
+    [p].concat(minions).forEach(function (f) {
+      if (!f || f.health <= 0 || !f.onGround) return;
+      if (Math.abs(f.y + f.h - pl.y) <= 3 && f.x + f.w > pl.x && f.x < pl.x + pl.w) f.y += dy;
+    });
+    pl.y += dy;
+  });
+
+  // Spikes: floor strips [x0, x1] that hurt and bounce you out. dealDamage with no attacker, like a hazard.
+  if (_realmPuz.spikeCd > 0) _realmPuz.spikeCd--;
+  (R.spikes || []).forEach(function (sp) {
+    if (_realmPuz.spikeCd > 0 || p.health <= 0 || p.invincible > 0 || !p.onGround || p.y + p.h < REALM_FLOOR_Y - 2) return;
+    if (p.x + p.w < sp[0] + 4 || p.x > sp[1] - 4) return;
+    _realmPuz.spikeCd = 40;
+    if (typeof dealDamage === 'function') dealDamage(null, p, 12, 0, 1, false, 0);
+    p.vy = -11;
+    p.onGround = false;
+    if (typeof spawnParticles === 'function') spawnParticles(p.cx(), REALM_FLOOR_Y - 6, '#cc4433', 8);
+  });
+
   if (graphDirty && typeof buildGraphForCurrentArena === 'function') buildGraphForCurrentArena();
 }
 
@@ -1616,6 +1706,27 @@ function _realmDrawPuzzle(R) {
     ctx.stroke();
     ctx.fillStyle = 'rgba(200,190,230,' + (0.05 + 0.04 * Math.sin(f * 0.07)) + ')';
     ctx.fillRect(c.x - 24, g - 300, 48, 300);
+  });
+  (R.spikes || []).forEach(function (sp) {
+    ctx.fillStyle = '#1a1210'; ctx.fillRect(sp[0], g - 3, sp[1] - sp[0], 3);
+    ctx.fillStyle = '#8a8478';
+    for (var sx = sp[0] + 2; sx + 12 <= sp[1]; sx += 14) {
+      ctx.beginPath(); ctx.moveTo(sx, g - 2); ctx.lineTo(sx + 6, g - 18); ctx.lineTo(sx + 12, g - 2); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(150,30,20,0.55)';
+    for (var tx = sp[0] + 2; tx + 12 <= sp[1]; tx += 14) ctx.fillRect(tx + 5, g - 18, 2, 4);
+  });
+  (R.lifts || []).forEach(function (l) {
+    var pl = _realmPuzPlat('_realmLift', l.id);
+    if (!pl) return;
+    ctx.strokeStyle = 'rgba(120,110,90,0.7)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pl.x + 10, pl.y); ctx.lineTo(pl.x + 10, l.y1 - 220);
+    ctx.moveTo(pl.x + pl.w - 10, pl.y); ctx.lineTo(pl.x + pl.w - 10, l.y1 - 220);
+    ctx.stroke();
+    ctx.fillStyle = st[0]; ctx.fillRect(pl.x, pl.y, pl.w, 14);
+    ctx.fillStyle = st[1]; ctx.fillRect(pl.x, pl.y, pl.w, 3);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.strokeRect(pl.x + 0.5, pl.y + 0.5, pl.w - 1, 13);
   });
   (R.levers || []).forEach(function (l) {
     var y = l.y || g;
