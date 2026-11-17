@@ -130,7 +130,7 @@ Your chapter 97 (registry id 96, "What You Cannot See", Shadow Realm stealth). S
 - **The Blind Gallery:** spikes you only see near a light, three torches to light along the way, a token chest on a ledge between the spike strips.
 - **The Listening Room:** two Blind Stalkers in the dark and one torch in the middle. +120 EXP, +60 tokens. Arch back out.
 
-Browser-tested Nov 16: darkness and the player's light, lighting a torch with F, spikes showing up near light, the foes hidden until close, the exit. Known: the darkness also dims the canvas target-name banner at top right (drawn before the realm layer); the off-screen enemy arrows and the HTML HP panel stay bright. The chapter's sentinels spawn as normal fighters and come at you, so the door needs them cleared like any other chapter.
+Browser-tested Nov 16: darkness and the player's light, lighting a torch with F, spikes showing up near light, the foes hidden until close, the exit. The darkness is drawn from smb-loop-core.js just before damage numbers (`drawRealmDarkness`), so numbers, name tags, the target banner and the HP panel stay readable. The chapter's sentinels spawn as normal fighters and come at you, so the door needs them cleared like any other chapter.
 
 ## Optional dungeon: Hall of the First Wall (Nov 16)
 

@@ -1102,6 +1102,8 @@ function gameLoop(timestamp) {
   // Public Server name tags (world-space, above entities)
   if (typeof PubHub !== 'undefined' && PubHub.active) PubHub.drawWorld();
 
+  // Lightless realm rooms (smb-realm.js): dark over the world, under the numbers and HUD.
+  if ((gameMode === 'realm' || gameMode === 'exploration') && typeof drawRealmDarkness === 'function') drawRealmDarkness();
   // Damage texts, filter expired to prevent leak
   damageTexts.forEach(d => { d.update(); d.draw(); });
   damageTexts = damageTexts.filter(d => d.life > 0);

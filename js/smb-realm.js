@@ -1278,7 +1278,6 @@ function drawRealmHUD() {
   var R = _realmRoom();
   ctx.save();
   ctx.setTransform(canvas.width / GAME_W, 0, 0, canvas.height / GAME_H, 0, 0);
-  if (realmRoomKey && !_realmStaleStory()) _realmDrawDarkness(R);
   if (realmHost === 'story') { _realmDrawFadeAndBanner(R); ctx.restore(); return; }
   if (!R) { ctx.restore(); return; }
 
@@ -1778,7 +1777,17 @@ function _realmLightTorch(t) {
   if (typeof spawnParticles === 'function') spawnParticles(t.x, (t.y || REALM_FLOOR_Y) - 96, '#ffb050', 18);
 }
 
-// Lightless rooms: screen space, over the world and the fighters (the HP panel is page HTML, so it stays clear).
+// Lightless rooms: over the world and the fighters, under damage numbers and every HUD layer. Called by
+// smb-loop-core.js just before damage texts, while the world transform is still set.
+function drawRealmDarkness() {
+  if (!realmActive || !realmRoomKey || _realmStaleStory()) return;
+  var R = _realmRoom();
+  if (!R || !R.lightless) return;
+  ctx.save();
+  ctx.setTransform(canvas.width / GAME_W, 0, 0, canvas.height / GAME_H, 0, 0);
+  _realmDrawDarkness(R);
+  ctx.restore();
+}
 var _realmDarkCv = null;
 function _realmDrawDarkness(R) {
   if (!R || !R.lightless || !_realmView) return;
