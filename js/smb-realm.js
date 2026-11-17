@@ -20,6 +20,8 @@
 // past it; levers [{ id, x, y, when, sets, line }] F to pull; cracks [{ id, x, hits }] a wall your swings break;
 // lifts [{ id, x, w, y0, y1, when }] a platform between y0 (low) and y1 (high; level it with the ledge it serves): with 'when' it rises while that holds,
 // without it shuttles on its own. spikes [[x0, x1]] floor strips that hurt (12) and bounce you up.
+// torches [{ id, x, y }] F lights one for good (flag torch_<id>). lightless: 0-1, a room that is dark but for a
+// small circle around you and the torches you have lit.
 // steps [[x, h, w]] low solid walls to jump. Room stone: [base, top edge] colours these parts.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
@@ -158,6 +160,41 @@ const REALM_DEFS = {
           { x: 760, name: 'Trial Overseer', weaponKey: 'scythe', classKey: 'warrior', aiDiff: 'hard', color: '#5a2a55', health: 200, armor: ['helmet'] },
         ],
         burn: [{ id: 'core', x: 520, art: 'core', line: 'The core burns. Everything this place learned goes with it.' }],
+      },
+    },
+  },
+
+  // Off the sentinel road of story id 96 (Shadow Realm): optional, and dark. Torches you light stay lit.
+  galleries: {
+    name: 'The Blind Galleries',
+    theme: 'storyShadow',
+    start: { room: 'gallery', door: 'in' },
+    rooms: {
+      gallery: {
+        name: 'The Blind Gallery', gx: 0, gy: 0, w: 1400, back: true, wall: '#140c1e', lightless: 0.96, stone: ['#2c2238', '#40344e'],
+        say: 'No light reaches this far in. The fragment hums, low.',
+        ledges: [[560, 450, 110], [960, 450, 110]],
+        spikes: [[480, 680], [880, 1080]],
+        torches: [{ id: 'g1', x: 300 }, { id: 'g2', x: 780 }, { id: 'g3', x: 1200 }],
+        chests: [{ id: 'dark', x: 1015, y: 450, gives: 'tokens:45' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['@main', 'galleries'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['listening', 'in'] },
+        ],
+      },
+      listening: {
+        name: 'The Listening Room', gx: 1, gy: 0, w: 1200, back: true, wall: '#120a1c', lightless: 0.96, stone: ['#2c2238', '#40344e'],
+        ledges: [[250, 430, 150], [800, 430, 150]],
+        torches: [{ id: 'l1', x: 600 }],
+        chests: [{ id: 'echo', x: 1000, gives: 'exp:120' }, { id: 'hush', x: 875, y: 430, gives: 'tokens:60' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['gallery', 'next'] },
+          { id: 'up', kind: 'arch', x: 1100, art: 'temple', to: ['@main', 'galleries'] },
+        ],
+        foes: [
+          { x: 700, name: 'Blind Stalker', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'hard', color: '#550099' },
+          { x: 950, name: 'Blind Stalker', weaponKey: 'spear', classKey: 'ninja', aiDiff: 'hard', color: '#440088', health: 160, armor: ['helmet'] },
+        ],
       },
     },
   },
@@ -393,6 +430,11 @@ const REALM_DEFS = {
 
 // Story chapters that carry side rooms. Entrance x and gate x are in the chapter world's coordinates.
 const REALM_STORY = {
+  galleries: {
+    chapters: [96],
+    entrances: [{ id: 'galleries', ch: 96, x: 1600, art: 'temple', room: 'gallery', door: 'in' }],
+    gates: [],
+  },
   titanhall: {
     chapters: [98],
     entrances: [{ id: 'titanhall', ch: 98, x: 1650, art: 'temple', room: 'stair', door: 'in' }],
@@ -712,6 +754,7 @@ function realmInteract() {
   if (_realmNear.kind === 'chest') { _realmOpenChest(_realmNear.ref, p); return true; }
   if (_realmNear.kind === 'burn') { _realmPlantCharge(_realmNear.ref); return true; }
   if (_realmNear.kind === 'lever') { _realmPullLever(_realmNear.ref); return true; }
+  if (_realmNear.kind === 'torch') { _realmLightTorch(_realmNear.ref); return true; }
   if (_realmNear.kind === 'arch') {
     var shut = _realmDoorShut(_realmNear.ref);
     if (shut) { _realmTell(shut, '#ff7766'); return true; }
@@ -735,6 +778,11 @@ function _realmFindNear(p) {
     if (dr.kind !== 'arch') return;
     var d = Math.abs(p.cx() - dr.x);
     if (d < bestD && Math.abs(feet - (dr.y || REALM_FLOOR_Y)) < 30) { best = { kind: 'arch', ref: dr }; bestD = d; }
+  });
+  (R.torches || []).forEach(function (t) {
+    if (realmSave.flags['torch_' + t.id]) return;
+    var d = Math.abs(p.cx() - t.x);
+    if (d < bestD && Math.abs(feet - (t.y || REALM_FLOOR_Y)) < 30) { best = { kind: 'torch', ref: t }; bestD = d; }
   });
   (R.levers || []).forEach(function (l) {
     if (realmSave.flags['lever_' + l.id]) return;
@@ -1073,7 +1121,8 @@ function drawRealmWorld() {
     var py = _realmNear.kind === 'npc' ? ny - 168 : isItem ? ny - 84 : _realmNear.kind === 'chest' ? ny - 54 : n.art === 'hatch' ? ny - 80 : n.art === 'ladder' ? ny - 130 : ny - REALM_ARCH_H - 34;
     if (_realmNear.kind === 'burn') { ny = REALM_FLOOR_Y; py = ny - 190; }
     if (_realmNear.kind === 'lever') py = ny - 90;
-    var verb = _realmNear.kind === 'burn' ? 'Burn' : _realmNear.kind === 'lever' ? 'Pull' : _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
+    if (_realmNear.kind === 'torch') py = ny - 120;
+    var verb = _realmNear.kind === 'burn' ? 'Burn' : _realmNear.kind === 'lever' ? 'Pull' : _realmNear.kind === 'torch' ? 'Light' : _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
     ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(n.x - 34, py - 14, 68, 20);
@@ -1190,6 +1239,7 @@ function drawRealmHUD() {
   var R = _realmRoom();
   ctx.save();
   ctx.setTransform(canvas.width / GAME_W, 0, 0, canvas.height / GAME_H, 0, 0);
+  if (realmRoomKey && !_realmStaleStory()) _realmDrawDarkness(R);
   if (realmHost === 'story') { _realmDrawFadeAndBanner(R); ctx.restore(); return; }
   if (!R) { ctx.restore(); return; }
 
@@ -1682,11 +1732,71 @@ function _realmPullLever(l) {
   _realmTell(l.line || 'Something opens.', '#88ffcc');
 }
 
+function _realmLightTorch(t) {
+  if (realmSave.flags['torch_' + t.id]) return;
+  realmSave.flags['torch_' + t.id] = true;
+  _realmStore();
+  if (typeof spawnParticles === 'function') spawnParticles(t.x, (t.y || REALM_FLOOR_Y) - 96, '#ffb050', 18);
+}
+
+// Lightless rooms: screen space, over the world and the fighters (the HP panel is page HTML, so it stays clear).
+var _realmDarkCv = null;
+function _realmDrawDarkness(R) {
+  if (!R || !R.lightless || !_realmView) return;
+  if (!_realmDarkCv) _realmDarkCv = document.createElement('canvas');
+  var cv = _realmDarkCv;
+  if (cv.width !== GAME_W || cv.height !== GAME_H) { cv.width = GAME_W; cv.height = GAME_H; }
+  var g = cv.getContext('2d'), m = _realmView, k = GAME_W / canvas.width;
+  var scr = function (x, y) { return [(m.a * x + m.c * y + m.e) * k, (m.b * x + m.d * y + m.f) * k]; };
+  g.globalCompositeOperation = 'source-over';
+  g.clearRect(0, 0, GAME_W, GAME_H);
+  g.fillStyle = 'rgba(2,1,6,' + R.lightless + ')';
+  g.fillRect(0, 0, GAME_W, GAME_H);
+  g.globalCompositeOperation = 'destination-out';
+  var hole = function (x, y, r) {
+    var c = scr(x, y), rr = r * m.a * k;
+    var gr = g.createRadialGradient(c[0], c[1], rr * 0.35, c[0], c[1], rr);
+    gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(c[0], c[1], rr, 0, Math.PI * 2); g.fill();
+  };
+  var p = players[0];
+  if (p && p.health > 0) hole(p.cx(), p.cy(), 150);
+  var flick = 1 + 0.04 * Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.3);
+  (R.torches || []).forEach(function (t) {
+    if (realmSave.flags['torch_' + t.id]) hole(t.x, (t.y || REALM_FLOOR_Y) - 96, 300 * flick);
+    else hole(t.x, (t.y || REALM_FLOOR_Y) - 96, 40);
+  });
+  ctx.drawImage(cv, 0, 0, GAME_W, GAME_H);
+}
+
+function _realmDrawTorches(R) {
+  var f = typeof frameCount !== 'undefined' ? frameCount : 0;
+  (R.torches || []).forEach(function (t) {
+    var y = t.y || REALM_FLOOR_Y, lit = !!realmSave.flags['torch_' + t.id];
+    ctx.fillStyle = '#2a2230'; ctx.fillRect(t.x - 4, y - 90, 8, 90);
+    ctx.fillStyle = '#3c3244'; ctx.fillRect(t.x - 12, y - 96, 24, 8);
+    if (lit) {
+      var gl = ctx.createRadialGradient(t.x, y - 100, 4, t.x, y - 100, 120);
+      gl.addColorStop(0, 'rgba(255,170,80,0.35)'); gl.addColorStop(1, 'rgba(255,170,80,0)');
+      ctx.fillStyle = gl; ctx.fillRect(t.x - 120, y - 220, 240, 240);
+      for (var i = 0; i < 3; i++) {
+        var fl = 12 + 6 * Math.sin(f * 0.25 + i * 2);
+        ctx.fillStyle = i === 2 ? 'rgba(255,240,180,0.9)' : 'rgba(255,' + (130 + i * 50) + ',40,0.8)';
+        ctx.beginPath(); ctx.moveTo(t.x - 7 + i * 2, y - 96); ctx.quadraticCurveTo(t.x, y - 96 - fl * (1.6 - i * 0.3), t.x + 7 - i * 2, y - 96); ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = 'rgba(160,120,90,' + (0.25 + 0.1 * Math.sin(f * 0.05)) + ')';
+      ctx.fillRect(t.x - 3, y - 100, 6, 4);
+    }
+  });
+}
+
 function _realmDrawPuzzle(R) {
   var f = typeof frameCount !== 'undefined' ? frameCount : 0;
   var g = REALM_FLOOR_Y;
   // Stone for steps, blocks, pillars and cracked walls: R.stone = [base, top edge], violet by default.
   var st = R.stone || ['#3e3850', '#5a5270'];
+  _realmDrawTorches(R);
   (R.steps || []).forEach(function (s) {
     ctx.fillStyle = st[0]; ctx.fillRect(s[0], g - s[1], s[2], s[1]);
     ctx.fillStyle = st[1]; ctx.fillRect(s[0], g - s[1], s[2], 4);

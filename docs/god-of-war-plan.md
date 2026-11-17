@@ -96,6 +96,15 @@ Fixed while testing: enemies' dash moves carried them through closed gates (the 
 
 Tested in the browser (Nov 16): block push and seat, bars, the walk through to each room, crack break with real swings, the timed run (frame-driven input), bars closing on the player, the lever refusing then opening, the exit at x 2420 with the gate gone. Not yet run by the level tester: it can't push blocks or time a run, so it needs a puzzle step before it can walk this chapter.
 
+## Optional dungeon: the Blind Galleries (Nov 16)
+
+Your chapter 97 (registry id 96, "What You Cannot See", Shadow Realm stealth). Stone arch at x 1600. Optional. `REALM_DEFS.galleries`. Adds **lightless rooms** (`lightless: 0.96`: dark except a 150 px circle around you) and **torches** (`torches: [{ id, x }]`, F lights one for good, 300 px of light).
+
+- **The Blind Gallery:** spikes you only see near a light, three torches to light along the way, a token chest on a ledge between the spike strips.
+- **The Listening Room:** two Blind Stalkers in the dark and one torch in the middle. +120 EXP, +60 tokens. Arch back out.
+
+Browser-tested Nov 16: darkness and the player's light, lighting a torch with F, spikes showing up near light, the foes hidden until close, the exit. Known: the darkness also dims the canvas target-name banner at top right (drawn before the realm layer); the off-screen enemy arrows and the HTML HP panel stay bright. The chapter's sentinels spawn as normal fighters and come at you, so the door needs them cleared like any other chapter.
+
 ## Optional dungeon: Hall of the First Wall (Nov 16)
 
 Your chapter 99 (registry id 98, "The Scale of Things", Titan World). Stone arch at x 1650. Optional. `REALM_DEFS.titanhall`.
@@ -166,7 +175,7 @@ What the tools don't shrink: the user playing each dungeon and giving a verdict.
 
 ## Status
 
-**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch42, ch47 and ch99.
+**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch42, ch47, ch97 and ch99.
 
 **Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel and checkpoint-level resume inside a chapter are not built.
 
