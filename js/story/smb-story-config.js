@@ -1220,6 +1220,7 @@ function _defaultStory2Progress() {
     health:            null,    // persistent HP carried between walk→fight chapters (null = full)
     lootTaken:         {},      // { 'chapterId:index': 1 }, one-time loot pickups already collected
     cpResume:          null,    // { chId, x }, last rest checkpoint reached; a game-over Retry resumes there
+    litBeacons:        {},      // { chId: [x, ...] }, every rest beacon lit (groundwork for beacon fast travel)
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
     skillTree:         _applyStoryCoreUnlocks({}), // { nodeId: true }, purchased skill nodes (core moves pre-granted)
@@ -1322,6 +1323,10 @@ function _normalizeStory2Progress(data) {
   if (data.lootTaken && typeof data.lootTaken === 'object') out.lootTaken = Object.assign({}, data.lootTaken);
   if (data.cpResume && typeof data.cpResume.chId === 'number' && typeof data.cpResume.x === 'number') {
     out.cpResume = { chId: data.cpResume.chId, x: data.cpResume.x };
+  }
+  if (data.litBeacons && typeof data.litBeacons === 'object') {
+    out.litBeacons = {};
+    for (const k in data.litBeacons) if (Array.isArray(data.litBeacons[k])) out.litBeacons[k] = data.litBeacons[k].filter(v => typeof v === 'number');
   }
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();

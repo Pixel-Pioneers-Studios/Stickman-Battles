@@ -472,6 +472,11 @@ function updateExploration() {
       // Rest beacon: no fight. Record the resume point for a game-over Retry.
       if (_activeStory2Chapter) {
         _story2.cpResume = { chId: _activeStory2Chapter.id, x: cp.x };
+        // Every beacon lit is kept (fast travel groundwork, docs/god-of-war-plan.md).
+        const _lb = _story2.litBeacons || (_story2.litBeacons = {});
+        const _lk = String(_activeStory2Chapter.id);
+        if (!_lb[_lk]) _lb[_lk] = [];
+        if (_lb[_lk].indexOf(cp.x) < 0) _lb[_lk].push(cp.x);
         if (typeof _saveStory2 === 'function') _saveStory2();
       }
       // The mid-life respawn point the subtitle promises. Without it a fall sent the player to level start.
