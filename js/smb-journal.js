@@ -11,6 +11,7 @@
 // and all of it waits for the end of The 95th.
 //
 // unlock: { story: id } | { prequel: ['axiom'|'sovereign', chaptersCleared] }
+//       | { found: 'realmKey:room:chestId', ch: id } (a chest opened in an optional realm room, smb-realm.js)
 //       | { complete: true } | { all: [...] } | { any: [...] }
 // text and extras[].text: paragraphs separated by a blank line.
 // extras: later sections that open on their own gates (a second look at the same thing).
@@ -62,6 +63,21 @@ So an empty-handed bearer is not an unarmed one. It only means the pattern hasn'
 That is why every copy is weaker than the original, however much force is poured into it. Mountainfall is Torren's. A Hollow Mountainfall belongs to nobody.
 
 Yours is the real one.`,
+  },
+  {
+    id: 'forty-seven', cat: 'fragment', title: 'The Forty-Seven',
+    voice: 'Cut into the wall',
+    unlock: { found: 'proving:last:marks', ch: 28 },
+    text:
+`The Crucible kept count.
+
+Behind its outer wall are three rooms, and every bearer who got that far was put through all three: a floor that falls away under you, a weight that has to be moved the wrong way, and the thing that guards the last door.
+
+Forty-seven of them reached the last room. The count is cut into its wall in fives, by a hand that pressed hard. No mark was ever cut for one who walked out the far side.
+
+What the Crucible kept of the forty-seven, its champion carries: a way of standing from each of them, every one a style that wasn't enough.
+
+There is room on the wall for one more mark.`,
   },
   {
     id: 'ninety-four', cat: 'fragment', title: 'Ninety-Four',
@@ -377,7 +393,17 @@ function _journalCond(c) {
   if (c.complete) return typeof _storyFinished === 'function' && _storyFinished();
   if (c.story != null) return typeof _storyChapterBeaten === 'function' && _storyChapterBeaten(c.story);
   if (c.prequel) return typeof getPrequelCleared === 'function' && getPrequelCleared(c.prequel[0]) >= c.prequel[1];
+  if (c.found) return _journalFound(c.found);
   return false;
+}
+
+// A realm chest opened: the live realm save when that realm is loaded, else its saved copy.
+function _journalFound(ref) {
+  const [key, room, chest] = String(ref).split(':');
+  let save = null;
+  if (typeof realmKey !== 'undefined' && realmKey === key && typeof realmSave !== 'undefined') save = realmSave;
+  if (!save) { try { save = JSON.parse(localStorage.getItem('smb_realm_' + key) || 'null'); } catch (e) { save = null; } }
+  return !!(save && save.looted && save.looted[room] && save.looted[room][chest]);
 }
 
 // Where to go to open it. Names chapters by number only, never by what's in them.
@@ -388,6 +414,7 @@ function _journalHint(c) {
   if (c.complete) return 'Finish The 95th';
   if (c.story != null) return 'Finish chapter ' + (c.story + 1) + ' of the story';
   if (c.prequel) return 'Finish chapter ' + c.prequel[1] + ' of the ' + _J_PREQUEL_NAMES[c.prequel[0]] + ' prequel';
+  if (c.found) return 'Found off the path' + (c.ch != null ? ' in chapter ' + (c.ch + 1) : '');
   return '';
 }
 

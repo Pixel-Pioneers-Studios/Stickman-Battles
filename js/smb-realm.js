@@ -420,7 +420,8 @@ const REALM_DEFS = {
         say: 'Forty-seven marks are cut into the wall here. There is room for one more.',
         tally: { x: 360, y: 210, n: 47 },
         ledges: [[220, 430, 150], [780, 430, 150]],
-        chests: [{ id: 'logs', x: 1040, gives: 'exp:130' }, { id: 'tithe', x: 855, y: 430, gives: 'tokens:80' }],
+        chests: [{ id: 'logs', x: 1040, gives: 'exp:130' }, { id: 'tithe', x: 855, y: 430, gives: 'tokens:80' },
+                 { id: 'marks', x: 470, gives: 'journal:forty-seven' }],
         doors: [
           { id: 'in', kind: 'edge', side: 'l', to: ['weigh', 'next'] },
           { id: 'up', kind: 'arch', x: 1110, art: 'ladder', to: ['@main', 'proving'] },
@@ -900,6 +901,11 @@ function _realmOpenChest(c, p) {
     realmSave.items[c.gives.slice(5)] = true;
     _realmStore();
     label = c.label || 'FOUND';
+  } else if (c.gives && c.gives.indexOf('journal:') === 0) {
+    // A Journal page (smb-journal.js: its entry unlocks on { found: '<realm>:<room>:<chest>' }).
+    var je = typeof JOURNAL_ENTRIES !== 'undefined' && JOURNAL_ENTRIES.find(function (e) { return e.id === c.gives.slice(8); });
+    label = 'JOURNAL: ' + (je ? je.title.toUpperCase() : 'NEW PAGE');
+    if (typeof journalUpdateNav === 'function') journalUpdateNav();
   } else if (c.gives && c.gives.indexOf('weapon:') === 0) {
     var wk = c.gives.slice(7);
     if (typeof WEAPONS !== 'undefined' && WEAPONS[wk]) {
