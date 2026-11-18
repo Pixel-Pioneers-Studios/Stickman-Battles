@@ -24,6 +24,8 @@
 // small circle around you and the torches you have lit.
 // crumbles [{ id, x, y, w }] ledges that shake when you land and give way CRUMBLE_F frames later, then re-form
 // CRUMBLE_BACK_F frames after that (once nobody is under them).
+// swings [{ id, x, y, len, amp, period, phase }] pendulum logs hung from (x, y): the head sweeps amp radians either side
+// of straight down, one full swing every period frames. It hits (14, knocked the way it swings); time the crossing or jump it.
 // steps [[x, h, w]] low solid walls to jump. Room stone: [base, top edge] colours these parts.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
@@ -51,6 +53,7 @@ const REALM_BLOCK = 64;          // stone block size
 const REALM_PLATE_W = 84;
 const REALM_CRUMBLE_F = 34;       // frames a crumbling ledge holds you before it gives way
 const REALM_CRUMBLE_BACK_F = 210; // frames until it re-forms
+const REALM_SWING_R = 30;         // pendulum head hit radius
 
 const REALM_DEFS = {
   old_ruins: {
@@ -430,6 +433,58 @@ const REALM_DEFS = {
     },
   },
 
+  // Inside a dead giant of the Endless Canopy, story id 39 (Into the Green): optional. Pendulum logs (the new part),
+  // a lift to a lever, and the nest of whatever strung them up.
+  trunk: {
+    name: 'The Hollow Trunk',
+    theme: 'forest',
+    start: { room: 'roots', door: 'in' },
+    rooms: {
+      roots: {
+        name: 'The Swinging Roots', gx: 0, gy: 0, w: 1400, back: true, wall: '#141c10', dark: 0.35, stone: ['#3a3226', '#54483a'],
+        say: 'Inside the trunk, cut roots hang on ropes and swing. Someone built this to keep things out.',
+        swings: [
+          { id: 'a', x: 420, y: 200, len: 310, amp: 0.95, period: 130, phase: 0 },
+          { id: 'b', x: 720, y: 200, len: 310, amp: 0.95, period: 130, phase: 0.5 },
+          { id: 'c', x: 1020, y: 200, len: 310, amp: 0.95, period: 110, phase: 1.2 },
+        ],
+        chests: [{ id: 'sap', x: 1260, gives: 'tokens:30' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['@main', 'trunk'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['heart', 'in'] },
+        ],
+      },
+      heart: {
+        name: 'The Heartwood', gx: 1, gy: 0, w: 1300, back: true, wall: '#161e10', dark: 0.35, stone: ['#3a3226', '#54483a'],
+        say: 'The heartwood. A lever up in the old growth, and roots grown across the way on.',
+        swings: [{ id: 'h', x: 640, y: 200, len: 310, amp: 0.9, period: 120, phase: 0.6 }],
+        lifts: [{ id: 'heart', x: 880, w: 120, y0: 500, y1: 250 }],
+        ledges: [[1000, 250, 180]],
+        chests: [{ id: 'ring', x: 1040, y: 250, gives: 'exp:40' }],
+        levers: [{ id: 'heart', x: 1130, y: 250, line: 'Below, the roots across the way pull apart.' }],
+        bars: [{ id: 'roots', x: 1230, when: 'lever:heart' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['roots', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['nest', 'in'] },
+        ],
+      },
+      nest: {
+        name: 'The Nest', gx: 2, gy: 0, w: 1100, back: true, wall: '#18200f', dark: 0.4, stone: ['#3a3226', '#54483a'],
+        say: 'Ash from collapsed worlds, piled up and slept in. Whatever lives here is home.',
+        ledges: [[220, 430, 150], [730, 430, 150]],
+        chests: [{ id: 'hoard', x: 950, gives: 'exp:110' }, { id: 'shine', x: 805, y: 430, gives: 'tokens:70' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['heart', 'next'] },
+          { id: 'up', kind: 'arch', x: 1010, art: 'ladder', to: ['@main', 'trunk'] },
+        ],
+        foes: [
+          { x: 640, name: 'Thorn Brood', weaponKey: 'axe', classKey: 'berserker', aiDiff: 'hard', color: '#4a3d1a', health: 200, armor: ['helmet'] },
+          { x: 860, name: 'Canopy Stalker', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'hard', color: '#2a3a11' },
+        ],
+      },
+    },
+  },
+
   // The Fallen God's memory vault: the puzzle dungeon of story id 81. Each room teaches one part.
   vault: {
     name: 'The Memory Vault',
@@ -544,6 +599,11 @@ const REALM_STORY = {
   undercroft: {
     chapters: [46],
     entrances: [{ id: 'undercroft', ch: 46, x: 1300, art: 'temple', room: 'stair', door: 'in' }],
+    gates: [],
+  },
+  trunk: {
+    chapters: [39],
+    entrances: [{ id: 'trunk', ch: 39, x: 880, art: 'temple', room: 'roots', door: 'in' }],
     gates: [],
   },
   proving: {
@@ -1655,7 +1715,7 @@ function _realmChargeTick(R) {
 // good lives in realmSave.flags: plate_<id> (a block latched it), bar_<id> (you got past it), lever_<id>, broke_<id>.
 
 function _realmPuzzleReset(roomKey) {
-  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, crumble: {}, spikeCd: 0 };
+  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, crumble: {}, spikeCd: 0, swingCd: 0 };
   var R = _realmRoom(roomKey);
   // A latch plate solved on an earlier visit still holds its block.
   var free = (R.blocks || []).slice();
@@ -1670,6 +1730,14 @@ function _realmPuzzleReset(roomKey) {
     var pl = _realmPuzPlat('_realmBar', b.id);
     if (pl) pl.isFloorDisabled = true;
   });
+}
+
+// Pendulum head position at the current frame.
+function _realmSwingHead(w) {
+  var f = typeof frameCount !== 'undefined' ? frameCount : 0;
+  var a = (w.amp || 1) * Math.sin(Math.PI * 2 * f / (w.period || 140) + (w.phase || 0));
+  return { a: a, x: w.x + Math.sin(a) * w.len, y: w.y + Math.cos(a) * w.len,
+    v: Math.cos(Math.PI * 2 * f / (w.period || 140) + (w.phase || 0)) };   // sign = swing direction
 }
 
 function _realmPuzPlat(tag, id) {
@@ -1845,6 +1913,21 @@ function _realmPuzzleTick(p, R) {
       if (typeof spawnParticles === 'function') spawnParticles(pl.x + pl.w / 2, pl.y + 8, 'rgba(170,140,110,0.9)', 14);
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 3);
     }
+  });
+
+  // Swings: a pendulum head that touches you hits and throws you the way it is swinging.
+  if (_realmPuz.swingCd > 0) _realmPuz.swingCd--;
+  (R.swings || []).forEach(function (w) {
+    if (_realmPuz.swingCd > 0 || p.health <= 0 || p.invincible > 0) return;
+    var hd = _realmSwingHead(w);
+    var nx = Math.max(p.x, Math.min(hd.x, p.x + p.w)), ny = Math.max(p.y, Math.min(hd.y, p.y + p.h));
+    if (Math.hypot(hd.x - nx, hd.y - ny) > REALM_SWING_R) return;
+    _realmPuz.swingCd = 45;
+    if (typeof dealDamage === 'function') dealDamage(null, p, 14, 0, 1, false, 0);
+    var dir = hd.v >= 0 ? 1 : -1;
+    p.vx = dir * 10; p.vy = -7; p.onGround = false;
+    if (typeof spawnParticles === 'function') spawnParticles(hd.x, hd.y, '#8a6a44', 10);
+    if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 8);
   });
 
   // Spikes: floor strips [x0, x1] that hurt and bounce you out. dealDamage with no attacker, like a hazard.
@@ -2061,6 +2144,23 @@ function _realmDrawPuzzle(R) {
     }
     ctx.fillStyle = 'rgba(150,30,20,0.55)';
     for (var tx = sp[0] + 2; tx + 12 <= sp[1]; tx += 14) ctx.fillRect(tx + 5, g - 18, 2, 4);
+  });
+  (R.swings || []).forEach(function (w) {
+    var hd = _realmSwingHead(w);
+    // Bracket, rope, then a log hung crosswise to the rope.
+    ctx.fillStyle = st[0]; ctx.fillRect(w.x - 18, w.y - 10, 36, 10);
+    ctx.strokeStyle = 'rgba(120,96,60,0.95)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(w.x - 6, w.y); ctx.lineTo(hd.x - 6 * Math.cos(hd.a), hd.y + 6 * Math.sin(hd.a));
+    ctx.moveTo(w.x + 6, w.y); ctx.lineTo(hd.x + 6 * Math.cos(hd.a), hd.y - 6 * Math.sin(hd.a)); ctx.stroke();
+    ctx.save(); ctx.translate(hd.x, hd.y); ctx.rotate(-hd.a);
+    ctx.fillStyle = '#5a4128'; ctx.beginPath(); ctx.ellipse(0, 0, 44, 18, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a5a36'; ctx.beginPath(); ctx.ellipse(-30, 0, 9, 15, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(30,20,10,0.6)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-18, -12); ctx.lineTo(30, -10); ctx.moveTo(-14, 6); ctx.lineTo(36, 8); ctx.stroke();
+    // Thorns on the underside: the part that hurts.
+    ctx.fillStyle = '#c9b48a';
+    for (var tx = -30; tx <= 30; tx += 15) { ctx.beginPath(); ctx.moveTo(tx - 4, 15); ctx.lineTo(tx, 26); ctx.lineTo(tx + 4, 15); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
   });
   (R.crumbles || []).forEach(function (c) {
     var pl = _realmPuzPlat('_realmCrumble', c.id);

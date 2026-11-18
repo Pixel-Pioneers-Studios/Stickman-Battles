@@ -187,6 +187,16 @@ Browser-tested Nov 17: the arch (refuses with enemies close), the crumble timing
 
 Fixed while testing: `realmReset()` (console) built a save with no `flags`, which crashed the level minimap mid-chapter.
 
+## Optional dungeon: the Hollow Trunk (Nov 18)
+
+Your chapter 40 (registry id 39, "Into the Green", the Endless Canopy). Arch at x 880, in front of the giant tree in the chapter's own backdrop. Optional. `REALM_DEFS.trunk`. New part: **pendulums** (`swings: [{ id, x, y, len, amp, period, phase }]`): a thorned log on two ropes swings across the path; touching it hits for 14 and throws you the way it is swinging (45-frame cooldown). Cross while it is at the far end of its swing, or jump it (the head bottoms out at chest height, below a full jump).
+
+- **The Swinging Roots:** three pendulums, a token chest at the far end. Walking straight through without timing costs three hits.
+- **The Heartwood:** a fourth pendulum, a shuttle lift to a ledge with an EXP chest and a lever that opens a gate of roots below.
+- **The Nest:** Thorn Brood (axe, helmet) and a Canopy Stalker. +110 EXP, +70 tokens. Ladder out, sealed while they stand.
+
+Browser-tested Nov 18 with real keys: arch, all three pendulums hitting (10 each after difficulty scaling), the Heartwood, lever, the roots opening, the Nest and its foes. Earlier the same morning three lives were lost during tests that forced room changes and teleported the player; a clean run with real keys and a 12-second idle in the Heartwood never reproduced them. Worth watching for in your playtest: a death with no hit (a "YOU FELL") inside this dungeon.
+
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
 
 The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.
