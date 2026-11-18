@@ -199,6 +199,18 @@ Your chapter 40 (registry id 39, "Into the Green", the Endless Canopy). Arch at 
 
 Browser-tested Nov 18 with real keys: arch, all three pendulums hitting (10 each after difficulty scaling), the Heartwood, lever, the roots opening, the Nest and its foes. Earlier the same morning three lives were lost during tests that forced room changes and teleported the player; a clean run with real keys and a 12-second idle in the Heartwood never reproduced them. Worth watching for in your playtest: a death with no hit (a "YOU FELL") inside this dungeon.
 
+## Optional dungeon: the Looped Block (Nov 18)
+
+Your chapter 57 (registry id 56, "Signal Maze", the Creator's Interference Layer). Arch at x 1120. Optional. `REALM_DEFS.loop`. The chapter's own idea, the Creator scrambling the city's geography, made into rooms: a block of street that ends in nothing. New part: **movers** (`movers: [{ id, x0, x1, y, w, speed, wait, start }]`): slabs of street that shuttle sideways between two left-edge stops, resting at each end, carrying whoever stands on them; `start: 'x1'` begins at the right end, so two can run opposite ways. With floor gaps (`floor: [[0, 320], [1180, 1500]]`) the room has a real drop.
+
+- **The Drift:** a gap crossed on two slabs at different heights and speeds, so they drift in and out of step; ride the first until the second lines up. Token chest on a ledge above the gap.
+- **Crossing Traffic:** two slabs going opposite ways over a spike floor, then a crumbling ledge.
+- **Dead Relay:** Loop Warden (spear, helmet and chestplate; 300 HP after story scaling) and a Static Echo. +120 EXP, +80 tokens. Ladder out.
+
+Browser-tested Nov 18: entrance, a rider carried both ways and resting at the ends, stepping off the far slab onto the far floor, the opposite-running pair, the Dead Relay's foes. Not run through the level tester: the walker has no step for waiting on a mover, so expect it to fall in the Drift.
+
+Hollow Trunk in the level tester (Nov 18, `--optional`, brain 20011, Normal, 3 tries): all three walked all three rooms (pendulum hits show as "unknown" damage, 30-40 a run), pulled the lever and fought the Nest; all three then ran out of lives in the chapter's own fights. Chapter 40's baseline: Oct 31 0/2, Nov 1 1/2.
+
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
 
 The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.
