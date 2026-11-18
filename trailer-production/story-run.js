@@ -13,7 +13,8 @@ const PROFILES = {
   vert: { width: 3414, height: 1920, cropW: 1080, port: 8253 },
 };
 const ROOT = path.resolve(__dirname, '..');
-const tester = fs.readFileSync(path.join(ROOT, 'tools', 'level-tester.js'), 'utf8');
+// LT_REV=<commit>: take the tester harness from git (Nov 17: the Nov 16 realm-puzzle walker stalled long vert captures).
+const tester = process.env.LT_REV ? require('child_process').execSync('git show ' + process.env.LT_REV + ':tools/level-tester.js', { cwd: ROOT, maxBuffer: 1 << 26 }).toString() : fs.readFileSync(path.join(ROOT, 'tools', 'level-tester.js'), 'utf8');
 const cut = (a, b) => { const i = tester.indexOf(a), j = tester.indexOf(b, i); if (i < 0 || j < 0) throw new Error('tester changed: ' + a); return tester.slice(i, j); };
 const harnessSrc = cut('(id, diff, stallS, pilot, ckpt, skills) => {', '}, ch.id, DIFFICULTY, STALL_S, PILOT, CKPT, progressTree(ch.id));') + '}';
 const costSrc = cut('const SKILL_COST =', 'const EXP_DEFAULT');
