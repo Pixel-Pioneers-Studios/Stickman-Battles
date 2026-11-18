@@ -183,7 +183,7 @@ Your chapter 29 (registry id 28, "Into the Crucible", the scavenge for the beare
 
 Also new, for every block puzzle: a block pushed flush against something solid shows a one-time line, "It won't go any further. Step out of the room and it resets." Leaving and re-entering already reset unlatched blocks (the Weighing of Kings in ch99 can jam the same way); now the game says so.
 
-Browser-tested Nov 17: the arch (refuses with enemies close), the crumble timing and the fall onto spikes, A onto the first plate with real keys, B jammed on purpose (hint shown), out and back in (B reset, A kept), B pushed back onto the second plate, exit bars up, the last room's foes, chest, sealed ladder, ladder out. Not run through the level tester: its walker treats crumbling ledges as solid.
+Browser-tested Nov 17: the arch (refuses with enemies close), the crumble timing and the fall onto spikes, A onto the first plate with real keys, B jammed on purpose (hint shown), out and back in (B reset, A kept), B pushed back onto the second plate, exit bars up, the last room's foes, chest, sealed ladder, ladder out. Level tester Nov 18 (`--optional`, brain 20011, Normal, 2 tries): one try reached the dungeon, crossed the crumbling floor on foot over the spikes, solved the Second Test outright (both plates, both bars) and fought the Warden; both tries ran out of lives in the chapter's own fights (Pressure Stalker, Checkpoint Hunter). Chapter 29 has never been cleared by the tester (Oct 31, Nov 1: loss and timeout), so that is the chapter, not the dungeon. Regression without `--optional`: ch9 2/2.
 
 Fixed while testing: `realmReset()` (console) built a save with no `flags`, which crashed the level minimap mid-chapter.
 
