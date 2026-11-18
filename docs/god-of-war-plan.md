@@ -207,7 +207,7 @@ Your chapter 57 (registry id 56, "Signal Maze", the Creator's Interference Layer
 - **Crossing Traffic:** two slabs going opposite ways over a spike floor, then a crumbling ledge.
 - **Dead Relay:** Loop Warden (spear, helmet and chestplate; 300 HP after story scaling) and a Static Echo. +120 EXP, +80 tokens. Ladder out.
 
-Browser-tested Nov 18: entrance, a rider carried both ways and resting at the ends, stepping off the far slab onto the far floor, the opposite-running pair, the Dead Relay's foes. Not run through the level tester: the walker has no step for waiting on a mover, so expect it to fall in the Drift.
+Browser-tested Nov 18: entrance, a rider carried both ways and resting at the ends, stepping off the far slab onto the far floor, the opposite-running pair, the Dead Relay's foes. Level tester (Nov 18): the walker now rides movers (`realmMoverWaypoint`: wait at the gap edge for the first slab to rest at its near stop, jump on, ride, hop to the next at its near stop, step off). `--optional`, brain 20011, Normal, 2 tries: both crossed the Drift, cleared Crossing Traffic and fought the Dead Relay's guards; both then ran out of lives in the chapter's own fights (one fall recorded in try 1).
 
 Hollow Trunk in the level tester (Nov 18, `--optional`, brain 20011, Normal, 3 tries): all three walked all three rooms (pendulum hits show as "unknown" damage, 30-40 a run), pulled the lever and fought the Nest; all three then ran out of lives in the chapter's own fights. Chapter 40's baseline: Oct 31 0/2, Nov 1 1/2.
 

@@ -358,6 +358,8 @@ async function runAttempt(browser, ch, attempt) {
         if (b) return { x: b.x, y: null, act: true };
         const pz = realmPuzzleWaypoint(h, R);
         if (pz) return pz;
+        const mv = realmMoverWaypoint(h, R);
+        if (mv) return mv;
         const i = (def.route || []).indexOf(realmRoomKey);
         const nextRoom = def.route && def.route[i + 1];
         let d = (R.doors || []).find(q => q.to && (nextRoom ? q.to[0] === nextRoom : q.to[0] === '@main' && q.id !== 'in'));
@@ -384,6 +386,32 @@ async function runAttempt(browser, ch, attempt) {
           }
         }
         return { x: d.x, y: d.y || null, act: true };
+      }
+      // Movers (smb-realm.js): slabs that shuttle over a floor gap. Heading right across the gap: wait at its edge
+      // until the first slab rests at its near stop, jump on, ride to its far stop, hop to the next slab when that one
+      // rests at its near stop, and step off onto the far floor. Rooms without a gap (movers over spikes) are walked.
+      function realmMoverWaypoint(h, R) {
+        if (!R.movers || !R.floor || R.floor.length < 2) return null;
+        const gap0 = R.floor[0][1], gap1 = R.floor[1][0];
+        const ms = R.movers.slice().sort((a, b) => a.x0 - b.x0);
+        const plats = ms.map(m => _realmPuzPlat('_realmMover', m.id));
+        if (plats.some(q => !q)) return null;
+        const on = plats.findIndex(q => h.onGround && Math.abs(h.y + h.h - q.y) <= 4 && h.x + h.w > q.x && h.x < q.x + q.w);
+        const atNear = i => Math.abs(plats[i].x - ms[i].x0) < 2, atFar = i => Math.abs(plats[i].x - ms[i].x1) < 2;
+        if (on < 0) {
+          if (h.cx() > gap1) return null;                 // across: carry on to the door
+          if (h.cx() > gap0) return null;                 // airborne over the gap: nothing to steer
+          if (!atNear(0)) return { x: gap0 - 30, y: null };
+          return { x: plats[0].x + plats[0].w / 2, y: plats[0].y - 80 };
+        }
+        const q = plats[on];
+        if (!atFar(on)) return { x: q.x + q.w / 2, y: null };   // ride
+        if (on + 1 < plats.length) {
+          const n = plats[on + 1];
+          if (!atNear(on + 1)) return { x: q.x + q.w / 2, y: null };
+          return { x: n.x + n.w / 2, y: n.y - 80 };
+        }
+        return { x: gap1 + 60, y: null };
       }
       // Puzzle parts (smb-realm.js _realmPuzzleTick), solved as a player would: shut bars first (push the
       // block onto a latch plate, step on a hold plate and the door waypoint does the run, pull the lever),
