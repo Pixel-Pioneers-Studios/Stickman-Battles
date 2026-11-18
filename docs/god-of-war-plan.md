@@ -206,9 +206,11 @@ What the tools don't shrink: the user playing each dungeon and giving a verdict.
 
 ## Status
 
+**Nov 17 (night):** checkpoint resume built. Continue now drops a returning player at the last rest beacon they lit in the chapter they left (the save already kept `cpResume`; Continue used to discard it), skipping the narration they already saw, at full HP. Fixed on the way: after any resume (Retry or Continue) a death respawned you at the level start, because the beacon was pre-marked as lit and never set the respawn point. Browser-tested on chapter 9: beacon at x 1500 saved, page reloaded, Continue landed at 1500, a fall respawned by the beacon.
+
 **Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch9, ch42, ch47, ch97 and ch99.
 
-**Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel and checkpoint-level resume inside a chapter are not built.
+**Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel is not built; checkpoint resume was built Nov 17.
 
 **Nov 16:** step 2's puzzle parts built and used in the second dungeon (the Memory Vault, above); step 2's room editor is not built. Awaiting the user's playtest of the facility, the Trial Wing, the ch71 Axiom encounter and the vault.
 
