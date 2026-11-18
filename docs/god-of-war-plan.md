@@ -211,6 +211,16 @@ Browser-tested Nov 18: entrance, a rider carried both ways and resting at the en
 
 Hollow Trunk in the level tester (Nov 18, `--optional`, brain 20011, Normal, 3 tries): all three walked all three rooms (pendulum hits show as "unknown" damage, 30-40 a run), pulled the lever and fought the Nest; all three then ran out of lives in the chapter's own fights. Chapter 40's baseline: Oct 31 0/2, Nov 1 1/2.
 
+## Optional dungeon: the Buried Bunker (Nov 18)
+
+Your chapter 88 (registry id 87, "The War Camp", War-Torn Dimension). Lab door at x 1300. Optional. `REALM_DEFS.bunker`. New part: **vents** (`vents: [{ id, x, w, top, force, when }]`): hot-air updrafts from a floor grate; anyone whose centre is in the column rises (vy eased toward -8) and hangs near `top`, then steps off onto a ledge no jump reaches. With `when`, the vent only blows while that holds. The war world's modifiers (more aggressive enemies) apply to the dungeon's guards too, which suits it.
+
+- **Vent Shaft:** one vent to a ledge with a token chest and the door on. Holding a direction the whole way carries you out of the column before the top; you have to stand in it.
+- **The Fan Room:** the vent is dead until the lever ("RESTART in three languages") is pulled. Its grate is a safe island in a spike floor; the exit is up on the ledge, so the vent is the only way on.
+- **Command Bunker:** Bunker Sergeant (hammer, helmet and chestplate; 300 HP scaled) and a Trench Runner. +130 EXP, +80 tokens. Ladder out.
+
+Browser-tested Nov 18: the vent rise (floor to y 116 in under a second, hanging there), stepping onto both ledges, the dead vent, the lever bringing it on, the spike-free grate, the ledge door, the Command Bunker's guards. Fixed while testing: the spike strip covered the vent's grate, and an edge exit could be reached over the spikes, skipping the vent. Not run through the level tester (no vent step in the walker).
+
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
 
 The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.

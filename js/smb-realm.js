@@ -24,6 +24,8 @@
 // small circle around you and the torches you have lit.
 // crumbles [{ id, x, y, w }] ledges that shake when you land and give way CRUMBLE_F frames later, then re-form
 // CRUMBLE_BACK_F frames after that (once nobody is under them).
+// vents [{ id, x, w, top, force, when }] updraft columns from the floor up to height top: anyone inside rises (vy eased
+// toward -8) and hangs near the top; with when, the vent only blows while that holds (e.g. 'lever:fans').
 // movers [{ id, x0, x1, y, w, speed, wait }] platforms that shuttle sideways between left edges x0 and x1 at height y,
 // resting wait frames at each end (start: 'x1' begins at the right end); riders move with them. Pair with floor gaps (floor: [[x0, x1], ...]) for pits.
 // swings [{ id, x, y, len, amp, period, phase }] pendulum logs hung from (x, y): the head sweeps amp radians either side
@@ -541,6 +543,54 @@ const REALM_DEFS = {
     },
   },
 
+  // Under the War Camp, story id 87 (War-Torn Dimension, Command Post): optional. Vents (the new part): hot-air shafts
+  // that carry you up to ledges no jump reaches.
+  bunker: {
+    name: 'The Buried Bunker',
+    theme: 'storyWar',
+    start: { room: 'shaft', door: 'in' },
+    rooms: {
+      shaft: {
+        name: 'Vent Shaft', gx: 0, gy: 0, w: 1300, back: true, wall: '#1e140e', dark: 0.35, stone: ['#4a3a2c', '#665040'],
+        say: 'A bunker under the camp, dug in a war nobody here remembers starting. Hot air still roars up the old shafts.',
+        vents: [{ id: 'v1', x: 860, w: 110, top: 150 }],
+        ledges: [[980, 200, 320]],
+        chests: [{ id: 'rations', x: 1060, y: 200, gives: 'tokens:35' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'labdoor', to: ['@main', 'bunker'] },
+          { id: 'up', kind: 'arch', x: 1220, y: 200, art: 'labdoor', to: ['fans', 'in'] },
+        ],
+      },
+      fans: {
+        name: 'The Fan Room', gx: 1, gy: 0, w: 1300, back: true, wall: '#20160e', dark: 0.35, stone: ['#4a3a2c', '#665040'],
+        say: 'The fans are dead. A lever on the wall says RESTART in three languages.',
+        spikes: [[480, 690], [820, 1200]],   // the vent's grate is a safe island in the spikes
+        levers: [{ id: 'fans', x: 300, line: 'The fans shudder and catch. Air starts to move.' }],
+        vents: [{ id: 'v2', x: 700, w: 110, top: 160, when: 'lever:fans' }],
+        ledges: [[820, 210, 480]],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'labdoor', to: ['shaft', 'up'] },
+          // Up on the ledge, so the vent is the only way out (an edge door could be walked to over the spikes).
+          { id: 'next', kind: 'arch', x: 1220, y: 210, art: 'labdoor', to: ['command', 'in'] },
+        ],
+      },
+      command: {
+        name: 'Command Bunker', gx: 2, gy: 0, w: 1100, back: true, wall: '#22160e', dark: 0.4, stone: ['#4a3a2c', '#665040'],
+        say: 'Maps on every wall, every one of them a different war. Two soldiers who never got the order to stop.',
+        ledges: [[220, 430, 150], [730, 430, 150]],
+        chests: [{ id: 'orders', x: 950, gives: 'exp:130' }, { id: 'payroll', x: 805, y: 430, gives: 'tokens:80' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['fans', 'next'] },
+          { id: 'up', kind: 'arch', x: 1010, art: 'ladder', to: ['@main', 'bunker'] },
+        ],
+        foes: [
+          { x: 640, name: 'Bunker Sergeant', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#884422', health: 220, armor: ['helmet', 'chestplate'] },
+          { x: 860, name: 'Trench Runner', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'hard', color: '#773311' },
+        ],
+      },
+    },
+  },
+
   // The Fallen God's memory vault: the puzzle dungeon of story id 81. Each room teaches one part.
   vault: {
     name: 'The Memory Vault',
@@ -655,6 +705,11 @@ const REALM_STORY = {
   undercroft: {
     chapters: [46],
     entrances: [{ id: 'undercroft', ch: 46, x: 1300, art: 'temple', room: 'stair', door: 'in' }],
+    gates: [],
+  },
+  bunker: {
+    chapters: [87],
+    entrances: [{ id: 'bunker', ch: 87, x: 1300, art: 'labdoor', room: 'shaft', door: 'in' }],
     gates: [],
   },
   loop: {
@@ -1984,6 +2039,18 @@ function _realmPuzzleTick(p, R) {
     }
   });
 
+  // Vents: an updraft lifts anyone whose centre is in the column, up to its top, where they bob until they step off.
+  (R.vents || []).forEach(function (v) {
+    if (v.when && !_realmCond(v.when)) return;
+    [p].concat(minions).forEach(function (f) {
+      if (!f || f.health <= 0) return;
+      var cx = f.x + f.w / 2;
+      if (cx < v.x || cx > v.x + v.w || f.y + f.h < v.top) return;
+      f.vy = Math.max(-8, f.vy - (v.force || 1.3));
+      f.onGround = false;
+    });
+  });
+
   // Movers: slide between x0 and x1, resting at each end; anyone standing on one rides along.
   (R.movers || []).forEach(function (m) {
     var pl = _realmPuzPlat('_realmMover', m.id);
@@ -2229,6 +2296,24 @@ function _realmDrawPuzzle(R) {
     }
     ctx.fillStyle = 'rgba(150,30,20,0.55)';
     for (var tx = sp[0] + 2; tx + 12 <= sp[1]; tx += 14) ctx.fillRect(tx + 5, g - 18, 2, 4);
+  });
+  (R.vents || []).forEach(function (v) {
+    var on = !v.when || _realmCond(v.when);
+    var f3 = typeof frameCount !== 'undefined' ? frameCount : 0;
+    // The grate, then (while it blows) a pale column and heat streaks rising through it.
+    ctx.fillStyle = '#1a1612'; ctx.fillRect(v.x - 6, g - 6, v.w + 12, 6);
+    ctx.strokeStyle = on ? '#8a7a60' : '#4a4236'; ctx.lineWidth = 2;
+    for (var gx = v.x; gx <= v.x + v.w; gx += 12) { ctx.beginPath(); ctx.moveTo(gx, g - 6); ctx.lineTo(gx, g); ctx.stroke(); }
+    if (!on) return;
+    var grd = ctx.createLinearGradient(0, g, 0, v.top);
+    grd.addColorStop(0, 'rgba(255,200,140,0.18)'); grd.addColorStop(1, 'rgba(255,200,140,0)');
+    ctx.fillStyle = grd; ctx.fillRect(v.x, v.top, v.w, g - v.top);
+    ctx.strokeStyle = 'rgba(255,225,190,0.35)'; ctx.lineWidth = 1.5;
+    for (var k = 0; k < 7; k++) {
+      var sx = v.x + ((k * 37 + 11) % Math.max(1, v.w));
+      var sy = g - ((f3 * 6 + k * 83) % Math.max(1, g - v.top));
+      ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + Math.sin((f3 + k * 20) * 0.1) * 3, sy - 26); ctx.stroke();
+    }
   });
   (R.movers || []).forEach(function (m) {
     var pl = _realmPuzPlat('_realmMover', m.id);
