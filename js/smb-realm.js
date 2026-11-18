@@ -24,6 +24,8 @@
 // small circle around you and the torches you have lit.
 // crumbles [{ id, x, y, w }] ledges that shake when you land and give way CRUMBLE_F frames later, then re-form
 // CRUMBLE_BACK_F frames after that (once nobody is under them).
+// movers [{ id, x0, x1, y, w, speed, wait }] platforms that shuttle sideways between left edges x0 and x1 at height y,
+// resting wait frames at each end (start: 'x1' begins at the right end); riders move with them. Pair with floor gaps (floor: [[x0, x1], ...]) for pits.
 // swings [{ id, x, y, len, amp, period, phase }] pendulum logs hung from (x, y): the head sweeps amp radians either side
 // of straight down, one full swing every period frames. It hits (14, knocked the way it swings); time the crossing or jump it.
 // steps [[x, h, w]] low solid walls to jump. Room stone: [base, top edge] colours these parts.
@@ -486,6 +488,59 @@ const REALM_DEFS = {
     },
   },
 
+  // Off the Signal Maze, story id 56: a city block the Creator's interference put somewhere it shouldn't be. Optional.
+  // Movers (the new part): slabs of street drifting over a drop.
+  loop: {
+    name: 'The Looped Block',
+    theme: 'storyInterference',
+    start: { room: 'drift', door: 'in' },
+    rooms: {
+      drift: {
+        name: 'The Drift', gx: 0, gy: 0, w: 1500, back: true, wall: '#16121e', dark: 0.35, stone: ['#3e3850', '#5a5270'],
+        say: 'A city block that belongs somewhere else. The street ends in nothing, and pieces of it drift.',
+        floor: [[0, 320], [1180, 1500]],
+        movers: [
+          { id: 'a', x0: 330, x1: 620, y: 520, w: 130, speed: 1.8, wait: 70 },
+          { id: 'b', x0: 700, x1: 1040, y: 470, w: 130, speed: 2.0, wait: 70 },
+        ],
+        ledges: [[760, 300, 110]],
+        chests: [{ id: 'meter', x: 815, y: 300, gives: 'tokens:35' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['@main', 'loop'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['traffic', 'in'] },
+        ],
+      },
+      traffic: {
+        name: 'Crossing Traffic', gx: 1, gy: 0, w: 1400, back: true, wall: '#18121e', dark: 0.35, stone: ['#3e3850', '#5a5270'],
+        say: 'Two pieces of street going opposite ways, over a floor that wants you off it.',
+        spikes: [[260, 1100]],
+        movers: [
+          { id: 'c', x0: 250, x1: 560, y: 470, w: 120, speed: 2.2, wait: 40 },
+          { id: 'd', x0: 600, x1: 880, y: 420, w: 120, speed: 2.2, wait: 40, start: 'x1' },
+        ],
+        crumbles: [{ id: 'e', x: 960, y: 440, w: 110 }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['drift', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['station', 'in'] },
+        ],
+      },
+      station: {
+        name: 'Dead Relay', gx: 2, gy: 0, w: 1100, back: true, wall: '#1a1222', dark: 0.4, stone: ['#3e3850', '#5a5270'],
+        say: 'A relay station, still trying to send something. Two of the maze\'s keepers stand guard.',
+        ledges: [[220, 430, 150], [730, 430, 150]],
+        chests: [{ id: 'core', x: 950, gives: 'exp:120' }, { id: 'cache', x: 805, y: 430, gives: 'tokens:80' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['traffic', 'next'] },
+          { id: 'up', kind: 'arch', x: 1010, art: 'ladder', to: ['@main', 'loop'] },
+        ],
+        foes: [
+          { x: 640, name: 'Loop Warden', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'hard', color: '#5e4a6e', health: 220, armor: ['helmet', 'chestplate'] },
+          { x: 860, name: 'Static Echo', weaponKey: 'sword', classKey: 'ninja', aiDiff: 'hard', color: '#665577' },
+        ],
+      },
+    },
+  },
+
   // The Fallen God's memory vault: the puzzle dungeon of story id 81. Each room teaches one part.
   vault: {
     name: 'The Memory Vault',
@@ -600,6 +655,11 @@ const REALM_STORY = {
   undercroft: {
     chapters: [46],
     entrances: [{ id: 'undercroft', ch: 46, x: 1300, art: 'temple', room: 'stair', door: 'in' }],
+    gates: [],
+  },
+  loop: {
+    chapters: [56],
+    entrances: [{ id: 'loop', ch: 56, x: 1120, art: 'temple', room: 'drift', door: 'in' }],
     gates: [],
   },
   trunk: {
@@ -763,6 +823,9 @@ function realmMakeArena(roomKey) {
   });
   (R.crumbles || []).forEach(function (c) {
     platforms.push({ x: c.x, y: c.y, w: c.w, h: 16, passUnder: true, noDraw: true, _realmCrumble: c.id });
+  });
+  (R.movers || []).forEach(function (m) {
+    platforms.push({ x: m.start === 'x1' ? m.x1 : m.x0, y: m.y, w: m.w || 120, h: 14, passUnder: true, noDraw: true, _realmMover: m.id });
   });
   // Lifts start at their low stop; _realmPuzzleTick moves them.
   (R.lifts || []).forEach(function (l) {
@@ -1721,7 +1784,7 @@ function _realmChargeTick(R) {
 // good lives in realmSave.flags: plate_<id> (a block latched it), bar_<id> (you got past it), lever_<id>, broke_<id>.
 
 function _realmPuzzleReset(roomKey) {
-  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, crumble: {}, spikeCd: 0, swingCd: 0 };
+  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, mover: {}, crumble: {}, spikeCd: 0, swingCd: 0 };
   var R = _realmRoom(roomKey);
   // A latch plate solved on an earlier visit still holds its block.
   var free = (R.blocks || []).slice();
@@ -1919,6 +1982,22 @@ function _realmPuzzleTick(p, R) {
       if (typeof spawnParticles === 'function') spawnParticles(pl.x + pl.w / 2, pl.y + 8, 'rgba(170,140,110,0.9)', 14);
       if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 3);
     }
+  });
+
+  // Movers: slide between x0 and x1, resting at each end; anyone standing on one rides along.
+  (R.movers || []).forEach(function (m) {
+    var pl = _realmPuzPlat('_realmMover', m.id);
+    if (!pl) return;
+    var st = _realmPuz.mover[m.id] || (_realmPuz.mover[m.id] = { dir: m.start === 'x1' ? -1 : 1, wait: m.wait || 60 });
+    if (st.wait > 0) { st.wait--; return; }
+    var target = st.dir > 0 ? m.x1 : m.x0;
+    var dx = Math.max(-(m.speed || 1.8), Math.min(m.speed || 1.8, target - pl.x));
+    if (Math.abs(target - pl.x) < 0.5) { st.dir = -st.dir; st.wait = m.wait || 60; return; }
+    [p].concat(minions).forEach(function (f) {
+      if (!f || f.health <= 0 || !f.onGround) return;
+      if (Math.abs(f.y + f.h - pl.y) <= 3 && f.x + f.w > pl.x && f.x < pl.x + pl.w) f.x += dx;
+    });
+    pl.x += dx;
   });
 
   // Swings: a pendulum head that touches you hits and throws you the way it is swinging.
@@ -2150,6 +2229,21 @@ function _realmDrawPuzzle(R) {
     }
     ctx.fillStyle = 'rgba(150,30,20,0.55)';
     for (var tx = sp[0] + 2; tx + 12 <= sp[1]; tx += 14) ctx.fillRect(tx + 5, g - 18, 2, 4);
+  });
+  (R.movers || []).forEach(function (m) {
+    var pl = _realmPuzPlat('_realmMover', m.id);
+    if (!pl) return;
+    // A slab of street cut loose: paving on top, broken rebar and a signal glow underneath.
+    var f2 = typeof frameCount !== 'undefined' ? frameCount : 0;
+    ctx.fillStyle = 'rgba(160,120,255,' + (0.18 + 0.08 * Math.sin(f2 * 0.08)) + ')';
+    ctx.fillRect(pl.x + 6, pl.y + 14, pl.w - 12, 10);
+    ctx.fillStyle = st[0]; ctx.fillRect(pl.x, pl.y, pl.w, 14);
+    ctx.fillStyle = st[1]; ctx.fillRect(pl.x, pl.y, pl.w, 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    for (var dxl = pl.x + 14; dxl < pl.x + pl.w - 14; dxl += 26) ctx.fillRect(dxl, pl.y + 6, 12, 2);
+    ctx.strokeStyle = 'rgba(80,70,90,0.9)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(pl.x + 10, pl.y + 14); ctx.lineTo(pl.x + 4, pl.y + 26);
+    ctx.moveTo(pl.x + pl.w - 12, pl.y + 14); ctx.lineTo(pl.x + pl.w - 6, pl.y + 28); ctx.stroke();
   });
   (R.swings || []).forEach(function (w) {
     var hd = _realmSwingHead(w);
