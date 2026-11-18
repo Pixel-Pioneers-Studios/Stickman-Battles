@@ -265,6 +265,14 @@ function continueStory() {
     if (typeof showToast === 'function') showToast('Story Complete — all chapters cleared!');
     return;
   }
+  // Continue picks up at the last rest beacon of the chapter the player left, like a game-over Retry.
+  // They reached the beacon, so they've seen the chapter's narration: go straight in.
+  const _ch = STORY_CHAPTERS2[nextIdx];
+  const _res = _story2.cpResume;
+  if (_ch && _res && _res.chId === _ch.id && !_ch.noFight && _ch.type !== 'branch') {
+    window._storyResumeCpFor = _ch.id;
+    if (typeof _seenNarrativeIds !== 'undefined') _seenNarrativeIds.add(_ch.id);
+  }
   _beginChapter2(nextIdx);
 }
 

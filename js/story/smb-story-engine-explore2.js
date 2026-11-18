@@ -250,6 +250,15 @@ function updateExploration() {
     exploreStartX = null;
   }
 
+  // Resumed at a rest beacon (Retry or Continue): the beacon is pre-hit, so set its respawn point here,
+  // or a fall would send the player back to the level start.
+  if (window._storyResumeAtX != null) {
+    const _rx = window._storyResumeAtX;
+    window._storyResumeAtX = null;
+    const _rs = typeof pickSafeSpawnNear === 'function' ? pickSafeSpawnNear(_rx, 'any') : null;
+    if (_rs) { p1.spawnX = _rs.x; p1.spawnY = _rs.y; }
+  }
+
   // In a side room (smb-realm.js) the chapter world is set aside: no exit, checkpoint, edge or spawn logic.
   if (typeof realmInSideRoom === 'function' && realmInSideRoom()) return;
 

@@ -716,6 +716,7 @@ function _launchExplorationChapter(ch) {
     if (exploreRegion) exploreRegion.boundaries.forEach(b => { if (b.x <= _res.x) b.done = true; });
     exploreSpawnQ = exploreSpawnQ.filter(e => e.isGuard || !(e.wx < _res.x));
     exploreSeedHealth = null;
+    window._storyResumeAtX = _res.x;   // updateExploration sets the respawn point + notice on frame 1
   } else if (_res && _res.chId === ch.id) {
     delete _story2.cpResume;   // a fresh launch starts the level over
   }
