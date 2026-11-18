@@ -110,6 +110,10 @@ Brain 20011, Normal, --progress=auto (Nov 16):
 | 47 | Beneath the First Collapse | 2/2 broke the wall, dropped, cleared the Sunken Hall, made the timed run, reached the Warden; died to the Warden |
 | 42 | Root Vault | rides the lift to the Thornwalk; can't reach the lever (three ledge hops over spikes is beyond the walker, not a human) |
 
+Nov 17 regression on bundled Chrome (see below): ch82 2/2 cleared with the whole vault solved each time; ch70 1/2, the win clearing the full Trial Wing, the loss in the opening duel as before.
+
+The level tester now defaults to puppeteer's bundled Chrome for Testing (`--chrome=system` for the installed one). System Chrome 157.0.8103.79 detaches the page frame under puppeteer 25, so every attempt read as CRASH "page detached".
+
 Fixed because of these runs:
 - **Root Shaft lift sat 40 px short of its exit ledge.** Walking off dropped you through the gap, under the one-way ledge. The lift is now flush with the ledge (x 1000). A real bug for players too; my manual test only crossed it by luck.
 - **Chained swings didn't count as hits on cracked walls (and the shopkeeper).** A swing start was read as the attack timer leaving 0; back-to-back swings never touch 0. Now any upward jump in the timer counts.

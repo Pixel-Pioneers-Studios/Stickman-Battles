@@ -21,6 +21,8 @@
  *   --shots       also screenshot every N seconds (debugging a chapter)
  *   --startup     flat swing startup in frames for all non-boss fighters (0 = pre-Nov 10 behaviour)
  *   --optional    also walk every optional realm dungeon in the chapter (side rooms nothing requires)
+ *   --chrome      bundled (default: puppeteer's own Chrome for Testing) or system (/Applications Chrome).
+ *                 Nov 17 2026: system Chrome 157 detaches the page frame under puppeteer 25 on every run.
  *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
  *                 net that drives the shipped Sovereign fight, pressing virtual keys)
  *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/latest.json)
@@ -72,6 +74,7 @@ const SHOTS_S    = parseInt(args.shots, 10) || 0;
 // --startup=N: flat swing startup for every non-boss fighter (SIM_SWING_STARTUP); 0 = hits land on frame 1 as before Nov 10.
 const STARTUP    = args.startup != null ? parseInt(args.startup, 10) : null;
 const OPTIONAL   = !!args.optional;
+const CHROME     = args.chrome === 'system' ? 'system' : 'bundled';
 const CP_RETRIES = parseInt(args.cpretries, 10) || 0;
 const PILOT      = args.pilot === 'brain' ? 'brain' : 'cascade';
 
@@ -827,7 +830,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
     args: ['--no-sandbox', '--mute-audio', '--autoplay-policy=no-user-gesture-required',
       '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] };
   const sysChrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-  if (fs.existsSync(sysChrome)) launchOpts.executablePath = sysChrome;
+  if (CHROME === 'system' && fs.existsSync(sysChrome)) launchOpts.executablePath = sysChrome;
   let browser = await puppeteer.launch(launchOpts);
   // Chrome dies after ~160 pages in one session; relaunch it and retry the attempt.
   let relaunching = null, sinceLaunch = 0, gen = 0;
@@ -845,7 +848,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;'
   if (misaligned.length) console.warn(`[lt] ${misaligned.length} chapters have id != index; using id`);
   const pick = parseChapters(args.chapters, all.length - 1);
   const chapters = pick ? all.filter(c => pick.includes(c.id)) : all;
-  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT}${STARTUP != null ? ' · startup ' + STARTUP : ''}${OPTIONAL ? ' · optional dungeons' : ''} · ${PARALLEL} parallel · out ${OUT}`);
+  console.log(`[lt] ${chapters.length} chapters × ${ATTEMPTS} attempts · ${DIFFICULTY} · pilot ${PILOT}${STARTUP != null ? ' · startup ' + STARTUP : ''}${OPTIONAL ? ' · optional dungeons' : ''} · ${CHROME} chrome · ${PARALLEL} parallel · out ${OUT}`);
 
   const jobs = [];
   const rows = new Map();
