@@ -173,6 +173,20 @@ The level minimap marks realm doors once you have come within 420 px of one (gol
 
 Also Nov 16: the level tester now solves puzzle rooms (`realmPuzzleWaypoint`): pushes blocks onto latch plates with the direction key held, steps on hold plates and runs, pulls levers, swings at cracked walls. Brain 20011, Normal, ch82 (registry 81) x2: one clear with the whole vault solved by the pilot, one loss in fights.
 
+## Optional dungeon: the Proving Halls (Nov 17)
+
+Your chapter 29 (registry id 28, "Into the Crucible", the scavenge for the bearer records). Stone arch at x 2450 in the Crucible's outer wall, past the chapter's checkpoint fight. Optional. `REALM_DEFS.proving`. The three tests the Crucible gave the forty-seven bearers before Kael (the chapter's own count), one per room. Foes are Crucible constructs: canon keeps dead bearers out of enemy roles.
+
+- **The Proving Floor (speed):** a spike floor under **crumbling ledges**, the new part (`crumbles: [{ id, x, y, w }]`): they shake when you land, give way 34 frames later whether you stay or not, and re-form 210 frames after that once nobody is inside the outline (a dashed outline marks where). Fault lines are drawn on them, so they read differently from solid ledges before you land. One solid rest ledge mid-way holds a token chest.
+- **The Second Test (thought):** "Cut over the far bars: They all pushed forward." Block A forward onto the first plate opens the inner bars; block B starts past the second plate, so it has to be hopped and pushed back. Pushing B forward jams it against the exit bars.
+- **The Last Test (strength):** Crucible Warden (hammer, helmet and chestplate) and a Proving Sentry. Forty-seven tally marks on the wall with the faint outline of a forty-eighth (`tally: { x, y, n }`). +130 EXP, +80 tokens. Ladder out, sealed while they stand.
+
+Also new, for every block puzzle: a block pushed flush against something solid shows a one-time line, "It won't go any further. Step out of the room and it resets." Leaving and re-entering already reset unlatched blocks (the Weighing of Kings in ch99 can jam the same way); now the game says so.
+
+Browser-tested Nov 17: the arch (refuses with enemies close), the crumble timing and the fall onto spikes, A onto the first plate with real keys, B jammed on purpose (hint shown), out and back in (B reset, A kept), B pushed back onto the second plate, exit bars up, the last room's foes, chest, sealed ladder, ladder out. Not run through the level tester: its walker treats crumbling ledges as solid.
+
+Fixed while testing: `realmReset()` (console) built a save with no `flags`, which crashed the level minimap mid-chapter.
+
 ## Ch71 (registry 70) Axiom encounter, repaired (Nov 15 night)
 
 The unwinnable Axiom teaser had silently broken when chapters were renumbered: its logic checked id 63, which is now Veran's Confession (where it chipped 14 HP at 20 s and turned any later loss into a chapter clear). Now keyed to `_axiomTeaser`: the Void arena, no Creator intro card, Axiom (the Creator-form body, canon-correct) untouchable and calm (`Boss._teaserCalmAI`: faces you, swats you off for 1 damage), one life, and his strike at ~20 s (a Sky Execution finisher) completes the chapter into The First Reset. Any death in it advances.
@@ -208,7 +222,7 @@ What the tools don't shrink: the user playing each dungeon and giving a verdict.
 
 **Nov 17 (night):** checkpoint resume built. Continue now drops a returning player at the last rest beacon they lit in the chapter they left (the save already kept `cpResume`; Continue used to discard it), skipping the narration they already saw, at full HP. Fixed on the way: after any resume (Retry or Continue) a death respawned you at the level start, because the beacon was pre-marked as lit and never set the respawn point. Browser-tested on chapter 9: beacon at x 1500 saved, page reloaded, Continue landed at 1500, a fall respawned by the beacon.
 
-**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch9, ch42, ch47, ch97 and ch99.
+**Nov 16 (night):** step 2's room editor is built: the realm studio in the workbench (`?wb=realm`, see tools/workbench/README.md). Optional dungeons now in ch9, ch42, ch47, ch97 and ch99 (ch29 added Nov 17).
 
 **Nov 16 (later):** Continue entry built. Until the last chapter is cleared, the story panel's first card is Continue (one click into `_story2.chapter`; a first visit still gets the prologue and difficulty pick) and the story window shows a progress panel in place of the star chart (`storyChapterSelectUnlocked` in smb-story-config.js). The chart returns as chapter select after the ending, and always for dev-role accounts and developer-key holders. Existing saves continue from their furthest chapter. Fast travel is not built; checkpoint resume was built Nov 17.
 

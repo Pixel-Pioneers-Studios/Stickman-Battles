@@ -22,6 +22,8 @@
 // without it shuttles on its own. spikes [[x0, x1]] floor strips that hurt (12) and bounce you up.
 // torches [{ id, x, y }] F lights one for good (flag torch_<id>). lightless: 0-1, a room that is dark but for a
 // small circle around you and the torches you have lit.
+// crumbles [{ id, x, y, w }] ledges that shake when you land and give way CRUMBLE_F frames later, then re-form
+// CRUMBLE_BACK_F frames after that (once nobody is under them).
 // steps [[x, h, w]] low solid walls to jump. Room stone: [base, top edge] colours these parts.
 // npcs: [{ kind: 'shop', x }]. The shopkeeper: F opens the story shop (openShopFromWorld, smb-story-engine-ui.js).
 // Room flags: back (an interior behind the outdoor rooms: stone back wall), dark (0-1, dims the backdrop),
@@ -47,6 +49,8 @@ const REALM_REACH = 46;          // horizontal reach for F on arches and chests
 const REALM_DEATH_Y = 1200;   // low enough that a drop finishes its fade before the fall kills
 const REALM_BLOCK = 64;          // stone block size
 const REALM_PLATE_W = 84;
+const REALM_CRUMBLE_F = 34;       // frames a crumbling ledge holds you before it gives way
+const REALM_CRUMBLE_BACK_F = 210; // frames until it re-forms
 
 const REALM_DEFS = {
   old_ruins: {
@@ -372,6 +376,60 @@ const REALM_DEFS = {
     },
   },
 
+  // Behind the Crucible's outer wall in story id 28 (Into the Crucible): optional. The three tests the Crucible gave
+  // every bearer before Kael: speed (crumbling ledges over spikes), thought (a block that has to go backward),
+  // strength (its warden). Foes are Crucible constructs; dead bearers are never enemies (docs/canon.md).
+  proving: {
+    name: 'The Proving Halls',
+    theme: 'volcano',
+    start: { room: 'floor', door: 'in' },
+    rooms: {
+      floor: {
+        name: 'The Proving Floor', gx: 0, gy: 0, w: 1500, back: true, wall: '#1e0810', dark: 0.3, stone: ['#4a2030', '#6a3048'],
+        say: 'Forty-seven sets of footprints lead in. The first test was speed.',
+        spikes: [[300, 1200]],
+        crumbles: [
+          { id: 'a', x: 310, y: 460, w: 110 }, { id: 'b', x: 490, y: 420, w: 110 },
+          { id: 'd', x: 850, y: 410, w: 110 }, { id: 'e', x: 1030, y: 440, w: 110 },
+        ],
+        ledges: [[670, 450, 110]],
+        chests: [{ id: 'ash', x: 725, y: 450, gives: 'tokens:35' }],
+        doors: [
+          { id: 'in', kind: 'arch', x: 110, art: 'temple', to: ['@main', 'proving'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['weigh', 'in'] },
+        ],
+      },
+      weigh: {
+        name: 'The Second Test', gx: 1, gy: 0, w: 1400, back: true, wall: '#200812', dark: 0.3, stone: ['#4a2030', '#6a3048'],
+        say: 'Cut over the far bars: "They all pushed forward."',
+        blocks: [{ id: 'a', x: 420 }, { id: 'b', x: 1010 }],
+        plates: [{ id: 'p1', x: 640, latch: true }, { id: 'p2', x: 880, latch: true }],
+        bars: [{ id: 'inner', x: 780, when: 'plate:p1' }, { id: 'out', x: 1300, when: 'plate:p2' }],
+        ledges: [[1100, 430, 140]],
+        chests: [{ id: 'notes', x: 1170, y: 430, gives: 'exp:50' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['floor', 'next'] },
+          { id: 'next', kind: 'edge', side: 'r', to: ['last', 'in'] },
+        ],
+      },
+      last: {
+        name: 'The Last Test', gx: 2, gy: 0, w: 1200, back: true, wall: '#220814', dark: 0.35, stone: ['#4a2030', '#6a3048'],
+        say: 'Forty-seven marks are cut into the wall here. There is room for one more.',
+        tally: { x: 360, y: 210, n: 47 },
+        ledges: [[220, 430, 150], [780, 430, 150]],
+        chests: [{ id: 'logs', x: 1040, gives: 'exp:130' }, { id: 'tithe', x: 855, y: 430, gives: 'tokens:80' }],
+        doors: [
+          { id: 'in', kind: 'edge', side: 'l', to: ['weigh', 'next'] },
+          { id: 'up', kind: 'arch', x: 1110, art: 'ladder', to: ['@main', 'proving'] },
+        ],
+        foes: [
+          { x: 700, name: 'Crucible Warden', weaponKey: 'hammer', classKey: 'thor', aiDiff: 'hard', color: '#880044', health: 200, armor: ['helmet', 'chestplate'] },
+          { x: 900, name: 'Proving Sentry', weaponKey: 'spear', classKey: 'warrior', aiDiff: 'medium', color: '#660033' },
+        ],
+      },
+    },
+  },
+
   // The Fallen God's memory vault: the puzzle dungeon of story id 81. Each room teaches one part.
   vault: {
     name: 'The Memory Vault',
@@ -486,6 +544,11 @@ const REALM_STORY = {
   undercroft: {
     chapters: [46],
     entrances: [{ id: 'undercroft', ch: 46, x: 1300, art: 'temple', room: 'stair', door: 'in' }],
+    gates: [],
+  },
+  proving: {
+    chapters: [28],
+    entrances: [{ id: 'proving', ch: 28, x: 2450, art: 'temple', room: 'floor', door: 'in' }],
     gates: [],
   },
   // A gate without termX has no terminal: something in the side rooms sets its gate_<id> flag.
@@ -609,7 +672,7 @@ function _realmStore() {
 function realmReset(key) {
   if (key && REALM_DEFS[key]) realmKey = key;
   try { localStorage.removeItem('smb_realm_' + realmKey); } catch (e) {}
-  realmSave = { checkpoint: { room: _realmDef().start.room, door: _realmDef().start.door }, looted: {}, visited: {} };
+  realmSave = { checkpoint: { room: _realmDef().start.room, door: _realmDef().start.door }, looted: {}, visited: {}, flags: {} };
   _realmStore();
 }
 
@@ -636,6 +699,9 @@ function realmMakeArena(roomKey) {
   (R.cracks || []).forEach(function (c) {
     if (realmSave && realmSave.flags && realmSave.flags['broke_' + c.id]) return;
     platforms.push({ x: c.x - 24, y: -600, w: 48, h: REALM_FLOOR_Y + 600, noDraw: true, _realmCrack: c.id });
+  });
+  (R.crumbles || []).forEach(function (c) {
+    platforms.push({ x: c.x, y: c.y, w: c.w, h: 16, passUnder: true, noDraw: true, _realmCrumble: c.id });
   });
   // Lifts start at their low stop; _realmPuzzleTick moves them.
   (R.lifts || []).forEach(function (l) {
@@ -1589,7 +1655,7 @@ function _realmChargeTick(R) {
 // good lives in realmSave.flags: plate_<id> (a block latched it), bar_<id> (you got past it), lever_<id>, broke_<id>.
 
 function _realmPuzzleReset(roomKey) {
-  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, spikeCd: 0 };
+  _realmPuz = { room: roomKey, plates: {}, barT: {}, crackHits: {}, seated: {}, lift: {}, crumble: {}, spikeCd: 0 };
   var R = _realmRoom(roomKey);
   // A latch plate solved on an earlier visit still holds its block.
   var free = (R.blocks || []).slice();
@@ -1643,7 +1709,14 @@ function _realmPuzzleTick(p, R) {
       return q !== pl && !q.isFloor && !q.passUnder && !q.isFloorDisabled &&
         nx < q.x + q.w && nx + pl.w > q.x && pl.y < q.y + q.h && pl.y + pl.h > q.y;
     });
-    if (hit) return;
+    if (hit) {
+      // Jammed: pushed flush against something solid, it can't be pulled back. Leaving the room resets it.
+      if (!_realmPuz.jamTold) {
+        _realmPuz.jamTold = true;
+        _realmTell('It won\'t go any further. Step out of the room and it resets.', '#ccbbee');
+      }
+      return;
+    }
     // A latch plate's groove catches a block slid onto it; it stays seated.
     (R.plates || []).forEach(function (pt) {
       if (!pt.latch) return;
@@ -1739,6 +1812,39 @@ function _realmPuzzleTick(p, R) {
       if (Math.abs(f.y + f.h - pl.y) <= 3 && f.x + f.w > pl.x && f.x < pl.x + pl.w) f.y += dy;
     });
     pl.y += dy;
+  });
+
+  // Crumbling ledges: standing on one starts it shaking; after REALM_CRUMBLE_F frames it gives way (the platform
+  // is disabled, so you drop), and it re-forms later once nobody is inside its outline.
+  (R.crumbles || []).forEach(function (c) {
+    var pl = _realmPuzPlat('_realmCrumble', c.id);
+    if (!pl) return;
+    var st = _realmPuz.crumble[c.id] || (_realmPuz.crumble[c.id] = { t: 0, gone: 0 });
+    if (st.gone > 0) {
+      st.gone--;
+      if (st.gone === 0) {
+        var blocked = [p].concat(minions).some(function (f) {
+          return f && f.health > 0 && f.x + f.w > pl.x && f.x < pl.x + pl.w && f.y < pl.y + pl.h && f.y + f.h > pl.y;
+        });
+        if (blocked) { st.gone = 20; return; }
+        pl.isFloorDisabled = false; graphDirty = true;
+        if (typeof spawnParticles === 'function') spawnParticles(pl.x + pl.w / 2, pl.y, 'rgba(200,180,150,0.7)', 6);
+      }
+      return;
+    }
+    var on = [p].concat(minions).some(function (f) {
+      return f && f.health > 0 && f.onGround && Math.abs(f.y + f.h - pl.y) <= 3 && f.x + f.w > pl.x && f.x < pl.x + pl.w;
+    });
+    if (on || st.t > 0) st.t++;   // once it starts it keeps going: stepping off doesn't save it
+    if (st.t >= REALM_CRUMBLE_F) {
+      st.t = 0; st.gone = REALM_CRUMBLE_BACK_F;
+      pl.isFloorDisabled = true; graphDirty = true;
+      [p].concat(minions).forEach(function (f) {
+        if (f && Math.abs(f.y + f.h - pl.y) <= 3 && f.x + f.w > pl.x && f.x < pl.x + pl.w) f.onGround = false;
+      });
+      if (typeof spawnParticles === 'function') spawnParticles(pl.x + pl.w / 2, pl.y + 8, 'rgba(170,140,110,0.9)', 14);
+      if (typeof screenShake !== 'undefined') screenShake = Math.max(screenShake, 3);
+    }
   });
 
   // Spikes: floor strips [x0, x1] that hurt and bounce you out. dealDamage with no attacker, like a hazard.
@@ -1839,11 +1945,42 @@ function _realmDrawTorches(R) {
   });
 }
 
+// Tally marks cut into a back wall: { x, y, n } draws n marks in fives (four strokes and a slash), then the faint
+// outline of one more.
+function _realmDrawTally(t) {
+  var gx = 0, gy = 0, perRow = 6;
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (var i = 0; i <= t.n; i++) {
+    var grp = Math.floor(i / 5), k = i % 5;
+    gx = t.x + (grp % perRow) * 62;
+    gy = t.y + Math.floor(grp / perRow) * 58;
+    var ghost = i === t.n;
+    ctx.strokeStyle = ghost ? 'rgba(255,210,170,' + (0.10 + 0.06 * Math.sin(frameCount * 0.05)) + ')' : 'rgba(20,4,8,0.75)';
+    ctx.lineWidth = ghost ? 2 : 3;
+    if (ghost) ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    if (k < 4) { ctx.moveTo(gx + k * 10, gy); ctx.lineTo(gx + k * 10 + 2, gy + 40); }
+    else { ctx.moveTo(gx - 6, gy + 32); ctx.lineTo(gx + 40, gy + 8); }
+    ctx.stroke();
+    if (!ghost) {   // a lit edge, as if cut into stone
+      ctx.strokeStyle = 'rgba(255,140,110,0.18)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (k < 4) { ctx.moveTo(gx + k * 10 + 2, gy); ctx.lineTo(gx + k * 10 + 4, gy + 40); }
+      else { ctx.moveTo(gx - 6, gy + 34); ctx.lineTo(gx + 40, gy + 10); }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
 function _realmDrawPuzzle(R) {
   var f = typeof frameCount !== 'undefined' ? frameCount : 0;
   var g = REALM_FLOOR_Y;
   // Stone for steps, blocks, pillars and cracked walls: R.stone = [base, top edge], violet by default.
   var st = R.stone || ['#3e3850', '#5a5270'];
+  if (R.tally) _realmDrawTally(R.tally);
   _realmDrawTorches(R);
   (R.steps || []).forEach(function (s) {
     ctx.fillStyle = st[0]; ctx.fillRect(s[0], g - s[1], s[2], s[1]);
@@ -1924,6 +2061,34 @@ function _realmDrawPuzzle(R) {
     }
     ctx.fillStyle = 'rgba(150,30,20,0.55)';
     for (var tx = sp[0] + 2; tx + 12 <= sp[1]; tx += 14) ctx.fillRect(tx + 5, g - 18, 2, 4);
+  });
+  (R.crumbles || []).forEach(function (c) {
+    var pl = _realmPuzPlat('_realmCrumble', c.id);
+    if (!pl) return;
+    var cs = (_realmPuz && _realmPuz.crumble[c.id]) || { t: 0, gone: 0 };
+    if (cs.gone > 0) {
+      // Gone: a faint outline so the player can see where it will come back.
+      ctx.strokeStyle = 'rgba(200,180,150,' + (cs.gone < 50 ? 0.45 : 0.16) + ')';
+      ctx.setLineDash([6, 6]); ctx.lineWidth = 1;
+      ctx.strokeRect(pl.x + 0.5, pl.y + 0.5, pl.w - 1, 15);
+      ctx.setLineDash([]);
+      return;
+    }
+    var k = cs.t / REALM_CRUMBLE_F;
+    var jx = cs.t > 0 ? (Math.random() - 0.5) * 3 * (0.4 + k) : 0;
+    var jy = cs.t > 0 ? (Math.random() - 0.5) * 2 * k : 0;
+    ctx.save(); ctx.translate(jx, jy);
+    ctx.fillStyle = st[0]; ctx.fillRect(pl.x, pl.y, pl.w, 16);
+    ctx.fillStyle = st[1]; ctx.fillRect(pl.x, pl.y, pl.w, 3);
+    // Fault lines are always drawn, so a crumbling ledge reads differently from a solid one before you land.
+    ctx.strokeStyle = 'rgba(0,0,0,' + (0.45 + 0.4 * k) + ')'; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (var cx2 = pl.x + 18; cx2 < pl.x + pl.w - 8; cx2 += 26) {
+      ctx.moveTo(cx2, pl.y + 2); ctx.lineTo(cx2 + 5, pl.y + 8); ctx.lineTo(cx2 - 2, pl.y + 15);
+    }
+    ctx.stroke();
+    ctx.restore();
+    if (cs.t > 0 && frameCount % 5 === 0 && typeof spawnParticles === 'function') spawnParticles(pl.x + Math.random() * pl.w, pl.y + 14, 'rgba(170,140,110,0.8)', 1);
   });
   (R.lifts || []).forEach(function (l) {
     var pl = _realmPuzPlat('_realmLift', l.id);
