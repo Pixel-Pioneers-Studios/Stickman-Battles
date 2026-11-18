@@ -228,6 +228,15 @@ Impact to handle:
 - **Retrying** moves from "replay the chapter" to "back to the last checkpoint". Per-chapter stars only mean something in the post-game select.
 - **Skill tree and shop: decided.** The skill tree is in the pause menu (story mode and realms; nodes bought mid-chapter apply on close). The shop is a person in the world: a hooded shopkeeper with a lantern (`npcs: [{ kind: 'shop', x }]` in a realm room), F to trade, a short line when you walk near. Built Nov 15; the story panel's shop and skill tree buttons stay until realms replace the panel. Who the shopkeeper is in canon is still open.
 
+## Fast travel: proposal (Nov 18, needs your call)
+
+What it is for: getting back to an optional dungeon you walked past, without replaying the walk. Two candidate forms checked against what exists:
+
+1. **Beacons (recommended).** The rest beacons are already the game's checkpoints, and since Nov 17 the last one you light is saved and Continue resumes there. Fast travel = every beacon you have lit stays lit; from the pause menu, a map lists them by chapter, and choosing one launches that chapter at that beacon (the same path Continue uses, `cpResume` + `_storyResumeCpFor`). In-world: the fragment pulls you along the fracture between two places it has already touched; chapter 57 already says "The fragment can navigate it." Limits that keep the design rules: only beacons you lit yourself, only in chapters you have reached, so it never works as a level select before the ending. Build cost: a per-chapter list of lit beacons in the save (today only the last one is kept), a pause-menu list, and the launch call. About a day.
+2. **The Axiom Ship (smb-progression.js).** The ship-parts and fracture-branch system already "travels", but it is Axiom's ship and a separate mode for multiverse branch runs; making it Kael's travel would bend canon and tie fast travel to collecting ship parts.
+
+Open question either way: whether travel to a chapter you have already beaten replays its fights (enemies back, as backtracking "has changed") or walks an empty world. The plan's rule for forced trips ("never the same walk twice") suggests enemies come back.
+
 ## Vertical slice: one realm, two dungeons
 
 | Step | Work | Estimate |
