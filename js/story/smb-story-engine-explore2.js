@@ -258,6 +258,8 @@ function updateExploration() {
     const _rs = typeof pickSafeSpawnNear === 'function' ? pickSafeSpawnNear(_rx, 'any') : null;
     if (_rs) { p1.spawnX = _rs.x; p1.spawnY = _rs.y; }
   }
+  // Arrived by fast travel (smb-story-travel.js): the trail's cost and the arrival line.
+  if (window._storyTravelArrive && typeof storyTravelArrived === 'function') storyTravelArrived(p1);
 
   // In a side room (smb-realm.js) the chapter world is set aside: no exit, checkpoint, edge or spawn logic.
   if (typeof realmInSideRoom === 'function' && realmInSideRoom()) return;

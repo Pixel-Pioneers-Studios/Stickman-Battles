@@ -3778,6 +3778,9 @@ function pauseGame() {
   document.getElementById('pauseOverlay').style.display = paused ? 'flex' : 'none';
   const _stBtn = document.getElementById('pauseSkillTreeBtn');
   if (_stBtn) _stBtn.style.display = (storyModeActive || gameMode === 'realm') ? '' : 'none';
+  const _tvBtn = document.getElementById('pauseTravelBtn');
+  if (_tvBtn) _tvBtn.style.display = (storyModeActive && gameMode === 'exploration') ? '' : 'none';
+  if (!paused && typeof storyTravelClose === 'function') storyTravelClose();
   if (typeof cgSdk !== 'undefined') { if (paused) cgSdk.gameplayStop(); else cgSdk.gameplayStart(); }
 }
 

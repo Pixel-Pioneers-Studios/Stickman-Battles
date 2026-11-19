@@ -65,6 +65,21 @@ That is why every copy is weaker than the original, however much force is poured
 Yours is the real one.`,
   },
   {
+    id: 'seam-key', cat: 'fragment', title: 'The Seam Key',
+    voice: 'Veran\'s bench notes',
+    unlock: { found: 'workshop12:bench:key', ch: 12 },
+    text:
+`Every fracture starts as a seam. A place where the fabric pulls thin and nothing has torn yet.
+
+The city is full of them. I have marked forty-one between the relay and the river, and I have walked past most of them for years without knowing. A seam does not look like anything. It feels like a held breath.
+
+The key does not open anything. It holds. Set against a seam, it keeps the two sides from closing for as long as it takes a person to step through, and then it lets go. That is all it does. I built it so I could look inside before I tried to close them.
+
+If I can hold one open, I can learn how to close one. That was the idea.
+
+I have not closed one yet.`,
+  },
+  {
     id: 'forty-seven', cat: 'fragment', title: 'The Forty-Seven',
     voice: 'Cut into the wall',
     unlock: { found: 'proving:last:marks', ch: 28 },
@@ -78,6 +93,28 @@ Forty-seven of them reached the last room. The count is cut into its wall in fiv
 What the Crucible kept of the forty-seven, its champion carries: a way of standing from each of them, every one a style that wasn't enough.
 
 There is room on the wall for one more mark.`,
+  },
+  {
+    id: 'collector-node', cat: 'fragment', title: 'Collector Nodes',
+    voice: 'A node\'s maintenance log',
+    unlock: { found: 'node25:coil:coil', ch: 25 },
+    text:
+`When a fighter's pattern comes apart inside the network, it does not simply scatter. The nearest collector node catches what is left and routes it back to a safe place to come back together. Every respawn you have ever had went through one of these.
+
+This node stopped catching. Its log ends mid-entry. Its coil kept the charge it had been holding when the log stopped, and a coil that holds a charge can lend it: a dead seam with a little power behind it will open.
+
+Nobody wrote down who built the nodes. The network was already old when anyone in this story first walked it.`,
+  },
+  {
+    id: 'resonator', cat: 'fragment', title: 'The Resonator',
+    voice: 'Etched under the resonance chamber',
+    unlock: { found: 'chamber37:heart:res', ch: 37 },
+    text:
+`The chamber was built to make fragments ring. A fighter calibrated against the fragment's pitch pushes it until it spikes, and the resonator at the bottom of the chamber measures how far.
+
+Some seams ring the same way: too high, too fast, nothing you can match by hand. The resonator can. Held against one of them, it answers at the seam's own pitch and the seam goes quiet long enough to pass.
+
+Every reading it ever took is still stored inside it. Most of them end the same way. One does not.`,
   },
   {
     id: 'ninety-four', cat: 'fragment', title: 'Ninety-Four',

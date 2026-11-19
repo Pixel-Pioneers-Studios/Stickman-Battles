@@ -21,6 +21,7 @@
  *   --shots       also screenshot every N seconds (debugging a chapter)
  *   --startup     flat swing startup in frames for all non-boss fighters (0 = pre-Nov 10 behaviour)
  *   --optional    also walk every optional realm dungeon in the chapter (side rooms nothing requires)
+ *   --relics      start with every realm relic (smb-realm-regions.js), so relic-sealed seam doors open
  *   --chrome      bundled (default: puppeteer's own Chrome for Testing) or system (/Applications Chrome).
  *                 Nov 17 2026: system Chrome 157 detaches the page frame under puppeteer 25 on every run.
  *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
@@ -74,6 +75,7 @@ const SHOTS_S    = parseInt(args.shots, 10) || 0;
 // --startup=N: flat swing startup for every non-boss fighter (SIM_SWING_STARTUP); 0 = hits land on frame 1 as before Nov 10.
 const STARTUP    = args.startup != null ? parseInt(args.startup, 10) : null;
 const OPTIONAL   = !!args.optional;
+const RELICS     = !!args.relics;
 const CHROME     = args.chrome === 'system' ? 'system' : 'bundled';
 const CP_RETRIES = parseInt(args.cpretries, 10) || 0;
 const PILOT      = args.pilot === 'brain' ? 'brain' : 'cascade';
@@ -181,6 +183,7 @@ async function bootPage(browser) {
   });
   if (STARTUP != null) await page.evaluate(n => { window.SIM_SWING_STARTUP = n; }, STARTUP);
   if (OPTIONAL) await page.evaluate(() => { window.__ltOptional = true; });
+  if (RELICS) await page.evaluate(() => { window.__ltRelics = true; });
   await sleep(400);
   return { ctx, page, errors, consoleErrors };
 }
@@ -336,7 +339,8 @@ async function runAttempt(browser, ch, attempt) {
       // --optional: an entrance whose room has never been visited is a detour to take.
       function realmOptionalEntrance() {
         if (!window.__ltOptional || typeof realmActive === 'undefined' || !realmActive || realmHost !== 'story' || !realmSave) return null;
-        return _realmStoryEntrances().find(e => !realmSave.visited[e.room] && !(e.needs && !realmSave.flags[e.needs]) &&
+        const met = n => typeof _realmNeedMet === 'function' ? _realmNeedMet(n) : !!realmSave.flags[n];
+        return _realmStoryEntrances().find(e => !realmSave.visited[e.room] && !(e.needs && !met(e.needs)) &&
           !(e.oneWay && !realmSave.flags['open_' + e.id])) || null;
       }
       function realmDungeonWaypoint(h) {
@@ -360,6 +364,9 @@ async function runAttempt(browser, ch, attempt) {
         if (pz) return pz;
         const mv = realmMoverWaypoint(h, R);
         if (mv) return mv;
+        // A relic or key in this room: open its chest (a required dungeon holds the exit on it).
+        const rc = (R.chests || []).find(q => /^(relic|item):/.test(q.gives || '') && !_realmLooted(q.id));
+        if (rc) return realmLedgeWaypoint(h, R, rc.x, rc.y) || { x: rc.x, y: rc.y || null, act: true };
         const i = (def.route || []).indexOf(realmRoomKey);
         const nextRoom = def.route && def.route[i + 1];
         let d = (R.doors || []).find(q => q.to && (nextRoom ? q.to[0] === nextRoom : q.to[0] === '@main' && q.id !== 'in'));
@@ -372,6 +379,7 @@ async function runAttempt(browser, ch, attempt) {
         if (!d) return null;
         if (d.kind === 'edge') return { x: d.side === 'l' ? -40 : R.w + 40, y: null };
         if (d.kind === 'drop') return { x: (d.x0 + d.x1) / 2, y: null };
+        if (d.y && d.y < REALM_FLOOR_Y - 100) { const lw = realmLedgeWaypoint(h, R, d.x, d.y); if (lw) return lw; }
         // A door up on a ledge served by a lift: get on, ride, step off at the top.
         if (d.y && d.y < REALM_FLOOR_Y - 100 && Math.abs(h.y + h.h - d.y) > 8) {
           const l = (R.lifts || []).find(q => Math.abs(q.y1 - d.y) < 20);
@@ -386,6 +394,26 @@ async function runAttempt(browser, ch, attempt) {
           }
         }
         return { x: d.x, y: d.y || null, act: true };
+      }
+      // Something up on a ledge at height y: ride a lift whose top stop is level with it, or stand in an updraft that
+      // tops out above it and step across once it has carried you up. Null once at that height (walk to it).
+      function realmLedgeWaypoint(h, R, x, y) {
+        if (!y || y >= REALM_FLOOR_Y - 100 || Math.abs(h.y + h.h - y) <= 8) return null;
+        const l = (R.lifts || []).find(q => Math.abs(q.y1 - y) < 20 && (!q.when || _realmCond(q.when)));
+        const pl = l && _realmPuzPlat('_realmLift', l.id);
+        if (pl) {
+          const on = h.onGround && Math.abs(h.y + h.h - pl.y) <= 4 && h.x + h.w > pl.x && h.x < pl.x + pl.w;
+          if (on) return Math.abs(pl.y - l.y1) < 3 ? { x: x, y: y } : { x: pl.x + pl.w / 2, y: null };
+          if (pl.y < l.y0 - 2) return { x: pl.x - 30, y: null };
+          return { x: pl.x + pl.w / 2, y: pl.y - 80 };
+        }
+        const v = (R.vents || []).filter(q => q.top < y && (!q.when || _realmCond(q.when)))
+          .sort((a, c) => Math.abs(a.x - x) - Math.abs(c.x - x))[0];
+        if (v) {
+          if (h.y + h.h < y - 4) return { x: x, y: y };   // carried above the ledge: step across
+          return { x: v.x + v.w / 2, y: null };
+        }
+        return null;
       }
       // Movers (smb-realm.js): slabs that shuttle over a floor gap. Heading right across the gap: wait at its edge
       // until the first slab rests at its near stop, jump on, ride to its far stop, hop to the next slab when that one
@@ -417,10 +445,19 @@ async function runAttempt(browser, ch, attempt) {
       // block onto a latch plate, step on a hold plate and the door waypoint does the run, pull the lever),
       // then cracked walls (swing at them), then levers left to pull.
       function realmPuzzleWaypoint(h, R) {
+        const wp = realmPuzzleWaypoint0(h, R);
+        if (!wp) return wp;
+        // An unbroken cracked wall between here and the target comes first.
+        const c = (R.cracks || []).find(q => !realmSave.flags['broke_' + q.id] && (q.x - h.cx()) * (q.x - wp.x) < 0);
+        if (c) { const side = h.cx() < c.x ? -1 : 1; return { x: c.x + side * 60, y: null, hit: -side }; }
+        return wp;
+      }
+      function realmPuzzleWaypoint0(h, R) {
         const t = (R.torches || []).filter(q => !realmSave.flags['torch_' + q.id]).sort((a, c) => a.x - c.x)[0];
         if (t) return { x: t.x, y: null, act: true };
-        for (const b of (R.bars || [])) {
-          if (_realmBarOpen(b)) continue;
+        const gated = (R.bars || []).concat((R.vents || []).filter(q => q.when), (R.lifts || []).filter(q => q.when));
+        for (const b of gated) {
+          if ((R.bars || []).indexOf(b) >= 0 ? _realmBarOpen(b) : _realmCond(b.when)) continue;
           // A list waits on all of its parts: work on the first one not yet met.
           const w = (Array.isArray(b.when) ? b.when.find(q => !_realmCond(q)) : b.when) || '';
           if (w.indexOf('plate:') === 0) {
@@ -437,7 +474,7 @@ async function runAttempt(browser, ch, attempt) {
           }
           if (w.indexOf('lever:') === 0) {
             const l = (R.levers || []).find(q => q.id === w.slice(6));
-            if (l) return { x: l.x, y: l.y || null, act: true };
+            if (l) return realmLedgeWaypoint(h, R, l.x, l.y) || { x: l.x, y: l.y || null, act: true };
           }
         }
         for (const c of (R.cracks || [])) {
@@ -446,7 +483,7 @@ async function runAttempt(browser, ch, attempt) {
           return { x: c.x + side * 60, y: null, hit: -side };
         }
         const l = (R.levers || []).find(q => !realmSave.flags['lever_' + q.id] && _realmCond(q.when));
-        if (l) return { x: l.x, y: l.y || null, act: true };
+        if (l) return realmLedgeWaypoint(h, R, l.x, l.y) || { x: l.x, y: l.y || null, act: true };
         return null;
       }
       function realmWaypoint(h) {
@@ -716,6 +753,7 @@ async function runAttempt(browser, ch, attempt) {
       };
 
       if (typeof SovQTE !== 'undefined') SovQTE.enable();
+      if (window.__ltRelics && _story2) _story2.relics = { seamkey: true, coil: true, resonator: true };
       _activeStory2Chapter = ch;
       _seenNarrativeIds.add(ch.id);
       // A branch chapter's playable beat: win = the beat's continuation fires.

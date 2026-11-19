@@ -238,7 +238,40 @@ Impact to handle:
 - **Retrying** moves from "replay the chapter" to "back to the last checkpoint". Per-chapter stars only mean something in the post-game select.
 - **Skill tree and shop: decided.** The skill tree is in the pause menu (story mode and realms; nodes bought mid-chapter apply on close). The shop is a person in the world: a hooded shopkeeper with a lantern (`npcs: [{ kind: 'shop', x }]` in a realm room), F to trade, a short line when you walk near. Built Nov 15; the story panel's shop and skill tree buttons stay until realms replace the panel. Who the shopkeeper is in canon is still open.
 
-## Fast travel: proposal (Nov 18, needs your call)
+## Fast travel: built (Nov 18)
+
+Decided by the user Nov 18: both forms below, and walking back through each world's left edge still works. `js/story/smb-story-travel.js`, opened from the pause menu's **Travel** button in any story chapter world.
+
+- **Beacons.** Standing at a rest beacon you have lit, travel to any other lit beacon in a chapter you have reached (`_story2.litBeacons`). Same launch as Continue (`cpResume` + `_storyResumeCpFor`): you arrive at the beacon at full health.
+- **The fragment's trail.** From anywhere in a chapter world, back up to 10 chapters, never forwards. Canon (settled with the user Nov 18): this is not a law. Kael has no command over law before the anchor at ch144. The fragment remembers the fractures it passed through, and Kael pulls himself back along that trail: the shield's phase displacement stretched over distance, done by someone new at it. So it is unstable: you arrive at 60% health, it needs 4 minutes to settle (`_story2.trailReadyAt`, real time), and 1 time in 5 it slips one walkable chapter further back than you aimed (never forwards).
+- **Returning to a beaten chapter** (user, Nov 18: "not the same amount of enemies, but some guarding the place"): the duel is skipped (`_cinReplaySkip`, unchanged) and about a third of the chapter's enemies (at least one) hold their posts as guards, whether or not you killed them before (`smb-story-engine-explore.js`, `_expBeaten`).
+- Blocked: inside a side room, during an arena-lock fight, with an enemy within 520 px, or outside a chapter world.
+
+Tested headless Nov 18: beacon list and trail list built from the save, beacon travel from ch13 to ch3 beacon 2 landed at x 4517 at full health, trail from ch3 landed in ch2 at 83/138 HP with the 4-minute wait set.
+
+## Retrofit: chapters 1-50 (Nov 18)
+
+The user's order Nov 18: apply the God of War project to chapters 1-50 (ids 0-49). `js/smb-realm-regions.js` adds one realm side area to every chapter in that range with a walkable world: 37 chapters (the 5 that already had a dungeon keep it: ch9, 29, 40, 42, 47). Chapters 14-17, 21, 24, 31 and 37 (ids 13-16, 20, 23, 30, 36) have no walkable world (duel arenas, the assassination, the 900 px defense decks, the branch choice) and get nothing.
+
+**Relics: the reason to go back.** Three relics, each at the end of a required dungeon, kept in the story save (`_story2.relics`, any chapter can read it). Seam doors (a tear in the air, art `seam`) only open for the relic they need, and most of them are in chapters you have already passed, so the relic tells you where they were and fast travel takes you back.
+
+| Relic | Found | Opens seam pockets in |
+|---|---|---|
+| Veran's seam key | ch13 Veran's Workshop (id 12), required | ch2, 4, 6, 8 (ids 1, 3, 5, 7) |
+| Collector coil | ch26 Collector Node (id 25), required | ch11, 18, 19, 22, 25 (ids 10, 17, 18, 21, 24) |
+| Core resonator | ch38 Resonance Chamber (id 37), required | ch30, 32, 34, 39, 45 (ids 29, 31, 33, 38, 44) |
+
+The three relic dungeons hold the chapter exit until the relic is found (`exitNeeds: 'relic:<id>'`). Escape chapters (ch4, 19, 39, 45) only have seam pockets, so their side room is a return trip, not a break in the chase.
+
+**Optional side areas (20):** ch1 Yard Cellar (teaches F, chests, breakable walls), ch3 Garage (block and plate; shopkeeper), ch5 Water Tower (lift), ch7 Collapsed Subway (crumbling platform, dark tunnel), ch10 Archive Stacks (timed plate), ch12 Relay Substation (power lever, lift, guards), ch20 Mirror Gallery (two blocks, two bars, your reflection), ch23 Void Shelf (movers over a gap, crumbles), ch27 Under the Stands (jailers, an unbouted champion), ch28 Mark Chamber (crack, crumbles, timed plate), ch33 Flux Vault (three updrafts), ch35 Storm Cellar (dark, pendulums), ch36 Eye Annex (two plates at once, keepers), ch41 Sanctum Undergrowth (roots, powered lift), ch43 Frozen Cave (thin ice, geyser; shopkeeper), ch44 Summit Hut, ch46 Engine Underside (stone and lever, timed plate), ch48 Outer Ring Armory, ch49 Threshold Vault (stone, lever, timer, the Herald's Shade), ch50 Anchor Cellar (dark). The Collector Node's coil room has the third new shopkeeper.
+
+**Engine additions** (smb-realm.js): `_realmNeedMet` (a needs string can be `relic:<id>`), chests that give `relic:<id>`, door arts `seam`, `cellar` and `cave`, lifts with `when` + `shuttle` (wait at the bottom until powered, then shuttle), and a realm that follows the segment you stand in on the Multiversal Core one-map region (ids 32-35, 24000 px).
+
+**Tested headless Nov 18:** every area's entrance opens from its chapter world and every room loads (screenshots). Key-driven probes on the real controls: all 8 updraft climbs, all 5 lifts, the 6 block-and-plate puzzles and the 2 timed runs reach their targets. The level tester got `--relics` and learned ledges (lifts and updrafts), plate-powered vents and lifts, relic chests, and cracks in the way of a target.
+
+**Level tester, Nov 18** (cascade pilot, Normal, 1 attempt each, `--optional --relics --progress=data/level-test/normal-full-nov1/results.json`, out `data/level-test/gow-retrofit-nov18b`): 11 of 37 cleared. The pilot solved every required relic dungeon (ch13 workshop, ch38 resonance chamber all three rooms) and walked the puzzles in the Garage, Mirror Gallery, Eye Annex, Threshold Vault, Storm Cellar, Sanctum Undergrowth and Frozen Cave. 15 losses happened on the main path before the pilot reached any side door (Nov 1 cleared the same chapters), so the main-path difficulty for the bot has drifted since Nov 1 independent of this work; one visible cause is that `--progress` now yields 8-13 skill nodes by these chapters where Nov 1 had up to 28. 10 losses included side-room fights, mostly the elite guardians (Your Reflection, Crucible Remnant, Eye Keeper, Herald's Shade): a death in a side room costs a chapter life, same rule as the approved dungeons. One stall fixed (ch12 substation door sat under a 210 px conduit the pilot climbed; moved to x 1050) and 14 doors moved clear of low ledges and crates.
+
+## Fast travel: proposal (Nov 18, superseded by "Fast travel: built" above)
 
 What it is for: getting back to an optional dungeon you walked past, without replaying the walk. Two candidate forms checked against what exists:
 

@@ -679,6 +679,17 @@ function _launchExplorationChapter(ch) {
       const isRng = typeof WEAPONS !== 'undefined' && WEAPONS[e.weaponKey] && WEAPONS[e.weaponKey].type === 'ranged';
       return isRng ? Object.assign({}, e, { weaponKey: 'sword' }) : e;
     });
+  // Coming back to a beaten chapter: not the full force, but the place is guarded. About a third of its
+  // enemies (at least one) hold it, whether or not you killed them last time.
+  if (_expBeaten && ch.exploreMode !== 'stealth' && Array.isArray(ch.spawnEnemies) && ch.spawnEnemies.length) {
+    const _want = Math.max(1, Math.ceil(ch.spawnEnemies.length / 3));
+    for (let i = 0; i < ch.spawnEnemies.length && exploreSpawnQ.length < _want; i += 3) {
+      const _k = ch.id + ':f' + i;
+      if (exploreSpawnQ.some(e => e._foeKey === _k)) continue;
+      exploreSpawnQ.push(Object.assign({}, ch.spawnEnemies[i], { _foeKey: _k, isGuard: true }));
+    }
+    exploreSpawnQ.sort((a, b) => (a.wx || 0) - (b.wx || 0));
+  }
   exploreEnemyCap  = Math.max(1, _storyPhaseExploreCap(ch.id) + (typeof _storyDiffCfg === 'function' ? _storyDiffCfg().exploreCap : 0));
   exploreCombatQuiet = 0;
   exploreAmbushTimer = 0;

@@ -1129,6 +1129,7 @@
     <div class="btn-row" id="pauseMainRow">
       <button class="btn btn-start" onclick="resumeGame()">Resume</button>
       <button class="btn" id="pauseSkillTreeBtn" style="display:none;" onclick="openSkillTreeFromPause()">Skill Tree</button>
+      <button class="btn" id="pauseTravelBtn" style="display:none;" onclick="openStoryTravel()">Travel</button>
       <button class="btn" onclick="pauseAskQuit(true)">Quit to Menu</button>
     </div>
     <div id="pauseQuitConfirm" style="display:none;">
@@ -2074,7 +2075,7 @@
   <script src="./js/smb-axiom-film-cin.js?v=4.9.152"></script>
   <script src="./js/smb-trueform-ending-draw.js?v=4.3.8"></script>
   <!-- Drawing, game state, HUD, visual effects -->
-  <script src="./js/rendering/smb-drawing-arenas.js?v=4.9.175"></script>
+  <script src="./js/rendering/smb-drawing-arenas.js?v=4.9.210"></script>
   <script src="./js/rendering/smb-drawing-bg.js?v=4.9.53"></script>
   <script src="./js/rendering/smb-arena-hd.js?v=4.9.54"></script>
   <script src="./js/rendering/smb-arena-hd-arenas.js?v=4.9.112"></script>
@@ -2092,7 +2093,8 @@
   <script src="./js/smb-br-structures.js?v=4.9.114"></script>
   <script src="./js/smb-br-forms.js?v=4.9.118"></script>
   <script src="./js/smb-endless.js?v=4.9.120"></script>
-  <script src="./js/smb-realm.js?v=4.9.209"></script>
+  <script src="./js/smb-realm.js?v=4.9.210"></script>
+  <script src="./js/smb-realm-regions.js?v=4.9.210"></script>
   <script src="./js/smb-sewer.js?v=4.9.53"></script>
   <!-- True-Form QTE system -->
   <script src="./js/smb-qte-core.js?v=4.9.129"></script>
@@ -2107,11 +2109,11 @@
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.9.58"></script>
   <script src="./js/smb-loop-core.js?v=4.9.203"></script>
-  <script src="./js/smb-input.js?v=4.9.202"></script>
+  <script src="./js/smb-input.js?v=4.9.210"></script>
   <script src="./js/smb-cheats.js?v=4.9.82"></script>
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=4.9.196"></script>
-  <script src="./js/smb-journal.js?v=4.9.206"></script>
+  <script src="./js/smb-journal.js?v=4.9.210"></script>
   <script src="./js/smb-home-art.js?v=4.9.169"></script>
   <script src="./js/smb-menu-select.js?v=4.9.154"></script>
   <script src="./js/smb-menu-config.js?v=4.9.173"></script>
@@ -2196,7 +2198,7 @@
   <script src="./js/story/acts/actvoidmind/smb-voidmind-trial.js?v=4.9.16"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-after.js?v=4.9.50"></script>
   <script src="./js/story/acts/actvoidmind/smb-voidmind-fight.js?v=4.9.155"></script>
-  <script src="./js/story/smb-story-config.js?v=4.9.208"></script>
+  <script src="./js/story/smb-story-config.js?v=4.9.210"></script>
   <script src="./js/story/smb-story-engine-data.js?v=4.9.129"></script>
   <script src="./js/story/smb-story-engine-ui.js?v=4.9.197"></script>
   <script src="./js/story/smb-story-prologue-tuesday.js?v=4.3.8"></script>
@@ -2362,8 +2364,9 @@
   <script src="./js/story/levels/ch168.js?v=4.9.33"></script>
   <script src="./js/story/levels/ch181.js?v=4.9.34"></script>
   <script src="./js/story/levels/ch184.js?v=4.9.34"></script>
-  <script src="./js/story/smb-story-engine-explore.js?v=4.9.197"></script>
-  <script src="./js/story/smb-story-engine-explore2.js?v=4.9.208"></script>
+  <script src="./js/story/smb-story-engine-explore.js?v=4.9.210"></script>
+  <script src="./js/story/smb-story-engine-explore2.js?v=4.9.210"></script>
+  <script src="./js/story/smb-story-travel.js?v=4.9.210"></script>
   <script src="./js/story/smb-story-sidequests.js?v=4.9.194"></script>
   <script src="./js/story/smb-story-interlude.js?v=4.3.8"></script>
   <script src="./js/story/smb-story-engine-modes.js?v=4.9.82"></script>

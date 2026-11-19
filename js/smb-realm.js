@@ -18,8 +18,8 @@
 // hold }] down while you or a block stand on them (latch: a block locks it for good; hold: frames it stays down
 // after you step off); bars [{ id, x, when }] a portcullis that rises while 'when' holds and stays up once you are
 // past it; levers [{ id, x, y, when, sets, line }] F to pull; cracks [{ id, x, hits }] a wall your swings break;
-// lifts [{ id, x, w, y0, y1, when }] a platform between y0 (low) and y1 (high; level and flush with the ledge it serves): with 'when' it rises while that holds,
-// without it shuttles on its own. spikes [[x0, x1]] floor strips that hurt (12) and bounce you up.
+// lifts [{ id, x, w, y0, y1, when, shuttle }] a platform between y0 (low) and y1 (high; level and flush with the ledge it serves): with 'when' it rises while that holds,
+// without it shuttles on its own; with both when and shuttle it waits at y0 until 'when' holds, then shuttles. spikes [[x0, x1]] floor strips that hurt (12) and bounce you up.
 // torches [{ id, x, y }] F lights one for good (flag torch_<id>). lightless: 0-1, a room that is dark but for a
 // small circle around you and the torches you have lit.
 // crumbles [{ id, x, y, w }] ledges that shake when you land and give way CRUMBLE_F frames later, then re-form
@@ -816,6 +816,14 @@ const REALM_SHOP_LINES = [
 function _realmDef() { return REALM_DEFS[realmKey]; }
 function _realmRoom(k) { var d = _realmDef(); return d && d.rooms[k || realmRoomKey]; }
 
+// A needs string: a flag in this realm's save, or 'relic:<id>', a relic kept in the story save across every
+// chapter (found in one chapter's rooms, it opens seam doors in others: smb-realm-regions.js).
+function _realmNeedMet(n) {
+  if (!n) return true;
+  if (n.indexOf('relic:') === 0) return !!(typeof _story2 !== 'undefined' && _story2 && _story2.relics && _story2.relics[n.slice(6)]);
+  return !!(realmSave && realmSave.flags && realmSave.flags[n]);
+}
+
 // Save, per account, with a localStorage fallback (the Endless best-score pattern).
 function _realmLoad() {
   var s = null;
@@ -1015,6 +1023,12 @@ function _realmOpenChest(c, p) {
       label = '+' + amt + ' EXP';
     }
     if (typeof _saveStory2 === 'function') _saveStory2();
+  } else if (c.gives && c.gives.indexOf('relic:') === 0 && typeof _story2 !== 'undefined' && _story2) {
+    if (!_story2.relics) _story2.relics = {};
+    _story2.relics[c.gives.slice(6)] = true;
+    if (typeof _saveStory2 === 'function') _saveStory2();
+    label = c.label || 'RELIC FOUND';
+    if (c.line) _realmTell(c.line, '#c8a8ff');
   } else if (c.gives && c.gives.indexOf('item:') === 0) {
     realmSave.items[c.gives.slice(5)] = true;
     _realmStore();
@@ -1231,8 +1245,12 @@ function realmCameraTarget(p, zoom) {
 // Draw: world space, behind the platforms.
 // Story: the attached chapter stops owning the screen as soon as the next chapter starts loading.
 function _realmStaleStory() {
-  return realmHost === 'story' && typeof _activeStory2Chapter !== 'undefined' &&
-    (!_activeStory2Chapter || _activeStory2Chapter.id !== _realmStoryChId);
+  if (realmHost !== 'story' || typeof _activeStory2Chapter === 'undefined') return false;
+  if (!_activeStory2Chapter) return true;
+  if (_activeStory2Chapter.id === _realmStoryChId) return false;
+  // A one-map region: any of its chapters owns the world it shares.
+  var rg = typeof exploreRegion !== 'undefined' ? exploreRegion : null;
+  return !(rg && rg.chapters.indexOf(_activeStory2Chapter.id) >= 0 && rg.chapters.indexOf(_realmStoryChId) >= 0);
 }
 
 function drawRealmBack() {
@@ -1308,6 +1326,49 @@ function _realmDrawArch(d) {
     ctx.globalAlpha = 0.65 + 0.35 * Math.sin(f * 0.08);
     ctx.beginPath(); ctx.arc(x, y - 162, 5, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
+    return;
+  }
+  if (d.art === 'seam') {
+    // A fracture seam: a tear in the air. Sealed, a dark jagged crack; open (the relic in hand), a lit tear.
+    var sh = 170, open = !d._locked;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.beginPath();
+    for (var si = 0; si <= 10; si++) {
+      var syy = -sh + si * (sh / 10), sxx = ((si * 37) % 11 - 5) * 2.2 * (open ? 1.6 : 1);
+      if (si === 0) ctx.moveTo(sxx, syy); else ctx.lineTo(sxx, syy);
+    }
+    for (var sj = 10; sj >= 0; sj--) {
+      var syy2 = -sh + sj * (sh / 10), sxx2 = ((sj * 37) % 11 - 5) * 2.2 * (open ? 1.6 : 1) + (open ? 26 : 7) * Math.sin(sj / 10 * Math.PI);
+      ctx.lineTo(sxx2, syy2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = open ? '#0a0418' : '#06040a';
+    ctx.fill();
+    ctx.shadowColor = open ? '#b8a0ff' : '#5a3a8a';
+    ctx.shadowBlur = open ? 18 + 6 * Math.sin(f * 0.1) : 6;
+    ctx.strokeStyle = open ? 'rgba(210,190,255,0.9)' : 'rgba(120,90,170,0.55)';
+    ctx.lineWidth = open ? 2.5 : 1.5;
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  if (d.art === 'cellar' || d.art === 'cave') {
+    // cellar: a steel door in a brick surround, steps going down. cave: a rock mouth.
+    if (d.art === 'cellar') {
+      ctx.fillStyle = '#4a2e26'; ctx.fillRect(x - 54, y - 150, 108, 150);
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      for (var by = y - 150; by < y; by += 14) ctx.fillRect(x - 54, by, 108, 1);
+      ctx.fillStyle = '#07090a'; ctx.fillRect(x - 40, y - 132, 80, 132);
+      ctx.fillStyle = '#2e3438'; ctx.fillRect(x - 40, y - 132, d._locked ? 80 : 14, 132);
+      ctx.fillStyle = d._locked ? '#a8342a' : '#d6b04a'; ctx.fillRect(x - 6, y - 76, 12, 6);
+    } else {
+      ctx.fillStyle = '#2a2a30';
+      ctx.beginPath(); ctx.moveTo(x - 70, y); ctx.quadraticCurveTo(x - 70, y - 170, x, y - 176); ctx.quadraticCurveTo(x + 70, y - 170, x + 70, y); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#050506';
+      ctx.beginPath(); ctx.moveTo(x - 46, y); ctx.quadraticCurveTo(x - 48, y - 130, x, y - 140); ctx.quadraticCurveTo(x + 48, y - 130, x + 46, y); ctx.closePath(); ctx.fill();
+      if (d._locked) { ctx.fillStyle = '#3a3a42'; for (var rk = 0; rk < 5; rk++) { ctx.beginPath(); ctx.arc(x - 30 + rk * 15, y - 12 - (rk % 2) * 10, 14, 0, Math.PI * 2); ctx.fill(); } }
+    }
     return;
   }
   if (d.art === 'hatch' && d._closed) {
@@ -1606,21 +1667,32 @@ function _realmTell(text, color) {
   storyFightSubtitle = { text: text, timer: 180, maxTimer: 180, color: color || '#ffd27a' };
 }
 
+// The chapter whose world the player is standing in. A one-map region (exploreRegion) keeps the launched chapter
+// as _activeStory2Chapter for its whole width, so the segment under the player decides.
+function _realmStorySegChId(ch) {
+  var rg = typeof exploreRegion !== 'undefined' ? exploreRegion : null;
+  var p = players[0];
+  if (!rg || !p || !rg.segLen || rg.chapters.indexOf(ch.id) < 0) return ch.id;
+  var i = Math.max(0, Math.min(rg.chapters.length - 1, Math.floor(p.cx() / rg.segLen)));
+  return rg.chapters[i];
+}
+
 // Each chapter launch builds a new world, so the realm re-attaches whenever the world object changes.
 function _realmStoryAttach() {
   if (realmRoomKey || realmFade !== 0) return;
   var ch = (typeof _activeStory2Chapter !== 'undefined') ? _activeStory2Chapter : null;
   var live = typeof exploreActive !== 'undefined' && exploreActive;
-  var key = ch && live ? _realmStoryDefFor(ch.id) : null;
+  var cid = ch && live ? _realmStorySegChId(ch) : null;
+  var key = cid != null ? _realmStoryDefFor(cid) : null;
   if (!key) { if (realmHost === 'story') realmResetState(); return; }
-  if (realmHost === 'story' && realmActive && _realmStoryArena === currentArena && _realmStoryChId === ch.id) return;
+  if (realmHost === 'story' && realmActive && _realmStoryArena === currentArena && _realmStoryChId === cid) return;
   realmHost = 'story';
   realmKey = key;
   realmSave = _realmLoad();
   realmActive = true;
   realmFade = 0; realmPending = null; _realmDead = false; _realmNear = null; _realmStash = null;
   _realmStoryArena = currentArena;
-  _realmStoryChId = ch.id;
+  _realmStoryChId = cid;
   // Closed gates are walls. 50 wide: pickSafeSpawn only spawns on ledges wider than 50.
   var plats = currentArena.platforms;
   _realmStoryGates().forEach(function (g) {
@@ -1671,6 +1743,8 @@ function realmClampSpawnX(x, p) {
 
 function _realmStoryThreat(p) {
   if (typeof exploreArenaLock !== 'undefined' && exploreArenaLock) return true;
+  // Stealth: patrols that have not seen you are not a fight. Slipping through a door unseen is the point.
+  if (typeof stealthModeActive !== 'undefined' && stealthModeActive && typeof stealthAlarmed !== 'undefined' && !stealthAlarmed) return false;
   return minions.some(function (m) {
     if (m.health <= 0 || Math.abs(m.cx() - p.cx()) > 520 || realmBlocksHit(m, p)) return false;
     return typeof isHostileTarget === 'function' ? isHostileTarget(p, m) : true;
@@ -1695,7 +1769,7 @@ function _realmStoryInteract(p) {
   var n = _realmNear;
   if (n.kind === 'entrance') {
     var e = n.ref;
-    if (e.needs && !realmSave.flags[e.needs]) { _realmTell(e.lockedText, '#ff7766'); return true; }
+    if (e.needs && !_realmNeedMet(e.needs)) { _realmTell(e.lockedText, '#ff7766'); return true; }
     if (e.oneWay && !realmSave.flags['open_' + e.id]) { _realmTell(e.lockedText, '#ff7766'); return true; }
     if (_realmStoryThreat(p)) { _realmTell('Not with enemies this close.', '#ff7766'); return true; }
     _realmStoryFrom = e.id;
@@ -1800,7 +1874,7 @@ function _realmRoomFoesTick(R) {
 // Why a door will not open, or null. Live enemies seal every door in the room.
 function _realmDoorShut(d) {
   if (_realmRoomFoesAlive()) return 'Sealed. Not with enemies still standing.';
-  if (d.needs && !realmSave.flags[d.needs]) return d.needs.indexOf('burn_') === 0 ? 'Sealed. Burn this room first.' : (d.lockedText || 'Sealed.');
+  if (d.needs && !_realmNeedMet(d.needs)) return d.needs.indexOf('burn_') === 0 ? 'Sealed. Burn this room first.' : (d.lockedText || 'Sealed.');
   return null;
 }
 
@@ -1992,6 +2066,8 @@ function _realmPuzzleTick(p, R) {
     if (!pl) return;
     var st = _realmPuz.lift[l.id] || (_realmPuz.lift[l.id] = { dir: 1, wait: 60 });
     var up = l.when ? _realmCond(l.when) : null;
+    // shuttle: with when, the lift sits at its low stop until that holds, then shuttles like an unpowered one.
+    if (l.shuttle) up = up ? null : false;
     var target = up === null ? (st.dir > 0 ? l.y1 : l.y0) : (up ? l.y1 : l.y0);
     if (up === null && st.wait > 0) { st.wait--; return; }
     var dy = Math.max(-1.6, Math.min(1.6, target - pl.y));
@@ -2406,7 +2482,7 @@ function realmExitBlocker() {
   if (!realmActive || realmHost !== 'story' || !realmSave) return null;
   var d = REALM_STORY[realmKey];
   var need = d && d.exitNeeds && d.exitNeeds[_realmStoryChId];
-  return need && !realmSave.flags[need] ? (d.exitReason || 'something is left undone') : null;
+  return need && !_realmNeedMet(need) ? (d.exitReason || 'something is left undone') : null;
 }
 
 function _realmStoryReturn(entranceId) {
@@ -2443,7 +2519,7 @@ function _realmStoryDrawMain() {
   var f = typeof frameCount !== 'undefined' ? frameCount : 0;
   ctx.save();
   _realmStoryEntrances().forEach(function (e) {
-    var locked = (e.needs && !realmSave.flags[e.needs]) || (e.oneWay && !realmSave.flags['open_' + e.id]);
+    var locked = (e.needs && !_realmNeedMet(e.needs)) || (e.oneWay && !realmSave.flags['open_' + e.id]);
     _realmDrawArch({ x: e.x, y: _realmMainFloorY(e.x), art: e.art, _locked: locked, _closed: e.art === 'hatch' && locked });
   });
   _realmStoryGates().forEach(function (g) {

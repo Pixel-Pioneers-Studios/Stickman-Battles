@@ -154,6 +154,7 @@ document.addEventListener('keydown', e => {
   if (window._storySceneHold) return;
   if (tfEndingScene && tfEndingScene.skippable && tfEndingScene.phase === 'powers') { trySkipTFEnding(); return; }
   // Skill tree or shop open over a match: Escape closes it and leaves the pause state as it was.
+  if (e.key === 'Escape' && typeof isStoryTravelOpen === 'function' && isStoryTravelOpen()) { storyTravelClose(); return; }
   if (e.key === 'Escape' && typeof isSkillTreeOrShopOpen === 'function' && isSkillTreeOrShopOpen()) {
     if (typeof closeSkillTreeModal === 'function') closeSkillTreeModal();
     if (typeof closeShopModal === 'function') closeShopModal();

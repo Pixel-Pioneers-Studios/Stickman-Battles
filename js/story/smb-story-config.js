@@ -1221,6 +1221,8 @@ function _defaultStory2Progress() {
     lootTaken:         {},      // { 'chapterId:index': 1 }, one-time loot pickups already collected
     cpResume:          null,    // { chId, x }, last rest checkpoint reached; a game-over Retry resumes there
     litBeacons:        {},      // { chId: [x, ...] }, every rest beacon lit (groundwork for beacon fast travel)
+    relics:            {},      // { id: true } realm relics that open doors in other chapters (smb-realm-regions.js)
+    trailReadyAt:      0,       // ms timestamp: the fragment's trail can be used again (smb-story-travel.js)
     blueprints:        [],      // blueprint keys earned
     unlockedAbilities: [],      // ability keys bought from store
     skillTree:         _applyStoryCoreUnlocks({}), // { nodeId: true }, purchased skill nodes (core moves pre-granted)
@@ -1328,6 +1330,11 @@ function _normalizeStory2Progress(data) {
     out.litBeacons = {};
     for (const k in data.litBeacons) if (Array.isArray(data.litBeacons[k])) out.litBeacons[k] = data.litBeacons[k].filter(v => typeof v === 'number');
   }
+  if (data.relics && typeof data.relics === 'object') {
+    out.relics = {};
+    for (const k in data.relics) if (data.relics[k] === true) out.relics[k] = true;
+  }
+  if (typeof data.trailReadyAt === 'number') out.trailReadyAt = data.trailReadyAt;
   if (Array.isArray(data.blueprints)) out.blueprints = data.blueprints.slice();
   if (Array.isArray(data.unlockedAbilities)) out.unlockedAbilities = data.unlockedAbilities.slice();
   if (data.skillTree && typeof data.skillTree === 'object') out.skillTree = Object.assign({}, data.skillTree);
