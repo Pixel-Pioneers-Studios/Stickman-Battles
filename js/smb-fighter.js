@@ -3073,6 +3073,7 @@ class Fighter {
     this._attackKindTier   = CLASH_TIER_ATTACK; // see _clashTier()
     this._blockedEndlag    = 0;                 // a cut-off swing's block penalty never carries over
     this.attackTimer = this.attackDuration;
+    if (typeof MoveScene !== 'undefined') MoveScene.openSwing(this);
     if (typeof pixelSwingFX === 'function') pixelSwingFX(this);
 
     // Melee lunge: a small forward carry so swings have weight. Grounded only, and never over a ledge.
@@ -3260,6 +3261,7 @@ class Fighter {
     screenShake = Math.max(screenShake, 14);
     spawnParticles(this.cx(), this.cy(), '#ffffff', 24);
     spawnParticles(this.cx(), this.cy(), this.color, 20);
+    if (typeof msBreakLook === 'function') msBreakLook(this);
     if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
   }
 

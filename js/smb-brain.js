@@ -1193,7 +1193,14 @@ const Brain = (() => {
     const haz = typeof btHazardNav === 'function' ? btHazardNav(L.f, L.act[0] - 1) : null;
     const nav = (!haz || haz.nav) && _navOn && !(currentArena && currentArena.isSovereignArena) && typeof btKeyNav === 'function'
       ? btKeyNav(L.f, opp) : null;
-    if (haz && !nav) {
+    // Sovereign reads an Iaijutsu draw off its hilt tell and jumps straight up; it passes under him.
+    const iai = L.f.isSovereignMK2 && typeof msIaiThreat === 'function' ? msIaiThreat(L.f, opp) : 0;
+    if (iai) {
+      L.navAct[0] = 1;
+      L.navAct[1] = L.f.onGround ? 1 : 0;
+      L.navAct[2] = 0; L.navAct[3] = 0;
+      applyKeys(L.f, L.navAct);
+    } else if (haz && !nav) {
       L.navAct[0] = haz.move + 1;
       L.navAct[1] = haz.fight ? L.act[1] : haz.jump ? 1 : 0;
       L.navAct[2] = haz.fight ? L.act[2] : 0;
@@ -1204,8 +1211,8 @@ const Brain = (() => {
       L.navAct[0] = nav.move + 1; L.navAct[1] = nav.jump ? 1 : 0; L.navAct[2] = 0; L.navAct[3] = ranged ? L.act[3] : 0;
       applyKeys(L.f, L.navAct);
     } else if (decide || L.navWas) applyKeys(L.f, L.act);
-    L.navWas = !!(nav || haz);
-    if (decide) { const a = (nav || haz) ? L.navAct : L.act; for (let k = 0; k < 4; k++) L.prev[k] = a[k]; }
+    L.navWas = !!(nav || haz || iai);
+    if (decide) { const a = (nav || haz || iai) ? L.navAct : L.act; for (let k = 0; k < 4; k++) L.prev[k] = a[k]; }
   }
   function release() {
     const L = _live;

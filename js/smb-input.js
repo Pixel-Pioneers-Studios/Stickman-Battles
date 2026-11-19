@@ -300,7 +300,8 @@ document.addEventListener('keydown', e => {
       // after recovery. Pressing again inside the recovery is mashing: it drops the buffer and locks
       // the attack key for ATTACK_MASH_LOCK frames past recovery.
       const _recovering = p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0);
-      if (frameCount < (p._attackMashUntil || 0)) { /* mashed: ignored */ }
+      if (!incapacitated && typeof MoveScene !== 'undefined' && MoveScene.tryMerge(p, 'a', other)) { /* merged */ }
+      else if (frameCount < (p._attackMashUntil || 0)) { /* mashed: ignored */ }
       else if (!incapacitated && !_recovering) { p.attack(other); }
       else if (_recovering && !incapacitated && p._inputBuffer && p._inputBuffer.action === 'attack') {
         p._inputBuffer = null;
@@ -318,7 +319,7 @@ document.addEventListener('keydown', e => {
       } else if (p._storyNoAbility) {
         // ability locked in story: silently ignore
       } else if (!incapacitated) {
-        p.ability(other);
+        if (!(typeof MoveScene !== 'undefined' && MoveScene.tryMerge(p, 'q', other))) p.ability(other);
       } else {
         p._inputBuffer = { action: 'ability', frame: frameCount };
       }
@@ -335,6 +336,7 @@ document.addEventListener('keydown', e => {
       } else if (!incapacitated || (p.stunTimer > 0 && !(p.ragdollTimer > 0) && p.superReady)) {
         // Stunned with a full meter: two presses of useSuper() burst out of the combo.
         checkSecretLetterCollect(p);
+        if (!incapacitated && typeof MoveScene !== 'undefined' && MoveScene.tryMerge(p, 'e', other)) return;
         // A banked Conviction waits on the key: processInput() fires it once E is held
         // CONVICTION_HOLD_FRAMES, and an earlier release is a normal super. Sovereign decides for himself.
         const _holdPick = !incapacitated && p.superReady && !p._autoConviction &&

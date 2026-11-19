@@ -36,7 +36,7 @@ function _pickMoveFinisher(att) {
   const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
   const live = att._msScene && att._msScene.key === k.key;
   if (!live && !(k.end && fc - k.end <= MS_KILL_TAIL)) return null;
-  return MOVE_FINISHERS[k.key] || null;
+  return MOVE_FINISHERS[k.key] || (typeof msBaseKey === 'function' && MOVE_FINISHERS[msBaseKey(k.key)]) || null;
 }
 
 // Extra victim poses for the finishers (victim-facing canonical, like MS_VPOSE).

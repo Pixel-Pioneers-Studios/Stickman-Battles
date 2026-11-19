@@ -283,15 +283,15 @@ const WEAPONS = {
     damageFunc: () => 6 + Math.floor(Math.random() * 2),   // was 8-9: out-ranged every other gun
     bulletSpeed: 15, bulletColor: '#44cc44',
     clipSize: 18, reloadFrames: 60,
-    kb: 3,               abilityCooldown: 120, abilityDmgMult: 2.0, superDmgMult: 1.6, type: 'ranged', weaponType: 'ranged', color: '#44cc44',
+    kb: 3,               abilityCooldown: 160, abilityDmgMult: 1.6, superDmgMult: 1.6, type: 'ranged', weaponType: 'ranged', color: '#44cc44',
     abilityName: 'Pea Storm',
     ability(user, _target) {
       user._qHitCount = 0;
       user._qSuperCapRemaining = 28;
       // Capture now: the weapon can change mid-burst (BR loot swap, creature form).
       const _dmgFn = user.weapon.damageFunc;
-      for (let i = 0; i < 9; i++) {
-        combatAfter(i * 4, () => {
+      for (let i = 0; i < 7; i++) {
+        combatAfter(i * 3, () => {
           if (!gameRunning || user.health <= 0) return;
           const angle = (Math.random() - 0.5) * 0.28;
           const spd   = 13 + Math.random() * 3;
@@ -304,7 +304,7 @@ const WEAPONS = {
           projectiles.push(_p);
         });
       }
-      combatAfter(48, () => { user._qSuperCapRemaining = undefined; });
+      combatAfter(40, () => { user._qSuperCapRemaining = undefined; });
     }
   },
   slingshot: {
@@ -993,7 +993,7 @@ const WEAPON_DESCS = {
   fryingpan:    { title: 'Frying Pan',     what: 'Slow but punishing melee. Solid knockback and AoE ground pound.',          ability: 'Q — Ground Pound: AoE shockwave from feet — launches ALL nearby enemies straight up.', super: 'E — Grand Slam: BONK them on the head, wind up like a golfer, and send them straight up (45 dmg).', how: 'Ground Pound clears crowds upward. Grand Slam sends one target flying for a ceiling combo.' },
   broomstick:   { title: 'Broomstick',     what: 'Long-reach melee. Low damage but pushes enemies away.',               ability: 'Q — Broom Ride: rocket through the air on the broom — 16 dmg aerial body-check to anyone in your path.', super: 'E — Tornado Spin: spin push that hits all directions.',           how:  'Base = ground poke. Q = aerial flying ram. E = stationary spin push.' },
   combat: { title: 'Combat',         what: 'Fast alternating punches and kicks. Up-close brawler.',                ability: 'Q — Roundhouse: spinning kick that hits every enemy close on both sides (14 dmg) and knocks them away.', super: 'E — Combo Strike: dash in — the dash MUST connect. On a hit, uppercut (20 dmg), then aim the finishing kick with ←/→ and press attack to launch them (34 dmg).', how:  'Roundhouse clears space when you get surrounded. Combo Strike whiffs if you fire it from range — confirm it up close, then aim the kick at the nearest edge.' },
-  peashooter:   { title: 'Pea Shooter',    what: 'Rapid-fire ranged weapon. Low damage per pea (6-7). High fire rate.',        ability: 'Q — Pea Storm: 10 rapid shots.',                               super: 'E — Cluster Bomb: large pea detonates into 10 radial peas (8-12 dmg each).', how: 'Whittle with shots. Cluster Bomb punishes enemies in tight spots.' },
+  peashooter:   { title: 'Pea Shooter',    what: 'Rapid-fire ranged weapon. Low damage per pea (6-7). High fire rate.',        ability: 'Q — Pea Storm: brace, the barrel glows, then 7 rapid shots.',                               super: 'E — Cluster Bomb: large pea detonates into 10 radial peas (8-12 dmg each).', how: 'Whittle with shots. Cluster Bomb punishes enemies in tight spots.' },
   slingshot:    { title: 'Slingshot',      what: 'Ranged weapon with arc trajectory. Solid damage (17-20). Slow fire rate.',     ability: 'Q — Mortar Stone: steep upward arc falls DOWN from above (65px splash, 28 dmg).', super: 'E — Gravity Stone: slow boulder; detonates with a 220px gravity pull for 52 dmg.', how: 'Mortar Stone bypasses shields by dropping from above. Gravity Stone pulls victims into it.' },
   paperairplane: { title: 'Paper Airplane',  what: 'Very slow curving projectile. Low damage (8-11) but unpredictable arc.',          ability: 'Q — Barrage: 5 airplanes at staggered angles.',                   super: 'E — Origami Swarm: 8 homing planes that chase and track enemies.',    how:  'Confuse enemies with the arc. Swarm corners enemies with nowhere to run.' },
   flail:         { title: 'Flail',           what: 'Heavy melee with a swinging chain ball.',                              ability: 'Q — Chain Yank: fire ball forward (26 dmg), returns for 16 dmg.',  super: 'E — Orbit Storm: ball orbits at high speed, 12 dmg per contact.',    how:  'Commit hard or miss hard. Stay close during the return to land both hits.' },

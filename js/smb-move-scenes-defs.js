@@ -172,6 +172,119 @@ msDefine('sword:e', msCast({
   tick(sc) { if (sc.at(14) || sc.at(24)) sc.sfx('swing'); },
 }));
 
+// Sword variants (keys in smb-move-scenes.js). Arcs are the sword's own crescents (_swordSlashes, 22 on contact).
+function _msSwordArc(u, x, y, vx, vy, o) {
+  if (!u._swordSlashes) u._swordSlashes = [];
+  const sl = Object.assign({ x, y, vx, vy, tilt: (vx < 0 ? -1 : 1) * 0.15, facing: vx < 0 ? -1 : 1,
+    life: 22, maxLife: 22, size: 26, color: '#88ccff', hitSet: new Set() }, o || {});
+  sl.maxLife = sl.life;
+  u._swordSlashes.push(sl);
+  return sl;
+}
+
+// Air Q: Falling Storm. Coil overhead, dive blade-first; landing throws two crescents out along the floor and
+// cuts anyone at the feet. A dive that cuts nothing costs recovery.
+msDefine('sword:air:q', {
+  color: '#88ccff', endlag: 8, name: 'Falling Storm',
+  tracks: {
+    main: { len: 58, keys: [
+      { t: 0,  ...MS_STAND, air: true },
+      { t: 7,  e: 'out',  r: -2.55, w: -2.70, l: 0.5, lean: -5, drop: 6, air: true, rot: -0.15 },
+      { t: 10, e: 'snap', r: 1.75, w: 1.6, l: 1.2, lean: 10, drop: 8, air: true, rot: 0.25, trail: true },
+      { t: 44, e: 'hold', r: 1.75, w: 1.6, l: 1.2, lean: 10, drop: 8, air: true, rot: 0.25 },
+      { t: 58, e: 'io',   ...MS_STAND },
+    ] },
+  },
+  tick(sc) {
+    const b = sc.ub, u = sc.user;
+    if (sc.at(1)) { b.kin = true; b.vx = 0; b.vy = -1.5; b.g = 0.2; b.landed = false; }   // hang in the coil: the tell
+    if (sc.at(9)) { b.kin = true; b.vx = sc.f * 2; b.vy = 15; b.g = 0.6; b.landed = false; sc.sfx('swing'); }
+    if (!sc.vars.down && sc.lt > 9 && b.landed) {
+      sc.vars.down = 'miss';
+      const fx = sc.ucx(), feet = b.y + u.h;
+      const hs = new Set();
+      for (const d of [1, -1]) _msSwordArc(u, fx + d * 20, feet - 16, d * 11, -0.6, { life: 20, size: 24, hitSet: hs });
+      for (const t of _msAllFighters()) {
+        if (!sc._targetable(t)) continue;
+        if (Math.abs(t.cx() - fx) > 105 || Math.abs((t.y + t.h) - feet) > 70) continue;
+        hs.add(t);
+        if (sc.hit(t, 20, 12, { color: '#bfe6ff' }) === 'hit') sc.vars.down = 'hit';
+      }
+      if (typeof spawnRing === 'function') spawnRing(fx, feet);
+      spawnParticles(fx, feet - 4, '#88ccff', 16);
+      sc.shake(12);
+    }
+  },
+  onEnd(sc) {
+    if (sc.vars.down !== 'hit') sc.user.attackEndlag = Math.max(sc.user.attackEndlag || 0, 14);
+    return false;
+  },
+});
+
+// Swing + Q: Crescent Lunge. A short step and one big crescent thrown forward: the sword's long poke.
+// The 11-frame wind-up is the tell; it travels about 13 px a frame.
+msDefine('sword:aq:q', {
+  color: '#bfe6ff', endlag: 6, name: 'Crescent Lunge',
+  tracks: {
+    main: { len: 30, keys: [
+      { t: 0,  ...MS_STAND },
+      { t: 6,  e: 'out',  r: -2.30, w: -2.45, l: 0.6, lean: -4, drop: 8, fr: 12, fl: -12 },
+      { t: 8,  e: 'hold', r: -2.35, w: -2.50, l: 0.6, lean: -4, drop: 8, fr: 12, fl: -12, trail: true },
+      { t: 12, e: 'snap', r: 0.08, rl: 1.15, w: 0.02, l: 2.6, lean: 14, drop: 8, fr: 22, fl: -12 },
+      { t: 30, e: 'io',   ...MS_STAND },
+    ] },
+  },
+  tick(sc) {
+    if (sc.in(8, 12)) sc.dash(7);
+    if (sc.at(11)) {
+      _msSwordArc(sc.user, sc.ucx() + sc.f * 30, sc.ucy(), sc.f * 13, -0.3,
+        { life: 32, size: 40, color: '#ffffff', kb: 14 });
+      sc.slash(20, -4, 56, -1.2, 1.2, { color: '#bfe6ff', w: 10, life: 10 });
+      sc.sfx('swing');
+      sc.shake(6);
+    }
+  },
+});
+
+// Q + E: Tempest. Air Slash's three-arc fan first, then a dash in behind it, a closing cut and Blade Storm's burst.
+// Costs both buttons; pays out about what the two would separately (live Nov 18: Air Slash alone 53).
+msDefine('sword:qe:e', {
+  color: '#ffffff', endlag: 8, name: 'Tempest',
+  tracks: {
+    main: { len: 56, keys: [
+      { t: 0,  ...MS_STAND },
+      { t: 3,  e: 'out',  r: -2.30, w: -2.45, l: 0.6, lean: -4, drop: 5, fr: 12, fl: -11, trail: true },
+      { t: 6,  e: 'snap', r: 0.95, w: 1.20, l: 2.2, lean: 9, drop: 7, fr: 15, fl: -11 },
+      { t: 11, e: 'out',  r: 1.05, w: 1.35, l: 2.2, lean: 9, drop: 7, fr: 15, fl: -11, trail: true },
+      { t: 14, e: 'snap', r: -1.05, w: -1.30, l: 1.2, lean: -2, drop: 3, fr: 12, fl: -12 },
+      { t: 17, e: 'out',  r: -2.90, w: -3.00, l: 0.4, lean: -6, drop: 6, fr: 13, fl: -13, trail: true },
+      { t: 20, e: 'snap', r: 0.08, rl: 1.15, w: 0.02, l: 2.6, lean: 14, drop: 6, fr: 19, fl: -12 },
+      { t: 30, e: 'out',  r: -2.55, w: -2.70, l: 0.5, lean: -5, drop: 10, fr: 12, fl: -12 },
+      { t: 36, e: 'hold', r: -2.60, w: -2.78, l: 0.5, lean: -5, drop: 10, fr: 12, fl: -12, trail: true },
+      { t: 40, e: 'snap', r: 3.62, w: 3.80, l: -0.6, lean: 6, drop: 9, fr: 14, fl: -12 },
+      { t: 56, e: 'io',   ...MS_STAND },
+    ] },
+  },
+  tick(sc) {
+    const u = sc.user;
+    for (const [at, vy] of [[6, -1.6], [14, 0], [20, 1.6]]) {
+      if (sc.at(at)) {
+        _msSwordArc(u, sc.ucx() + sc.f * 22, sc.ucy() - 4, sc.f * 12, vy, { life: 24, size: 28, color: '#ccccff' });
+        sc.sfx('swing');
+      }
+    }
+    // The fan knocks them back, so the dash has to cover it; the closing cut takes whoever is in front.
+    if (sc.in(26, 39)) sc.dash(15);
+    if (sc.at(39)) {
+      const v = sc.findFront(180, 80);
+      if (v) sc.hit(v, 24, 14, { big: true, color: '#ffffff' });
+      if (WEAPONS.sword && WEAPONS.sword.ability) { try { WEAPONS.sword.ability(u, sc.target); } catch (e) {} }
+      sc.slash(0, -6, 70, -MS_PI * 0.8, MS_PI * 1.2, { ry: 32, color: '#ffffff', w: 12, life: 14 });
+      sc.sfx('swing');
+    }
+  },
+});
+
 // HAMMER
 // Q: Ground Shockwave. Small jump, hammer driven into the floor.
 msDefine('hammer:q', msCast({
@@ -368,15 +481,25 @@ msDefine('gun:e', msCast({
   ],
   poseMod: msRecoil(3, 0.16, 5, 46),
 }));
+// Pea Storm braces and the barrel glows before the spray, so it can be shielded or jumped on sight.
 msDefine('peashooter:q', msCast({
-  color: '#44cc44', len: 44, fireAt: 3,
+  color: '#44cc44', len: 38, fireAt: 11,
   keys: [
     { t: 0, ...MS_STAND },
-    { t: 3, e: 'snap', ...MS_AIM },
-    { t: 38, e: 'lin', ...MS_AIM },
-    { t: 44, e: 'io', ...MS_STAND },
+    { t: 6, e: 'out', ...MS_AIM, lean: -4, drop: 11 },
+    { t: 11, e: 'snap', ...MS_AIM },
+    { t: 31, e: 'lin', ...MS_AIM },
+    { t: 38, e: 'io', ...MS_STAND },
   ],
-  poseMod: msRecoil(3.9, 0.12, 3, 39),
+  tick(sc) {
+    if (sc.at(2)) {
+      const mx = sc.ucx() + sc.f * 30, my = sc.ucy() - 2;
+      MoveScene.fx.push({ kind: 'star', x: mx, y: my, r: 30, color: '#88ff66', life: 12, max: 12, a: 0 });
+      sc.ring(mx, my, 40, '#44cc44', 12);
+      sc.sfx('hitSnap');
+    }
+  },
+  poseMod: msRecoil(3, 0.12, 11, 31),
 }));
 msDefine('peashooter:e', msCast({
   color: '#44ff44', len: 26, fireAt: 12,
@@ -1117,32 +1240,64 @@ msDefine('whip:e', msCast({
 
 // KATANA
 // Q: Iaijutsu. A blink-fast draw through them; the cut lands when the blade goes back in the sheath.
-// Draw length: 28 standing, 22 moving.
+// Damage: 28 standing, 22 moving.
 const MS_IAI_HOLD = { r: 2.05, rl: 0.75, w: 2.95, l: 1.85, ll: 0.7, lean: 6, drop: 12, fr: 13, fl: -15 };
 const MS_IAI_CUT  = { r: -0.15, rl: 1.15, w: -0.35, l: 2.7, ll: 0.9, lean: 14, drop: 9, fr: 20, fl: -14 };
+const MS_IAI_SHEATH = { r: 1.6, rl: 0.8, w: 3.1, l: 1.9, ll: 0.7, lean: 2, drop: 6, fr: 12, fl: -12 };
+const MS_IAI_DRAW = { still: 24, moving: 20 };   // frame the draw blinks, by stance
+const MS_IAI_WHIFF_LAG = 16;                      // recovery after a draw that cut nothing
+
+// The thumb pushes the guard off the scabbard: a glint at the hilt, the read for every Iaijutsu draw.
+function msIaiGlint(sc, color) {
+  const hx = sc.ucx() + sc.f * 4, hy = sc.ucy() + 8;
+  MoveScene.fx.push({ kind: 'star', x: hx, y: hy, r: 34, color: color || '#ffffff', life: 14, max: 14, a: Math.PI / 4 });
+  sc.ring(hx, hy, 46, color || '#ccccff', 14);
+  sc.sfx('hitSnap');
+}
+
+// Distance from (px, py) to the segment (x0, y0)-(x1, y1).
+function msSegDist(px, py, x0, y0, x1, y1) {
+  const dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy || 1;
+  const k = Math.max(0, Math.min(1, ((px - x0) * dx + (py - y0) * dy) / l2));
+  return Math.hypot(px - (x0 + dx * k), py - (y0 + dy * k));
+}
 msDefine('katana:q', {
   color: '#ccccff', endlag: 4,
+  // The hilt glints at 3 and the draw comes at MS_IAI_DRAW: long enough to jump or step out on
+  // sight. Standing still is the slower, heavier draw.
   tracks: {
-    main: { len: 50, keys: [
+    main: { len: 60, keys: [
       { t: 0, ...MS_STAND },
-      { t: 10, e: 'out', ...MS_IAI_HOLD },
-      { t: 14, e: 'hold', ...MS_IAI_HOLD, trail: true },
-      { t: 16, e: 'snap', ...MS_IAI_CUT },
-      { t: 30, e: 'lin', ...MS_IAI_CUT, w: -0.3 },
-      { t: 34, e: 'io', r: 1.6, rl: 0.8, w: 3.1, l: 1.9, ll: 0.7, lean: 2, drop: 6, fr: 12, fl: -12 },
-      { t: 50, e: 'io', ...MS_STAND },
+      { t: 8, e: 'out', ...MS_IAI_HOLD },
+      { t: 24, e: 'hold', ...MS_IAI_HOLD, trail: true },
+      { t: 26, e: 'snap', ...MS_IAI_CUT },
+      { t: 40, e: 'lin', ...MS_IAI_CUT, w: -0.3 },
+      { t: 44, e: 'io', ...MS_IAI_SHEATH },
+      { t: 60, e: 'io', ...MS_STAND },
+    ] },
+    quick: { len: 55, keys: [
+      { t: 0, ...MS_STAND },
+      { t: 8, e: 'out', ...MS_IAI_HOLD },
+      { t: 20, e: 'hold', ...MS_IAI_HOLD, trail: true },
+      { t: 22, e: 'snap', ...MS_IAI_CUT },
+      { t: 36, e: 'lin', ...MS_IAI_CUT, w: -0.3 },
+      { t: 40, e: 'io', ...MS_IAI_SHEATH },
+      { t: 55, e: 'io', ...MS_STAND },
     ] },
   },
   start(sc) {
     const u = sc.user;
     sc.vars.still = Math.abs(u.vx) < 2 && Math.abs(u.vy) < 2;
     sc.vars.cut = [];
+    if (!sc.vars.still) sc.play('quick');
   },
   tick(sc) {
     const still = sc.vars.still;
-    if (sc.at(14)) {
+    const draw = still ? MS_IAI_DRAW.still : MS_IAI_DRAW.moving;
+    if (sc.at(3)) msIaiGlint(sc);
+    if (sc.at(draw)) {
       // The draw: one blink across the gap. Everything it passes is marked.
-      const dist = still ? 150 : 190;
+      const dist = still ? 150 : 170;
       const x0 = sc.ucx();
       for (let i = 0; i < 4; i++) sc.dash(dist / 4 / sc.dt);
       const x1 = sc.ucx();
@@ -1158,9 +1313,10 @@ msDefine('katana:q', {
       sc.shake(still ? 10 : 6);
       if (sc.vars.cut.length) sc.zoom(1.15, 40);
     }
-    if (sc.in(15, 36)) for (const t of sc.vars.cut) if (msHeld(sc, t)) sc.stop(t);
-    if (sc.at(34)) sc.sfx('iaiSheathe');
-    if (sc.at(37)) {
+    const land = draw + 23;
+    if (sc.in(draw + 1, land - 1)) for (const t of sc.vars.cut) if (msHeld(sc, t)) sc.stop(t);
+    if (sc.at(land - 3)) sc.sfx('iaiSheathe');
+    if (sc.at(land)) {
       for (const t of sc.vars.cut) {
         if (t.health <= 0) continue;
         const r = sc.hit(t, still ? 28 : 22, still ? 20 : 10, { big: true, color: '#ffffff' });
@@ -1178,6 +1334,201 @@ msDefine('katana:q', {
   },
   onEnd(sc) {
     if (sc.vars.roninReset) sc.user.abilityCooldown = 0;
+    // A draw that cut nothing leaves the blade out: the punish window for whoever jumped it.
+    if (!sc.vars.cut.length) sc.user.attackEndlag = Math.max(sc.user.attackEndlag || 0, MS_IAI_WHIFF_LAG);
+    return false;
+  },
+});
+
+// Q in the air: Falling Draw. The same hilt tell, then the draw goes down and forward and
+// lands the performer. Lighter than the ground draw, and the landing is its whiff punish.
+msDefine('katana:air:q', {
+  color: '#ccccff', endlag: 6, name: 'Falling Draw',
+  tracks: {
+    main: { len: 50, keys: [
+      { t: 0, ...MS_STAND, air: true },
+      { t: 6, e: 'out', ...MS_IAI_HOLD, air: true, rot: 0.2 },
+      { t: 15, e: 'hold', ...MS_IAI_HOLD, air: true, rot: 0.2, trail: true },
+      { t: 17, e: 'snap', ...MS_IAI_CUT, r: 0.55, w: 0.75, rot: 0.3 },
+      { t: 32, e: 'lin', ...MS_IAI_CUT, r: 0.55, w: 0.8, rot: 0.1 },
+      { t: 36, e: 'io', ...MS_IAI_SHEATH },
+      { t: 50, e: 'io', ...MS_STAND },
+    ] },
+  },
+  start(sc) { sc.vars.cut = []; },
+  tick(sc) {
+    if (sc.at(3)) msIaiGlint(sc);
+    if (sc.at(15)) {
+      const b = sc.ub, u = sc.user;
+      const x0 = sc.ucx(), y0 = sc.ucy();
+      b.x += sc.f * 140;
+      b.y += 120;
+      sc._clampBody(b);
+      const x1 = sc.ucx(), y1 = sc.ucy();
+      for (const t of _msAllFighters()) {
+        if (!sc._targetable(t)) continue;
+        if (msSegDist(t.cx(), t.cy(), x0, y0, x1, y1) > 46) continue;
+        const c = msCatch(sc, t, 6);
+        if (c === 'caught') { sc.vars.cut.push(t); if (msHeld(sc, t)) sc.vpose(t, 'frozen'); }
+      }
+      // Still airborne after the blink: drop the rest of the way.
+      if (_msGroundTop(x1, b.y + u.h, 4) === null) { b.kin = true; b.vx = 0; b.vy = 6; b.g = 0.7; }
+      sc.streak(x0, y0, x1 + sc.f * 24, y1 + 20, '#ccccff', 20, 6);
+      sc.sfx('swing');
+      sc.shake(8);
+      if (sc.vars.cut.length) sc.zoom(1.12, 36);
+    }
+    if (sc.in(16, 37)) for (const t of sc.vars.cut) if (msHeld(sc, t)) sc.stop(t);
+    if (sc.at(34)) sc.sfx('iaiSheathe');
+    if (sc.at(37)) {
+      for (const t of sc.vars.cut) {
+        if (t.health <= 0) continue;
+        sc.hit(t, 20, 12, { big: true, color: '#ffffff' });
+        if (msHeld(sc, t)) sc.release(t, 7, -6, { stun: 20 });
+      }
+      if (sc.vars.cut.length) { sc.flash('#ffffff', 0.16, 6); sc.freeze(5); sc.shake(14); }
+    }
+  },
+  onEnd(sc) {
+    if (!sc.vars.cut.length) sc.user.attackEndlag = Math.max(sc.user.attackEndlag || 0, MS_IAI_WHIFF_LAG);
+    return false;
+  },
+});
+
+// Swing + Q: Return Draw. A rising cut at the hip that, when it catches, sheathes and draws
+// again through the same body. Fast but point-blank, with no blink: spacing beats it, a guard stops it.
+msDefine('katana:aq:q', {
+  color: '#ccccff', endlag: 6, name: 'Return Draw',
+  tracks: {
+    main: { len: 22, keys: [
+      { t: 0, ...MS_IAI_HOLD },
+      { t: 5, e: 'snap', r: -0.9, rl: 1.1, w: -1.3, l: 1.6, ll: 0.8, lean: 8, drop: 6, fr: 16, fl: -12, trail: true },
+      { t: 22, e: 'io', ...MS_STAND },
+    ] },
+    ret: { len: 44, keys: [
+      { t: 0, r: -0.9, rl: 1.1, w: -1.3, l: 1.6, ll: 0.8, lean: 8, drop: 6, fr: 16, fl: -12 },
+      { t: 8, e: 'io', ...MS_IAI_HOLD },
+      { t: 12, e: 'hold', ...MS_IAI_HOLD, trail: true },
+      { t: 14, e: 'snap', ...MS_IAI_CUT },
+      { t: 28, e: 'lin', ...MS_IAI_CUT, w: -0.3 },
+      { t: 44, e: 'io', ...MS_STAND },
+    ] },
+  },
+  tick(sc) {
+    if (sc.track === 'main') {
+      if (sc.at(4)) {
+        sc.sfx('swing');
+        sc.slash(26, -4, 44, 1.2, -1.4, { color: '#ccccff', w: 8, life: 9 });
+        const c = msCatch(sc, sc.findFront(96, 56));
+        if (c === 'caught') {
+          sc.hit(sc.vars.v, 10, 0, { color: '#ffffff' });
+          if (msHeld(sc, sc.vars.v)) sc.vpose(sc.vars.v, 'frozen');
+          sc.play('ret');
+        }
+      }
+    } else if (sc.track === 'ret') {
+      const v = sc.vars.v;
+      if (!v || v.health <= 0) { if (sc.lt > 20) sc.end(); return; }
+      const held = msHeld(sc, v);
+      if (held && sc.lt < 14) sc.place(v, 40, 0, 0.4);
+      if (sc.at(10)) sc.sfx('iaiSheathe');
+      if (sc.at(14)) {
+        sc.streak(sc.ucx() - sc.f * 10, sc.ucy() - 2, sc.ucx() + sc.f * 70, sc.ucy() - 4, '#ffffff', 14, 6);
+        sc.sfx('swing');
+        if ((held || sc.near(v, 100)) && sc.hit(v, 16, 12, { big: true, color: '#ffffff' }) === 'hit') {
+          sc.freeze(5); sc.shake(12);
+        }
+        if (held) sc.release(v, 6, -11, { stun: 22 });
+      }
+    }
+  },
+  onEnd(sc, track) {
+    if (track === 'main') sc.user.attackEndlag = Math.max(sc.user.attackEndlag || 0, 12);
+    return false;
+  },
+});
+
+// Q + E: Crossing Moon. Iaijutsu's draw through them, then a turn and a second draw back the
+// other way. Both cuts land together on the sheath. The ground tell, a super's guard break.
+msDefine('katana:qe:e', {
+  color: '#ffffff', endlag: 8, name: 'Crossing Moon',
+  tracks: {
+    main: { len: 22, keys: [
+      { t: 0, ...MS_STAND },
+      { t: 8, e: 'out', ...MS_IAI_HOLD },
+      { t: 20, e: 'hold', ...MS_IAI_HOLD, trail: true },
+      { t: 22, e: 'snap', ...MS_IAI_CUT },
+    ] },
+    whiff: { len: 36, keys: [
+      { t: 0, ...MS_IAI_CUT },
+      { t: 16, e: 'lin', ...MS_IAI_CUT, w: -0.3 },
+      { t: 36, e: 'io', ...MS_STAND },
+    ] },
+    cross: { len: 60, keys: [
+      { t: 0, ...MS_IAI_CUT },
+      { t: 8, e: 'io', ...MS_IAI_HOLD },
+      { t: 12, e: 'hold', ...MS_IAI_HOLD, trail: true },
+      { t: 14, e: 'snap', ...MS_IAI_CUT },
+      { t: 30, e: 'lin', ...MS_IAI_CUT, w: -0.3 },
+      { t: 34, e: 'io', ...MS_IAI_SHEATH },
+      { t: 60, e: 'io', ...MS_STAND },
+    ] },
+  },
+  start(sc) { sc.vars.cut = []; },
+  tick(sc) {
+    if (sc.track === 'main') {
+      if (sc.at(3)) msIaiGlint(sc, '#ffe28a');
+      if (sc.at(20)) {
+        const x0 = sc.ucx();
+        for (let i = 0; i < 4; i++) sc.dash(200 / 4 / sc.dt);
+        const x1 = sc.ucx();
+        const lo = Math.min(x0, x1) - 16, hi = Math.max(x0, x1) + 30;
+        for (const t of _msAllFighters()) {
+          if (!sc._targetable(t)) continue;
+          if (t.cx() < lo || t.cx() > hi || Math.abs(t.cy() - sc.ucy()) > 64) continue;
+          if (msCatch(sc, t, 8) === 'caught') { sc.vars.cut.push(t); if (msHeld(sc, t)) sc.vpose(t, 'frozen'); }
+        }
+        sc.streak(x0, sc.ucy() - 2, x1 + sc.f * 30, sc.ucy() - 2, '#ffffff', 26, 7);
+        sc.sfx('swing');
+        sc.shake(10);
+        if (sc.vars.cut.length) { sc.zoom(1.18, 70); sc.play('cross'); }
+        else sc.play('whiff');
+      }
+    } else if (sc.track === 'cross') {
+      const cut = sc.vars.cut;
+      for (const t of cut) if (msHeld(sc, t)) sc.stop(t);
+      if (sc.at(9)) sc.f = -sc.f;
+      if (sc.at(13)) {
+        // Back through them to the side the draw started from.
+        const v = cut[0];
+        const b = sc.ub, x0 = sc.ucx();
+        if (v) b.x = v.cx() + sc.f * (v.w / 2 + 60) - sc.user.w / 2;
+        sc._clampBody(b);
+        sc.streak(x0, sc.ucy() + 4, sc.ucx() + sc.f * 30, sc.ucy() + 4, '#ffe28a', 26, 7);
+        sc.sfx('swing');
+        sc.shake(12);
+      }
+      if (sc.at(31)) sc.sfx('iaiSheathe');
+      if (sc.at(34)) {
+        for (const t of cut) {
+          if (t.health <= 0) continue;
+          sc.hit(t, 22, 0, { color: '#ffffff' });
+          MoveScene.fx.push({ kind: 'line', x0: t.cx() - 40, y0: t.cy() + 28, x1: t.cx() + 40, y1: t.cy() - 28, color: '#ffffff', life: 16, max: 16, w: 9 });
+        }
+      }
+      if (sc.at(40)) {
+        for (const t of cut) {
+          if (t.health <= 0) continue;
+          sc.hit(t, 30, 18, { big: true, color: '#ffe28a' });
+          MoveScene.fx.push({ kind: 'line', x0: t.cx() - 40, y0: t.cy() - 28, x1: t.cx() + 40, y1: t.cy() + 28, color: '#ffe28a', life: 16, max: 16, w: 9 });
+          if (msHeld(sc, t)) sc.release(t, -12, -9, { tumble: 30, stun: 26 });
+        }
+        sc.flash('#ffffff', 0.3, 8); sc.freeze(8); sc.shake(22);
+      }
+    }
+  },
+  onEnd(sc, track) {
+    if (track === 'whiff') sc.user.attackEndlag = Math.max(sc.user.attackEndlag || 0, MS_IAI_WHIFF_LAG + 6);
     return false;
   },
 });
@@ -1354,15 +1705,20 @@ msDefine('knives:e', msCast({
     { t: 24, e: 'io', r: 0.95 + MS_TAU, w: 0.75 + MS_TAU, l: 1.4, lean: 0, drop: 0, fr: 7, fl: -7 },
   ],
 }));
+// Shatterstep holds the draw long enough to read (the glint), then dashes and throws the shards.
 msDefine('glassblade:q', msCast({
-  color: '#d8f6ff', len: 24, fireAt: 7,
+  color: '#d8f6ff', len: 30, fireAt: 13,
   keys: [
     { t: 0, ...MS_STAND },
     { t: 5, e: 'out', ...MS_IAI_HOLD },
-    { t: 8, e: 'snap', ...MS_IAI_CUT, trail: true },
-    { t: 24, e: 'io', ...MS_STAND },
+    { t: 11, e: 'hold', ...MS_IAI_HOLD, trail: true },
+    { t: 14, e: 'snap', ...MS_IAI_CUT, trail: true },
+    { t: 30, e: 'io', ...MS_STAND },
   ],
-  tick(sc) { if (sc.in(5, 14)) sc.dash(13); },
+  tick(sc) {
+    if (sc.at(2)) msIaiGlint(sc, '#d8f6ff');
+    if (sc.in(11, 20)) sc.dash(13);
+  },
 }));
 msDefine('glassblade:e', msCast({
   color: '#d8f6ff', len: 26, fireAt: 11,
@@ -1556,3 +1912,26 @@ msDefine('gauntlet:e', msCast({
   ],
   onFire(sc) { sc.shake(10); sc.sfx('swing'); },
 }));
+
+// Frames until an Iaijutsu draw from `opp` cuts through f, or 0 when none is coming. Read off the
+// hilt tell after a reaction delay, the way a player sees it. Sovereign jumps it straight up and
+// lands on the drawer's recovery (smb-brain.js / smb-smk2-class.js).
+const MS_IAI_READ = 8;
+function msIaiThreat(f, opp) {
+  const sc = opp && opp._msScene;
+  if (!f || !sc || sc.done || f.health <= 0) return 0;
+  let draw, reach;
+  if (sc.key === 'katana:q' && (sc.track === 'main' || sc.track === 'quick')) {
+    draw = sc.vars.still ? MS_IAI_DRAW.still : MS_IAI_DRAW.moving;
+    reach = sc.vars.still ? 150 : 170;
+  } else if (sc.key === 'katana:qe:e' && sc.track === 'main') {
+    draw = 20; reach = 200;
+  } else return 0;
+  if (sc.lt < MS_IAI_READ || sc.lt >= draw) return 0;
+  const rel = (f.cx() - sc.ucx()) * sc.f;
+  if (rel < -24 || rel > reach + 50) return 0;
+  // Already over it: still a threat until the draw passes, or a fast fall drops back into the cut.
+  const dy = f.cy() - sc.ucy();
+  if (dy > 80 || dy < (f.onGround ? -80 : -420)) return 0;
+  return Math.max(1, Math.ceil(draw - sc.lt));
+}

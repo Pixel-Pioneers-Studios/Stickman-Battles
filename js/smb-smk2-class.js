@@ -6046,6 +6046,21 @@ class SovereignMK2 extends AdaptiveAI {
 
     this._observeAlways();
 
+    // An Iaijutsu draw is read off its hilt tell (its own reaction delay, MS_IAI_READ), so it runs
+    // ahead of the act gate: jump straight up, the draw passes under, land on the recovery.
+    const _iaiFrom = this.target;
+    if (_iaiFrom && typeof msIaiThreat === 'function' && msIaiThreat(this, _iaiFrom) &&
+        !(this.ragdollTimer > 0 || this.stunTimer > 0)) {
+      if (this.onGround) {
+        const _g = currentArena && currentArena.isLowGravity ? -14 : currentArena && currentArena.isHeavyGravity ? -22 : -19;
+        this.vy = _g;
+      }
+      this.vx = 0;
+      this.aiReact = 0;
+      this._commit('iai_read');
+      return;
+    }
+
     // Inherited guard checks
     if (this.aiReact > 0) { this.aiReact--; return; }
     if (this.ragdollTimer > 0 || this.stunTimer > 0) return;

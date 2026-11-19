@@ -37,6 +37,102 @@ const MS_POSE_DEF  = { r: 1.82, l: 1.32, rl: 1, ll: 1, w: 1.82, wl: 1, lean: 0, 
 
 function msDefine(key, def) { MS_DEFS[key] = def; }
 
+// Variants. A key's last segment is the level the move plays at ('q' ability,
+// 'e' super), so guard rules and finishers that read `:q` / `:e` still apply.
+//  'katana:air:q'  the ability started off the ground
+//  'katana:aq:q'   swing + ability pressed together (merge, plays as an ability)
+//  'katana:qe:e'   ability + super (merge, plays as a super)
+//  'katana:ae:e'   swing + super
+// A merge costs both buttons. Three buttons never merge: a merge scene is busy.
+const MS_MERGE_WINDOW = 8;          // frames between the two presses of a merge
+
+function msVariantKey(user, kind) {
+  const w = user.weaponKey || '';
+  if (kind === 'aq') return w + ':aq:q';
+  if (kind === 'qe') return w + ':qe:e';
+  if (kind === 'ae') return w + ':ae:e';
+  if (!user.onGround && MS_DEFS[w + ':air:' + kind]) return w + ':air:' + kind;
+  return w + ':' + kind;
+}
+
+// A super spent breaking out (a stun burst or a held-move break) shows the breaker's weapon, not a
+// generic flash. Look only: the break itself deals nothing.
+const MS_BREAK_LOOK = {
+  blade:  ['sword', 'katana', 'glassblade', 'scythe', 'axe', 'nullblade', 'voidblade'],
+  blunt:  ['hammer', 'fryingpan', 'flail', 'anchor', 'shield', 'combat'],
+  pierce: ['spear', 'broomstick', 'whip', 'knives', 'crossbow', 'bow'],
+  shot:   ['gun', 'peashooter', 'slingshot', 'bomb', 'boomerang', 'paperairplane'],
+};
+function msBreakLook(f) {
+  if (!f || typeof MoveScene === 'undefined') return;
+  const wk = f.weaponKey || '', wt = f.weapon && f.weapon.weaponType;
+  const col = (f.weapon && f.weapon.color) || f.color || '#ffffff';
+  const x = f.cx(), y = f.cy(), feet = f.y + f.h;
+  const fx = MoveScene.fx;
+  const line = (x0, y0, x1, y1, c, w, life) => fx.push({ kind: 'line', x0, y0, x1, y1, color: c, life, max: life, w });
+  const ring = (r, c, life, yy) => fx.push({ kind: 'ring', x, y: yy === undefined ? y : yy, r0: 10, r, color: c, life, max: life });
+  const arc = (a0, a1, r, tilt, c) => fx.push({ kind: 'arc', x, y, r, ry: r, a0, a1, f: 1, tilt, color: c, w: 9, life: 14, max: 14 });
+  let fam = Object.keys(MS_BREAK_LOOK).find(k => MS_BREAK_LOOK[k].includes(wk));
+  if (!fam) fam = wt === 'heavy' ? 'blunt' : wt === 'ranged' ? 'shot' : 'blade';
+  if (wk === 'katana') {
+    // One iai line straight through, then the sheath glint.
+    line(x - 170, y - 4, x + 170, y + 4, '#ffffff', 10, 16);
+    line(x - 120, y + 10, x + 120, y - 10, col, 5, 13);
+    fx.push({ kind: 'star', x, y: y + 8, r: 40, color: '#ffffff', life: 16, max: 16, a: Math.PI / 4 });
+  } else if (wk === 'flamethrower') {
+    ring(120, '#ff5500', 20); ring(80, '#ffcc33', 15);
+    for (let i = 0; i < 10; i++) { const a = -Math.PI * (0.1 + 0.8 * i / 9); line(x, y, x + Math.cos(a) * 95, y + Math.sin(a) * 95, i % 2 ? '#ff7700' : '#ffcc33', 7, 14); }
+  } else if (wk === 'electricstaff') {
+    // Jagged bolts out of the body.
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.3;
+      let px = x, py = y;
+      for (let s = 1; s <= 4; s++) {
+        const r = s * 26, j = (s % 2 ? 1 : -1) * 0.35;
+        const nx = x + Math.cos(a + j) * r, ny = y + Math.sin(a + j) * r;
+        line(px, py, nx, ny, s % 2 ? col : '#ffffff', 4, 12);
+        px = nx; py = ny;
+      }
+    }
+    ring(100, col, 14);
+  } else if (fam === 'blade') {
+    // Four crescents cut outward in a pinwheel, an X through the middle.
+    for (let i = 0; i < 4; i++) arc(-1.1, 1.1, 62, i * Math.PI / 2, i % 2 ? '#ffffff' : col);
+    line(x - 80, y - 80, x + 80, y + 80, col, 6, 12);
+    line(x - 80, y + 80, x + 80, y - 80, col, 6, 12);
+  } else if (fam === 'blunt') {
+    // Ground shock: rings at the feet, cracks running out along the floor.
+    ring(140, col, 22, feet); ring(90, '#ffffff', 16, feet);
+    for (let i = 0; i < 8; i++) {
+      const d = i % 2 ? 1 : -1, len = 40 + (i >> 1) * 22;
+      line(x, feet, x + d * len, feet - 6 - (i >> 1) * 10, i % 3 ? col : '#ffffff', 5, 16);
+    }
+    fx.push({ kind: 'star', x, y, r: 54, color: col, life: 12, max: 12, a: 0 });
+  } else if (fam === 'pierce') {
+    // Thin spokes thrown out in every direction.
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2, r0 = 18, r1 = 90 + (i % 3) * 18;
+      line(x + Math.cos(a) * r0, y + Math.sin(a) * r0, x + Math.cos(a) * r1, y + Math.sin(a) * r1, i % 2 ? '#ffffff' : col, 4, 14);
+    }
+    ring(70, col, 12);
+  } else {
+    // Muzzle flash: a hard star and a ring of short tracers.
+    fx.push({ kind: 'star', x, y, r: 66, color: col, life: 12, max: 12, a: 0.2 });
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      line(x + Math.cos(a) * 50, y + Math.sin(a) * 50, x + Math.cos(a) * 82, y + Math.sin(a) * 82, col, 5, 10);
+    }
+    ring(110, '#ffffff', 14);
+  }
+  spawnParticles(x, y, col, 18);
+}
+
+// The base move a variant key belongs to ('katana:air:q' -> 'katana:q').
+function msBaseKey(key) {
+  const p = String(key || '').split(':');
+  return p.length > 2 ? p[0] + ':' + p[p.length - 1] : key;
+}
+
 function msEase(e, u) {
   u = u < 0 ? 0 : u > 1 ? 1 : u;
   switch (e) {
@@ -459,14 +555,18 @@ const MoveScene = {
     if (user._adminKit || (user.weapon && user.weapon._isCustom)) return false;
     if (typeof WEAPONS !== 'undefined' && user.weapon && WEAPONS[user.weaponKey] && user.weapon !== WEAPONS[user.weaponKey] &&
         user.weapon.ability !== WEAPONS[user.weaponKey].ability) return false;
-    const key = (user.weaponKey || '') + ':' + kind;
-    const def = MS_DEFS[key];
+    let key = msVariantKey(user, kind);
+    let def = MS_DEFS[key];
+    if (def && def.when && !def.when(user)) def = null;
+    const merge = kind.length > 1 ? kind : null;
+    if (!def && !merge && key !== user.weaponKey + ':' + kind) { key = user.weaponKey + ':' + kind; def = MS_DEFS[key]; }
     if (!def) return false;
     if (def.when && !def.when(user)) return false;
+    kind = key.slice(key.lastIndexOf(':') + 1);
     const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
     const sc = Object.create(MS_PROTO);
     Object.assign(sc, {
-      key, def, kind, user, target, legacy,
+      key, def, kind, merge, user, target, legacy,
       f: user.facing < 0 ? -1 : 1,
       t: 0, t0: 0, lt: 0, lprev: -1e-6, dt: 1, len: 0, track: 'main',
       bodies: new Map(), victims: [], vars: {}, done: false, fired: false,
@@ -486,6 +586,7 @@ const MoveScene = {
     // A weapon still out from a throw is hidden by that throw, not by this fighter's baseline.
     if (!user._msHideWhile) user._msHideWas = user._hideWeapon;
     this.scenes.push(sc);
+    user._msMergeOpen = merge ? null : { kind, frame: fc };
     this._netCur = MoveSceneNet.sends(user) ? sc : null;
     if (def.start) def.start(sc);
     this._pose(sc);
@@ -494,6 +595,66 @@ const MoveScene = {
   },
 
   isBusy(f) { return !!(f && (f._msScene || f._msLock)); },
+
+  // A swing starting opens the merge window the same way a Q/E scene does (begin()).
+  openSwing(user) {
+    if (user) user._msMergeOpen = { kind: 'a', frame: typeof frameCount !== 'undefined' ? frameCount : 0 };
+  },
+
+  // Second press of a merge (press: 'a', 'q' or 'e'). The first move is cancelled if it
+  // has not connected yet, the second button is paid for, and the merged scene plays.
+  // Returns false when there is nothing to merge with, and the press goes on as normal.
+  tryMerge(user, press, target) {
+    const o = user && user._msMergeOpen;
+    if (!o || o.kind === press) return false;
+    const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
+    if (fc - o.frame > MS_MERGE_WINDOW) { user._msMergeOpen = null; return false; }
+    const pair = ['a', 'q', 'e'].filter(k => k === press || k === o.kind).join('');
+    const key = msVariantKey(user, pair);
+    const def = MS_DEFS[key];
+    if (!def || (def.when && !def.when(user))) return false;
+    if (user.health <= 0 || user.stunTimer > 0 || user.ragdollTimer > 0 || user._msLock) return false;
+    if ((typeof isCinematic !== 'undefined' && isCinematic) || (typeof activeFinisher !== 'undefined' && activeFinisher)) return false;
+    if (user._adminKit || (user.weapon && user.weapon._isCustom) || !user.weapon) return false;
+    // The second button must be ready on its own.
+    if (press === 'q' && (user.abilityCooldown > 0 || user._storyNoAbility)) return false;
+    if (press === 'e' && (!user.superReady || user._storyNoSuper)) return false;
+    if (press === 'a' && (user.cooldown > 0 || user.attackEndlag > 0)) return false;
+    // The first move has already landed: it plays out, no merge.
+    const sc = user._msScene;
+    if (o.kind === 'a') { if (user.weaponHit || sc) return false; }
+    else if (!sc || sc.kind !== o.kind || sc.merge || sc.landed) return false;
+    const tgt = target || user.target || (typeof players !== 'undefined' && players.find(p => p !== user && p.health > 0)) || null;
+    if (!tgt) return false;
+    if (sc) this.abort(sc);
+    user.attackTimer = 0;
+    const pay = k => {
+      if (k === 'a') {
+        const wc = user.weapon.cooldown || 30;
+        user.cooldown = Math.max(user.cooldown || 0, user.attackCooldownMult ? Math.ceil(wc * user.attackCooldownMult) : wc);
+      } else if (k === 'q') {
+        user.abilityCooldown = Math.round((user.weapon.abilityCooldown || 180) * (user._weaponAbilityCdMult || 1));
+      } else if (k === 'e' && user.superReady) {
+        if (!user.isBoss && typeof SUPER_HEAL !== 'undefined') user._superHealPending = SUPER_HEAL;
+        user.superMeter = 0;
+        user.superReady = false;
+      }
+    };
+    // The first button was paid when its own move started.
+    pay(press);
+    user._attackKindTier = pair.indexOf('e') >= 0 ? CLASH_TIER_SUPER : CLASH_TIER_ABILITY;
+    user._attackStartFrame = fc;
+    if (typeof user._resetBasicChainForMove === 'function') user._resetBasicChainForMove();
+    if (!this.begin(user, pair, tgt, null)) return false;
+    if (pair.indexOf('e') >= 0) {
+      if (typeof animeSuperFX === 'function') animeSuperFX(user);
+      if (typeof SoundManager !== 'undefined' && SoundManager.superActivate) SoundManager.superActivate();
+    } else if (typeof animeAbilityFX === 'function') animeAbilityFX(user);
+    if (typeof damageTexts !== 'undefined' && typeof DamageText !== 'undefined' && def.name) {
+      damageTexts.push(new DamageText(user.cx(), user.y - 30, def.name.toUpperCase(), def.color || '#ffffff'));
+    }
+    return true;
+  },
 
   update() {
     MoveSceneNet.tick();
@@ -705,6 +866,7 @@ const MoveScene = {
     v._comboHitCount = 0;
     u._comboHitCount = 0;
     this._breakFx(v, dir, vx, vy);
+    msBreakLook(v);
     if (!v.isAI && typeof _achStats !== 'undefined') _achStats.superCount = (_achStats.superCount || 0) + 1;
     return true;
   },

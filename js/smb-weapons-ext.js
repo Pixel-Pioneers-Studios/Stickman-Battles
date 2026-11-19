@@ -853,8 +853,12 @@ function _wxUpdateGlass(user) {
       for (const t of hostiles) {
         if (s.hit.has(t) || !_wxTouches(t, s.x, s.y, 4)) continue;
         s.hit.add(t);
+        const guarded = !!t.shielding;
         const d = _wxCapped(s.capMap, t, s.dmg, s.cap);
         if (d > 0) _wxHit(user, t, d, 4, 0);
+        // A raised guard takes the volley as one hit: the rest of it shatters on the guard,
+        // so a shield on sight answers the fan instead of being chipped through by it.
+        if (guarded) s.capMap.set(t, s.cap);
         s.gone = true;
         break;
       }

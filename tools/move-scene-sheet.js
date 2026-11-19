@@ -65,7 +65,7 @@ function serve() {
   const NOISE = /onrender\.com|crazygames|CrazySDK|supabase|live-config|\/api\/|net::ERR|Failed to load resource|404|CORS|ERR_CONNECTION|socket\.io|peerjs/i;
   const errors = [];
   page.on('pageerror', e => errors.push(String(e && e.message || e)));
-  page.on('console', m => { if (m.type() === 'error' && !NOISE.test(m.text())) errors.push('console: ' + m.text()); });
+  page.on('console', m => { if ((m.type() === 'error' || (m.type() === 'warning' && /MoveScene/.test(m.text()))) && !NOISE.test(m.text())) errors.push('console: ' + m.text()); });
 
   await page.goto(`http://localhost:${PORT}/index.html`, { waitUntil: 'load', timeout: 60000 });
   await new Promise(r => setTimeout(r, 2500));
@@ -112,7 +112,9 @@ function serve() {
 
   const results = [];
   for (const key of keys) {
-    const [wk, kind] = key.split(':');
+    // 'katana:q', 'katana:air:q' (fired off the ground), 'katana:qe' / 'katana:aq:q' (merge: two presses).
+    const _kp = key.split(':');
+    const wk = _kp[0], kind = _kp.slice(1).join(':');
     const res = await page.evaluate(async (wk, kind, cfg) => {
       const out = { key: wk + ':' + kind, frames: [], errors: [] };
       // Real time has to pass between frames: some volleys are setTimeout-driven.
@@ -173,8 +175,18 @@ function serve() {
         p1.x = x1; p2.x = x1 + fdir * cfg.gap; p1.facing = fdir;
         if (cfg.victim === 'shield') { p2.shielding = true; }
         const hp0 = p2.health;
-        if (kind === 'e') { p1.superMeter = 100; p1.superReady = true; p1.useSuper(p2); }
+        const _merge = /^(aq|qe|ae)/.exec(kind);
+        if (kind.startsWith('air')) { p1.y -= 130; p1.onGround = false; }
+        if (_merge) {
+          const m = _merge[1];
+          p1.superMeter = 100; p1.superReady = true;
+          const press = k => k === 'a' ? p1.attack(p2) : k === 'q' ? p1.ability(p2) : p1.useSuper(p2);
+          press(m[0]);
+          for (let i = 0; i < 3; i++) { __step(1); await tick(); }
+          out.merged = MoveScene.tryMerge(p1, m[1], p2);
+        } else if (kind.endsWith('e')) { p1.superMeter = 100; p1.superReady = true; p1.useSuper(p2); }
         else p1.ability(p2);
+        out.sceneKey = p1._msScene && p1._msScene.key;
         out.started = !!p1._msScene;
         // Record the draw transform so the sheet can crop world space.
         let T = null;
@@ -229,7 +241,7 @@ function serve() {
       return out;
     }, wk, kind, { frames: FRAMES, every: EVERY, gap: GAP, victim: VICTIM, edge: EDGE, key, ww: parseInt(args.ww, 10) || 380, brk: parseInt(args.break, 10) || 0, left: !!args.left });
     if (res.sheet && (args.sheets || !args.all)) {
-      const fn = path.join(OUT, `${wk}-${kind}${EDGE ? '-edge' : ''}${VICTIM !== 'idle' ? '-' + VICTIM : ''}${args.break ? '-break' : ''}${args.left ? '-left' : ''}.png`);
+      const fn = path.join(OUT, `${wk}-${kind.replace(/:/g, '-')}${EDGE ? '-edge' : ''}${VICTIM !== 'idle' ? '-' + VICTIM : ''}${args.break ? '-break' : ''}${args.left ? '-left' : ''}.png`);
       fs.writeFileSync(fn, Buffer.from(res.sheet.split(',')[1], 'base64'));
       res.sheetFile = fn;
     }
@@ -239,7 +251,7 @@ function serve() {
     results.push(res);
     if (args.hits) console.log('   hits: ' + (res.hits || []).join(' | '));
     if (res.broke) console.log('   break: ' + JSON.stringify(res.broke));
-    console.log(JSON.stringify({ key: res.key, started: res.started, dmg: res.dmg, held: res.heldFrames, stillRunning: res.endScene,
+    console.log(JSON.stringify({ key: res.key, scene: res.sceneKey, merged: res.merged, started: res.started, dmg: res.dmg, held: res.heldFrames, stillRunning: res.endScene,
       p1End: res.p1End, p2End: res.p2End, errors: res.errors, sheet: res.sheetFile }));
   }
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify(results, null, 2));
