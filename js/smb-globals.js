@@ -43,11 +43,33 @@ const SERVER_CONFIG = {
 
 const CHANGELOG = [
   {
+    version: '4.10.0',
+    title: 'THE ROAD BACK',
+    date: '2026-11-18',
+    flavor: 'The story opens up: rooms off the road, dungeons to clear, relics that open sealed seams in places you have already been, and a way back to them.',
+    isLatest: true,
+    changes: [
+      { cat: 'Story',   text: 'Side areas: every walkable chapter from 1 to 50 now has a door off the road. Cellars, vaults and folded pockets of the world, each with a puzzle, a guardian or both, and chests of tokens and EXP' },
+      { cat: 'Story',   text: 'Dungeons: whole multi-room dungeons in the story, with stone blocks and pressure plates, levers, breakable walls, lifts, updrafts, swinging traps, ledges that give way and rooms you have to light yourself' },
+      { cat: 'Story',   text: 'Relics: three dungeons each hold a relic you need to move on. Each relic opens the sealed seams you walked past in earlier chapters, and tells you where they were' },
+      { cat: 'Story',   text: 'Travel, in the pause menu: from a lit beacon, go to any other beacon you have lit. Or pull yourself back along the fragment\'s trail, up to 10 chapters and never forwards. The trail is unstable: it hurts, it needs time to settle, and sometimes it drops you further back than you aimed' },
+      { cat: 'Story',   text: 'Going back to a chapter you have beaten: no duel, and only part of its enemies stand guard' },
+      { cat: 'Story',   text: 'Continue picks up at the last beacon you lit. The chapter list opens once you finish the story' },
+      { cat: 'Story',   text: 'A hooded shopkeeper trades in the world now. Be polite to him. The skill tree is in the pause menu, and nodes you buy apply straight away' },
+      { cat: 'Story',   text: 'New Journal pages are hidden in dungeons' },
+      { cat: 'Weapon',  text: 'Move variants for the Katana and the Sword: Q in the air, swing and Q together, and Q and E together each make a different move. Pressing two keys together pays for both' },
+      { cat: 'Balance', text: 'Katana Iaijutsu has a hilt glint before the draw and a slower draw, so it can be jumped or blocked when you see it coming' },
+      { cat: 'Balance', text: 'Pea Storm braces and glows before firing 7 shots. Shatterstep has a glint before the dash. A raised guard takes a Glass Blade volley as a single hit' },
+      { cat: 'Visual',  text: 'A super that breaks out of a combo has its own look for each weapon family' },
+      { cat: 'Fix',     text: 'Hits no longer pass through closed doors, and enemies can no longer dash through them' },
+    ],
+  },
+  {
     version: '4.9.0',
     title: 'NAMED ARMS',
     date: '2026-11-15',
     flavor: 'A new home screen, the prequels inside the game, a Journal that fills in as you play, and weapons with names worth fearing.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'UI',      text: 'New home screen: your fighter stands on a ledge beside the mode list, with one PLAY button to get straight into a match. The game also loads faster' },
       { cat: 'Prequel', text: 'The prequels are now playable from the Prequels tile on the home screen, with the same controls and fighters as the main game. Their chapters open as you progress through the main story, so they spoil nothing' },
@@ -1334,7 +1356,7 @@ let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-const GAME_VERSION = '4.9.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.10.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 let debugMode          = false;
