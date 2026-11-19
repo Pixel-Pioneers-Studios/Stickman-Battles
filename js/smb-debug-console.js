@@ -1920,7 +1920,23 @@ function _consoleExec(raw) {
     switch (c0) {
       case 'devkey':
         if (typeof DevKey === 'undefined') { _consoleErr('Developer keys are not loaded.'); return true; }
-        if (String(a1 || '').toLowerCase() === 'forget') { DevKey.forget(); _consoleOk('Developer key removed from this device.'); return true; }
+        if (String(a1 || '').toLowerCase() === 'forget') {
+          DevKey.forget();
+          // Builds before this fix saved role 'dev' onto the dev-key account. Take it back unless the
+          // account is a hard-coded superuser, then relock the console so the powers end now.
+          try {
+            const _a = (typeof AccountManager !== 'undefined') ? AccountManager.getActiveAccount() : null;
+            if (_a && _a.role === 'dev' && SUPERUSER_ACCOUNT_IDS.indexOf(String(_a.id)) === -1) {
+              GameState.update(function (s) { const r = s.persistent.accounts && s.persistent.accounts[_a.id]; if (r) r.role = 'player'; });
+              GameState.save();
+            }
+          } catch (e) {}
+          _consoleOk('Developer key removed from this device.');
+          consoleUnlocked = false;
+          _consoleIsAdmin = false;
+          setTimeout(function () { closeGameConsole(); }, 600);
+          return true;
+        }
         _consolePrint(DevKey.active() ? 'This device holds a valid developer key.' : 'No developer key on this device.', '#88bbff');
         return true;
       case 'debugmenu':

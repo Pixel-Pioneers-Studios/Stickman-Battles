@@ -37,11 +37,14 @@ const AccountManager = (() => {
       });
     }
 
-    // Keep immutable superuser accounts pinned to the top role.
-    if (p.accounts && Object.values(p.accounts).some(function(a) { return a && isSuperuserAccountId(a.id) && a.role !== 'dev'; })) {
+    // Keep immutable superuser accounts pinned to the top role. Hard-coded IDs only: a developer
+    // key grants powers live through isSuperuserAccountId() and must never be written into the save,
+    // or `devkey forget` could not take them back.
+    const _pinned = function(a) { return a && SUPERUSER_ACCOUNT_IDS.indexOf(String(a.id)) !== -1; };
+    if (p.accounts && Object.values(p.accounts).some(function(a) { return _pinned(a) && a.role !== 'dev'; })) {
       GameState.update(function(s) {
         Object.values(s.persistent.accounts || {}).forEach(function(a) {
-          if (a && isSuperuserAccountId(a.id)) a.role = 'dev';
+          if (_pinned(a)) a.role = 'dev';
         });
       });
     }
@@ -417,8 +420,10 @@ function isSuperuserAccountId(accountId) {
   if (SUPERUSER_ACCOUNT_IDS.indexOf(String(accountId)) !== -1) return true;
   // A developer key (smb-admin-session.js) makes the account active on this device a superuser.
   if (typeof DevKey !== 'undefined' && DevKey.active()) {
-    const active = AccountManager.getActiveAccount();
-    return !!active && active.id === String(accountId);
+    // Read GameState directly: this runs from loadAccounts() while AccountManager is still
+    // being constructed, so touching AccountManager here throws a TDZ ReferenceError.
+    const p = GameState.getPersistent();
+    return !!(p && p.accounts && p.accounts[p.activeAccountId]) && p.activeAccountId === String(accountId);
   }
   return false;
 }
