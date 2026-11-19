@@ -49,3 +49,9 @@ data/brain/*-cand.json
 data/brain/ship-*.json
 data/brain/*-clone.json
 data/brain/latest.js
+# tools/music/orch: its Python env, the ~960 MB of CC0 samples fetch_samples.sh downloads, and renders.
+tools/music/orch/.venv/
+tools/music/orch/.venv-ears/
+tools/music/orch/samples/
+tools/music/orch/out/
+tools/music/orch/__pycache__/

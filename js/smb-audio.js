@@ -223,8 +223,9 @@ const MusicManager = (() => {
   let _pendingTrack = null;  // track queued before API ready
 
   // Local soundtrack, preferred over YouTube so music works offline and on locked-down hosts.
+  // A track with loop points plays its intro once, then loops [loopStart, loopEnd) sample-accurately.
   const _localSources = {
-  boss: 'audio/music/boss-threshold.mp3',
+  boss: { src: 'audio/music/boss-ninety-fifth.mp3', loopStart: 13.714286, loopEnd: 123.428571 },
   story: 'audio/music/story-embers.mp3',
   battleroyale: 'audio/music/battle-royale.mp3',
   arena: 'audio/music/arena-neon.mp3',
@@ -236,11 +237,71 @@ const MusicManager = (() => {
   if (!isFinite(_scale)) _scale = 1;
   function _localVolume() { return _muted ? 0 : (_ducked ? 0.035 : 0.18) * _scale; }
 
+  // <audio loop> can't loop a section without a gap, so looped tracks go through Web Audio. The player
+  // exposes the same volume/pause/paused surface as an Audio element; if decoding fails it falls back to one.
+  let _musicCtx = null;
+  const _decoded = {};
+  function _loopPlayer(def) {
+    const p = { paused: false, currentTime: 0, _gain: null, _src: null, _vol: 0, _fallback: null };
+    Object.defineProperty(p, 'volume', {
+      get() { return p._vol; },
+      set(v) {
+        p._vol = v;
+        if (p._gain) p._gain.gain.setTargetAtTime(v, _musicCtx.currentTime, 0.05);
+        if (p._fallback) p._fallback.volume = v;
+      },
+    });
+    p.pause = () => {
+      p.paused = true;
+      try { if (p._src) p._src.stop(); } catch (e) {}
+      if (p._fallback) p._fallback.pause();
+    };
+    const fallback = () => {
+      if (p.paused) return;
+      p._fallback = new Audio(def.src);
+      p._fallback.loop = true;
+      p._fallback.volume = p._vol;
+      const q = p._fallback.play();
+      if (q && q.catch) q.catch(() => {});
+    };
+    const start = (buf) => {
+      if (p.paused) return;
+      const src = _musicCtx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.loopStart = def.loopStart;
+      src.loopEnd = def.loopEnd;
+      const g = _musicCtx.createGain();
+      g.gain.value = p._vol;
+      src.connect(g); g.connect(_musicCtx.destination);
+      src.start();
+      p._src = src; p._gain = g;
+    };
+    p.play = () => {
+      try {
+        if (!_musicCtx) _musicCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (_musicCtx.state === 'suspended') _musicCtx.resume();
+      } catch (e) { fallback(); return; }
+      if (_decoded[def.src]) { start(_decoded[def.src]); return; }
+      fetch(def.src).then(r => r.arrayBuffer()).then(b => _musicCtx.decodeAudioData(b))
+        .then(buf => { _decoded[def.src] = buf; start(buf); })
+        .catch(fallback);
+    };
+    return p;
+  }
+
   function _playLocal(track) {
     const src = _localSources[track];
     if (!src) return false;
     if (_localCurrent === track && _localAudio && ! _localAudio.paused) return true;
     if (_localAudio) { _localAudio.pause(); _localAudio.currentTime = 0; }
+    if (typeof src === 'object') {
+      _localAudio = _loopPlayer(src);
+      _localAudio.volume = _localVolume();
+      _localCurrent = track;
+      _localAudio.play();
+      return true;
+    }
     _localAudio = new Audio(src);
     _localAudio.loop = true;
     _localAudio.volume = _localVolume();
