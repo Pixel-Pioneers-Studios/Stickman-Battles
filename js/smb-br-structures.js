@@ -872,7 +872,7 @@ function _brsDrawFacade() {
     ctx.fillStyle = '#10161f'; ctx.fillRect(dx, o.ground - 84, colW - 16, 84);
     ctx.fillStyle = 'rgba(143,220,255,0.55)';
     ctx.fillRect(dx + 4, o.ground - 80, (colW - 24) / 2, 80); ctx.fillRect(dx + 8 + (colW - 24) / 2, o.ground - 80, (colW - 24) / 2, 80);
-    ctx.fillStyle = '#ffd27a'; ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd27a'; ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillText('OFFICES', o.x + o.w / 2, o.ground - 96);
     ctx.globalAlpha = 1;
   }
@@ -927,7 +927,7 @@ function _brsDrawHeatGauge() {
   if (!_brsOnScreen(cx, y, 200)) return;
   ctx.textAlign = 'center';
   if (brVolcState !== 'idle') {
-    ctx.font = 'bold 15px Arial';
+    ctx.font = `bold 15px ${FONT_UI}`;
     ctx.fillStyle = brVolcState === 'cool' ? 'rgba(255,170,90,0.35)' : 'rgba(255,90,30,0.85)';
     ctx.fillText(brVolcState === 'cool' ? 'COOLING' : 'ERUPTING', cx, y + 5);
     return;
@@ -937,7 +937,7 @@ function _brsDrawHeatGauge() {
     ctx.fillStyle = on ? '#ff6a1a' : 'rgba(255,140,60,0.18)';
     ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 7); ctx.lineTo(x - 6, y); ctx.closePath(); ctx.fill();
   }
-  ctx.font = 'bold 11px Arial'; ctx.fillStyle = 'rgba(255,150,90,0.45)';
+  ctx.font = `bold 11px ${FONT_UI}`; ctx.fillStyle = 'rgba(255,150,90,0.45)';
   ctx.fillText('KILLS IN THE PIT FEED IT', cx, y + 22);
 }
 
@@ -946,7 +946,7 @@ function drawBRStructuresHUD() {
   if (brBridgeBanner > 0) {
     ctx.save();
     ctx.globalAlpha = Math.max(0, Math.min(1, brBridgeBanner / 30, (150 - brBridgeBanner) / 10));
-    ctx.textAlign = 'center'; ctx.font = 'bold 26px Arial';
+    ctx.textAlign = 'center'; ctx.font = `bold 26px ${FONT_DISPLAY}`;
     ctx.fillStyle = '#bfefff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 10;
     ctx.fillText('THE BRIDGE SNAPPED', GAME_W / 2, GAME_H * 0.3);
     ctx.restore();
@@ -956,7 +956,7 @@ function drawBRStructuresHUD() {
   ctx.save();
   ctx.globalAlpha = Math.max(0, a);
   ctx.textAlign = 'center';
-  ctx.font = 'bold 26px Arial';
+  ctx.font = `bold 26px ${FONT_DISPLAY}`;
   ctx.fillStyle = '#ff6a1a'; ctx.shadowColor = '#000'; ctx.shadowBlur = 10;
   ctx.fillText('THE VOLCANO IS ERUPTING', GAME_W / 2, GAME_H * 0.3);
   ctx.restore();
@@ -1244,7 +1244,7 @@ function _brsDrawTemple() {
   ctx.fillStyle = '#9a865f';
   ctx.beginPath(); ctx.moveTo(T.x0 - 12, R); ctx.lineTo((T.x0 + T.x1) / 2, R - 70); ctx.lineTo(T.x1 + 12, R); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = '#6e5d40'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = 'rgba(255,214,120,0.55)'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,214,120,0.55)'; ctx.font = `bold 14px ${FONT_UI}`; ctx.textAlign = 'center';
   ctx.fillText('THE VAULT', (T.x0 + T.x1) / 2, R - 22);
   // Vault interior: dark stone lit gold by the treasure.
   var ix0 = T.vaultL + T.wallW, ix1 = T.vaultR - T.wallW;
@@ -1306,7 +1306,7 @@ function _brsDrawTempleFront() {
     ctx.fillRect(T.vaultL + T.wallW, R + 12, T.vaultR - T.vaultL - T.wallW * 2, G - R - 12);
     ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 1.5;
     for (var by = R + 30; by < G; by += 24) { ctx.beginPath(); ctx.moveTo(T.vaultL, by); ctx.lineTo(T.vaultR, by); ctx.stroke(); }
-    ctx.fillStyle = 'rgba(255,200,90,0.5)'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,200,90,0.5)'; ctx.font = `bold 22px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillText('◆', (T.vaultL + T.vaultR) / 2, (R + G) / 2 + 8);
     ctx.globalAlpha = 1;
   }
@@ -1515,10 +1515,10 @@ function _brsDrawBridgeSign(cx) {
   ctx.fillStyle = '#d9c39a'; ctx.fillRect(x, y, w, h);
   ctx.strokeStyle = '#5e4128'; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#3a2614'; ctx.font = 'bold 15px Arial';
+  ctx.fillStyle = '#3a2614'; ctx.font = `bold 15px ${FONT_UI}`;
   ctx.fillText('HOLDS ' + B.holds, cx, y + 19);
   if (st.state !== 'up') {
-    ctx.fillStyle = '#c0281e'; ctx.font = 'bold 14px Arial';
+    ctx.fillStyle = '#c0281e'; ctx.font = `bold 14px ${FONT_UI}`;
     ctx.fillText('SNAPPED', cx, y + 41);
     return;
   }

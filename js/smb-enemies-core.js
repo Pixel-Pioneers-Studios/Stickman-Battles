@@ -448,7 +448,7 @@ class ForestBeast extends Fighter {
     if (!this._brForm) {
       ctx.globalAlpha = 1;
       ctx.fillStyle = raged ? '#ff6600' : '#aaffaa';
-      ctx.font = 'bold 11px Arial';
+      ctx.font = `bold 11px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillText(this.name, cx, ty - 10);
 

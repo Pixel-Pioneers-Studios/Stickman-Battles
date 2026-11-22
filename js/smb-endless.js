@@ -728,7 +728,7 @@ function drawEndlessWorld() {
     ctx.beginPath(); ctx.ellipse(tx, ty - 14, 36, 8, 0, 0, Math.PI * 2); ctx.stroke();
     ctx.globalAlpha = 1;
   }
-  ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+  ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center';
   ctx.fillStyle = col;
   var left = endlessEnemies.filter(function (e) { return e.health > 0; }).length;
   ctx.fillText(endlessOpen ? 'TELEPORTER' : 'LOCKED: ' + left + ' LEFT', tx, ty - 182);
@@ -772,7 +772,7 @@ function drawEndlessWorld() {
       ctx.fillRect(d.x - 4, d.y - 1.5, 8, 3); ctx.fillRect(d.x - 1.5, d.y - 4, 3, 8);
     } else {
       var wn = (WEAPONS[d.weaponKey] && WEAPONS[d.weaponKey].name) || d.weaponKey;
-      ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+      ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillStyle = '#ffe9a8';
       ctx.fillText(d._near ? '[' + (typeof keyLabelFor === 'function' ? keyLabelFor('f') : 'F') + '] ' + wn : wn, d.x, d.y - 16);
     }
@@ -805,7 +805,7 @@ function _endlessArrow(wx, wy, color, label) {
   ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, -9); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill();
   ctx.restore();
   if (label) {
-    ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = color;
+    ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = color;
     ctx.fillText(label, ax - Math.cos(ang) * 24, ay - Math.sin(ang) * 24 + 4);
   }
 }
@@ -819,7 +819,7 @@ function drawEndlessHUD() {
   var alive = endlessEnemies.filter(function (e) { return e.health > 0; });
 
   ctx.textAlign = 'center';
-  ctx.font = 'bold 15px Arial';
+  ctx.font = `bold 15px ${FONT_UI}`;
   ctx.fillStyle = '#ffdd44';
   ctx.fillText('AREA ' + endlessArea + '   •   ' + (endlessOpen ? 'Teleporter open' : 'Enemies left: ' + alive.length) +
                '   •   Best: ' + endlessBest, GAME_W / 2, GAME_H - 18);
@@ -835,19 +835,19 @@ function drawEndlessHUD() {
     ctx.fillRect(bx - 2, by - 2, bw + 4, 12);
     ctx.fillStyle = b._enraged ? '#ff2244' : '#ff6a3a';
     ctx.fillRect(bx, by, bw * Math.max(0, b.health / b.maxHealth), 8);
-    ctx.font = 'bold 12px Arial';
+    ctx.font = `bold 12px ${FONT_UI}`;
     ctx.fillStyle = '#ffd0d0';
     ctx.fillText(b.name + (b._enraged ? '  •  ENRAGED' : ''), GAME_W / 2, by - 6);
   }
 
   if (endlessBanner > 0) {
     ctx.globalAlpha = endlessBanner > 120 ? (150 - endlessBanner) / 30 : Math.min(1, endlessBanner / 30);
-    ctx.font = 'bold 40px Arial';
+    ctx.font = `bold 40px ${FONT_DISPLAY}`;
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = _endlessIsBossArea(endlessArea) ? '#ff3355' : '#5fe8ff'; ctx.shadowBlur = 16;
     ctx.fillText('AREA ' + endlessArea, GAME_W / 2, GAME_H * 0.32);
     ctx.shadowBlur = 0;
-    ctx.font = 'bold 14px Arial';
+    ctx.font = `bold 14px ${FONT_UI}`;
     ctx.fillStyle = '#cfe9ff';
     var sub = END_TYPES[endlessType].label;
     if (endlessArea === 1) sub += '  •  Defeat every enemy to open the teleporter';

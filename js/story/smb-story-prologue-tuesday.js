@@ -194,11 +194,11 @@ var TuesdayPrologue = (function () {
 
       cx.textAlign = 'center'; cx.textBaseline = 'middle';
       cx.fillStyle = 'rgba(240,246,255,' + phWake + ')';
-      cx.font = 'bold 2.1px "Segoe UI", Arial, sans-serif';
+      cx.font = `bold 2.1px ${FONT_UI}`;
       cx.fillText('STICKMAN', 0, -1.2);
       cx.fillText('EVOLUTION', 0, 1.2);
       cx.fillStyle = 'rgba(150,190,255,' + (0.7 * phWake) + ')';
-      cx.font = '1.05px "Segoe UI", Arial, sans-serif';
+      cx.font = `1.05px ${FONT_UI}`;
       cx.fillText('press to begin', 0, 3.3);
     }
     cx.restore();
@@ -291,7 +291,7 @@ var TuesdayPrologue = (function () {
     // Always shown. Gating it behind 'has walked' hid the exit from players who wanted it.
     if (phase !== 'out' && phFlood <= 0) {
       cx.fillStyle = 'rgba(220,220,235,' + (0.20 + Math.sin(t * 0.05) * 0.08) + ')';
-      cx.font = '11px "Segoe UI", Arial, sans-serif';
+      cx.font = `11px ${FONT_UI}`;
       cx.textAlign = 'center';
       cx.fillText(
         (phase === 'walk' && px < 160) ? 'hold  D  or  →  to walk        click to skip' : 'click to skip',

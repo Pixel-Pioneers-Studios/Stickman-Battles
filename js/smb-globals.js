@@ -8,6 +8,12 @@ ctx.imageSmoothingEnabled = true;
 const GAME_W = 900;
 const GAME_H = 520;
 
+// Canvas typefaces. They mirror --font-ui, --font-display and --sh-font-logo in SMB.css, which loads the files.
+// Monospace (code-themed apex powers, debug) and the Georgia narration voice are deliberate and stay as written.
+const FONT_UI      = "'Rajdhani', 'Segoe UI', Arial, sans-serif";
+const FONT_DISPLAY = "'Russo One', 'Segoe UI', Impact, sans-serif";
+const FONT_LOGO    = "'SE Logo Brush', 'Russo One', sans-serif";
+
 // Resize canvas to fill the window. The game world stays GAME_W x GAME_H (fixed resolution).
 function resizeCanvas() {
   canvas.width  = window.innerWidth;

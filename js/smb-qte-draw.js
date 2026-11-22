@@ -214,7 +214,7 @@ function _drawQTEGlyph(ctx, key, x, y, device, color) {
     } else {     // face button: X, Y or B
       const f = { ' ': ['X', '#4aa8ff'], q: ['Y', '#ffd23a'], e: ['B', '#ff5a5a'] }[key];
       ctx.fillStyle = f[1]; ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#0a0a14'; ctx.font = 'bold 18px Arial'; ctx.fillText(f[0], x, y + 1);
+      ctx.fillStyle = '#0a0a14'; ctx.font = `bold 18px ${FONT_UI}`; ctx.fillText(f[0], x, y + 1);
     }
   } else if (device === 'touch') {
     const col = { ' ': '#ff5050', q: '#8c64ff', e: '#ffc800', s: '#00dc78' }[key] || '#00c8ff';
@@ -223,15 +223,15 @@ function _drawQTEGlyph(ctx, key, x, y, device, color) {
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fff';
     if (dir && key !== 's') tri(x, y, dir[0], dir[1], 8);
-    else { ctx.font = 'bold 10px Arial'; ctx.fillText(key === ' ' ? 'ATK' : key === 'q' ? 'Q' : key === 'e' ? 'SUP' : 'SHD', x, y + 1); }
+    else { ctx.font = `bold 10px ${FONT_UI}`; ctx.fillText(key === ' ' ? 'ATK' : key === 'q' ? 'Q' : key === 'e' ? 'SUP' : 'SHD', x, y + 1); }
   } else {       // keyboard keycap
     const w = ((typeof keyLabelFor === 'function') ? keyLabelFor(key) : caps[key]).length > 1 ? 40 : 28;
     ctx.fillStyle = 'rgba(20,20,40,0.85)'; ctx.strokeStyle = color; ctx.lineWidth = 2;
     pill(x, y - 3, w, 28, 5); ctx.fill(); ctx.stroke();
     const cap = (typeof keyLabelFor === 'function') ? keyLabelFor(key) : caps[key];
-    ctx.fillStyle = color; ctx.font = `bold ${cap.length > 1 ? 12 : 17}px "Segoe UI", Arial, sans-serif`;
+    ctx.fillStyle = color; ctx.font = `bold ${cap.length > 1 ? 12 : 17}px ${FONT_UI}`;
     ctx.fillText(cap === 'Space' ? 'SPC' : cap.length > 5 ? cap.slice(0, 5) : cap, x, y - 3);
-    ctx.font = 'bold 9px Arial'; ctx.fillStyle = color; ctx.globalAlpha *= 0.8;
+    ctx.font = `bold 9px ${FONT_UI}`; ctx.fillStyle = color; ctx.globalAlpha *= 0.8;
     ctx.fillText(({ a: 'LEFT', d: 'RIGHT', w: 'UP', s: 'DOWN', ' ': 'ATTACK', q: 'ABILITY', e: 'SUPER' })[key], x, y + 19);
   }
   return true;
@@ -301,14 +301,14 @@ function _drawPromptBubble(ctx, prompt, state, now) {
   ctx.globalAlpha = state === 'missed' ? 0.4 : 1.0;
   ctx.fillStyle   = textColor;
   ctx.shadowBlur  = 8;
-  ctx.font        = `bold ${displayLabel.length > 2 ? 11 : 20}px "Segoe UI", Arial, sans-serif`;
+  ctx.font        = `bold ${displayLabel.length > 2 ? 11 : 20}px ${FONT_UI}`;
   ctx.textAlign   = 'center';
   ctx.textBaseline= 'middle';
   if (!_drawQTEGlyph(ctx, prompt.displayKey, x, y, pollInputDevice(), textColor)) ctx.fillText(displayLabel, x, y);
 
   // MIRRORED badge on phase 2+ prompts.
   if (isMirrored && state === 'active') {
-    ctx.font        = '8px Arial';
+    ctx.font        = `8px ${FONT_UI}`;
     ctx.fillStyle   = '#cc88ff';
     ctx.shadowBlur  = 4;
     ctx.fillText('MIRRORED', x, y + baseR + 10);
@@ -316,7 +316,7 @@ function _drawPromptBubble(ctx, prompt, state, now) {
 
   // Hit checkmark.
   if (state === 'hit') {
-    ctx.font      = 'bold 22px Arial';
+    ctx.font      = `bold 22px ${FONT_UI}`;
     ctx.fillStyle = '#44ff88';
     ctx.fillText('✓', x, y + baseR - 8);
   }
@@ -337,7 +337,7 @@ function _drawQTEHUD(ctx, cw, ch) {
     : (s.stage === 'outro_success' ? Math.max(0, 1 - s.outroTimer / 40) : 1.0);
 
   ctx.globalAlpha = phaseAlpha;
-  ctx.font        = 'bold 28px "Segoe UI", Arial, sans-serif';
+  ctx.font        = `bold 28px ${FONT_DISPLAY}`;
   ctx.textAlign   = 'center';
   ctx.fillStyle   = _phaseColor(s.phase);
   ctx.shadowColor = _phaseColor(s.phase);
@@ -351,7 +351,7 @@ function _drawQTEHUD(ctx, cw, ch) {
 
   // Subtitle.
   if (s.stage === 'intro' || s.stage === 'prompts') {
-    ctx.font        = '14px "Segoe UI", Arial, sans-serif';
+    ctx.font        = `14px ${FONT_UI}`;
     ctx.fillStyle   = 'rgba(200,200,255,0.75)';
     ctx.shadowBlur  = 6;
     ctx.globalAlpha = phaseAlpha * 0.8;
@@ -399,7 +399,7 @@ function _drawQTEHUD(ctx, cw, ch) {
   // Chaos warning, phases 3 and 4.
   if (s.chaosLevel > 0.1 && (s.phase >= 3)) {
     ctx.globalAlpha = phaseAlpha * s.chaosLevel;
-    ctx.font        = '11px "Segoe UI", Arial, sans-serif';
+    ctx.font        = `11px ${FONT_UI}`;
     ctx.fillStyle   = '#ff6644';
     ctx.shadowColor = '#ff2200';
     ctx.shadowBlur  = 10;
@@ -418,7 +418,7 @@ function _drawQTEComboText(ctx, cw, ch) {
 
   ctx.save();
   ctx.globalAlpha  = alpha;
-  ctx.font         = 'bold 22px "Segoe UI", Arial, sans-serif';
+  ctx.font         = `bold 22px ${FONT_UI}`;
   ctx.textAlign    = 'center';
   ctx.fillStyle    = ct.color;
   ctx.shadowColor  = ct.color;

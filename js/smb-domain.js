@@ -5974,9 +5974,9 @@ const DomainManager = (() => {
       const line1 = _domainKeyOf(f) === 'sovereign' ? 'DOMAIN EXPANSION' : 'CONVICTION';
       const line2 = def.name;
 
-      ctx.font = 'bold 13px Arial';
+      ctx.font = `bold 13px ${FONT_UI}`;
       const w1 = ctx.measureText(line1).width;
-      ctx.font = 'bold 11px Arial';
+      ctx.font = `bold 11px ${FONT_UI}`;
       const w2 = ctx.measureText(line2).width;
       const bW  = Math.max(w1, w2) + 22;
       const bH  = 44;
@@ -6002,13 +6002,13 @@ const DomainManager = (() => {
 
       ctx.textAlign = 'center';
       ctx.fillStyle = '#111';
-      ctx.font = 'bold 13px Arial';
+      ctx.font = `bold 13px ${FONT_UI}`;
       ctx.shadowBlur = 0;
       ctx.fillText(line1, bx, top + 18);
       ctx.fillStyle   = def.color;
       ctx.shadowColor = def.color;
       ctx.shadowBlur  = 8;
-      ctx.font = 'bold 11px Arial';
+      ctx.font = `bold 11px ${FONT_UI}`;
       ctx.fillText(line2, bx, top + 35);
 
       ctx.restore();
@@ -6032,7 +6032,7 @@ const DomainManager = (() => {
       const bx    = cW / 2 - DOMAIN_BAR_W / 2;
       const pulse = frac <= (5 / 25) ? (0.85 + 0.15 * Math.sin(now / 100)) : 1;
 
-      ctx.font      = 'bold 13px Arial';
+      ctx.font      = `bold 13px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle   = domain.def.color;
       ctx.shadowColor = domain.def.color;
@@ -6047,7 +6047,7 @@ const DomainManager = (() => {
       ctx.fillRect(bx, yOff + 4, DOMAIN_BAR_W * frac * pulse, DOMAIN_BAR_H);
 
       ctx.fillStyle   = '#ffffff';
-      ctx.font        = '11px Arial';
+      ctx.font        = `11px ${FONT_UI}`;
       ctx.textAlign   = 'center';
       ctx.fillText(secs + 's', cW / 2 + DOMAIN_BAR_W / 2 + 18, yOff + 12);
 

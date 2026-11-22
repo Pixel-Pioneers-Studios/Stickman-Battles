@@ -234,7 +234,7 @@
     const EVENT_LABELS = {
       doubleCoins: '⧡ Double Coins event is live!',
       bloodMoon:   '🌑 Blood Moon has begun!',
-      xpWeekend:   '✨ XP Weekend is active!',
+      xpWeekend:   '✨ EXP Weekend is active!',
       bossRush:    '💀 Boss Rush mode enabled!',
     };
     Object.keys(curEvts).forEach(function (k) {
@@ -249,7 +249,7 @@
         _showToast('⧡ ' + _config.coinMultiplier + 'x Coins active!', '#ffdd44', 6000);
       }
       if (_config.xpMultiplier !== prev.xpMultiplier && _config.xpMultiplier > 1) {
-        _showToast('✨ ' + _config.xpMultiplier + 'x XP active!', '#88ff99', 6000);
+        _showToast('✨ ' + _config.xpMultiplier + 'x EXP active!', '#88ff99', 6000);
       }
     }
 

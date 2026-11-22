@@ -1116,7 +1116,7 @@ function gameLoop(timestamp) {
     const a   = Math.min(1, cd.framesLeft / 18) * (1 - Math.max(0, (22 - cd.framesLeft % 22) / 22) * 0.3);
     ctx.save();
     ctx.globalAlpha = Math.max(0, a);
-    ctx.font        = '800 32px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+    ctx.font        = `800 32px ${FONT_DISPLAY}`;
     ctx.fillStyle   = cd.color;
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(0,0,0,0.9)';
@@ -1296,7 +1296,7 @@ function gameLoop(timestamp) {
       ctx.globalAlpha = _alpha * _pulse;
       ctx.translate(_cW / 2, _cH * 0.88);
       ctx.scale(_scale, _scale);
-      ctx.font = 'bold 16px Arial';
+      ctx.font = `bold 16px ${FONT_UI}`;
       ctx.fillStyle = '#ff88ff';
       ctx.textAlign = 'center';
       ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 14;
@@ -1312,7 +1312,7 @@ function gameLoop(timestamp) {
       ctx.globalAlpha = _pulse;
       ctx.translate(_cW / 2, _cH * 0.13);
       ctx.scale(_scale, _scale);
-      ctx.font = 'bold 19px Arial';
+      ctx.font = `bold 19px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ccaaff';
       ctx.shadowColor = '#8844ff'; ctx.shadowBlur = 22;
@@ -1329,7 +1329,7 @@ function gameLoop(timestamp) {
       ctx.globalAlpha = _pulse;
       ctx.translate(_cW / 2, _cH * 0.08);
       ctx.scale(_scale, _scale);
-      ctx.font = 'bold 18px Arial';
+      ctx.font = `bold 18px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff5555';
       ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 18;
@@ -1355,7 +1355,7 @@ function gameLoop(timestamp) {
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(0,0,0,0.95)';
     ctx.shadowBlur  = 14;
-    ctx.font        = 'bold 30px Arial';
+    ctx.font        = `bold 30px ${FONT_DISPLAY}`;
     ctx.fillStyle   = p1c;
     ctx.fillText(winsP1, GAME_W / 2 - 48, 96);
     ctx.fillStyle   = 'rgba(255,255,255,0.7)';

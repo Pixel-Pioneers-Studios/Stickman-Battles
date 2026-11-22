@@ -216,13 +216,13 @@ function drawDivineSummon() {
     ctx.save();
     ctx.globalAlpha = ds.textAlpha;
     ctx.textAlign = 'center';
-    ctx.font = 'bold 17px "Segoe UI", Arial, sans-serif';
+    ctx.font = `bold 17px ${FONT_UI}`;
     ctx.shadowColor = '#ffe066';
     ctx.shadowBlur  = 22;
     ctx.fillStyle   = '#fffbe8';
     ctx.fillText('✦  A DIVINE PRESENCE DESCENDS  ✦', GAME_W / 2, 44);
     ctx.shadowBlur = 5;
-    ctx.font = '11px "Segoe UI", Arial, sans-serif';
+    ctx.font = `11px ${FONT_UI}`;
     ctx.fillStyle = 'rgba(255,240,160,0.75)';
     ctx.fillText('press H to summon', GAME_W / 2, 58);
     ctx.restore();
@@ -357,7 +357,7 @@ function drawDivineSummonHUD(cw, ch) {
   ctx.stroke();
 
   ctx.shadowBlur = 0;
-  ctx.font       = `bold 11px "Segoe UI", Arial`;
+  ctx.font       = `bold 11px ${FONT_UI}`;
   ctx.textAlign  = 'center';
   ctx.fillStyle  = ready ? '#88ffaa' : '#ffe066';
   ctx.globalAlpha *= (ready ? 1 : 0.85);
@@ -366,7 +366,7 @@ function drawDivineSummonHUD(cw, ch) {
   if (ready) {
     const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 320);
     ctx.globalAlpha = 0.6 * pulse;
-    ctx.font = '8px "Segoe UI", Arial';
+    ctx.font = `8px ${FONT_UI}`;
     ctx.fillStyle = '#88ffaa';
     ctx.fillText('READY', cx, cy + 28);
   }

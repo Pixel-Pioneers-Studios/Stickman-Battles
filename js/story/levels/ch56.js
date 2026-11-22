@@ -38,7 +38,7 @@
     _slShopfront(x, base, 220, 150, '#5a4a5a', 'DINER', '#ff8899', '#aa3344', true);
     _slStreetLamp(x + 250, base, true);
     ctx.fillStyle = '#2a6a3a'; ctx.fillRect(x + 300, base - 120, 90, 20);
-    ctx.fillStyle = '#e8f0e8'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('MERIDIAN AVE', x + 345, base - 106);
+    ctx.fillStyle = '#e8f0e8'; ctx.font = `bold 10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('MERIDIAN AVE', x + 345, base - 106);
     ctx.fillStyle = '#5a5a60'; ctx.fillRect(x + 343, base - 100, 4, 100);
   }
 

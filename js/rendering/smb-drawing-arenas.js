@@ -2520,7 +2520,7 @@ function drawPlatforms() {
     const secs = Math.ceil(bossFloorTimer / 60);
     const isLava = bossFloorType === 'lava';
     ctx.save();
-    ctx.font        = 'bold 20px Arial';
+    ctx.font        = `bold 20px ${FONT_UI}`;
     ctx.fillStyle   = isLava ? '#ff5500' : '#bb88ff';
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(0,0,0,0.95)';
@@ -2598,12 +2598,12 @@ function drawAbilityUnlockToast() {
   ctx.stroke();
 
   ctx.fillStyle = abilityUnlockToast.color || '#ffcc44';
-  ctx.font      = 'bold 16px Arial';
+  ctx.font      = `bold 16px ${FONT_UI}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText('NEW ABILITY UNLOCKED', cx, ty + 16);
   ctx.fillStyle = '#ffffff';
-  ctx.font      = '14px Arial';
+  ctx.font      = `14px ${FONT_UI}`;
   ctx.fillText(abilityUnlockToast.text, cx, ty + 36);
 
   ctx.globalAlpha = 1;
@@ -2640,7 +2640,7 @@ function drawExploreHUD() {
   // Label
   ctx.globalAlpha = 1;
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 11px Arial';
+  ctx.font = `bold 11px ${FONT_UI}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(`FIND: ${exploreGoalName}`, barX, barY + barH + 4);
@@ -2684,7 +2684,7 @@ function drawExploreHUD() {
 
     ctx.globalAlpha = 1;
     ctx.fillStyle   = flash ? '#ff9944' : '#ffddaa';
-    ctx.font = 'bold 11px Arial';
+    ctx.font = `bold 11px ${FONT_UI}`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText(waveLabel, barX, waveY + barH + 4);
     ctx.fillStyle = '#ffdd88';
@@ -2714,7 +2714,7 @@ function drawExploreHUD() {
 
     ctx.globalAlpha = 1;
     ctx.fillStyle   = flash ? '#ff6644' : '#ccddff';
-    ctx.font = 'bold 11px Arial';
+    ctx.font = `bold 11px ${FONT_UI}`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     ctx.fillText('⏱ ESCAPE ROUTE', barX, cbY + barH + 4);
     ctx.fillStyle = flash ? '#ff4422' : '#ffcc44';
@@ -2725,7 +2725,7 @@ function drawExploreHUD() {
   // Sealed-exit banner: why the mark is not taking. Sits where the distance arrow would be.
   if (!exploreGoalFound && typeof exploreGoalBlockReason !== 'undefined' && exploreGoalBlockReason) {
     ctx.globalAlpha = 1;
-    ctx.font = 'bold 13px Arial';
+    ctx.font = `bold 13px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const _msg = '🔒 ' + exploreGoalBlockReason.toUpperCase();
@@ -2744,11 +2744,11 @@ function drawExploreHUD() {
     const arrowX = cw * 0.92, arrowY = ch / 2;
     ctx.globalAlpha = 0.6 + 0.3 * Math.sin(frameCount * 0.08);
     ctx.fillStyle = '#44ccff';
-    ctx.font = 'bold 28px Arial';
+    ctx.font = `bold 28px ${FONT_DISPLAY}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('▶', arrowX, arrowY);
-    ctx.font = '10px Arial';
+    ctx.font = `10px ${FONT_UI}`;
     const dist = Math.round((exploreGoalX - p1.x) / 10);
     ctx.fillText(`${dist}m`, arrowX, arrowY + 20);
   }
@@ -2773,12 +2773,12 @@ function drawStoryPhaseHUD() {
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = '#8cc8ff';
-  ctx.font = 'bold 10px Arial';
+  ctx.font = `bold 10px ${FONT_UI}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
   ctx.fillText(`PHASE ${storyPhaseIndicator.index} / ${storyPhaseIndicator.total}`, x + 12, y + 7);
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 11px Arial';
+  ctx.font = `bold 11px ${FONT_UI}`;
   ctx.fillText(storyPhaseIndicator.label || 'Engage', x + 12, y + 19);
   ctx.restore();
 }
@@ -2826,7 +2826,7 @@ function drawExploreGoalObject() {
     ctx.beginPath();
     ctx.arc(portal.x, portal.y, 20 + pulseP * 8, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.font = 'bold 10px Arial';
+    ctx.font = `bold 10px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.fillText(portal.type === 'distorted_rift' ? 'DISTORTED RIFT' : 'SIDE PORTAL', portal.x, portal.y - 32);
@@ -2837,7 +2837,7 @@ function drawExploreGoalObject() {
       ctx.fillStyle = '#ffffff';
       ctx.fillText(`Press ${_pk ? (typeof keyLabelFor === 'function' ? keyLabelFor(_pk) : String(_pk).toUpperCase()) : 'SHIELD'} to enter`, portal.x, portal.y + 46);
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '9px Arial';
+      ctx.font = `9px ${FONT_UI}`;
       ctx.fillText(portal.type === 'distorted_rift' ? 'Boss echo — rare reward' : 'Two elites — bonus coins', portal.x, portal.y + 59);
     }
     ctx.restore();
@@ -2896,7 +2896,7 @@ function drawExploreGoalObject() {
       ctx.globalAlpha = 0.9 * pulseC;
       ctx.strokeRect(it.x - 15, it.y - 9, 30, 25);
       ctx.globalAlpha = 1;
-      ctx.font = '13px Arial';
+      ctx.font = `13px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillText(locked ? '🔒' : '✨', it.x, it.y - 13);
       ctx.restore();
@@ -2908,7 +2908,7 @@ function drawExploreGoalObject() {
     ctx.shadowColor = glow;
     ctx.shadowBlur = 14;
     ctx.globalAlpha = 0.92;
-    ctx.font = '22px Arial';
+    ctx.font = `22px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillText(it.icon, it.x, it.y + bob);
     ctx.restore();
@@ -3261,7 +3261,7 @@ function addKillFeed(loser) {
   // Unnamed attackers (story enemies, creatures) fall back to display name / type / class.
   const _kn = killer ? _feedName(killer) : '';
   msg.textContent = killer ? `${_kn} KO'd ${_feedName(loser)}!` : `${_feedName(loser)} was KO'd!`;
-  msg.style.color = killer ? killer.color : '#fff';
+  msg.style.color = killer ? _readableNameColor(killer.color) : '#fff';
   feed.prepend(msg);
   setTimeout(() => msg.remove(), 3200);
 
@@ -3455,15 +3455,15 @@ function endGame() {
   const _matchSecs = _achStats.matchStartTime ? Math.round((Date.now() - _achStats.matchStartTime) / 1000) : 0;
   const _matchDur  = _matchSecs >= 60 ? `${Math.floor(_matchSecs / 60)}m ${_matchSecs % 60}s` : `${_matchSecs}s`;
   const _showablePlayers = players.filter(p => !p.isMinion);
-  let statsHtml = '<div style="font-size:11px;color:#778899;letter-spacing:1px;margin-bottom:8px">MATCH SUMMARY  &bull;  ' + _matchDur + '</div>';
+  let statsHtml = '<div style="font-size:11px;font-weight:700;color:#B9AC93;letter-spacing:1.5px;margin-bottom:8px">MATCH SUMMARY  &bull;  ' + _matchDur + '</div>';
   if (_mgRes && _mgRes.sub) statsHtml += '<div style="font-size:13px;color:#ccd;margin-bottom:8px">' + _mgRes.sub + '</div>';
   statsHtml += _showablePlayers.map(p => {
     const _dmg = Math.round(p.totalDamageDealt || 0);
     const _kos  = p.kills || 0;
     return `<div class="stat-row" style="color:${p.color};display:flex;justify-content:space-between;gap:16px">` +
            `<span>${p.name}</span>` +
-           `<span style="color:#aabbcc;font-size:12px">${_kos} KO${_kos !== 1 ? 's' : ''}` +
-           `&ensp;<span style="color:#ffcc66">${_dmg} dmg</span></span>` +
+           `<span style="color:#B9AC93;font-size:12px">${_kos} KO${_kos !== 1 ? 's' : ''}` +
+           `&ensp;<span style="color:#E2B255">${_dmg} dmg</span></span>` +
            `</div>`;
   }).join('');
   // Boss defeated hint (only if letters not yet unlocked)
@@ -3586,7 +3586,7 @@ function drawSecretLetters() {
   const pulse = 0.65 + Math.sin(frameCount * 0.07) * 0.35;
   ctx.save();
   ctx.globalAlpha = pulse;
-  ctx.font        = 'bold 22px Arial';
+  ctx.font        = `bold 22px ${FONT_UI}`;
   ctx.textAlign   = 'center';
   ctx.fillStyle   = '#cc00ee';
   ctx.shadowColor = '#cc00ee';
@@ -3994,6 +3994,17 @@ function _entityOverlayLabel(ent) {
   return 'ENTITY';
 }
 
+// Both corner HUD panels on screen. Sampled every 30 frames; layout reads each frame would force reflows.
+let _hudCornersCache = { f: -999, v: false };
+function _hudCornersShown() {
+  const f = typeof frameCount === 'number' ? frameCount : 0;
+  if (Math.abs(f - _hudCornersCache.f) < 30) return _hudCornersCache.v;
+  const a = document.getElementById('hud-p1'), b = document.getElementById('hud-p2');
+  const vis = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+  _hudCornersCache = { f, v: vis(a) && vis(b) };
+  return _hudCornersCache.v;
+}
+
 function drawEntityOverlays(scX, scY, camX, camY) {
   const all = [...players, ...minions, ...trainingDummies].filter(ent => ent && (ent.health > 0 || ent.invincible > 0));
   if (!all.length) return;
@@ -4003,6 +4014,12 @@ function drawEntityOverlays(scX, scY, camX, camY) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+
+  // One fighter a side with both corner panels up: the corners already carry both names and bars,
+  // so overhead plates would only repeat them. Ammo counts still draw.
+  const duel = all.length === 2 && all.every(e => players.includes(e) && !e.isBoss) && _hudCornersShown();
+  const plates = [];
+  ctx.font = `600 10px ${FONT_UI}`;
 
   for (const ent of all) {
     if (ent.backstageHiding) continue;
@@ -4019,9 +4036,31 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     if (sx < -80 || sx > canvas.width + 80 || sy > canvas.height + 80) continue;
 
     const barW = Math.max(36, Math.min(82, ent.w * scX * 1.35));
+    const label = _entityOverlayLabel(ent);
+    plates.push({ ent, sx, sy, barW, label, halfW: Math.max(barW, ctx.measureText(label).width) / 2 + 4 });
+  }
+
+  // Plates that would overlap stack upward; the one lowest on screen keeps its place.
+  // A plate is the name (sy - 18) down to the bar (sy + 4), plus a gap.
+  const PLATE_H = 26;
+  plates.sort((a, b) => b.sy - a.sy);
+  for (let i = 0; i < plates.length; i++) {
+    const pl = plates[i];
+    for (let tries = 0; tries < 4; tries++) {
+      let hit = null;
+      for (let j = 0; j < i; j++) {
+        const q = plates[j];
+        if (Math.abs(q.sx - pl.sx) < q.halfW + pl.halfW && Math.abs(q.sy - pl.sy) < PLATE_H) { hit = q; break; }
+      }
+      if (!hit) break;
+      pl.sy = hit.sy - PLATE_H >= hudFloor ? hit.sy - PLATE_H : hit.sy + PLATE_H;
+    }
+  }
+
+  for (const pl of plates) {
+    const { ent, sx, sy, barW, label } = pl;
     const barH = 6;
     const pct = Math.max(0, Math.min(1, ent.health / Math.max(1, ent.maxHealth)));
-    const label = _entityOverlayLabel(ent);
     const labelY = sy - 12;
     const ammoY = sy + 12;
     const bx = sx - barW / 2, by = sy - barH / 2;
@@ -4031,67 +4070,69 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     if (ent._hpGhost === undefined || pct > ent._hpGhost) ent._hpGhost = pct;  // heal / respawn snaps up
     else if (pct < ent._hpGhost) ent._hpGhost = Math.max(pct, ent._hpGhost - 0.012);
 
-    // Name: a soft drop shadow rather than a 3px black keyline around every
-    // glyph, which was the chunkiest thing on screen.
-    ctx.font = '600 10px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
-    ctx.shadowColor = 'rgba(0,0,0,0.9)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 1;
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fillText(label, sx, labelY);           // shadow pass
-    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    ctx.fillStyle = _readableNameColor(ent.color);
-    ctx.fillText(label, sx, labelY);
+    if (!duel) {
+      // Name: a soft drop shadow rather than a 3px black keyline around every
+      // glyph, which was the chunkiest thing on screen.
+      ctx.font = `600 10px ${FONT_UI}`;
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1;
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.fillText(label, sx, labelY);           // shadow pass
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      ctx.fillStyle = _readableNameColor(ent.color);
+      ctx.fillText(label, sx, labelY);
 
-    const _round = (x, y, w, h, r) => {
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
-      else ctx.rect(x, y, w, h);
-    };
+      const _round = (x, y, w, h, r) => {
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(x, y, w, h, r);
+        else ctx.rect(x, y, w, h);
+      };
 
-    // Trough: a recess, not a black box.
-    ctx.shadowColor = 'rgba(0,0,0,0.75)';
-    ctx.shadowBlur  = 4;
-    ctx.shadowOffsetY = 1;
-    ctx.fillStyle = 'rgba(8,10,18,0.82)';
-    _round(bx - 1, by - 1, barW + 2, barH + 2, (barH + 2) / 2); ctx.fill();
-    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-
-    // Ghost, then the live fill.
-    if (ent._hpGhost > pct) {
-      ctx.fillStyle = 'rgba(232,214,196,0.55)';
-      _round(bx, by, barW * ent._hpGhost, barH, barH / 2); ctx.fill();
-    }
-    // Desaturated states: a pure lime bar is the loudest cartoon note in the
-    // frame, and it competes with the fighters for attention.
-    const hpTop = pct > 0.55 ? '#7ec27a' : pct > 0.28 ? '#d7b35c' : '#d8705e';
-    const hpBot = pct > 0.55 ? '#4a8a52' : pct > 0.28 ? '#a07a32' : '#933f36';
-    const hg = ctx.createLinearGradient(0, by, 0, by + barH);
-    hg.addColorStop(0, hpTop);
-    hg.addColorStop(1, hpBot);
-    ctx.fillStyle = hg;
-    _round(bx, by, Math.max(0, barW * pct), barH, barH / 2); ctx.fill();
-    // Thin gleam along the top of the fill: reads as a lit surface.
-    if (pct > 0.02) {
-      ctx.fillStyle = 'rgba(255,255,255,0.22)';
-      _round(bx + 1, by + 0.8, Math.max(0, barW * pct - 2), 1.4, 0.7); ctx.fill();
-    }
-    // Hairline containing edge.
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-    ctx.lineWidth = 1;
-    _round(bx - 0.5, by - 0.5, barW + 1, barH + 1, (barH + 1) / 2); ctx.stroke();
-
-    // Battle Royale creature form: its health sits on top of the body's.
-    if (ent._brForm) {
-      const fp = Math.max(0, Math.min(1, ent._brForm.hp / Math.max(1, ent._brForm.maxHp)));
+      // Trough: a recess, not a black box.
+      ctx.shadowColor = 'rgba(0,0,0,0.75)';
+      ctx.shadowBlur  = 4;
+      ctx.shadowOffsetY = 1;
       ctx.fillStyle = 'rgba(8,10,18,0.82)';
-      _round(bx - 1, by - 7, barW + 2, 5, 2.5); ctx.fill();
-      ctx.fillStyle = ent._brForm.def.color;
-      _round(bx, by - 6.5, Math.max(0, barW * fp), 4, 2); ctx.fill();
+      _round(bx - 1, by - 1, barW + 2, barH + 2, (barH + 2) / 2); ctx.fill();
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+      // Ghost, then the live fill.
+      if (ent._hpGhost > pct) {
+        ctx.fillStyle = 'rgba(232,214,196,0.55)';
+        _round(bx, by, barW * ent._hpGhost, barH, barH / 2); ctx.fill();
+      }
+      // Desaturated states: a pure lime bar is the loudest cartoon note in the
+      // frame, and it competes with the fighters for attention.
+      const hpTop = pct > 0.55 ? '#7ec27a' : pct > 0.28 ? '#d7b35c' : '#d8705e';
+      const hpBot = pct > 0.55 ? '#4a8a52' : pct > 0.28 ? '#a07a32' : '#933f36';
+      const hg = ctx.createLinearGradient(0, by, 0, by + barH);
+      hg.addColorStop(0, hpTop);
+      hg.addColorStop(1, hpBot);
+      ctx.fillStyle = hg;
+      _round(bx, by, Math.max(0, barW * pct), barH, barH / 2); ctx.fill();
+      // Thin gleam along the top of the fill: reads as a lit surface.
+      if (pct > 0.02) {
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        _round(bx + 1, by + 0.8, Math.max(0, barW * pct - 2), 1.4, 0.7); ctx.fill();
+      }
+      // Hairline containing edge.
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.lineWidth = 1;
+      _round(bx - 0.5, by - 0.5, barW + 1, barH + 1, (barH + 1) / 2); ctx.stroke();
+
+      // Battle Royale creature form: its health sits on top of the body's.
+      if (ent._brForm) {
+        const fp = Math.max(0, Math.min(1, ent._brForm.hp / Math.max(1, ent._brForm.maxHp)));
+        ctx.fillStyle = 'rgba(8,10,18,0.82)';
+        _round(bx - 1, by - 7, barW + 2, 5, 2.5); ctx.fill();
+        ctx.fillStyle = ent._brForm.def.color;
+        _round(bx, by - 6.5, Math.max(0, barW * fp), 4, 2); ctx.fill();
+      }
     }
 
     if (ent.weapon && ent.weapon.clipSize) {
-      ctx.font = '600 9px "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      ctx.font = `600 9px ${FONT_UI}`;
       ctx.shadowColor = 'rgba(0,0,0,0.9)';
       ctx.shadowBlur  = 3;
       ctx.fillStyle = ent._ammo <= 0 ? '#d8705e' : 'rgba(216,224,238,0.88)';
@@ -4590,7 +4631,7 @@ function drawBossDialogue(scX, scY, camX, camY) {
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.font        = `bold ${_fs}px Arial`;
+  ctx.font        = `bold ${_fs}px ${FONT_UI}`;
   ctx.textAlign   = 'center';
   ctx.textBaseline = 'middle';
   const words = String(text || '').split(/\s+/).filter(Boolean);

@@ -411,7 +411,7 @@ function _cxDrawConv(e) {
   if (e.t < 80 && e.owner && e.owner.health > 0) {
     var a = Math.min(1, e.t / 8, (80 - e.t) / 20);
     ctx.globalAlpha = a;
-    ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 16px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillStyle = e.color; ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
     ctx.fillText(e.name, e.owner.cx(), e.owner.y - 34 - e.t * 0.35 - (e.slot || 0) * 22);   // stacked casts get their own row
     ctx.shadowBlur = 0; ctx.globalAlpha = 1;

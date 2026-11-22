@@ -112,7 +112,7 @@
       ctx.strokeStyle = '#b8302a'; ctx.lineWidth = 1;
       ctx.beginPath(); [0, 4, 8, 5, 1, 3, 7].forEach((k, i) => i ? ctx.lineTo(...pins[k]) : ctx.moveTo(...pins[k])); ctx.stroke();
       for (const [px, py] of pins) { ctx.fillStyle = '#d8402a'; ctx.beginPath(); ctx.arc(px, py, 2.5, 0, Math.PI * 2); ctx.fill(); }
-      ctx.fillStyle = '#2a1a10'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('CULTIVATION', pins[4][0], pins[4][1] + 22);
+      ctx.fillStyle = '#2a1a10'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('CULTIVATION', pins[4][0], pins[4][1] + 22);
       ctx.strokeStyle = '#b8302a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(pins[4][0], pins[4][1] + 19, 32, 9, 0, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = '#8a7a4a'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.ellipse(960, G - 10, 44, 8, 0, 0, Math.PI * 2); ctx.stroke();

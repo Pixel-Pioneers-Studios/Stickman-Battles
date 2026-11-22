@@ -15,7 +15,7 @@
   <link rel="preload" href="./fonts/russoone-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./fonts/rajdhani-700.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="./fonts/selogobrush-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="./fonts/pottaone-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./fonts/rajdhani-500.woff2" as="font" type="font/woff2" crossorigin>
 
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="icon" href="./images/apple-touch-icon.png" sizes="180x180" type="image/png">
@@ -326,7 +326,7 @@
           <div class="path-card-desc" id="storyChaptersCardDesc">Continue your journey</div>
         </div>
         <div class="path-card path-shop" onclick="openStoryMenuShop()">
-          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg></div>
+          <div class="path-card-icon"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-token"/></svg></div>
           <div class="path-card-title">Shop</div>
           <div class="path-card-desc">Spend tokens on abilities</div>
         </div>
@@ -1189,7 +1189,7 @@
 <!-- ============================================================
      REPLAYS MODAL — two tabs: Match Replays | Boss Fights
      ============================================================ -->
-<div id="replayBrowserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9900;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;">
+<div id="replayBrowserModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9900;align-items:center;justify-content:center;font-family:var(--font-ui);">
   <div style="width:min(520px,94vw);background:rgba(8,12,24,0.97);border:1px solid rgba(80,120,200,0.3);border-radius:12px;padding:20px 22px;display:flex;flex-direction:column;gap:12px">
     <!-- header -->
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1259,7 +1259,7 @@
 <!-- ============================================================
      REPLAY VIEWER MODAL
      ============================================================ -->
-<div id="replayViewerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:10000;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;">
+<div id="replayViewerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:10000;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-ui);">
   <div style="width:min(900px,96vw);display:flex;flex-direction:column;gap:8px">
     <!-- header bar -->
     <div style="display:flex;align-items:center;justify-content:space-between">
@@ -1294,7 +1294,7 @@
 <!-- ============================================================
      STATS LOG MODAL
      ============================================================ -->
-<div id="statsLogModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; font-family:'Segoe UI',Arial,sans-serif; color:#dde4ff;">
+<div id="statsLogModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999; align-items:center; justify-content:center; font-family:var(--font-ui); color:#dde4ff;">
   <div style="width:min(880px,96vw); height:min(600px,92vh); display:flex; flex-direction:column; background:#08061a; border:1px solid rgba(200,0,238,0.3); border-radius:14px; overflow:hidden; box-shadow:0 0 60px rgba(200,0,238,0.08);">
     <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 18px; border-bottom:1px solid rgba(200,0,238,0.2); flex-shrink:0;">
       <span style="font-size:0.7rem;letter-spacing:2px;color:#666; text-transform:uppercase;">Stats Log</span>
@@ -1351,7 +1351,7 @@
 <!-- ============================================================
      CHANGELOG MODAL
      ============================================================ -->
-<div id="changelogModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,2,0.95); z-index:9999; align-items:center; justify-content:center; font-family:'Segoe UI',Arial,sans-serif; color:#c8d8ff;" onkeydown="if(event.key==='Escape')closeChangelogModal()">
+<div id="changelogModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,2,0.95); z-index:9999; align-items:center; justify-content:center; font-family:var(--font-ui); color:#c8d8ff;" onkeydown="if(event.key==='Escape')closeChangelogModal()">
   <div style="width:min(840px,96vw); height:min(600px,92vh); display:flex; flex-direction:column; background:#03030f; border:1px solid rgba(50,100,200,0.35); border-radius:14px; overflow:hidden; box-shadow:0 0 60px rgba(30,60,160,0.15);">
     <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 18px; border-bottom:1px solid rgba(50,80,160,0.3); flex-shrink:0;">
       <div>
@@ -1374,7 +1374,7 @@
      BOSS BEATEN SECRET SCREEN
      ============================================================ -->
 <div id="bossBeatenOverlay" style="display:none; position:fixed; inset:0; background:#000; z-index:9998; flex-direction:column; align-items:center; justify-content:center;">
-  <p id="bossBeatenText" style="color:#cc00ee; font-size:26px; font-family:Arial,sans-serif; text-align:center; opacity:0; transition:opacity 1.2s ease; line-height:1.6; max-width:540px; padding:0 20px;">
+  <p id="bossBeatenText" style="color:#cc00ee; font-size:26px; font-family:var(--font-display); text-align:center; opacity:0; transition:opacity 1.2s ease; line-height:1.6; max-width:540px; padding:0 20px;">
     He is still out there...<br>Find clues hidden in the arenas with your supers.
   </p>
   <button id="bossBeatenContinue" class="btn" style="display:none; margin-top:36px; font-size:1rem; padding:12px 32px;" onclick="closeBossBeatenScreen()">Continue</button>
@@ -3165,7 +3165,7 @@ function _renderFightersLog() {
 <!-- ============================================================
      STORY INTRO CUTSCENE — origin-story panels (canvas-drawn)
      ============================================================ -->
-<div id="storyIntroOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:9600;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;user-select:none;">
+<div id="storyIntroOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:9600;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-ui);user-select:none;">
   <canvas id="storyIntroCanvas" width="560" height="280" style="max-width:90vw;height:auto;border-radius:6px;display:block;"></canvas>
   <div id="storyIntroCaptionMain" style="margin-top:22px;font-size:1.08rem;color:#dde4ff;letter-spacing:0.04em;min-height:1.6em;text-align:center;max-width:500px;line-height:1.5;"></div>
   <div id="storyIntroCaptionSub"  style="margin-top:6px;font-size:0.80rem;color:#556;min-height:1.2em;text-align:center;max-width:460px;font-style:italic;"></div>
@@ -3183,7 +3183,7 @@ function _renderFightersLog() {
 <!-- ============================================================
      STORY UNLOCK CEREMONY — dramatic full-screen ability unlock
      ============================================================ -->
-<div id="storyUnlockOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:9300;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',Arial,sans-serif;text-align:center;">
+<div id="storyUnlockOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:9300;flex-direction:column;align-items:center;justify-content:center;font-family:var(--font-ui);text-align:center;">
   <div id="storyUnlockIcon"   style="font-size:3.2rem;margin-bottom:14px;opacity:0;transition:opacity 0.5s;"></div>
   <div id="storyUnlockLabel"  style="font-size:0.68rem;color:#556;letter-spacing:5px;text-transform:uppercase;margin-bottom:10px;opacity:0;transition:opacity 0.5s 0.3s;">UNLOCKED</div>
   <div id="storyUnlockName"   style="font-size:1.8rem;color:#aad4ff;letter-spacing:2px;font-weight:bold;margin-bottom:8px;opacity:0;transition:opacity 0.5s 0.5s;"></div>
@@ -3210,7 +3210,7 @@ function _renderFightersLog() {
         <button id="storyTabChapters"   class="story-tab active" onclick="switchStoryTab('chapters')">Chapters</button>
         <button id="storyViewToggle"    class="story-tab" style="display:none" onclick="StoryMap.toggle()">List view</button>
       </div>
-      <span style="font-size:0.76rem;color:#776633;letter-spacing:0.04em;"><span style="color:#b89930;font-weight:600;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> <span id="storyTokenDisplay">0</span></span></span>
+      <span style="font-size:0.76rem;color:#776633;letter-spacing:0.04em;"><span style="color:#b89930;font-weight:600;"><svg class="smb-icon ico tok-ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-token"/></svg> <span id="storyTokenDisplay">0</span> tokens</span></span>
     </div>
 
     <!-- TAB: Chapters (existing level list) -->
@@ -3230,7 +3230,7 @@ function _renderFightersLog() {
       <button id="continueStoryBtn" onclick="continueStory()" style="flex:1;min-width:220px;background:linear-gradient(135deg,#0e4a1a,#1a7a30);border:1px solid rgba(80,220,100,0.45);border-radius:8px;color:#aaffbb;padding:9px 20px;cursor:pointer;font-size:0.90rem;font-weight:700;letter-spacing:0.03em;transition:background 0.15s,box-shadow 0.15s;text-align:left;" onmouseover="this.style.background='linear-gradient(135deg,#155c22,#229940)';this.style.boxShadow='0 0 12px rgba(60,200,80,0.35)'" onmouseout="this.style.background='linear-gradient(135deg,#0e4a1a,#1a7a30)';this.style.boxShadow=''">▶ Continue Story</button>
       <button id="storyLoadoutBtn" onclick="openStoryLoadout()" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.16);border-radius:7px;color:#ffd27a;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">Loadout</button>
       <button id="storyDifficultyBtn" onclick="_showStoryDifficultyPicker(false)" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.16);border-radius:7px;color:#aaffbb;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">Difficulty: Normal</button>
-      <button onclick="storyNewGame()" style="background:rgba(255,80,80,0.10);border:1px solid rgba(255,80,80,0.30);border-radius:7px;color:#ff9988;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">↺ New Game</button>
+      <button onclick="storyNewGame()" style="margin-left:auto;background:rgba(255,80,80,0.10);border:1px solid rgba(255,80,80,0.30);border-radius:7px;color:#ff9988;padding:6px 16px;cursor:pointer;font-size:0.78rem;white-space:nowrap;">↺ New Game</button>
     </div>
   </div>
 </div>
@@ -3252,8 +3252,8 @@ function _renderFightersLog() {
 <div id="shopModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9050;align-items:center;justify-content:center;">
   <div class="smb-modal-box" style="width:min(620px,96vw);max-height:88vh;display:flex;flex-direction:column;gap:0;padding:22px 24px 18px;">
     <div class="smb-modal-header" style="margin-bottom:14px;">
-      <span><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-coin"/></svg> ABILITY SHOP</span>
-      <span style="color:#d4a830;font-size:0.82rem;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg> <span id="shopModalTokenDisplay">0</span> tokens</span>
+      <span><svg class="smb-icon ico tok-ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-token"/></svg> ABILITY SHOP</span>
+      <span style="color:#d4a830;font-size:0.82rem;"><svg class="smb-icon ico tok-ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-token"/></svg> <span id="shopModalTokenDisplay">0</span> tokens</span>
       <button class="smb-modal-close" onclick="closeShopModal()">&#10005; Close</button>
     </div>
     <p style="margin:0 0 12px;font-size:0.72rem;color:#886644;line-height:1.5;">Spend tokens to unlock abilities for story fights. Blueprints drop from chapters.</p>
@@ -3263,7 +3263,7 @@ function _renderFightersLog() {
 
 <!-- STORY VICTORY / POST-FIGHT OVERLAY (tokens + blueprint reveal) -->
 <div id="storyVictoryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9250;align-items:center;justify-content:center;">
-  <div style="background:rgba(6,6,20,0.98);border:1px solid rgba(255,200,100,0.30);border-radius:14px;padding:32px 36px 26px;width:min(400px,88vw);color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;text-align:center;box-shadow:0 0 50px rgba(180,130,0,0.18);">
+  <div style="background:rgba(6,6,20,0.98);border:1px solid rgba(255,200,100,0.30);border-radius:14px;padding:32px 36px 26px;width:min(400px,88vw);color:#dde4ff;font-family:var(--font-ui);text-align:center;box-shadow:0 0 50px rgba(180,130,0,0.18);">
     <div style="font-size:2.5rem;margin-bottom:6px;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-trophy"/></svg></div>
     <div id="storyVictoryChTitle" style="font-size:1.1rem;color:#ffcc88;font-weight:bold;margin-bottom:4px;"></div>
     <div id="storyVictoryPostText" style="font-size:0.82rem;color:#aab;margin-bottom:14px;line-height:1.6;font-style:italic;"></div>
@@ -3279,7 +3279,7 @@ function _renderFightersLog() {
      STORY DIALOGUE PANEL — pre-battle narrative
      ============================================================ -->
 <div id="storyDialoguePanel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9100;align-items:center;justify-content:center;">
-  <div style="width:min(480px,88vw);padding:36px 36px 28px;color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;text-align:center;">
+  <div style="width:min(480px,88vw);padding:36px 36px 28px;color:#dde4ff;font-family:var(--font-ui);text-align:center;">
     <div id="storyDialogueChapter" style="font-size:0.7rem;color:#664422;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;"></div>
     <h2 id="storyDialogueTitle" style="margin:0 0 6px;font-size:1.4rem;color:#ffcc88;letter-spacing:1px;"></h2>
     <div id="storyDialogueOpponent" style="font-size:0.72rem;color:#7788bb;letter-spacing:1px;margin-bottom:18px;display:none;"></div>
@@ -3294,7 +3294,7 @@ function _renderFightersLog() {
 
 <!-- IMPORT SAVE MODAL -->
 <div id="importSaveModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:10000;align-items:center;justify-content:center;">
-  <div style="background:#0b0b1e;border:1px solid rgba(100,180,255,0.3);border-radius:12px;padding:28px 28px 22px;width:min(480px,90vw);color:#dde4ff;font-family:'Segoe UI',Arial,sans-serif;box-shadow:0 0 40px rgba(0,100,255,0.18);">
+  <div style="background:#0b0b1e;border:1px solid rgba(100,180,255,0.3);border-radius:12px;padding:28px 28px 22px;width:min(480px,90vw);color:#dde4ff;font-family:var(--font-ui);box-shadow:0 0 40px rgba(0,100,255,0.18);">
     <h3 style="margin:0 0 10px;font-size:1.05rem;color:#88ccff;"><svg class="smb-icon ico" viewBox="0 0 24 24" fill="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#i-book"/></svg> Import Save</h3>
     <p style="margin:0 0 12px;font-size:0.8rem;opacity:0.7;">Upload a save file or paste a save string. This will overwrite your current progress.</p>
     <label style="display:block;margin-bottom:10px;">

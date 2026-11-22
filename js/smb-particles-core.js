@@ -554,7 +554,7 @@ class DamageText {
     ctx.save();
     ctx.globalAlpha   = a;
     ctx.textAlign     = 'center';
-    ctx.font          = `800 ${fs}px "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+    ctx.font          = `800 ${fs}px ${FONT_UI}`;
     // A soft drop shadow, not a black keyline, so text stays legible without a cartoon outline.
     ctx.shadowColor   = 'rgba(0,0,0,0.92)';
     ctx.shadowBlur    = fs >= 20 ? 7 : 5;

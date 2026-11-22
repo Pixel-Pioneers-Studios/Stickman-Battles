@@ -55,7 +55,7 @@
       ctx.fillStyle = '#26323c'; for (let wx = P.x + 40; wx < P.x + P.w - 40; wx += 22) { ctx.beginPath(); ctx.ellipse(wx, P.y + 30, 5, 7, 0, 0, Math.PI * 2); ctx.fill(); }
       ctx.fillStyle = '#000'; ctx.beginPath(); ctx.ellipse(P.x + 6, P.y + 40, 12, 40, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#1a1e22'; ctx.beginPath(); ctx.moveTo(P.x + 160, P.y + 70); ctx.lineTo(P.x + 300, P.y + 70); ctx.lineTo(P.x + 340, P.y + 110); ctx.lineTo(P.x + 140, P.y + 110); ctx.fill();
-      ctx.fillStyle = '#e8ecef'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left'; ctx.fillText('NORTHWIND', P.x + 70, P.y + 20);
+      ctx.fillStyle = '#e8ecef'; ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'left'; ctx.fillText('NORTHWIND', P.x + 70, P.y + 20);
     }
     if (_slVisible(v, BUS.x - 20, BUS.x + BUS.w + 20)) {
       const B = BUS;

@@ -1473,7 +1473,7 @@ function drawRealmWorld() {
     if (_realmNear.kind === 'lever') py = ny - 90;
     if (_realmNear.kind === 'torch') py = ny - 120;
     var verb = _realmNear.kind === 'burn' ? 'Burn' : _realmNear.kind === 'lever' ? 'Pull' : _realmNear.kind === 'torch' ? 'Light' : _realmNear.kind === 'npc' ? 'Trade' : isItem ? 'Take' : _realmNear.kind === 'chest' ? 'Open' : (n.art === 'ladder' || n.art === 'hatch') ? 'Climb' : 'Enter';
-    ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     ctx.fillRect(n.x - 34, py - 14, 68, 20);
     ctx.fillStyle = '#ffd27a';
@@ -1607,18 +1607,18 @@ function drawRealmHUD() {
     ctx.strokeStyle = 'rgba(255,210,122,0.8)'; ctx.lineWidth = 1;
     ctx.strokeRect(x + 0.5, y + 0.5, S - 1, S - 1);
   });
-  ctx.font = 'bold 12px Arial'; ctx.textAlign = 'right'; ctx.fillStyle = '#ffd27a';
+  ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'right'; ctx.fillStyle = '#ffd27a';
   ctx.fillText(R.name, GAME_W - 18, oy - 8);
 
   if (realmBanner > 0) {
     ctx.globalAlpha = realmBanner > 120 ? (150 - realmBanner) / 30 : Math.min(1, realmBanner / 30);
     ctx.textAlign = 'center';
-    ctx.font = 'bold 34px Arial';
+    ctx.font = `bold 34px ${FONT_DISPLAY}`;
     ctx.fillStyle = '#fff1d6';
     ctx.shadowColor = '#ffb347'; ctx.shadowBlur = 14;
     ctx.fillText(R.name.toUpperCase(), GAME_W / 2, GAME_H * 0.3);
     ctx.shadowBlur = 0;
-    ctx.font = 'bold 13px Arial';
+    ctx.font = `bold 13px ${FONT_UI}`;
     ctx.fillStyle = '#e6cfa6';
     ctx.fillText(def.name, GAME_W / 2, GAME_H * 0.3 + 24);
     ctx.globalAlpha = 1;
@@ -2557,7 +2557,7 @@ function _realmStoryDrawMain() {
 }
 
 function _realmPrompt(x, y, verb) {
-  ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+  ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(x - 34, y - 14, 68, 20);
   ctx.fillStyle = '#ffd27a';
@@ -2593,7 +2593,7 @@ function _realmDrawFadeAndBanner(R) {
   if (realmBanner > 0 && R && realmRoomKey) {
     ctx.globalAlpha = realmBanner > 90 ? (120 - realmBanner) / 30 : Math.min(1, realmBanner / 30);
     ctx.textAlign = 'center';
-    ctx.font = 'bold 26px Arial';
+    ctx.font = `bold 26px ${FONT_DISPLAY}`;
     ctx.fillStyle = '#e8f2ee';
     ctx.shadowColor = '#5fd8a8'; ctx.shadowBlur = 12;
     ctx.fillText(R.name.toUpperCase(), GAME_W / 2, GAME_H * 0.26);

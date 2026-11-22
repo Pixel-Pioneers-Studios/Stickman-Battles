@@ -364,7 +364,7 @@ function drawSidequestHUD() {
   ctx.strokeStyle = 'rgba(150,165,190,0.2)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(x + 0.5, y + 0.5, W - 1, H - 1, 3); ctx.stroke();
   ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-  ctx.font = '600 8px "Segoe UI", Arial, sans-serif';
+  ctx.font = `600 8px ${FONT_UI}`;
   ctx.fillStyle = 'rgba(165,178,200,0.6)';
   ctx.fillText('OPTIONAL', x + 8, y + 11);
   let ry = y + 18 + 10;
@@ -374,7 +374,7 @@ function drawSidequestHUD() {
     ctx.fillStyle = ctx.strokeStyle;
     ctx.beginPath(); ctx.arc(x + 13, ry - 3.5, 2.8, 0, Math.PI * 2);
     if (q.done) ctx.fill(); else ctx.stroke();
-    ctx.font = '11px "Segoe UI", Arial, sans-serif';
+    ctx.font = `11px ${FONT_UI}`;
     let label = q.def.title;
     if (!q.done && q.def.type === 'clear' && q.spawned) {
       label += `  ${q.foes.filter(m => m.health <= 0).length}/${q.foes.length}`;

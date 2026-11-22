@@ -132,6 +132,13 @@ const SMB_ICONS = {
 
   coin: '<circle cx="12" cy="12" r="9.4"/><circle class="a" cx="12" cy="12" r="6.2" fill="none" stroke="#000" stroke-opacity=".34" stroke-width="1.6"/><path class="a" d="M12 7.8v8.4M9.6 10h4.8M9.6 14h4.8" fill="none" stroke="#000" stroke-opacity=".34" stroke-width="1.5"/>',
 
+  heart: '<path d="M12 21.2s-8.8-5.4-8.8-11.6A4.9 4.9 0 0 1 12 6.6a4.9 4.9 0 0 1 8.8 3c0 6.2-8.8 11.6-8.8 11.6z"/><path class="a" d="M7.4 9.2a2.4 2.4 0 0 1 2.2-1.6" fill="none" stroke="#000" stroke-opacity=".34" stroke-width="1.5"/>',
+
+  warn: '<path d="M12 2.2 23 21.4H1z"/><path class="a" d="M12 9v5.6" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="2.2"/><circle class="a" cx="12" cy="17.6" r="1.3" fill="#000" fill-opacity=".5"/>',
+
+  // Story token: a diamond chit, so it never reads as the round account coin.
+  token: '<path d="M12 1.8 22.2 12 12 22.2 1.8 12z"/><path class="a" d="M12 6.4 17.6 12 12 17.6 6.4 12z" fill="none" stroke="#000" stroke-opacity=".34" stroke-width="1.6"/><circle class="a" cx="12" cy="12" r="1.7" fill="#000" fill-opacity=".34"/>',
+
   gear: '<path d="M10.4 1.6h3.2l.5 2.7 2 .8 2.3-1.5 2.3 2.3-1.5 2.3.8 2 2.7.5v3.2l-2.7.5-.8 2 1.5 2.3-2.3 2.3-2.3-1.5-2 .8-.5 2.7h-3.2l-.5-2.7-2-.8-2.3 1.5-2.3-2.3 1.5-2.3-.8-2-2.7-.5v-3.2l2.7-.5.8-2L3.3 5.9l2.3-2.3 2.3 1.5 2-.8z"/><circle class="a" cx="12" cy="12" r="3.4" fill="#000" opacity=".42"/>',
 
   chat: '<path d="M12 2.6c5.6 0 10.2 3.6 10.2 8s-4.6 8-10.2 8a13 13 0 0 1-2.6-.3l-5 2.6 1.4-4.2c-2.4-1.5-3.8-3.7-3.8-6.1 0-4.4 4.6-8 10-8z"/><circle class="a" cx="8" cy="10.6" r="1.5" fill="#000" opacity=".35"/><circle class="a" cx="12" cy="10.6" r="1.5" fill="#000" opacity=".35"/><circle class="a" cx="16" cy="10.6" r="1.5" fill="#000" opacity=".35"/>',
@@ -207,6 +214,9 @@ function smbIcon(name, opts) {
          `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ` +
          `focusable="false"${style}>${body}</svg>`;
 }
+
+// Data that may hold either an icon name or a legacy glyph: names render from the set, anything else passes through.
+function smbIconOrText(v, opts) { return (v && SMB_ICONS[v]) ? smbIcon(v, opts) : (v || ''); }
 
 function smbWeaponIcon(key, opts) { return smbIcon(SMB_WEAPON_ICONS[key] || 'unknown', opts); }
 function smbClassIcon(key, opts)  { return smbIcon(SMB_CLASS_ICONS[key]  || 'unknown', opts); }

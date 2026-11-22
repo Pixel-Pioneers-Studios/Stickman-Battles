@@ -1181,7 +1181,7 @@ function drawHomeAlleyArena() {
   ctx.fillStyle='#1a1a1a'; ctx.fillRect(0,groundY,W,4);
 
   ctx.save(); ctx.globalAlpha=0.45;
-  ctx.fillStyle='#dd4422'; ctx.font='bold 18px Arial';
+  ctx.fillStyle='#dd4422'; ctx.font=`bold 18px ${FONT_UI}`;
   ctx.fillText('NO', 20, 340);
   ctx.fillStyle='#2244cc';
   ctx.fillText('WAY', 22, 360);
@@ -1197,7 +1197,7 @@ function drawHomeAlleyArena() {
     ctx.fillStyle='#1a6a2a'; ctx.fillRect(dx-2,dy-42,124,8); ctx.strokeRect(dx-2,dy-42,124,8);
     ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=1;
     ctx.strokeRect(dx+10,dy-28,30,18);
-    ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.font='7px Arial';
+    ctx.fillStyle='rgba(255,255,255,0.15)'; ctx.font=`7px ${FONT_UI}`;
     ctx.fillText('WASTE', dx+8, dy-16);
   });
 

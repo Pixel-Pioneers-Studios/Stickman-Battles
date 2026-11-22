@@ -103,7 +103,7 @@
         ctx.fillStyle = '#2a5a4a'; ctx.fillRect(1650, 430 - 70, 90, 70);
         ctx.fillStyle = '#1e3e34'; ctx.fillRect(1640, 430 - 74, 110, 8);
         ctx.fillStyle = '#d8d0c0'; ctx.fillRect(1660, 430 - 56, 70, 30);
-        ctx.fillStyle = '#9c2a22'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center'; ctx.fillText('THE DAILY', 1695, 430 - 44); ctx.fillText('SKY TEARS?', 1695, 430 - 34);
+        ctx.fillStyle = '#9c2a22'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('THE DAILY', 1695, 430 - 44); ctx.fillText('SKY TEARS?', 1695, 430 - 34);
       }
       for (let k = 0; k < 7; k++) {
         const fx = 300 + k * 330 + Math.sin(frameCount * 0.004 + k) * 40;
@@ -120,7 +120,7 @@
       ctx.fillStyle = '#8a8478'; ctx.fillRect(MALL, G - 320, 120, 320);
       ctx.fillStyle = '#c8c0b0'; ctx.fillRect(MALL - 10, G - 330, 140, 14);
       ctx.fillStyle = '#2a2420'; ctx.fillRect(MALL + 10, G - 130, 100, 130);
-      ctx.fillStyle = '#e8d8b0'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.fillText('EASTGATE', MALL + 60, G - 290); ctx.font = 'bold 10px Arial'; ctx.fillText('MALL', MALL + 60, G - 274);
+      ctx.fillStyle = '#e8d8b0'; ctx.font = `bold 15px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('EASTGATE', MALL + 60, G - 290); ctx.font = `bold 10px ${FONT_UI}`; ctx.fillText('MALL', MALL + 60, G - 274);
       const IX = MALL + 120;
       ctx.fillStyle = '#4a4440'; ctx.fillRect(IX, -400, 4500 - IX, G + 400);
       ctx.fillStyle = '#3a3430'; ctx.fillRect(IX, G - 420, 4500 - IX, 20);
@@ -142,7 +142,7 @@
           ctx.fillStyle = 'rgba(150,170,180,0.18)'; ctx.fillRect(sx + 8, y0 + 26, 204, h - 30);
           ctx.fillStyle = '#16141a'; ctx.fillRect(sx, y0, 220, 22);
           const dark = _slHash(i + y0) < 0.5;
-          ctx.fillStyle = dark ? '#4a4048' : SHOPS[i][1]; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+          ctx.fillStyle = dark ? '#4a4048' : SHOPS[i][1]; ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'center';
           ctx.fillText(y0 < G - 200 ? SHOPS[(i + 3) % 6][0] : SHOPS[i][0], sx + 110, y0 + 16);
           ctx.fillStyle = '#6a6460'; ctx.fillRect(sx + 8, y0 + 26, 204, (h - 30) * (0.3 + _slHash(i * 7 + y0) * 0.5));
         }
@@ -167,7 +167,7 @@
       ctx.fillStyle = '#c8c8cc'; ctx.fillRect(TOP.x, TOP.y - 30, TOP.w, 3);
       const K = KIOSK;
       ctx.fillStyle = '#c86a3a'; ctx.fillRect(K.x, G - K.h, K.w, K.h);
-      ctx.fillStyle = '#e8d8b0'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('PRETZELS', K.x + K.w / 2, G - K.h + 18);
+      ctx.fillStyle = '#e8d8b0'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('PRETZELS', K.x + K.w / 2, G - K.h + 18);
       ctx.fillStyle = '#8a3a1a'; ctx.fillRect(K.x - 6, G - K.h - 6, K.w + 12, 8);
       for (const px of [3020, 3420, 4060]) {
         ctx.fillStyle = '#6a645a'; ctx.fillRect(px, G - 30, 60, 30);
@@ -176,7 +176,7 @@
       ctx.fillStyle = '#2a2a30'; ctx.fillRect(BEACON_X + 30, G - 110, 50, 110);
       ctx.fillStyle = '#d8d0c0'; ctx.fillRect(BEACON_X + 34, G - 104, 42, 60);
       ctx.fillStyle = '#9c2a22'; ctx.beginPath(); ctx.arc(BEACON_X + 50, G - 80, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#2a2a30'; ctx.font = 'bold 6px Arial'; ctx.fillText('YOU ARE HERE', BEACON_X + 55, G - 96);
+      ctx.fillStyle = '#2a2a30'; ctx.font = `bold 6px ${FONT_UI}`; ctx.fillText('YOU ARE HERE', BEACON_X + 55, G - 96);
       const on = (frameCount % 50) < 25;
       ctx.fillStyle = '#3a3e44'; ctx.fillRect(BEACON_X - 6, G - 56, 12, 56);
       ctx.fillStyle = on ? '#7ff0ff' : '#2a5a60'; ctx.fillRect(BEACON_X - 9, G - 66, 18, 12);

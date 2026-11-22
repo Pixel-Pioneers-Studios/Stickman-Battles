@@ -894,7 +894,7 @@ function _brDrawRifts() {
     ctx.globalAlpha = 1;
 
     var label = 'RIFT — ' + g.label;
-    ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center';
     var lw = ctx.measureText(label).width + 18;
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.fillRect(g.x - lw / 2, g.y - BR_RIFT_R - 36, lw, 19);
@@ -2232,11 +2232,11 @@ function _brDrawLandmarkSigns() {
            : L.layer === 'sky'   ? 120
            : L.layer === 'under' ? BR_GROUND_Y + BR_CRUST_H + 120
                                  : BR_SKY_FLOOR_Y + 260;
-    ctx.font = 'bold 30px Arial';
+    ctx.font = `bold 30px ${FONT_DISPLAY}`;
     ctx.fillStyle = 'rgba(255,255,255,0.13)';
     ctx.fillText(L.name.toUpperCase(), cx, y);
     if (L.danger >= 3) {
-      ctx.font = 'bold 15px Arial';
+      ctx.font = `bold 15px ${FONT_UI}`;
       ctx.fillStyle = 'rgba(255,120,60,0.30)';
       ctx.fillText('HIGH RISK  ·  HIGH LOOT', cx, y + 27);
     }
@@ -2307,7 +2307,7 @@ function drawBattleRoyaleWorld() {
     ctx.beginPath(); ctx.moveTo(box.x - 13, box.y); ctx.lineTo(box.x + 13, box.y); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(box.x, box.y - 13); ctx.lineTo(box.x, box.y + 13); ctx.stroke();
     ctx.shadowColor = 'rgba(200,160,60,0.7)'; ctx.shadowBlur = 5 * pulse;
-    ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(220,180,80,0.9)';
+    ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(220,180,80,0.9)';
     ctx.fillText('?', box.x, box.y + 5); ctx.shadowBlur = 0;
     if (box.health < box.maxHealth) {
       var hFrac = box.health / box.maxHealth;
@@ -2328,7 +2328,7 @@ function drawBattleRoyaleWorld() {
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(gi.x, gi.y, 8, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur  = 0;
-    ctx.font = '10px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+    ctx.font = `10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
     ctx.fillText(gi.item.icon || '?', gi.x, gi.y + 4);
     if (gi._pickT > 0) {
       ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 2.5;
@@ -2379,21 +2379,21 @@ function drawBattleRoyaleHUD() {
   if (brPlaneFlight && !brJumped) {
     var pulse = 0.6 + 0.4 * Math.sin(_fc * 0.12);
     ctx.globalAlpha = pulse;
-    ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 22px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 8;
     ctx.fillText('W / SPACE  to DROP', GAME_W / 2, GAME_H / 2 - 40);
-    ctx.font = '13px Arial'; ctx.fillStyle = '#aaccff';
+    ctx.font = `13px ${FONT_UI}`; ctx.fillStyle = '#aaccff';
     ctx.fillText('Choose your landing spot!', GAME_W / 2, GAME_H / 2 - 14);
     ctx.shadowBlur = 0; ctx.globalAlpha = 1;
   }
   if (brJumped && !brLanded) {
-    ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 14px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillStyle = '#88ccff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 5;
     ctx.fillText('Freefalling...', GAME_W / 2, GAME_H / 2 - 30);
     ctx.shadowBlur = 0;
   }
 
-  ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
+  ctx.font = `bold 15px ${FONT_UI}`; ctx.textAlign = 'center';
   var cStr = brStoryBearers
     ? '◈ ' + brAlive + ' / ' + brFieldTotal + '  BEARERS'
     : '🏆 ' + brAlive + ' / ' + brFieldTotal;
@@ -2406,7 +2406,7 @@ function drawBattleRoyaleHUD() {
   if (brLanded) {
     var tStr = '⚔ ' + brPlayerKills + '   📦 ' + brPlayerCrates +
                '   🧭 ' + ((brVisitedZones && brVisitedZones.size) || 0) + '/' + BR_LANDMARKS.length;
-    ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center';
     var tW = ctx.measureText(tStr).width + 18;
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.fillRect(GAME_W / 2 - tW / 2, _brTopY + 28, tW, 17);
@@ -2428,7 +2428,7 @@ function drawBattleRoyaleHUD() {
            : 'Zone in ' + tLeft + 's';
     zColor = (brSurgeWarn > 0 || brSurgeTimer > 0) ? '#ff7733' : '#ffaa44';
   }
-  ctx.font = 'bold 11px Arial'; ctx.textAlign = 'right';
+  ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'right';
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(GAME_W - 132, _brTopY, 124, 20);
   ctx.fillStyle = zColor;
   var _zHot = brZoneState === 'close' || brZoneState === 'final' || brSurgeWarn > 0 || brSurgeTimer > 0;
@@ -2448,7 +2448,7 @@ function drawBattleRoyaleHUD() {
     if (_nearItem && !_p1hud._brFormOffer) {
       var _pPulse = 0.7 + 0.3 * Math.sin(_fc * 0.15);
       ctx.globalAlpha = _pPulse;
-      ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+      ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
       var _invFull = brInventory.indexOf(null) === -1;
       var _pMsg = _invFull ? '[Bag full] ' + (_nearItem.label || _nearItem.type) : '[' + (typeof keyLabelFor === 'function' ? keyLabelFor('f') : 'F') + '] Pick up  ' + (_nearItem.label || _nearItem.type);
@@ -2470,16 +2470,16 @@ function drawBattleRoyaleHUD() {
     ctx.strokeRect(sx, iby, slotW, slotH);
     if (item) {
       ctx.shadowColor = item.color; ctx.shadowBlur = 7;
-      ctx.font = '22px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+      ctx.font = `22px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
       ctx.fillText(item.icon, sx + slotW / 2, iby + 30); ctx.shadowBlur = 0;
-      ctx.font = '7px Arial'; ctx.fillStyle = '#ccc';
+      ctx.font = `7px ${FONT_UI}`; ctx.fillStyle = '#ccc';
       ctx.fillText((item.label || item.type).slice(0, 8), sx + slotW / 2, iby + slotH - 5);
     }
-    ctx.font = 'bold 9px Arial'; ctx.fillStyle = sel ? '#ffcc33' : 'rgba(255,255,255,0.45)';
+    ctx.font = `bold 9px ${FONT_UI}`; ctx.fillStyle = sel ? '#ffcc33' : 'rgba(255,255,255,0.45)';
     ctx.textAlign = 'left'; ctx.fillText('' + (si + 1), sx + 4, iby + 11);
     // Show action hint on selected slot
     if (sel && item) {
-      ctx.font = '7px Arial'; ctx.textAlign = 'center';
+      ctx.font = `7px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255,200,80,0.7)';
       ctx.fillText(item.type === 'weapon' ? 'EQUIP' : (typeof keyLabelFor === 'function' ? keyLabelFor('r') : 'R') + ':USE  ' + (typeof keyLabelFor === 'function' ? keyLabelFor('g') : 'G') + ':DROP', sx + slotW / 2, iby + slotH + 10);
     }
@@ -2490,10 +2490,10 @@ function drawBattleRoyaleHUD() {
     if (brElimBanner > 0) {
       var elimAlpha = Math.min(1, brElimBanner / 60);
       ctx.globalAlpha = elimAlpha;
-      ctx.font = 'bold 36px Arial'; ctx.textAlign = 'center';
+      ctx.font = `bold 36px ${FONT_DISPLAY}`; ctx.textAlign = 'center';
       ctx.fillStyle = '#ff2222'; ctx.shadowColor = '#000'; ctx.shadowBlur = 14;
       ctx.fillText('ELIMINATED', GAME_W / 2, GAME_H / 2 - 20);
-      ctx.font = '14px Arial'; ctx.fillStyle = '#ffaaaa';
+      ctx.font = `14px ${FONT_UI}`; ctx.fillStyle = '#ffaaaa';
       ctx.fillText('You have been eliminated. Spectating...', GAME_W / 2, GAME_H / 2 + 14);
       ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     }
@@ -2502,11 +2502,11 @@ function drawBattleRoyaleHUD() {
       var tname = brSpectateTarget.name || 'Bot';
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(GAME_W / 2 - 120, GAME_H - 95, 240, 22);
-      ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+      ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillStyle = '#ffffff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
       ctx.fillText('SPECTATING  ' + tname, GAME_W / 2, GAME_H - 79);
       ctx.shadowBlur = 0;
-      ctx.font = '9px Arial'; ctx.fillStyle = 'rgba(200,200,200,0.7)';
+      ctx.font = `9px ${FONT_UI}`; ctx.fillStyle = 'rgba(200,200,200,0.7)';
       ctx.fillText('[Q] Prev    [E] Next', GAME_W / 2, GAME_H - 64);
     }
   }
@@ -2557,7 +2557,7 @@ function _drawBRMinimap() {
                                     : 'rgba(120,170,255,0.18)';
       ctx.fillRect(bx, mmY + 10, bw, mmH - 20);
       ctx.fillStyle = 'rgba(220,235,255,0.75)';
-      ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center';
+      ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillText(L.name.replace('The ', '').slice(0, 9), bx + bw / 2, mmY + mmH - 5);
     });
   }
@@ -2608,11 +2608,11 @@ function _drawBRMinimap() {
   if (brPlaneFlight && brPlaneX > 0 && brPlaneX < BR_WORLD_W) {
     var plmmX = mmX + brPlaneX * scX;
     ctx.fillStyle = '#88bbff';
-    ctx.font = '9px Arial'; ctx.textAlign = 'center';
+    ctx.font = `9px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillText('✈', plmmX, mmY + 10);
   }
 
-  ctx.font = 'bold 8px Arial'; ctx.textAlign = 'left';
+  ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(150,180,255,0.7)';
   ctx.fillText('MAP', mmX + 3, mmY + 9);
 }

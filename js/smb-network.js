@@ -142,7 +142,7 @@ const NetworkManager = (() => {
     if (!t) {
       t = document.createElement('div');
       t.id = 'netToast';
-      t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:#fff;padding:10px 22px;border-radius:20px;font-size:15px;z-index:9999;pointer-events:none;transition:opacity 0.4s';
+      t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,rgba(21,17,29,0.94),rgba(7,6,12,0.94));border:1px solid #8C5E1F;box-shadow:0 0 0 2px rgba(7,6,12,0.85);color:#F3E8D2;padding:9px 20px;border-radius:2px;font:600 15px/1.3 var(--font-ui);z-index:9999;pointer-events:none;transition:opacity 0.4s';
       document.body.appendChild(t);
     }
     t.textContent = msg;

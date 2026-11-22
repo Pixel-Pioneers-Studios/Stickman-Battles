@@ -102,14 +102,14 @@ function startMultiverseTravelCinematic(arcLabel, arcColor, onComplete) {
       c.textAlign     = 'center';
       c.textBaseline  = 'middle';
 
-      c.font        = `bold ${Math.round(H * 0.062)}px 'Arial Black', Arial, sans-serif`;
+      c.font        = `bold ${Math.round(H * 0.062)}px ${FONT_DISPLAY}`;
       c.shadowColor = COL;
       c.shadowBlur  = 28;
       c.fillStyle   = '#ffffff';
       c.fillText('REALITY SHIFT', W / 2, H / 2 - H * 0.065);
 
       if (arcLabel) {
-        c.font        = `${Math.round(H * 0.033)}px Arial, sans-serif`;
+        c.font        = `${Math.round(H * 0.033)}px ${FONT_UI}`;
         c.shadowBlur  = 14;
         c.fillStyle   = COL;
         c.fillText(arcLabel, W / 2, H / 2 + H * 0.038);

@@ -96,7 +96,7 @@ function drawInterlude() {
     const a = 0.22 + Math.sin((typeof frameCount !== 'undefined' ? frameCount : 0) * 0.04) * 0.10;
     ctx.globalAlpha = a;
     ctx.fillStyle   = '#776655';
-    ctx.font        = '13px "Segoe UI", Arial, sans-serif';
+    ctx.font        = `13px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     ctx.fillText('→', GAME_W - 30, GAME_H / 2);
     ctx.globalAlpha = 1;
@@ -123,7 +123,7 @@ function _ilDrawCaption(speech) {
   ctx.shadowColor = 'rgba(0,0,0,1)';
   ctx.shadowBlur  = 14;
   ctx.fillStyle   = '#b0a898';
-  ctx.font        = 'italic 16px "Segoe UI", Arial, sans-serif';
+  ctx.font        = `italic 16px ${FONT_UI}`;
   ctx.textAlign   = 'center';
   ctx.fillText(speech.text, GAME_W / 2, GAME_H * 0.16);
   ctx.shadowBlur  = 0;
@@ -162,7 +162,7 @@ function _ilDrawBubble(speech) {
   ctx.shadowColor = 'rgba(0,0,0,0.9)';
   ctx.shadowBlur  = 8;
 
-  ctx.font = '14px "Segoe UI", Arial, sans-serif';
+  ctx.font = `14px ${FONT_UI}`;
   const tw  = ctx.measureText(speech.text).width;
   const bw  = Math.max(tw + 34, 150);
   const bh  = 50;
@@ -201,13 +201,13 @@ function _ilDrawBubble(speech) {
   // Speaker name
   ctx.shadowBlur  = 0;
   ctx.fillStyle   = '#997766';
-  ctx.font        = 'bold 11px "Segoe UI", Arial, sans-serif';
+  ctx.font        = `bold 11px ${FONT_UI}`;
   ctx.textAlign   = 'left';
   ctx.fillText(speech.speaker.toUpperCase(), bx + 10, by + 17);
 
   // Dialogue text
   ctx.fillStyle = '#ede5d8';
-  ctx.font      = '14px "Segoe UI", Arial, sans-serif';
+  ctx.font      = `14px ${FONT_UI}`;
   ctx.fillText(speech.text, bx + 10, by + 38);
 
   ctx.restore();

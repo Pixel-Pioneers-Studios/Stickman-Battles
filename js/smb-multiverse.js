@@ -336,7 +336,7 @@ const FallenGodSystem = (function() {
       ctx.fillStyle = `rgba(255,180,60,${alpha * 0.6})`;
       ctx.fillRect(0, ch - 110, cw, 2);
 
-      ctx.font = 'bold 11px "Segoe UI", Arial, sans-serif';
+      ctx.font = `bold 11px ${FONT_UI}`;
       ctx.letterSpacing = '2px';
       ctx.fillStyle = `rgba(255,180,60,${alpha})`;
       ctx.fillText('THE FALLEN GOD', 28, ch - 78);
@@ -352,7 +352,7 @@ const FallenGodSystem = (function() {
       }
       if (cur) lines.push(cur);
 
-      ctx.font = 'italic 14px "Segoe UI", Arial, sans-serif';
+      ctx.font = `italic 14px ${FONT_UI}`;
       ctx.fillStyle = `rgba(230,220,255,${alpha})`;
       lines.forEach((line, i) => ctx.fillText(line, 28, ch - 52 + i * 20));
 
@@ -579,7 +579,7 @@ const MultiverseManager = (function() {
 
       // World modifier badge, top-left
       ctx.save();
-      ctx.font = 'bold 9px "Segoe UI", Arial, sans-serif';
+      ctx.font = `bold 9px ${FONT_UI}`;
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(6, 6, 160, 20);
       ctx.fillStyle = world.color;
@@ -598,7 +598,7 @@ const MultiverseManager = (function() {
         ctx.restore();
         if (progress > 0.85) {
           ctx.save();
-          ctx.font = 'bold 11px Arial';
+          ctx.font = `bold 11px ${FONT_UI}`;
           ctx.fillStyle = `rgba(100,180,255,${0.5 + Math.sin(Date.now() / 120) * 0.4})`;
           ctx.textAlign = 'center';
           ctx.fillText('⚠ GRAVITY SHIFT INCOMING', GAME_W / 2, GAME_H - 14);
@@ -649,16 +649,16 @@ const MultiverseManager = (function() {
       ctx.fillRect(0, ch * 0.3, cw, ch * 0.38);
 
       ctx.textAlign = 'center';
-      ctx.font = `bold 22px "Segoe UI", Arial, sans-serif`;
+      ctx.font = `bold 22px ${FONT_UI}`;
       ctx.fillStyle = `rgba(255,210,80,${alpha})`;
       ctx.fillText('WORLD COMPLETE', cw / 2, ch * 0.42);
 
-      ctx.font = `16px "Segoe UI", Arial, sans-serif`;
+      ctx.font = `16px ${FONT_UI}`;
       ctx.fillStyle = `rgba(200,200,255,${alpha})`;
       ctx.fillText(_multiverseWorldCompleteLabel, cw / 2, ch * 0.50);
 
       if (_multiverseWorldCompleteUnlock) {
-        ctx.font = `bold 13px "Segoe UI", Arial, sans-serif`;
+        ctx.font = `bold 13px ${FONT_UI}`;
         ctx.fillStyle = `rgba(100,255,160,${alpha})`;
         ctx.fillText(`🔓 Unlocked: ${_multiverseWorldCompleteUnlock}`, cw / 2, ch * 0.58);
       }
@@ -684,7 +684,7 @@ const MultiverseManager = (function() {
       const spacing = 22;
       const startX = cw / 2 - ((total - 1) * spacing) / 2;
 
-      ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+      ctx.font = `bold 10px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(startX - 20, y - 1, (total - 1) * spacing + 40, 22);
@@ -707,10 +707,10 @@ const MultiverseManager = (function() {
           ctx.stroke();
         }
         if (encType === 'boss') {
-          ctx.font = '8px Arial';
+          ctx.font = `8px ${FONT_UI}`;
           ctx.fillStyle = done ? '#66ee99' : active ? '#fff' : '#554';
           ctx.fillText('★', cx, cy + 3);
-          ctx.font = 'bold 10px "Segoe UI", Arial, sans-serif';
+          ctx.font = `bold 10px ${FONT_UI}`;
         }
       }
 

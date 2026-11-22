@@ -656,7 +656,7 @@ class AdaptiveAI extends Fighter {
       ctx.save();
       const r = this._auraR, g = this._auraG, b = this._auraB;
       const alpha = 0.35 + this.intelligence * 0.55;
-      ctx.font      = `bold ${6 + Math.round(this.intelligence * 3)}px Arial`;
+      ctx.font      = `bold ${6 + Math.round(this.intelligence * 3)}px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = `rgba(${r},${g},${b},${alpha.toFixed(2)})`;
       ctx.fillText('◈ ADAPTING', this.cx(), this.y - 14);

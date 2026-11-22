@@ -390,7 +390,7 @@ function _drawEscortGoalFlag() {
   ctx.lineTo(gx, floorY - 46);
   ctx.closePath(); ctx.fill();
   ctx.globalAlpha = 1;
-  ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center';
+  ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center';
   ctx.fillStyle = '#1a1a00';
   ctx.fillText('GOAL', gx + 10, floorY - 55);
   ctx.strokeStyle = 'rgba(255,221,68,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([4, 6]);
@@ -412,10 +412,10 @@ function drawEscortHUD() {
   if (escortState === 'success') {
     var a = Math.min(1, escortBanner / 60);
     ctx.globalAlpha = a;
-    ctx.font = 'bold 34px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 34px ${FONT_DISPLAY}`; ctx.textAlign = 'center';
     ctx.fillStyle = '#44ff88'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12;
     ctx.fillText('ESCORT COMPLETE', GAME_W / 2, GAME_H / 2 - 20);
-    ctx.font = '15px Arial'; ctx.fillStyle = '#aaffcc';
+    ctx.font = `15px ${FONT_UI}`; ctx.fillStyle = '#aaffcc';
     ctx.fillText(escortNPCName + ' reached safety!', GAME_W / 2, GAME_H / 2 + 14);
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     ctx.restore(); return;
@@ -423,10 +423,10 @@ function drawEscortHUD() {
   if (escortState === 'fail') {
     var a2 = Math.min(1, escortBanner / 60);
     ctx.globalAlpha = a2;
-    ctx.font = 'bold 34px Arial'; ctx.textAlign = 'center';
+    ctx.font = `bold 34px ${FONT_DISPLAY}`; ctx.textAlign = 'center';
     ctx.fillStyle = '#ff3322'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12;
     ctx.fillText('ESCORT FAILED', GAME_W / 2, GAME_H / 2 - 20);
-    ctx.font = '15px Arial'; ctx.fillStyle = '#ffaaaa';
+    ctx.font = `15px ${FONT_UI}`; ctx.fillStyle = '#ffaaaa';
     ctx.fillText(escortNPCName + ' was eliminated.', GAME_W / 2, GAME_H / 2 + 14);
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     ctx.restore(); return;
@@ -449,11 +449,11 @@ function drawEscortHUD() {
     ctx.fillRect(barX, barY, barW * hFrac, barH);
     ctx.shadowBlur = 0;
 
-    ctx.font = 'bold 9px Arial'; ctx.textAlign = 'left';
+    ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'left';
     ctx.fillStyle = '#cceeff';
     ctx.fillText('🛡 ' + escortNPCName, barX, barY - 3);
 
-    ctx.font = '8px Arial'; ctx.textAlign = 'right'; ctx.fillStyle = '#aaa';
+    ctx.font = `8px ${FONT_UI}`; ctx.textAlign = 'right'; ctx.fillStyle = '#aaa';
     ctx.fillText(Math.max(0, Math.ceil(escortNPC.health)) + ' / ' + escortNPC.maxHealth, barX + barW, barY - 3);
   }
 
@@ -472,14 +472,14 @@ function drawEscortHUD() {
     ctx.fillStyle = '#ffdd44';
     ctx.fillRect(trX, trY, trW * prog, trH);
 
-    ctx.font = 'bold 8px Arial'; ctx.textAlign = 'left';
+    ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'left';
     ctx.fillStyle = '#ffeeaa';
     ctx.fillText('PROGRESS  ►', trX, trY - 3);
 
     if (dist < 150) {
       var nearPulse = 0.6 + 0.4 * Math.sin(_fc * 0.2);
       ctx.globalAlpha = nearPulse;
-      ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#ffdd44';
+      ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#ffdd44';
       ctx.shadowColor = '#ffdd44'; ctx.shadowBlur = 8;
       ctx.fillText('Almost there!', trX + trW / 2, trY + 22);
       ctx.shadowBlur = 0; ctx.globalAlpha = 1;

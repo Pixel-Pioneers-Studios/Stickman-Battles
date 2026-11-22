@@ -92,7 +92,7 @@ function _finTitle(ctx, name, t, accentColor) {
   ctx.beginPath(); ctx.moveTo(cx-tw*0.38, cy+bh*0.38); ctx.lineTo(cx+tw*0.38, cy+bh*0.38); ctx.stroke();
   ctx.shadowColor = accentColor; ctx.shadowBlur = 28;
   ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-  ctx.font = `900 ${Math.floor(canvas.width*0.042)}px Arial`;
+  ctx.font = `900 ${Math.floor(canvas.width*0.042)}px ${FONT_UI}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(name, cx, cy);
   ctx.restore();
@@ -105,7 +105,7 @@ function _finSubtitle(ctx, text, t, yFrac) {
   ctx.save();
   ctx.setTransform(1,0,0,1,0,0);
   const cx = canvas.width/2, cy = canvas.height*(yFrac||0.88);
-  ctx.font = `italic ${Math.floor(canvas.width*0.022)}px Arial`;
+  ctx.font = `italic ${Math.floor(canvas.width*0.022)}px ${FONT_UI}`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 8;
   ctx.fillStyle = `rgba(220,220,220,${alpha})`;

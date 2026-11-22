@@ -1156,7 +1156,7 @@
 
   function _drawBubble(c, anchorX, anchorY, text, color, typedLen, maxW, tailSide) {
     var shown=text.slice(0,typedLen); var pad=17,fSize=15,lineH=23;
-    c.font=fSize+'px \'Segoe UI\', Arial, sans-serif';
+    c.font=fSize+`px ${FONT_UI}`;
     var words=shown.split(' '),wrLines=[],cur='';
     for (var wi=0;wi<words.length;wi++) { var test=cur?cur+' '+words[wi]:words[wi]; if(c.measureText(test).width>maxW-pad*2){if(cur)wrLines.push(cur);cur=words[wi];}else{cur=test;} }
     if(cur)wrLines.push(cur); if(!wrLines.length)return;
@@ -1170,7 +1170,7 @@
     c.beginPath(); c.moveTo(bx+r,by); c.lineTo(bx+bw-r,by); c.quadraticCurveTo(bx+bw,by,bx+bw,by+r); c.lineTo(bx+bw,by+bh-r); c.quadraticCurveTo(bx+bw,by+bh,bx+bw-r,by+bh);
     var tl=Math.max(bx+r,Math.min(bx+bw-r,tailX)-9),tr=Math.max(bx+r,Math.min(bx+bw-r,tailX)+9);
     c.lineTo(tr,by+bh); c.lineTo(tailX,tailTip); c.lineTo(tl,by+bh); c.lineTo(bx+r,by+bh); c.quadraticCurveTo(bx,by+bh,bx,by+bh-r); c.lineTo(bx,by+r); c.quadraticCurveTo(bx,by,bx+r,by); c.closePath(); c.fill(); c.stroke(); c.restore();
-    c.fillStyle='#ffffff'; c.font=fSize+'px \'Segoe UI\', Arial, sans-serif';
+    c.fillStyle='#ffffff'; c.font=fSize+`px ${FONT_UI}`;
     for (var li=0;li<wrLines.length;li++) { c.fillText(wrLines[li],bx+pad,by+pad+fSize+li*lineH); }
   }
 
@@ -1388,7 +1388,7 @@
     var bw=170,bh=44,bx=(w-bw)*0.5,by=h*0.90;
     c.save(); c.fillStyle='rgba(255,200,100,0.11)'; c.strokeStyle='rgba(255,200,100,0.44)'; c.lineWidth=1.5;
     _rrect(c,bx,by,bw,bh,9); c.fill(); c.stroke();
-    c.fillStyle='#ffcc88'; c.font='15px \'Segoe UI\', Arial, sans-serif'; c.textAlign='center';
+    c.fillStyle='#ffcc88'; c.font=`15px ${FONT_UI}`; c.textAlign='center';
     c.fillText(label,w*0.5,by+28); c.textAlign='left'; c.restore();
   }
 
@@ -1819,11 +1819,11 @@
     }
 
     // Chapter label
-    _ctx.save(); _ctx.globalAlpha=0.65; _ctx.fillStyle='#8899bb'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif';
-    _ctx.fillText((_chapter&&_chapter.world)||'',18,26); _ctx.fillStyle='#ffcc88'; _ctx.font='bold 14px \'Segoe UI\', Arial, sans-serif';
+    _ctx.save(); _ctx.globalAlpha=0.65; _ctx.fillStyle='#8899bb'; _ctx.font=`11px ${FONT_UI}`;
+    _ctx.fillText((_chapter&&_chapter.world)||'',18,26); _ctx.fillStyle='#ffcc88'; _ctx.font=`bold 14px ${FONT_UI}`;
     _ctx.fillText(_cinLabel || (_chapter&&_chapter.title) || '',18,44);
     var _when = _chapter && (_chapter.when || (typeof storyChapterWhen === 'function' ? storyChapterWhen(_chapter.id) : ''));
-    if (_when) { _ctx.fillStyle='#cfd6e6'; _ctx.font='italic 12px \'Segoe UI\', Arial, sans-serif'; _ctx.fillText(_when,18,62); }
+    if (_when) { _ctx.fillStyle='#cfd6e6'; _ctx.font=`italic 12px ${FONT_UI}`; _ctx.fillText(_when,18,62); }
     _ctx.restore();
 
     var done = _typedLen >= totalText.length;
@@ -1868,7 +1868,7 @@
       // Scrub readout. The bar thickening alone is too quiet to explain itself.
       if (_ffHeld) {
         _ctx.globalAlpha = 0.8; _ctx.fillStyle = '#ffecbe';
-        _ctx.font = 'bold 10px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign = 'left';
+        _ctx.font = `bold 10px ${FONT_UI}`; _ctx.textAlign = 'left';
         _ctx.fillText('▸▸ ' + FF_RATE + '\u00d7', barX + barW + 10, barY + 4);
         _ctx.textAlign = 'left';
       }
@@ -1883,9 +1883,9 @@
       _ctx.globalAlpha = 0.72;
       _ctx.fillStyle = 'rgba(0,0,0,0.45)'; _rrect(_ctx, sx2, sy2, sw2, sh2, 7); _ctx.fill();
       _ctx.strokeStyle = 'rgba(255,204,136,0.45)'; _ctx.lineWidth = 1; _rrect(_ctx, sx2, sy2, sw2, sh2, 7); _ctx.stroke();
-      _ctx.fillStyle = '#ffcc88'; _ctx.font = '12px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign = 'center';
+      _ctx.fillStyle = '#ffcc88'; _ctx.font = `12px ${FONT_UI}`; _ctx.textAlign = 'center';
       _ctx.fillText('Skip  ▸▸', sx2 + sw2 / 2, sy2 + 19);
-      _ctx.globalAlpha = 0.26; _ctx.fillStyle = '#aabbcc'; _ctx.font = '10px \'Segoe UI\', Arial, sans-serif';
+      _ctx.globalAlpha = 0.26; _ctx.fillStyle = '#aabbcc'; _ctx.font = `10px ${FONT_UI}`;
       _ctx.fillText('Esc', sx2 + sw2 / 2, sy2 - 6);
       // Fast-forward hint, shown only at the start of the sequence.
       if (!_ffHeld && (!_cinProg || _cinProg.done < 1) && _beatIdx < 2) {
@@ -1902,7 +1902,7 @@
       }
 
       if (done) { var isLast=_beatIdx>=_beats.length-1; _drawBtn(_ctx,w,h,isLast?(_chapter&&_chapter.noFight?'Continue →':'⚔️  Fight!'):'Next →'); }
-      else { _ctx.save(); _ctx.globalAlpha=0.30; _ctx.fillStyle='#aabbcc'; _ctx.font='11px \'Segoe UI\', Arial, sans-serif'; _ctx.textAlign='center'; _ctx.fillText('click or press any key to skip',w*0.5,h*0.97); _ctx.textAlign='left'; _ctx.restore(); }
+      else { _ctx.save(); _ctx.globalAlpha=0.30; _ctx.fillStyle='#aabbcc'; _ctx.font=`11px ${FONT_UI}`; _ctx.textAlign='center'; _ctx.fillText('click or press any key to skip',w*0.5,h*0.97); _ctx.textAlign='left'; _ctx.restore(); }
     }
 
     _raf = requestAnimationFrame(_render);

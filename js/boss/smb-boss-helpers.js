@@ -268,7 +268,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.textAlign   = 'center';
     ctx.fillStyle   = col || '#cccccc';
     ctx.shadowColor = '#000'; ctx.shadowBlur = 10;
-    ctx.font        = `${Math.round(CH * 0.038)}px Arial, sans-serif`;
+    ctx.font        = `${Math.round(CH * 0.038)}px ${FONT_UI}`;
     ctx.fillText(text, CW * 0.5, CH * (yf || 0.88));
     ctx.restore();
   }
@@ -280,7 +280,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
     ctx.textAlign   = 'center';
     ctx.fillStyle   = col || '#888888';
     ctx.shadowColor = '#000'; ctx.shadowBlur = 8;
-    ctx.font        = `${Math.round(CH * 0.030)}px Arial, sans-serif`;
+    ctx.font        = `${Math.round(CH * 0.030)}px ${FONT_UI}`;
     ctx.fillText(text, CW * 0.5, CH * 0.93);
     ctx.restore();
   }
@@ -336,9 +336,9 @@ function startAxiomOriginCutscene(onDoneCallback) {
       const a = fade(sf, sd);
       ctx.save(); ctx.globalAlpha = a; ctx.textAlign = 'center';
       ctx.fillStyle = '#ffcc44'; ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 30;
-      ctx.font = `bold ${Math.round(CH*0.11)}px Arial`; ctx.fillText('AXIOM', CW*0.5, CH*0.46);
+      ctx.font = `bold ${Math.round(CH*0.11)}px ${FONT_DISPLAY}`; ctx.fillText('AXIOM', CW*0.5, CH*0.46);
       ctx.shadowBlur = 0; ctx.fillStyle = '#666666';
-      ctx.font = `${Math.round(CH*0.036)}px Arial`;
+      ctx.font = `${Math.round(CH*0.036)}px ${FONT_UI}`;
       ctx.fillText('Before the fracture.  Before the war.', CW*0.5, CH*0.60);
       ctx.restore();
     }},
@@ -373,7 +373,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
         });
         ctx.globalAlpha = a * Math.min(1, sf/20);
         ctx.fillStyle='#ffee44'; ctx.textAlign='center';
-        ctx.font=`bold ${Math.round(CH*0.05)}px Arial`;
+        ctx.font=`bold ${Math.round(CH*0.05)}px ${FONT_DISPLAY}`;
         ctx.fillText('!', CW*(0.56+pt*0.03), GY-H*1.1-CH*0.03);
       } else {
         stick(CW*0.5, GY, H, '#4488ff', {
@@ -587,7 +587,7 @@ function startAxiomOriginCutscene(onDoneCallback) {
         if (slide>0.45) {
           ctx.globalAlpha=a*(slide-0.45)*2; ctx.textAlign='center';
           ctx.fillStyle=r.lc; ctx.shadowColor=r.glow; ctx.shadowBlur=8;
-          ctx.font=`bold ${lsz}px Arial`;
+          ctx.font=`bold ${lsz}px ${FONT_UI}`;
           ctx.fillText(r.lbl, px, CH*r.y-H-CH*0.025); ctx.shadowBlur=0;
         }
       }
@@ -613,11 +613,11 @@ function startAxiomOriginCutscene(onDoneCallback) {
       const a=fade(sf, sd, 30);
       ctx.fillStyle='#000'; ctx.fillRect(0,0,CW,CH);
       ctx.save(); ctx.globalAlpha=a; ctx.textAlign='center'; ctx.shadowColor='#000'; ctx.shadowBlur=10;
-      ctx.fillStyle='#cccccc'; ctx.font=`bold ${Math.round(CH*0.042)}px Arial`;
+      ctx.fillStyle='#cccccc'; ctx.font=`bold ${Math.round(CH*0.042)}px ${FONT_UI}`;
       ctx.fillText('This is what Cosmic Axiom is.', CW*0.5, CH*0.42);
-      ctx.fillStyle='#888888'; ctx.font=`${Math.round(CH*0.032)}px Arial`;
+      ctx.fillStyle='#888888'; ctx.font=`${Math.round(CH*0.032)}px ${FONT_UI}`;
       ctx.fillText('This is what the Creator built over.', CW*0.5, CH*0.54);
-      ctx.fillStyle='#666666'; ctx.font=`${Math.round(CH*0.026)}px Arial`;
+      ctx.fillStyle='#666666'; ctx.font=`${Math.round(CH*0.026)}px ${FONT_UI}`;
       ctx.fillText('This is why you are here.', CW*0.5, CH*0.64);
       ctx.restore();
     }},

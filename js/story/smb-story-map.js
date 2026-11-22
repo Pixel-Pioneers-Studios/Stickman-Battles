@@ -52,8 +52,8 @@ const StoryMap = (() => {
   let raf = 0, frame = 0;
   let stars = null, starsW = 0, starsH = 0;
   let hits = [];          // click targets rebuilt every frame: { x, y, r, act }
-  // Brush heading face of the menu skin (SMB.css --sh-font-head).
-  const HEAD = "'Potta One', 'Russo One', 'Segoe UI', sans-serif";
+  // Heading face of the menu skin (SMB.css --sh-font-head).
+  const HEAD = FONT_DISPLAY;
 
 
   function _baseName(world) {
@@ -458,12 +458,12 @@ const StoryMap = (() => {
         ctx.moveTo(x, my + 7 * scale); ctx.lineTo(x - 6 * scale, my - 3 * scale); ctx.lineTo(x + 6 * scale, my - 3 * scale);
         ctx.closePath(); ctx.fill();
         ctx.textAlign = 'center';
-        ctx.font = `italic ${Math.round(10 * scale)}px ${HEAD}`;
+        ctx.font = `${Math.round(10 * scale)}px ${HEAD}`;
         ctx.fillStyle = '#ffb347';
         ctx.fillText('YOU ARE HERE', x, my - 8 * scale);
       }
       ctx.textAlign = 'center';
-      ctx.font = `italic ${Math.round(15 * scale)}px ${HEAD}`;
+      ctx.font = `${Math.round(15 * scale)}px ${HEAD}`;
       ctx.lineJoin = 'round';
       ctx.lineWidth = 4 * scale;
       ctx.strokeStyle = 'rgba(7,6,12,0.9)';
@@ -471,7 +471,7 @@ const StoryMap = (() => {
       ctx.fillStyle = w.known ? (selected ? '#FFF6E0' : 'rgba(243,232,210,0.72)') : 'rgba(185,172,147,0.42)';
       ctx.fillText(w.known ? w.def.name.toUpperCase() : '???', x, y + r + 22 * scale);
       if (w.known) {
-        ctx.font = `600 ${Math.round(12.5 * scale)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+        ctx.font = `600 ${Math.round(12.5 * scale)}px ${FONT_UI}`;
         ctx.fillStyle = w.done === w.total ? '#ffcf6a' : 'rgba(170,180,210,0.7)';
         ctx.fillText(`${w.done}/${w.total}`, x, y + r + 38 * scale);
       }
@@ -507,12 +507,12 @@ const StoryMap = (() => {
     ctx.strokeStyle = 'rgba(140,94,31,0.9)'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.roundRect(x0 - 10 * u, y0 - 6 * u, x1 - x0 + 20 * u, ph, 2 * u); ctx.stroke();
     ctx.textBaseline = 'alphabetic';
-    ctx.font = `italic ${Math.round(11 * u)}px ${HEAD}`;
+    ctx.font = `${Math.round(11 * u)}px ${HEAD}`;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#E2B255';
     ctx.fillText('STORY PROGRESS', x0, y0 + 8 * u);
     const lw = ctx.measureText('STORY PROGRESS  ').width;
-    ctx.font = `600 ${Math.round(12 * u)}px 'Rajdhani', 'Segoe UI', sans-serif`;
+    ctx.font = `600 ${Math.round(12 * u)}px ${FONT_UI}`;
     ctx.fillStyle = '#F3E8D2';
     ctx.fillText(`${done} / ${total} chapters cleared  ·  ${reached} of ${worlds.length} worlds reached`, x0 + lw, y0 + 8 * u);
     ctx.textAlign = 'right';
@@ -558,14 +558,14 @@ const StoryMap = (() => {
     if (interactive) hits.push({ x: bx, y: by, r: R, act: _leaveWorld });
 
     ctx.textAlign = 'left';
-    ctx.font = `italic ${Math.round(Math.max(14, Math.min(ch * 0.055, cw * 0.05)))}px ${HEAD}`;
+    ctx.font = `${Math.round(Math.max(14, Math.min(ch * 0.055, cw * 0.05)))}px ${HEAD}`;
     ctx.lineJoin = 'round';
     ctx.lineWidth = Math.max(3, ch * 0.012);
     ctx.strokeStyle = '#07060C';
     ctx.strokeText(w.def.name.toUpperCase(), Math.round(cw * 0.03), Math.round(ch * 0.10));
     ctx.fillStyle = '#F3E8D2';
     ctx.fillText(w.def.name.toUpperCase(), Math.round(cw * 0.03), Math.round(ch * 0.10));
-    ctx.font = `600 ${Math.round(Math.max(11, ch * 0.034))}px 'Rajdhani', 'Segoe UI', sans-serif`;
+    ctx.font = `600 ${Math.round(Math.max(11, ch * 0.034))}px ${FONT_UI}`;
     ctx.fillStyle = '#E2B255';
     ctx.fillText(`${w.done} of ${w.total} cleared`, Math.round(cw * 0.03), Math.round(ch * 0.10 + Math.max(16, ch * 0.055)));
 
@@ -653,11 +653,11 @@ const StoryMap = (() => {
 
       if (typeof storyChapterStarred === 'function' && storyChapterStarred(i)) {
         ctx.fillStyle = '#ffcf6a';
-        ctx.font = `${Math.round(r * 0.9)}px sans-serif`;
+        ctx.font = `${Math.round(r * 0.9)}px ${FONT_UI}`;
         ctx.fillText('★', x + r * 0.95, y - r * 0.8);
       }
       if (selected || n <= 8) {
-        ctx.font = selected ? `italic ${Math.round(Math.max(11, ch * 0.034))}px ${HEAD}`
+        ctx.font = selected ? `${Math.round(Math.max(11, ch * 0.034))}px ${HEAD}`
                             : `600 ${Math.round(Math.max(11, ch * 0.033))}px 'Rajdhani', 'Segoe UI', sans-serif`;
         ctx.fillStyle = selected ? '#FFF6E0' : 'rgba(243,232,210,0.55)';
         const label = _stopTitle(i);
@@ -723,7 +723,7 @@ const StoryMap = (() => {
       ctx.lineWidth = Math.max(1, r * 0.05);
       ctx.stroke();
       ctx.fillStyle = 'rgba(170,180,215,0.35)';
-      ctx.font = `700 ${Math.round(r * 0.9)}px 'Rajdhani', sans-serif`;
+      ctx.font = `700 ${Math.round(r * 0.9)}px ${FONT_UI}`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('?', x, y + r * 0.05);
       ctx.restore();

@@ -485,9 +485,9 @@ function _brDrawFormOffer(p) {
   ctx.fillRect(x, y, w, 46);
   ctx.strokeStyle = def.color; ctx.lineWidth = 1.5;
   ctx.strokeRect(x + 0.5, y + 0.5, w - 1, 45);
-  ctx.font = 'bold 13px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = def.color;
+  ctx.font = `bold 13px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = def.color;
   ctx.fillText('Become the ' + def.label + '?', GAME_W / 2, y + 17);
-  ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#ffffff';
+  ctx.font = `bold 11px ${FONT_UI}`; ctx.fillStyle = '#ffffff';
   ctx.fillText('[' + (typeof keyLabelFor === 'function' ? keyLabelFor('f') : 'F') + '] Accept     [' + (typeof keyLabelFor === 'function' ? keyLabelFor('g') : 'G') + '] Decline', GAME_W / 2, y + 33);
   ctx.fillStyle = def.color;
   ctx.fillRect(x + 6, y + 40, (w - 12) * left, 2);
@@ -503,7 +503,7 @@ function brDrawFormHUD() {
   const w = 310, x = GAME_W / 2 - w / 2, y = GAME_H - 118;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(x, y, w, 38);
-  ctx.font = 'bold 12px Arial'; ctx.textAlign = 'left';
+  ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'left';
   ctx.fillStyle = def.color;
   ctx.fillText((fm.label || def.label) + ' FORM' + (fm.frenzy > 0 ? '  — FRENZY' : ''), x + 8, y + 14);
   ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff';
@@ -512,7 +512,7 @@ function brDrawFormHUD() {
   ctx.fillRect(x + 8, y + 18, w - 16, 5);
   ctx.fillStyle = def.color;
   ctx.fillRect(x + 8, y + 18, (w - 16) * Math.max(0, fm.hp / fm.maxHp), 5);
-  ctx.font = '10px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(220,230,240,0.85)';
+  ctx.font = `10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(220,230,240,0.85)';
   ctx.fillText('Attack: ' + def.moves[0] + '   ·   Ability: ' + def.moves[1] + '   ·   Super: ' + def.moves[2],
                GAME_W / 2, y + 33);
 }

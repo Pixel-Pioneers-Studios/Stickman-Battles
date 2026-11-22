@@ -149,7 +149,7 @@ class Dummy extends Fighter {
     ctx.fillRect(cx + bw * 0.19, ty + bh * 0.68, bw * 0.13, bh * 0.32);
 
     ctx.globalAlpha = 0.85;
-    ctx.font = 'bold 8px Arial';
+    ctx.font = `bold 8px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = '#000';

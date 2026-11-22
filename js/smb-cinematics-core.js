@@ -924,7 +924,7 @@ function drawCinNameCard(cw, ch) {
   ctx.textAlign = 'center';
 
   // Measure text so plate width is dynamic
-  ctx.font = 'bold 20px Arial';
+  ctx.font = `bold 20px ${FONT_UI}`;
   const textW = ctx.measureText(text).width;
   const pw = Math.max(260, textW + 80);
   const ph = 42;
@@ -938,7 +938,7 @@ function drawCinNameCard(cw, ch) {
   ctx.shadowBlur  = 14;
   ctx.fillRect(-pw / 2 + 10, -ph / 2 + 2, pw - 20, 2);
 
-  ctx.font        = 'bold 20px Arial';
+  ctx.font        = `bold 20px ${FONT_UI}`;
   ctx.fillStyle   = '#ffffff';
   ctx.shadowColor = accent;
   ctx.shadowBlur  = 20;

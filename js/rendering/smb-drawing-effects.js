@@ -28,7 +28,7 @@ function drawBossBeams() {
       ctx.fill();
       const secs = Math.ceil(b.warningTimer / 60);
       ctx.globalAlpha = 0.9;
-      ctx.font        = 'bold 11px Arial';
+      ctx.font        = `bold 11px ${FONT_UI}`;
       ctx.fillStyle   = '#ffffff';
       ctx.textAlign   = 'center';
       ctx.shadowBlur  = 6;
@@ -97,7 +97,7 @@ function drawCinematicOverlay() {
     Math.min(1, (t - 0.9) / 0.25) * Math.min(1, (totalSec - t - 0.25) / 0.25));
   if (labelAlpha > 0 && activeCinematic._phaseLabel) {
     ctx.globalAlpha = labelAlpha;
-    ctx.font        = `bold ${Math.round(ch * 0.042)}px Arial`;
+    ctx.font        = `bold ${Math.round(ch * 0.042)}px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     ctx.fillStyle   = activeCinematic._phaseLabel.color || '#ffffff';
     ctx.shadowColor = activeCinematic._phaseLabel.color || '#cc00ee';

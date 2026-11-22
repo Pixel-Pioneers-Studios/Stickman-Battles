@@ -634,7 +634,7 @@ function drawMinigameDefenseNexus() {
   ctx.strokeRect(_bx, _by, _barW, _barH);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 10px Arial';
+  ctx.font = `bold 10px ${FONT_UI}`;
   ctx.textAlign = 'center';
   ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
   ctx.fillText('NEXUS', _cx, _by - 4);
@@ -651,16 +651,16 @@ function drawMinigameHUD() {
   if (minigameType === 'sports') {
     if (typeof drawSportsHUD === 'function') drawSportsHUD();
   } else if (minigameType === 'survival') {
-    ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffdd44'; ctx.font = `bold 14px ${FONT_UI}`; ctx.textAlign = 'center';
     const waveGoalStr = survivalFriendlyFire ? '⚔' : survivalInfinite ? '∞' : `/${survivalWaveGoal}`;
     ctx.fillText(`Wave ${survivalWave}${waveGoalStr} — Enemies: ${survivalEnemies.filter(e=>e.health>0).length}`, GAME_W / 2, GAME_H - 20);
     if (survivalWaveDelay > 0) {
-      ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
+      ctx.fillStyle = '#aaffaa'; ctx.font = `bold 18px ${FONT_UI}`;
       ctx.fillText(`Next wave in ${Math.ceil(survivalWaveDelay / 60)}s`, GAME_W / 2, GAME_H - 44);
     }
     if (currentChaosModifiers.size > 0) {
       const mods = [...currentChaosModifiers].map(id => CHAOS_MODS.find(m => m.id === id)?.label || id);
-      ctx.font = 'bold 11px Arial'; ctx.textAlign = 'right';
+      ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'right';
       mods.forEach((lbl, i) => {
         const pulse = 0.75 + 0.25 * Math.sin(frameCount * 0.1 + i);
         ctx.globalAlpha = pulse;
@@ -673,14 +673,14 @@ function drawMinigameHUD() {
       ctx.textAlign = 'center';
     }
   } else if (minigameType === 'defense') {
-    ctx.fillStyle = '#ff8844'; ctx.font = 'bold 14px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#ff8844'; ctx.font = `bold 14px ${FONT_UI}`; ctx.textAlign = 'center';
     var _defAlive = defenseEnemies.filter(function(e) { return e.health > 0; }).length + defenseSpawnQueue.length;
     ctx.fillText('Wave ' + defenseWave + '  —  Enemies: ' + _defAlive, GAME_W / 2, GAME_H - 20);
     if (defenseWaveDelay > 0 && defenseWave === 0) {
-      ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
+      ctx.fillStyle = '#aaffaa'; ctx.font = `bold 18px ${FONT_UI}`;
       ctx.fillText('Protect the Nexus!  Starting in ' + Math.ceil(defenseWaveDelay / 60) + 's', GAME_W / 2, GAME_H - 44);
     } else if (defenseWaveDelay > 0) {
-      ctx.fillStyle = '#aaffaa'; ctx.font = 'bold 18px Arial';
+      ctx.fillStyle = '#aaffaa'; ctx.font = `bold 18px ${FONT_UI}`;
       ctx.fillText('Next wave in ' + Math.ceil(defenseWaveDelay / 60) + 's', GAME_W / 2, GAME_H - 44);
     }
   } else if (minigameType === 'koth') {
@@ -700,7 +700,7 @@ function drawMinigameHUD() {
       ctx.fillRect(bx, by, barW, barH);
       ctx.fillStyle = p.color;
       ctx.fillRect(bx, by, barW * (pts / WIN_FRAMES), barH);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Arial';
+      ctx.fillStyle = '#fff'; ctx.font = `bold 9px ${FONT_UI}`;
       ctx.textAlign = i === 0 ? 'left' : 'right';
       const tx = i === 0 ? bx : bx + barW;
       ctx.fillText(`${p.name}  ${Math.floor(pts / 60)}s / 30s`, tx, by + 22);
@@ -720,7 +720,7 @@ function drawKothZone() {
   ctx.strokeStyle = 'rgba(255,220,0,0.5)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
   ctx.strokeRect(zoneLeft + 1, 0, 198, GAME_H);
   ctx.setLineDash([]);
-  ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffdd44'; ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center';
   ctx.shadowColor = '#000'; ctx.shadowBlur = 6;
   ctx.fillText('KING ZONE', kothZoneX, 62);
   ctx.shadowBlur = 0;
@@ -730,7 +730,7 @@ function drawKothZone() {
     const t = Math.floor(kothPoints[i] / 60);
     if (t === 0) return;
     ctx.textAlign = 'center';
-    ctx.font = 'bold 11px Arial';
+    ctx.font = `bold 11px ${FONT_UI}`;
     ctx.fillStyle = p.color;
     ctx.shadowColor = '#000'; ctx.shadowBlur = 5;
     ctx.fillText(`${t}s`, p.cx(), p.y - 22);

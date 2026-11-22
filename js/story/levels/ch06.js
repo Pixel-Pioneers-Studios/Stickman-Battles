@@ -81,7 +81,7 @@
     if (storefront) {
       ctx.fillStyle = '#1e1c1a'; ctx.fillRect(x + 8, G - 110, w - 16, 110);
       ctx.fillStyle = '#2c2420'; ctx.fillRect(x + 8, G - 130, w - 16, 20);
-      ctx.fillStyle = '#d8c8a8'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.fillText(storefront, x + w / 2, G - 116);
+      ctx.fillStyle = '#d8c8a8'; ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText(storefront, x + w / 2, G - 116);
       // Smashed glass: jagged hole and shards on the walk
       ctx.fillStyle = 'rgba(160,190,200,0.25)'; ctx.fillRect(x + 14, G - 100, w - 28, 96);
       ctx.fillStyle = '#100c0a';
@@ -113,7 +113,7 @@
     if (_slVisible(v, 120, 700)) {
       _slCar(COP.x, G, COP.w, '#1e2230', {});
       ctx.fillStyle = '#e8e8ec'; ctx.fillRect(COP.x + 30, G - 26, COP.w - 60, 8);
-      ctx.fillStyle = '#1e2230'; ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center'; ctx.fillText('POLICE', COP.x + COP.w / 2, G - 19.5);
+      ctx.fillStyle = '#1e2230'; ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('POLICE', COP.x + COP.w / 2, G - 19.5);
       const ph = (frameCount % 30) < 15;
       ctx.fillStyle = ph ? '#ff2a2a' : '#2a6aff'; ctx.fillRect(COP.x + COP.w / 2 - 14, G - 62, 12, 5);
       ctx.fillStyle = ph ? '#2a6aff' : '#ff2a2a'; ctx.fillRect(COP.x + COP.w / 2 + 2, G - 62, 12, 5);
@@ -135,7 +135,7 @@
       ctx.fillStyle = '#c8c4bc'; ctx.fillRect(T.x, G - T.h, T.w, T.h);
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
       for (let rx = T.x + 10; rx < T.x + T.w; rx += 18) ctx.fillRect(rx, G - T.h + 4, 2, T.h - 8);
-      ctx.fillStyle = '#2a6a9a'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.fillText('FRESHWAY FOODS', T.x + T.w / 2, G - T.h / 2 + 6);
+      ctx.fillStyle = '#2a6a9a'; ctx.font = `bold 18px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('FRESHWAY FOODS', T.x + T.w / 2, G - T.h / 2 + 6);
       ctx.fillStyle = '#16181a'; for (const wx of [T.x + 30, T.x + 64, T.x + T.w - 40]) { ctx.beginPath(); ctx.arc(wx, G - 4, 10, Math.PI, 0); ctx.fill(); }
       ctx.save(); ctx.translate(CAB.x + CAB.w / 2, G); ctx.rotate(0.12);
       ctx.fillStyle = '#8a2a22'; ctx.fillRect(-CAB.w / 2, -64, CAB.w, 64);
@@ -163,7 +163,7 @@
       ctx.save(); ctx.translate(2000, G); ctx.rotate(-0.58);
       ctx.fillStyle = '#16181c'; ctx.fillRect(0, -10, 330, 70);
       ctx.fillStyle = '#d8c8a0'; ctx.fillRect(6, -4, 318, 58);
-      ctx.fillStyle = '#a83a2a'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.fillText('GRAND OPENING', 165, 32);
+      ctx.fillStyle = '#a83a2a'; ctx.font = `bold 22px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('GRAND OPENING', 165, 32);
       ctx.restore();
       const M = MARQUEE;
       ctx.fillStyle = '#2a1a20'; ctx.fillRect(M.x, M.y, M.w, 60);
@@ -197,7 +197,7 @@
       ctx.fillStyle = '#2a6a8a'; ctx.fillRect(B.x, B.y, B.w, G - 20 - B.y);
       ctx.fillStyle = '#e8e2d0'; ctx.fillRect(B.x, B.y + 50, B.w, 10);
       ctx.fillStyle = '#16181a'; for (let wx = B.x + 16; wx < B.x + B.w - 30; wx += 36) ctx.fillRect(wx, B.y + 12, 28, 30);
-      ctx.fillStyle = '#f2e6a0'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'left'; ctx.fillText('22 CROSSTOWN', B.x + 8, B.y + 9);
+      ctx.fillStyle = '#f2e6a0'; ctx.font = `bold 10px ${FONT_UI}`; ctx.textAlign = 'left'; ctx.fillText('22 CROSSTOWN', B.x + 8, B.y + 9);
       ctx.fillStyle = '#16181a'; for (const wx of [B.x + 50, B.x + B.w - 50]) { ctx.beginPath(); ctx.arc(wx, G - 12, 14, 0, Math.PI * 2); ctx.fill(); }
       _slFire(B.x + 20, B.y, 150, 1.3); _slSmoke(B.x + 90, B.y - 30, 340, true, 9);
       // Fire truck: body, ladder raised at an angle onto the ledge
@@ -226,7 +226,7 @@
       const V = VAN;
       ctx.fillStyle = '#e6e2d8'; ctx.fillRect(V.x, V.y, V.w, G - 20 - V.y);
       ctx.fillStyle = '#2a5aa8'; ctx.fillRect(V.x, V.y + 30, V.w, 16);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillText('CH 7 NEWS', V.x + V.w / 2, V.y + 42);
+      ctx.fillStyle = '#fff'; ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('CH 7 NEWS', V.x + V.w / 2, V.y + 42);
       ctx.fillStyle = '#16181a'; for (const wx of [V.x + 40, V.x + V.w - 40]) { ctx.beginPath(); ctx.arc(wx, G - 12, 13, 0, Math.PI * 2); ctx.fill(); }
       _slDish(V.x + 60, V.y - 34, 20, 1);
       ctx.fillStyle = '#5a6066'; ctx.fillRect(V.x + 140, V.y - 60, 4, 60);
@@ -238,8 +238,8 @@
       // Relay station: fenced compound with a lit lattice tower
       _slChainFence(GATE - 60, G, 400, 140);
       ctx.fillStyle = '#efe9da'; ctx.fillRect(GATE - 30, G - 110, 120, 40);
-      ctx.fillStyle = '#9c2a22'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('MUNICIPAL RELAY STATION', GATE + 30, G - 94);
-      ctx.fillStyle = '#2b2b2b'; ctx.font = '7px Arial'; ctx.fillText('AUTHORIZED PERSONNEL ONLY', GATE + 30, G - 80);
+      ctx.fillStyle = '#9c2a22'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('MUNICIPAL RELAY STATION', GATE + 30, G - 94);
+      ctx.fillStyle = '#2b2b2b'; ctx.font = `7px ${FONT_UI}`; ctx.fillText('AUTHORIZED PERSONNEL ONLY', GATE + 30, G - 80);
       ctx.strokeStyle = '#6a6e74'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(GATE + 180, G); ctx.lineTo(GATE + 220, G - 440); ctx.lineTo(GATE + 260, G); ctx.stroke();
       ctx.lineWidth = 1;
@@ -270,7 +270,7 @@
         ctx.fillStyle = '#e8f0c8'; ctx.beginPath(); ctx.arc(gx, G - 86, 7, 0, Math.PI * 2); ctx.fill();
       }
       ctx.fillStyle = '#1a2a22'; ctx.fillRect(s1.x + 6, G - 64, s1.w - 12, 16);
-      ctx.fillStyle = '#e8f0c8'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('SUBWAY', s1.x + s1.w / 2, G - 52);
+      ctx.fillStyle = '#e8f0c8'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('SUBWAY', s1.x + s1.w / 2, G - 52);
     }
     // Shaft 2: impact crater ringed with cones, a burst main spraying
     const s2 = shafts[1];

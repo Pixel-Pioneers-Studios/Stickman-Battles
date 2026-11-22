@@ -137,8 +137,8 @@
       const bg = ctx.createLinearGradient(B.x, 0, B.x + B.w, 0);
       bg.addColorStop(0, '#3a1a4a'); bg.addColorStop(1, '#8a3a6a');
       ctx.fillStyle = bg; ctx.fillRect(B.x + 8, B.top + 18, B.w - 16, B.cat - B.top - 46);
-      ctx.fillStyle = '#f6eef4'; ctx.font = 'bold 22px Arial'; ctx.textAlign = 'center'; ctx.fillText('NIGHT MARKET', B.x + B.w / 2, B.top + 66);
-      ctx.font = '11px Arial'; ctx.fillText('SATURDAYS · PIER 9 · ALL WELCOME', B.x + B.w / 2, B.top + 88);
+      ctx.fillStyle = '#f6eef4'; ctx.font = `bold 22px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('NIGHT MARKET', B.x + B.w / 2, B.top + 66);
+      ctx.font = `11px ${FONT_UI}`; ctx.fillText('SATURDAYS · PIER 9 · ALL WELCOME', B.x + B.w / 2, B.top + 88);
       ctx.fillStyle = '#34383c'; ctx.fillRect(B.x + 90, B.top, B.w - 180, 7);
       ctx.strokeStyle = '#34383c'; ctx.lineWidth = 1.5;
       ctx.strokeRect(B.x + 40, B.cat - 66, 60, 66);

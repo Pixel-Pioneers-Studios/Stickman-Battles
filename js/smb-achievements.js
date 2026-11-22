@@ -15,55 +15,55 @@ const ACHIEVEMENT_CATEGORIES = [
 ];
 
 const ACHIEVEMENTS = [
-  { id: 'first_blood',         cat: 'fight', tier: 'bronze', icon: 'drop',          title: 'First Blood',          desc: 'Beat a Hard bot',                                   hint: 'Set the opposing bot to Hard in the fighter setup, then win the match' },
-  { id: 'hat_trick',           cat: 'fight', tier: 'silver', icon: 'chevrons',      title: 'Hat Trick',            desc: 'Win 3 matches in a row',                            hint: 'Any loss resets the streak' },
-  { id: 'survivor',            cat: 'fight', tier: 'silver', icon: 'heartcrack',    title: 'Survivor',             desc: 'Win a match with 10 HP or less left',               hint: 'Hang on. It counts as long as you finish the match standing' },
-  { id: 'untouchable',         cat: 'fight', tier: 'gold',   icon: 'shield',        title: 'Untouchable',          desc: 'Win a match without taking any damage',             hint: 'Blocked hits don\'t count against you, so shield freely' },
-  { id: 'combo_king',          cat: 'fight', tier: 'bronze', icon: 'fist',          title: 'Combo King',           desc: 'Land 5 hits in a row without getting hit',          hint: 'Getting hit resets the count. Whiffs don\'t' },
-  { id: 'speedrun',            cat: 'fight', tier: 'silver', icon: 'stopwatch',     title: 'Speedster',            desc: 'Win a match in under 30 seconds',                   hint: 'Fewer lives and a heavy weapon make this much easier' },
-  { id: 'perfectionist',       cat: 'fight', tier: 'silver', icon: 'star',          title: 'Perfectionist',        desc: 'Win 10 matches',                                    hint: 'Wins against bots and players both count' },
-  { id: 'legend',              cat: 'fight', tier: 'gold',   icon: 'crown',         title: 'Legend',               desc: 'Win 50 matches',                                    hint: 'Wins against bots and players both count' },
-  { id: 'class_collector',     cat: 'fight', tier: 'silver', icon: 'users',         title: 'Class Collector',      desc: 'Win as 5 different classes in one session',         hint: 'Change your class between matches. Closing the game resets the count' },
-  { id: 'clash_master',        cat: 'fight', tier: 'bronze', icon: 'crossedswords', title: 'Clash Master',         desc: 'Clash weapons with an opponent mid-swing',          hint: 'Swing into their swing. The blades spark when they meet' },
-  { id: 'super_saver',         cat: 'fight', tier: 'bronze', icon: 'bolt',          title: 'Super Saver',          desc: 'Use your super 10 times in one match',              hint: 'Supers charge as you deal and take damage, so stay aggressive' },
+  { id: 'first_blood',         cat: 'fight', tier: 'bronze', icon: 'drop',          title: 'The Hard Way',          desc: 'Beat a Hard bot',                                   hint: 'Set the opposing bot to Hard in the fighter setup, then win the match' },
+  { id: 'hat_trick',           cat: 'fight', tier: 'silver', icon: 'chevrons',      title: 'Unbroken',            desc: 'Win 3 matches in a row',                            hint: 'Any loss resets the streak' },
+  { id: 'survivor',            cat: 'fight', tier: 'silver', icon: 'heartcrack',    title: 'One More Breath',             desc: 'Win a match with 10 HP or less left',               hint: 'Hang on. It counts as long as you finish the match standing' },
+  { id: 'untouchable',         cat: 'fight', tier: 'gold',   icon: 'shield',        title: 'Nothing Landed',          desc: 'Win a match without taking any damage',             hint: 'Blocked hits don\'t count against you, so shield freely' },
+  { id: 'combo_king',          cat: 'fight', tier: 'bronze', icon: 'fist',          title: 'Muscle Memory',           desc: 'Land 5 hits in a row without getting hit',          hint: 'Getting hit resets the count. Whiffs don\'t' },
+  { id: 'speedrun',            cat: 'fight', tier: 'silver', icon: 'stopwatch',     title: 'Short Work',            desc: 'Win a match in under 30 seconds',                   hint: 'Fewer lives and a heavy weapon make this much easier' },
+  { id: 'perfectionist',       cat: 'fight', tier: 'silver', icon: 'star',          title: 'Finding Your Feet',        desc: 'Win 10 matches',                                    hint: 'Wins against bots and players both count' },
+  { id: 'legend',              cat: 'fight', tier: 'gold',   icon: 'crown',         title: 'Fifty and Standing',               desc: 'Win 50 matches',                                    hint: 'Wins against bots and players both count' },
+  { id: 'class_collector',     cat: 'fight', tier: 'silver', icon: 'users',         title: 'Borrowed Hands',      desc: 'Win as 5 different classes in one session',         hint: 'Change your class between matches. Closing the game resets the count' },
+  { id: 'clash_master',        cat: 'fight', tier: 'bronze', icon: 'crossedswords', title: 'Crossed Arms',         desc: 'Clash weapons with an opponent mid-swing',          hint: 'Swing into their swing. The blades spark when they meet' },
+  { id: 'super_saver',         cat: 'fight', tier: 'bronze', icon: 'bolt',          title: 'Nothing Held Back',          desc: 'Use your super 10 times in one match',              hint: 'Supers charge as you deal and take damage, so stay aggressive' },
   { id: 'first_finisher',      cat: 'fight', tier: 'bronze', icon: 'burst',         title: 'Finishing Touch',      desc: 'Perform a Finisher',                                hint: 'Land the final KO with Finishers turned on' },
-  { id: 'finisher_master',     cat: 'fight', tier: 'silver', icon: 'film',          title: 'Finisher Master',      desc: 'Perform 10 Finishers in one session',               hint: 'Finishers count across matches until you close the game' },
-  { id: 'gunslinger',          cat: 'fight', tier: 'silver', icon: 'gun',           title: 'Gunslinger',           desc: 'Deal 500 ranged damage in a match you win',         hint: 'Any ranged weapon counts: Gun, Bow, Crossbow and the rest' },
-  { id: 'hammer_time',         cat: 'fight', tier: 'bronze', icon: 'hammer',        title: 'Hammer Time',          desc: 'Win a match with Mountainfall',                       hint: 'Pick Mountainfall as your weapon and win' },
-  { id: 'wave_5',              cat: 'modes', tier: 'bronze', icon: 'wave',          title: 'Wave Warrior',         desc: 'Reach wave 5 in Survival',                          hint: 'Start Survival from the Minigames menu' },
-  { id: 'wave_10',             cat: 'modes', tier: 'silver', icon: 'wave',          title: 'Wave Master',          desc: 'Reach wave 10 in Survival',                         hint: 'Enemies hit harder every wave until wave 8' },
+  { id: 'finisher_master',     cat: 'fight', tier: 'silver', icon: 'film',          title: 'Ten Endings',      desc: 'Perform 10 Finishers in one session',               hint: 'Finishers count across matches until you close the game' },
+  { id: 'gunslinger',          cat: 'fight', tier: 'silver', icon: 'gun',           title: 'Keep Your Distance',           desc: 'Deal 500 ranged damage in a match you win',         hint: 'Any ranged weapon counts: Gun, Bow, Crossbow and the rest' },
+  { id: 'hammer_time',         cat: 'fight', tier: 'bronze', icon: 'hammer',        title: 'Torren\'s Weight',          desc: 'Win a match with Mountainfall',                       hint: 'Pick Mountainfall as your weapon and win' },
+  { id: 'wave_5',              cat: 'modes', tier: 'bronze', icon: 'wave',          title: 'Fifth Wave',         desc: 'Reach wave 5 in Survival',                          hint: 'Start Survival from the Minigames menu' },
+  { id: 'wave_10',             cat: 'modes', tier: 'silver', icon: 'wave',          title: 'Tenth Wave',          desc: 'Reach wave 10 in Survival',                         hint: 'Enemies hit harder every wave until wave 8' },
   { id: 'survival_win',        cat: 'modes', tier: 'gold',   icon: 'trophy',        title: 'Extinction Event',     desc: 'Clear every wave of a Survival run',                hint: 'Set a wave goal (not Infinite) and clear the last wave' },
   { id: 'koth_win',            cat: 'modes', tier: 'bronze', icon: 'flag',          title: 'King of the Hill',     desc: 'Win a King of the Hill match',                      hint: 'Hold the zone longer than anyone else' },
-  { id: 'chaos_survivor',      cat: 'modes', tier: 'silver', icon: 'spiral',        title: 'Chaos Agent',          desc: 'Survive a Survival wave with 3 chaos modifiers',   hint: 'From wave 7 on, every Survival wave rolls 3 chaos modifiers' },
-  { id: 'chaos_all',           cat: 'modes', tier: 'gold',   icon: 'flame',         title: 'Pure Chaos',           desc: 'Have every chaos modifier active at once',           hint: 'Chaos Match adds a new modifier every 15 seconds. Last long enough' },
+  { id: 'chaos_survivor',      cat: 'modes', tier: 'silver', icon: 'spiral',        title: 'Through the Noise',          desc: 'Survive a Survival wave with 3 chaos modifiers',   hint: 'From wave 7 on, every Survival wave rolls 3 chaos modifiers' },
+  { id: 'chaos_all',           cat: 'modes', tier: 'gold',   icon: 'flame',         title: 'Everything at Once',           desc: 'Have every chaos modifier active at once',           hint: 'Chaos Match adds a new modifier every 15 seconds. Last long enough' },
   { id: 'nexus_defender',      cat: 'modes', tier: 'silver', icon: 'diamond',       title: 'Nexus Defender',       desc: 'Clear 5 waves in Nexus Defense',                    hint: 'Keep attackers off the Nexus while you clear each wave' },
   { id: 'online_winner',       cat: 'modes', tier: 'silver', icon: 'globe',         title: 'Connected',            desc: 'Win an online match',                               hint: 'Beat a real player in online play' },
   { id: 'br_victory',          cat: 'br',    tier: 'gold',   icon: 'medal',         title: 'Last One Standing',    desc: 'Win a Battle Royale',                               hint: 'Outlast all 99 other fighters in one match' },
   { id: 'br_kills_10',         cat: 'br',    tier: 'bronze', icon: 'target',        title: 'Ten Down',             desc: 'Get 10 eliminations in one Battle Royale',          hint: 'Only final blows count' },
-  { id: 'br_kills_25',         cat: 'br',    tier: 'silver', icon: 'crosshair',     title: 'Rampage',              desc: 'Get 25 eliminations in one Battle Royale',          hint: 'A quarter of the field, in one match' },
-  { id: 'br_kills_50',         cat: 'br',    tier: 'gold',   icon: 'skull',         title: 'Monster',              desc: 'Get 35 eliminations in one Battle Royale',          hint: 'Thirty-five in one match. Yes, really' },
+  { id: 'br_kills_25',         cat: 'br',    tier: 'silver', icon: 'crosshair',     title: 'A Quarter of the Field',              desc: 'Get 25 eliminations in one Battle Royale',          hint: 'A quarter of the field, in one match' },
+  { id: 'br_kills_50',         cat: 'br',    tier: 'gold',   icon: 'skull',         title: 'The Field Thins',              desc: 'Get 35 eliminations in one Battle Royale',          hint: 'Thirty-five in one match. Yes, really' },
   { id: 'br_cartographer',     cat: 'br',    tier: 'silver', icon: 'compass',       title: 'Cartographer',         desc: 'Visit every zone in one Battle Royale',             hint: 'All fifteen zones, including Cloud Kingdom and Volcano Depths, which you can only reach through rifts' },
   { id: 'br_scavenger',        cat: 'br',    tier: 'bronze', icon: 'crate',         title: 'Scavenger',            desc: 'Open 20 crates in one Battle Royale',               hint: 'You have to break the crates yourself' },
-  { id: 'boss_slayer',         cat: 'bosses', tier: 'gold',   icon: 'horns',        title: 'Boss Slayer',          desc: 'Defeat the Creator',                                hint: 'Beat the Creator in Story Mode, or rematch him from The Simulator under Refights' },
-  { id: 'true_form',           cat: 'bosses', tier: 'mythic', icon: 'crescent',     title: 'Cosmic Axiom',            desc: 'Defeat Cosmic Axiom',                              hint: 'Beat the Creator, then collect the 8 hidden letters (supers reveal them in the arenas) to unlock the fight' },
+  { id: 'boss_slayer',         cat: 'bosses', tier: 'gold',   icon: 'horns',        title: 'Not Your Creation',          desc: 'Defeat the Creator',                                hint: 'Beat the Creator in Story Mode, or rematch him from The Simulator under Refights' },
+  { id: 'true_form',           cat: 'bosses', tier: 'mythic', icon: 'crescent',     title: 'He Is Himself',            desc: 'Defeat Cosmic Axiom',                              hint: 'Beat the Creator, then collect the 8 hidden letters (supers reveal them in the arenas) to unlock the fight' },
   { id: 'yeti_hunter',         cat: 'bosses', tier: 'silver', icon: 'snowflake',    title: 'Yeti Hunter',          desc: 'Defeat the Yeti',                                   hint: 'It roams the Ice arena. Fight there until it shows up' },
   { id: 'beast_tamer',         cat: 'bosses', tier: 'silver', icon: 'claw',         title: 'Beast Tamer',          desc: 'Defeat the Forest Beast',                           hint: 'It roams the Forest arena. Fight there until it shows up' },
-  { id: 'sovereign_slayer',    cat: 'bosses', tier: 'gold',   icon: 'omega',        title: 'Sovereign Slayer',     desc: 'Defeat Sovereign Ω',                           hint: 'Beat Sovereign in Adaptive mode. He learns how you play, so keep changing it up' },
-  { id: 'god_slayer',          cat: 'bosses', tier: 'mythic', icon: 'halo',         title: 'God Slayer',           desc: 'Defeat God',                                        hint: 'Some fights aren\'t on any menu', secret: true },
+  { id: 'sovereign_slayer',    cat: 'bosses', tier: 'gold',   icon: 'omega',        title: 'Unread',     desc: 'Defeat Sovereign Ω',                           hint: 'Beat Sovereign in Adaptive mode. He learns how you play, so keep changing it up' },
+  { id: 'god_slayer',          cat: 'bosses', tier: 'mythic', icon: 'halo',         title: 'Brought to Its Knees',           desc: 'Defeat God',                                        hint: 'Some fights aren\'t on any menu', secret: true },
   { id: 'absolute_axiom_slayer', cat: 'bosses', tier: 'mythic', icon: 'eye',        title: 'Beyond Godhood',       desc: 'Defeat Absolute Axiom',                             hint: 'A secret boss. You\'ll know it when you see it', secret: true },
-  { id: 'tutorial_done',       cat: 'story', tier: 'bronze', icon: 'cap',           title: 'First Steps',          desc: 'Complete the tutorial',                             hint: 'Start the Tutorial from the home screen' },
-  { id: 'story_begin',         cat: 'story', tier: 'bronze', icon: 'bookopen',      title: 'The Journey Begins',   desc: 'Clear your first Story chapter',                    hint: 'Win any chapter in Story Mode' },
+  { id: 'tutorial_done',       cat: 'story', tier: 'bronze', icon: 'cap',           title: 'Something in Your Hands',          desc: 'Complete the tutorial',                             hint: 'Start the Tutorial from the home screen' },
+  { id: 'story_begin',         cat: 'story', tier: 'bronze', icon: 'bookopen',      title: 'You Fought Back',   desc: 'Clear your first Story chapter',                    hint: 'Win any chapter in Story Mode' },
   // Per-saga completion. A 'full' build can reach all three in one run. A saga build only awards its own.
   { id: 'saga1_complete',      cat: 'story', tier: 'silver', icon: 'fragment',      title: 'Not the Ninety-Fifth', desc: 'Finish The Fragment',                               hint: 'Clear every chapter of the first saga' },
   { id: 'saga2_complete',      cat: 'story', tier: 'gold',   icon: 'orbit',         title: 'The Man Who Built It', desc: 'Finish The Multiverse War',                         hint: 'Clear every chapter of the second saga', secret: true },
   { id: 'saga3_complete',      cat: 'story', tier: 'mythic', icon: 'infinity',      title: 'What Cannot Be Erased', desc: 'Finish The Substrate',                             hint: 'Clear every chapter of the third saga', secret: true },
   { id: 'story_complete',      cat: 'story', tier: 'gold',   icon: 'book',          title: 'End of the Line',      desc: 'Finish Story Mode',                                 hint: 'Reach and win the final chapter' },
   { id: 'lab_infiltrator',     cat: 'story', tier: 'silver', icon: 'flask',         title: 'Lab Infiltrator',      desc: 'Complete the Laboratory Infiltration',              hint: 'A side mission. Look for it off the main Story path' },
-  { id: 'multiverse_warrior',  cat: 'story', tier: 'silver', icon: 'planet',        title: 'Multiverse Warrior',   desc: 'Conquer a Multiverse world',                        hint: 'Defeat the champion of any world in Multiverse mode' },
-  { id: 'multiverse_master',   cat: 'story', tier: 'gold',   icon: 'map',           title: 'Dimension Breaker',    desc: 'Conquer every Multiverse world',                    hint: 'Clear all four worlds in Multiverse mode' },
-  { id: 'fracture_explorer',   cat: 'story', tier: 'bronze', icon: 'portal',        title: 'Fracture Explorer',    desc: 'Enter a Fracture',                                  hint: 'Find an unlocked Fracture portal and step through' },
+  { id: 'multiverse_warrior',  cat: 'story', tier: 'silver', icon: 'planet',        title: 'One World Down',   desc: 'Conquer a Multiverse world',                        hint: 'Defeat the champion of any world in Multiverse mode' },
+  { id: 'multiverse_master',   cat: 'story', tier: 'gold',   icon: 'map',           title: 'Every World Answered',    desc: 'Conquer every Multiverse world',                    hint: 'Clear all four worlds in Multiverse mode' },
+  { id: 'fracture_explorer',   cat: 'story', tier: 'bronze', icon: 'portal',        title: 'Step Through',    desc: 'Enter a Fracture',                                  hint: 'Find an unlocked Fracture portal and step through' },
   { id: 'ship_builder',        cat: 'story', tier: 'gold',   icon: 'rocket',        title: 'Axiom Ship Complete',  desc: 'Build the Axiom Ship',                              hint: 'Collect every part: 5 Hull plates, the Engine, the Core and the Crystal' },
-  { id: 'branch_conqueror',    cat: 'story', tier: 'gold',   icon: 'branches',      title: 'Branch Conqueror',     desc: 'Clear all three Fracture branches',                 hint: 'Build the ship, then defeat Vael, Kael and Sora in their own branches' },
+  { id: 'branch_conqueror',    cat: 'story', tier: 'gold',   icon: 'branches',      title: 'Every Branch',     desc: 'Clear all three Fracture branches',                 hint: 'Build the ship, then defeat Vael, Kael and Sora in their own branches' },
 // Completion, checked by checkCompletionAchievements() below
   { id: 'prequel_axiom_begin',    cat: 'prequels', tier: 'bronze', icon: 'bookopen', title: 'Three Blocks From Home', desc: 'Finish Tuesday in the Axiom prequel',             hint: 'Open Prequels on the home screen and pick Axiom' },
   { id: 'prequel_axiom_act1',     cat: 'prequels', tier: 'silver', icon: 'users',    title: 'Word Spreads',           desc: 'Finish Act I of the Axiom prequel',               hint: 'Clear the first six Axiom chapters' },
@@ -207,20 +207,30 @@ function drawAchievementPopups() {
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  const bw = 270, bh = 56, bx = GAME_W - bw - 12 + slideX, by = 12;
-  ctx.fillStyle = 'rgba(12,10,22,0.94)';
-  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.fill();
-  ctx.strokeStyle = tier.rim[0]; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 8); ctx.stroke();
+  // Screen space (identity transform): size in CSS pixels, centred under the Menu and
+  // fullscreen buttons so it never covers them or the corner HUD panels.
+  const _cssW = canvas.clientWidth || canvas.width;
+  const _r = canvas.width / _cssW;
+  ctx.scale(_r, _r);
+  const bw = 270, bh = 56, bx = _cssW / 2 - bw / 2, by = 62 - slideX * 0.25;
+  const plate = ctx.createLinearGradient(0, by, 0, by + bh);
+  plate.addColorStop(0, 'rgba(21,17,29,0.96)');
+  plate.addColorStop(1, 'rgba(7,6,12,0.96)');
+  ctx.fillStyle = plate;
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = '#07060C'; ctx.lineWidth = 4;
+  ctx.strokeRect(bx - 2, by - 2, bw + 4, bh + 4);
+  ctx.strokeStyle = tier.rim[0]; ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
   const img = _achBadgeImage(cur);
   if (img.complete && img.naturalWidth) ctx.drawImage(img, bx + 8, by + 6, 44, 44);
   ctx.textAlign = 'left';
-  ctx.fillStyle = tier.glyph; ctx.font = 'bold 10px Arial';
+  ctx.fillStyle = '#E2B255'; ctx.font = `bold 10px ${FONT_UI}`;
   ctx.fillText('ACHIEVEMENT UNLOCKED', bx + 60, by + 17);
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 13px Arial';
-  ctx.fillText(cur.title, bx + 60, by + 32);
-  ctx.fillStyle = '#9aa3b5'; ctx.font = '10px Arial';
-  ctx.fillText(cur.desc, bx + 60, by + 46, bw - 68);
+  ctx.fillStyle = '#F3E8D2'; ctx.font = `13px ${FONT_DISPLAY}`;
+  ctx.fillText(cur.title, bx + 60, by + 33, bw - 68);
+  ctx.fillStyle = '#B9AC93'; ctx.font = `600 11px ${FONT_UI}`;
+  ctx.fillText(cur.desc, bx + 60, by + 47, bw - 68);
   ctx.globalAlpha = 1;
   ctx.restore();
 }

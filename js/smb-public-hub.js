@@ -906,23 +906,23 @@ const PubHub = (() => {
       ctx.fillRect(p.x, p.y - 110, p.w, 110);
       ctx.fillStyle = 'rgba(' + rgb + ',' + (p.enabled ? 0.9 : 0.4) + ')';
       ctx.fillRect(p.x, p.y - 4, p.w, 4);
-      ctx.font = 'bold 12px Rajdhani, sans-serif';
+      ctx.font = `bold 12px ${FONT_UI}`;
       ctx.fillStyle = p.enabled ? (top ? '#ffd166' : '#dfe6ff') : 'rgba(200,205,220,0.55)';
       const words = p.label.split(' ');
       // Long names wrap onto two lines so six pads fit across the floor.
       const lines = (ctx.measureText(p.label).width > p.w - 4 && words.length > 1)
         ? [words.slice(0, Math.ceil(words.length / 2)).join(' '), words.slice(Math.ceil(words.length / 2)).join(' ')] : [p.label];
       lines.forEach((ln, i) => ctx.fillText(ln, p.x + p.w / 2, p.y - 138 + (i - (lines.length - 1)) * 13));
-      ctx.font = 'bold 11px Rajdhani, sans-serif';
+      ctx.font = `bold 11px ${FONT_UI}`;
       ctx.fillStyle = p.enabled ? (n ? '#ffd166' : 'rgba(223,230,255,0.55)') : 'rgba(200,205,220,0.5)';
       ctx.fillText(p.enabled ? (n ? n + (n === 1 ? ' player' : ' players') : 'stand here') : p.reason, p.x + p.w / 2, p.y - 124);
     }
     // The lobby code, on the wall where everyone in the room can read it.
     if (_code) {
-      ctx.font = 'bold 12px Rajdhani, sans-serif';
+      ctx.font = `bold 12px ${FONT_UI}`;
       ctx.fillStyle = 'rgba(223,230,255,0.7)';
       ctx.fillText('LOBBY CODE', GAME_W / 2, 150);
-      ctx.font = 'bold 30px Rajdhani, sans-serif';
+      ctx.font = `bold 30px ${FONT_DISPLAY}`;
       ctx.fillStyle = '#ffd166';
       ctx.fillText(_code.split('').join(' '), GAME_W / 2, 180);
     }
@@ -1080,7 +1080,7 @@ const PubHub = (() => {
     ctx.save();
     if (_stage === 'koth') _drawHill();
     if (_stage === 'room' && _phase && _phase.phase === 'hub') _drawRoom();
-    ctx.font = 'bold 11px Rajdhani, sans-serif';
+    ctx.font = `bold 11px ${FONT_UI}`;
     ctx.textAlign = 'center';
     for (const slot of Object.keys(_puppets)) {
       const f = _puppets[slot];
@@ -1141,7 +1141,7 @@ const PubHub = (() => {
     ctx.fillRect(z.x - KOTH_HALF_W, z.y - 150, KOTH_HALF_W * 2, 150);
     ctx.fillStyle = 'rgba(255,209,102,0.85)';
     ctx.fillRect(z.x - KOTH_HALF_W, z.y - 3, KOTH_HALF_W * 2, 3);
-    ctx.font = 'bold 12px Rajdhani, sans-serif';
+    ctx.font = `bold 12px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillText('THE HILL', z.x, z.y - 156);
   }

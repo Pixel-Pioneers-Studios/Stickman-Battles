@@ -258,7 +258,7 @@ function drawTFAbsorptionScene() {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = textAlpha * 0.88;
-    ctx.font = 'italic 18px sans-serif';
+    ctx.font = `italic 18px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';

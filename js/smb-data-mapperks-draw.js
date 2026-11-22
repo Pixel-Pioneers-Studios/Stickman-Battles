@@ -69,7 +69,7 @@ function drawMapPerks() {
         ctx.fillRect(bx - 18, by - ch - 7, 36 * hpFrac, 4);
         const icons = { speed:'S', power:'P', heal:'H', shield:'D', maxhp:'+' };
         ctx.fillStyle = '#ffe8a0';
-        ctx.font = 'bold 11px Arial';
+        ctx.font = `bold 11px ${FONT_UI}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(icons[crate.type] || '?', bx, by - ch/2);
@@ -92,7 +92,7 @@ function drawMapPerks() {
       ctx.fill();
       ctx.fillStyle   = '#000';
       ctx.shadowBlur  = 0;
-      ctx.font        = 'bold 10px Arial';
+      ctx.font        = `bold 10px ${FONT_UI}`;
       ctx.textAlign   = 'center';
       ctx.textBaseline = 'middle';
       const icons = { speed:'S', power:'P', heal:'H', shield:'D', maxhp:'+' };
@@ -127,7 +127,7 @@ function drawMapPerks() {
         ctx.save();
         ctx.globalAlpha = Math.sin(frameCount * 0.3) * 0.5 + 0.5;
         ctx.fillStyle   = '#ff4400';
-        ctx.font        = 'bold 18px Arial';
+        ctx.font        = `bold 18px ${FONT_UI}`;
         ctx.textAlign   = 'center';
         ctx.fillText(car.vx > 0 ? '\u25b6 CAR!' : 'CAR! \u25c0', wx, car.y - 20);
         ctx.restore();

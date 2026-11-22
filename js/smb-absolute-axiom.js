@@ -1703,7 +1703,7 @@ class AbsoluteAxiom extends God {
     ctx.save();
     ctx.shadowColor = 'rgba(255,60,0,0.9)'; ctx.shadowBlur = 10;
     ctx.fillStyle   = '#ff8860';
-    ctx.font        = 'bold 11px Arial';
+    ctx.font        = `bold 11px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     const phaseTag  = ['', ' — PHASE II', ' — PHASE III'][this._aaPhase - 1] || '';
     ctx.fillText(`✦ ABSOLUTE AXIOM${phaseTag} ✦`, cx, by - 4);

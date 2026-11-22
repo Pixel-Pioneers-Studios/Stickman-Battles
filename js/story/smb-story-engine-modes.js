@@ -423,7 +423,7 @@ function _drawCacheCrate(x, y, glow, icon) {
   if (icon) {
     // Authored glyph on the crate face
     ctx.shadowBlur = 4;
-    ctx.font       = '14px Arial';
+    ctx.font       = `14px ${FONT_UI}`;
     ctx.textAlign  = 'center';
     ctx.fillStyle  = '#ffffaa';
     ctx.fillText(icon, x, y + 5);

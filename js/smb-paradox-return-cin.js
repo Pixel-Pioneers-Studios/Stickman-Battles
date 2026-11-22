@@ -473,10 +473,10 @@ function _makeTFParadoxReturn1000Cinematic(tf) {
       c.save();
       c.globalAlpha = Math.max(0, a);
       c.textAlign = 'center';
-      c.font = `bold ${Math.round(ch * 0.018)}px Arial`;
+      c.font = `bold ${Math.round(ch * 0.018)}px ${FONT_UI}`;
       c.fillStyle = s.color;
       c.fillText(s.who, cw / 2, ch * 0.905);
-      c.font = `italic ${Math.round(ch * 0.03)}px Arial`;
+      c.font = `italic ${Math.round(ch * 0.03)}px ${FONT_UI}`;
       c.fillStyle = '#f2f2f2';
       c.shadowColor = '#000'; c.shadowBlur = 6;
       c.fillText(s.text, cw / 2, ch * 0.95);

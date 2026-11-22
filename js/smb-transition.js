@@ -144,11 +144,11 @@ const StoryTransition = {
     c.textAlign = 'center';
     c.fillStyle = '#ffffff';
     const S = Math.max(dpr, w / 900);
-    c.font = `bold ${Math.round(78 * S)}px 'Segoe UI', Arial, sans-serif`;
+    c.font = `bold ${Math.round(78 * S)}px ${FONT_UI}`;
     c.fillText(r.title, w / 2, h / 2);
     if (r.subtitle) {
       c.fillStyle = r.accent;
-      c.font = `${Math.round(26 * S)}px 'Segoe UI', Arial, sans-serif`;
+      c.font = `${Math.round(26 * S)}px ${FONT_UI}`;
       c.fillText(r.subtitle, w / 2, h / 2 + 58 * S);
     }
     c.strokeStyle = r.accent;

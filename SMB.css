@@ -114,7 +114,7 @@ html, body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: var(--font-ui);
   font-size: 15px;
   text-align: center;
   /* Required by CrazyGames: prevents text-selection artifacts from drag/touch
@@ -1777,15 +1777,24 @@ button:focus-visible, select:focus-visible, input:focus-visible,
 #killFeed {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 0.7rem;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  font-family: var(--font-ui);
+  font-size: 0.84rem;
   font-weight: 700;
+  letter-spacing: 0.4px;
   text-align: center;
 }
 
+/* Ink chip with the HUD's deep-gold hairline; the killer's colour stays on the text. */
 .kill-msg {
   animation: fadeIn 0.2s ease;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+  padding: 2px 10px;
+  background: rgba(7,6,12,0.86);
+  border: 1px solid var(--sh-gold-deep, #8C5E1F);
+  border-radius: 2px;
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -2018,7 +2027,7 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   padding: 10px 18px 10px 10px;
   background: rgba(12,10,22,0.95);
   border: 1px solid rgba(255,215,102,0.6); border-radius: 10px;
-  color: #fff; font-family: Arial, sans-serif; cursor: pointer; text-align: left;
+  color: #fff; font-family: var(--font-ui); cursor: pointer; text-align: left;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
   animation: achSlideIn 0.35s ease;
 }
@@ -2369,7 +2378,7 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   max-height: 88vh;
   overflow-y: auto;
   color: #dde4ff;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: var(--font-ui);
   box-shadow: 0 0 80px rgba(180,120,0,0.16), 0 0 120px rgba(60,40,120,0.18), inset 0 1px 0 rgba(255,200,100,0.10);
   position: relative;
 }
@@ -2921,7 +2930,7 @@ button:focus-visible, select:focus-visible, input:focus-visible,
   border-radius: 14px;
   padding: 24px 28px;
   color: #dde4ff;
-  font-family: 'Segoe UI', Arial, sans-serif;
+  font-family: var(--font-ui);
   box-shadow: 0 0 60px rgba(80, 60, 200, 0.18), 0 4px 32px rgba(0,0,0,0.85);
   background-image: var(--panel-noise);
   background-blend-mode: overlay;
@@ -3553,8 +3562,9 @@ button:focus-visible, select:focus-visible, input:focus-visible,
 :root {
   --font-display: 'Russo One', 'Segoe UI', Impact, sans-serif;
   --font-ui:      'Rajdhani', 'Segoe UI', Arial, sans-serif;
-  /* Button face: heavy, rounded, leaned forward — mobile-game lettering */
-  --font-btn:     'Baloo 2', 'Russo One', 'Segoe UI', sans-serif;
+  --font-btn:     var(--font-display);
+  /* Eyebrows and small caps labels above or under a heading */
+  --font-label:   var(--font-ui);
 
   /* Every button is drawn as a physical object: a saturated body inside a
      near-black frame, glossy on the top half, sitting on a hard lip. The
@@ -4588,9 +4598,16 @@ input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
   color: #a9bce4 !important;
   text-shadow: 0 2px 0 rgba(0,0,0,0.55);
 }
-.controls-info, .settings-toggle {
+.settings-toggle {
   font-family: var(--font-display);
   letter-spacing: 2.5px;
+}
+/* Sentence-length help reads as body text, not as a heading. */
+.controls-info {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 0.86rem;
+  letter-spacing: 0.3px;
 }
 
 /* ============================================================
@@ -6387,8 +6404,8 @@ input[type="color"] {
   --sh-bone-dim:  #B9AC93;
   --sh-crimson:   #B8301F;
   --sh-void:      #7B4BD6;
-  --sh-font-head: 'Potta One', 'Russo One', 'Segoe UI', sans-serif;
-  --sh-font-logo: 'SE Logo Brush', 'Potta One', 'Russo One', sans-serif;
+  --sh-font-head: 'Russo One', 'Segoe UI', Impact, sans-serif;
+  --sh-font-logo: 'SE Logo Brush', 'Russo One', sans-serif;
   --sh-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 .9  0 0 0 0 .75  0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -6468,7 +6485,7 @@ input[type="color"] {
 }
 #menuHomeContent .hub-pname {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   color: var(--sh-bone);
   letter-spacing: 1.5px;
@@ -6477,7 +6494,7 @@ input[type="color"] {
 #menuHomeContent .hub-psub { color: var(--sh-gold); text-transform: uppercase; letter-spacing: 1.4px; text-shadow: 0 1px 0 var(--sh-ink); }
 #menuHomeContent .hub-friends {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-size: 0.72rem;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -6582,7 +6599,7 @@ input[type="color"] {
 #menuHomeContent .hub-kicker {
   display: inline-block;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.62rem;
   color: var(--sh-bone);
@@ -6594,7 +6611,7 @@ input[type="color"] {
 }
 #menuHomeContent .hub-resume h3 {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -6665,7 +6682,7 @@ input[type="color"] {
   border: 0;
   border-radius: 0;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1rem;
   letter-spacing: 3px;
@@ -6688,7 +6705,7 @@ input[type="color"] {
 #menuHomeContent .hub-resume .b-primary:active { transform: translateY(2px); filter: drop-shadow(0 1px 0 var(--sh-ink)); }
 #menuHomeContent .hub-resume .b-quiet {
   font-family: var(--sh-font-head);
-  font-style: italic; font-weight: 400;
+  font-style: normal; font-weight: 400;
   text-transform: uppercase; letter-spacing: 1.4px;
   color: var(--sh-gold);
 }
@@ -6698,7 +6715,7 @@ input[type="color"] {
 #menuHomeContent .hub-qt,
 #menuHomeContent .hub-tn {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 1.2px;
@@ -6720,7 +6737,7 @@ input[type="color"] {
 #menuHomeContent .hub-badge-new {
   top: -9px; right: 12px; z-index: 1;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   color: #FFF6E0;
   background: linear-gradient(180deg, #C93A24, #8E2014);
   border: 0;
@@ -6816,7 +6833,7 @@ input[type="color"] {
 #menu .nexus-panel .path-card .path-card-title,
 #menu .nexus-panel .mode-card .mode-name {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 1.2px;
@@ -6833,7 +6850,7 @@ input[type="color"] {
 #storyModal .story-modal-box > div:last-child > button:last-child,
 #storyModal .smi-back {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.72rem;
   letter-spacing: 1.2px;
@@ -6872,17 +6889,15 @@ input[type="color"] {
 }
 #storyModal .story-modal-box::before { display: none; }
 #storyModal .story-modal-title {
-  font-family: var(--sh-font-logo);
+  font-family: var(--sh-font-head);
   font-weight: 400;
   font-size: 1.7rem;
   letter-spacing: 3px;
-  background: linear-gradient(180deg, #FFE9A8 0%, #F6B63C 40%, #EE6A1F 85%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  /* Flat gold: the fire gradient is kept for the brush-font marks only (logo, Victory, ladder result) */
+  color: var(--sh-gold);
+  background: none;
+  -webkit-text-fill-color: var(--sh-gold);
   filter: drop-shadow(0 2px 0 var(--sh-ink)) drop-shadow(1px 0 0 var(--sh-ink)) drop-shadow(-1px 0 0 var(--sh-ink));
-  transform: skewX(-4deg);
-  transform-origin: left center;
 }
 #storyModal .story-modal-subtitle { color: var(--sh-bone-dim); letter-spacing: 0.06em; }
 #storyModal .story-tab.active {
@@ -6902,7 +6917,7 @@ input[type="color"] {
 #storyModal .story-map-canvas:focus-visible { border-color: var(--sh-gold); }
 #storyModal .smi-title {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.05rem;
   letter-spacing: 1px;
@@ -6923,7 +6938,7 @@ input[type="color"] {
   border-width: 0 !important;
   border-radius: 0 !important;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.95rem;
   letter-spacing: 2.5px;
@@ -7014,7 +7029,7 @@ input[type="color"] {
 .smb-modal-header > span:first-child,
 #storyLoadoutOverlay .story-loadout-head > span {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.05rem;
   letter-spacing: 2px;
@@ -7024,7 +7039,7 @@ input[type="color"] {
 .smb-modal-header > span:first-child .smb-icon { color: var(--sh-gold); }
 .smb-modal-close {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.72rem;
   letter-spacing: 1.2px;
@@ -7057,7 +7072,7 @@ input[type="color"] {
 .story-ability-card2.sa-locked { opacity: 0.55; }
 .sa-name2 {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.86rem;
   letter-spacing: 0.8px;
@@ -7091,7 +7106,7 @@ input[type="color"] {
 }
 #storyModal .story-act-pager-title {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 1.2px;
@@ -7109,7 +7124,7 @@ input[type="color"] {
 #storyModal .story-act-pager-arrow:hover:not([disabled]) { border-color: var(--sh-gold); }
 #storyModal .story-arc-divider-label {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   letter-spacing: 1.5px;
   color: var(--sh-gold);
@@ -7196,7 +7211,7 @@ input[type="color"] {
 }
 #menu .player-config h3 {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1rem;
   letter-spacing: 1.5px;
@@ -7207,7 +7222,7 @@ input[type="color"] {
 #menu .player-config .section-head label,
 #menu .player-config .config-card-section > label {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   color: var(--sh-gold);
   letter-spacing: 2px;
@@ -7217,7 +7232,7 @@ input[type="color"] {
 #menuConfigContent .btn:not(.btn-start),
 #menu .footer-pill {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -7264,20 +7279,19 @@ input[type="color"] {
 
 /* ---- Mode setup screen: centre column ---- */
 #menuConfigContent #configModeLabel {
-  font-family: var(--sh-font-logo);
+  font-family: var(--sh-font-head);
   font-weight: 400 !important;
   font-size: 1.5rem !important;
   letter-spacing: 3px !important;
-  color: transparent !important;
-  background: linear-gradient(180deg, #FFE9A8 0%, #F6B63C 40%, #EE6A1F 85%);
-  -webkit-background-clip: text;
-  background-clip: text;
+  color: var(--sh-gold) !important;
+  background: none;
+  -webkit-text-fill-color: var(--sh-gold);
   filter: drop-shadow(0 2px 0 var(--sh-ink)) drop-shadow(1px 0 0 var(--sh-ink)) drop-shadow(-1px 0 0 var(--sh-ink));
 }
 #menuConfigContent .modifier-label,
 #menuConfigContent .arena-label, #menuConfigContent .lives-label {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   color: var(--sh-gold);
   text-shadow: 0 1px 0 var(--sh-ink);
@@ -7291,7 +7305,7 @@ input[type="color"] {
   border-radius: 0;
   box-shadow: none;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.15rem;
   letter-spacing: 3px;
@@ -7324,7 +7338,7 @@ input[type="color"] {
 /* Simulator greeting */
 #menu .simulator-greeting .sim-greeting-name {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.5rem;
   letter-spacing: 1.5px;
@@ -7333,14 +7347,13 @@ input[type="color"] {
   text-shadow: 0 2px 0 var(--sh-ink), 0 0 18px rgba(0,0,0,0.6);
 }
 #menu .simulator-greeting .sim-greeting-name span {
-  font-family: var(--sh-font-logo);
+  font-family: var(--sh-font-head);
   font-style: normal;
   font-size: 1.15em;
   letter-spacing: 2px;
-  color: transparent;
-  background: linear-gradient(180deg, #FFE9A8 0%, #F6B63C 40%, #EE6A1F 85%);
-  -webkit-background-clip: text;
-  background-clip: text;
+  color: var(--sh-gold);
+  background: none;
+  -webkit-text-fill-color: var(--sh-gold);
   text-shadow: none;
   filter: drop-shadow(0 2px 0 var(--sh-ink)) drop-shadow(1px 0 0 var(--sh-ink)) drop-shadow(-1px 0 0 var(--sh-ink));
 }
@@ -7372,7 +7385,7 @@ input[type="color"] {
 #skillTreeModal .st-jump,
 #storyVictoryOverlay > div > div:last-child > button:not(#storyVictoryNextBtn) {
   font-family: var(--sh-font-head) !important;
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   text-transform: uppercase;
   color: var(--sh-bone) !important;
@@ -7387,7 +7400,7 @@ input[type="color"] {
 #weaponMasterySection { border-top-color: rgba(226,178,85,0.22) !important; }
 #weaponMasterySection > div:first-child > span:first-child {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400 !important;
   font-size: 0.9rem !important;
   color: var(--sh-bone) !important;
@@ -7415,7 +7428,7 @@ input[type="color"] {
 }
 #menu .online-eyebrow {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.95rem;
   letter-spacing: 1.5px;
@@ -7425,7 +7438,7 @@ input[type="color"] {
 #menu .online-eyebrow .smb-icon { color: var(--sh-gold); }
 #menu .online-step-head {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   color: var(--sh-bone);
   letter-spacing: 1px;
@@ -7517,7 +7530,7 @@ input[type="color"] {
 #storyVictoryOverlay #storyVictoryChTitle {
   display: inline-block;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400 !important;
   font-size: 0.82rem !important;
   letter-spacing: 1.5px;
@@ -7537,7 +7550,7 @@ input[type="color"] {
 }
 #storyVictoryOverlay #storyVictoryRewards > div:first-child {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--sh-gold) !important;
@@ -7550,7 +7563,7 @@ input[type="color"] {
   border: 0 !important;
   border-radius: 0 !important;
   font-family: var(--sh-font-head) !important;
-  font-style: italic;
+  font-style: normal;
   font-weight: 400 !important;
   font-size: 0.95rem !important;
   letter-spacing: 2px !important;
@@ -7587,7 +7600,7 @@ input[type="color"] {
   border-radius: 0 !important;
   box-shadow: none;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.95rem;
   letter-spacing: 2.5px;
@@ -7620,7 +7633,7 @@ input[type="color"] {
 #hudMenuBtn,
 .ach-close {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -7647,7 +7660,7 @@ input[type="color"] {
 .smb-modal-box .settings-modal-section { border-top-color: rgba(226,178,85,0.18); }
 .smb-modal-box .settings-modal-label {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 0.78rem;
   letter-spacing: 2.5px;
@@ -7726,7 +7739,7 @@ input[type="color"] {
 }
 #cosmeticStore h2 {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.15rem !important;
   letter-spacing: 2px;
@@ -7759,7 +7772,7 @@ input[type="color"] {
 .store-swatch { box-shadow: 0 0 0 2px var(--sh-ink), 0 0 0 3px var(--sh-gold-deep); }
 .store-name {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -7767,7 +7780,7 @@ input[type="color"] {
   text-shadow: 0 2px 0 var(--sh-ink);
 }
 .store-type  { color: var(--sh-bone-dim); }
-.store-owned { color: var(--sh-gold); font-family: var(--sh-font-head); font-style: italic; text-transform: uppercase; letter-spacing: 1px; font-size: 0.68rem; }
+.store-owned { color: var(--sh-gold); font-family: var(--sh-font-head); font-style: normal; text-transform: uppercase; letter-spacing: 1px; font-size: 0.68rem; }
 .store-buy-btn {
   font-family: var(--font-display);
   color: #FFF6E0;
@@ -7794,7 +7807,7 @@ input[type="color"] {
 #achievementsModal .ach-header { border-bottom-color: rgba(226,178,85,0.22); }
 #achievementsModal .ach-header h2 {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.05rem;
   letter-spacing: 2px;
@@ -7808,7 +7821,7 @@ input[type="color"] {
 #achievementsModal .ach-close { font-size: 0.72rem; padding: 6px 14px; cursor: pointer; }
 #achievementsModal .ach-cat-head {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   letter-spacing: 2px;
   color: var(--sh-gold);
@@ -7832,7 +7845,7 @@ input[type="color"] {
 #achievementsModal .ach-detail { border-left-color: rgba(226,178,85,0.22); background: rgba(7,6,12,0.35); }
 #achievementsModal .ach-detail-title {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   font-size: 1.3rem;
   letter-spacing: 1px;
@@ -7840,18 +7853,24 @@ input[type="color"] {
   color: var(--sh-bone);
   text-shadow: 0 2px 0 var(--sh-ink);
 }
-#achievementsModal .ach-detail-tier { font-family: var(--sh-font-head); font-style: italic; }
+#achievementsModal .ach-detail-tier { font-family: var(--sh-font-head); font-style: normal; }
 #achievementsModal .ach-detail-desc { color: var(--sh-bone); }
 #achievementsModal .ach-detail-hint { color: var(--sh-bone-dim); }
 #achievementsModal .ach-hint-label { color: var(--sh-gold); }
-#achievementsModal .ach-status { border-radius: 2px; font-family: var(--sh-font-head); font-style: italic; }
+#achievementsModal .ach-status { border-radius: 2px; font-family: var(--sh-font-head); font-style: normal; }
 #achievementsModal .ach-status-locked { border-color: #3A3046; color: var(--ui-faint); background: var(--sh-ink); }
 #achievementsModal .ach-status-earned { border-color: var(--sh-gold); color: #FFE7A6; background: linear-gradient(180deg, #C93A24, #8E2014); }
 
 /* ---- Ladder rung picker + result card ---- */
 #ladderRungs #ladderRungsHead,
-#ladderResult #ladderResultHead,
 .overlay-box h2 {
+  font-family: var(--sh-font-head);
+  font-weight: 400 !important;
+  letter-spacing: 3px;
+  line-height: 1.1;
+  filter: drop-shadow(0 2px 0 var(--sh-ink)) drop-shadow(2px 0 0 var(--sh-ink)) drop-shadow(-2px 0 0 var(--sh-ink)) drop-shadow(0 6px 14px rgba(0,0,0,0.6));
+}
+#ladderResult #ladderResultHead {
   font-family: var(--sh-font-logo);
   font-weight: 400 !important;
   letter-spacing: 3px;
@@ -7864,7 +7883,7 @@ input[type="color"] {
 #ladderResult #ladderResultSub {
   display: inline-block;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400 !important;
   font-size: 0.8rem !important;
   letter-spacing: 1.2px;
@@ -7892,15 +7911,71 @@ input[type="color"] {
 #pauseOverlay .overlay-box::before, #gameOverOverlay .overlay-box::before { display: none; }
 .overlay-box h2 {
   font-size: 2.6rem;
-  color: transparent;
-  background: linear-gradient(180deg, #FFE9A8 0%, #F6B63C 40%, #EE6A1F 85%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--sh-gold);
+  background: none;
+  -webkit-text-fill-color: var(--sh-gold);
   text-shadow: none;
 }
 .overlay-box .btn:not(.btn-start) { font-size: 0.78rem; }
 #gameOverOverlay #statsDisplay { color: var(--sh-bone); font-family: var(--font-ui); }
+
+/* ---- Leftover slate panels moved onto the ink plate (Nov 21 colour pass) ---- */
+#gameOverOverlay #statsDisplay {
+  background: rgba(7,6,12,0.72);
+  border: 1px solid rgba(140,94,31,0.55);
+  border-radius: 2px;
+  box-shadow: none;
+}
+#menu .controls-info {
+  background: linear-gradient(180deg, rgba(21,17,29,0.92), rgba(7,6,12,0.92));
+  border: 1px solid var(--sh-gold-deep);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--sh-ink);
+  color: var(--sh-bone);
+}
+#menu .expand-arrow {
+  color: var(--sh-bone);
+  background: var(--sh-ink);
+  border: 1px solid var(--sh-gold-deep);
+  border-radius: 2px;
+  text-shadow: none;
+}
+#hudFullscreenBtn {
+  color: var(--sh-bone-dim);
+  background: linear-gradient(180deg, var(--sh-panel-2), var(--sh-panel));
+  border: 1px solid var(--sh-gold-deep);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--sh-ink);
+}
+#hudFullscreenBtn:hover { color: #fff; border-color: var(--sh-gold); background: linear-gradient(180deg, #3A2A38, var(--sh-panel)); }
+/* Story shop / ability cards: icons from the set, coloured like the card's heading */
+.sa-icon2 { color: var(--sh-gold); line-height: 1; }
+.sa-icon2 .smb-icon { width: 1.5rem; height: 1.5rem; }
+.sa-owned-label .smb-icon, .sa-locked-label .smb-icon { vertical-align: -0.14em; }
+
+/* Story defeat screen: one banner (the recommended action), plates for the rest */
+.story-retry-actions { display: flex; flex-direction: column; align-items: stretch; gap: 10px; max-width: 300px; margin: 0 auto; }
+.story-retry-actions .b { width: 100%; }
+.story-retry-actions .b.b-primary { white-space: nowrap; letter-spacing: 1.5px; padding-left: 24px; padding-right: 24px; }
+.story-retry-actions .b.b-secondary { padding: 9px 0; font-size: 0.78rem; }
+
+/* The spirit keeps its ghost-blue tint (it is a spirit), squared to the frame; its lines are narration */
+.story-spirit { border-radius: 2px; }
+.story-spirit-body p { font-family: Georgia, 'Times New Roman', serif; font-size: 0.86rem; }
+
+/* Story tokens: copper diamond, never the gold round coin of the account balance */
+.smb-icon.tok-ico { color: #D98A4A; vertical-align: -0.12em; }
+
+/* Unlock toast: ink plate; the tier keeps its own rim colour */
+.ach-notif {
+  background: linear-gradient(180deg, rgba(21,17,29,0.96), rgba(7,6,12,0.96));
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--sh-ink), 0 10px 24px rgba(0,0,0,0.5);
+  color: var(--sh-bone);
+}
+.ach-notif-kicker { color: var(--sh-gold); }
+.ach-notif-title  { font-family: var(--sh-font-head); font-weight: 400; letter-spacing: 0.5px; }
+.ach-notif-desc   { color: var(--sh-bone-dim); }
 
 /* ---- In-game HUD: slanted fighting-game bars on ink plates ---- */
 #hud .hud-side {
@@ -7911,7 +7986,7 @@ input[type="color"] {
 }
 #hud .hud-name {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   letter-spacing: 1.2px;
   text-shadow: 0 2px 0 var(--sh-ink);
@@ -7930,7 +8005,7 @@ input[type="color"] {
 #hud .hud-side.right .hp-text { transform: skewX(-14deg); }
 #hud .super-label, #hud .cd-label {
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-weight: 400;
   color: var(--sh-gold);
   text-shadow: 0 1px 0 var(--sh-ink);
@@ -7995,7 +8070,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
 }
 .jr-header h2 {
   margin: 0; display: flex; align-items: center; gap: 8px; white-space: nowrap;
-  font-family: var(--sh-font-head); font-style: italic; font-weight: 400;
+  font-family: var(--sh-font-head); font-style: normal; font-weight: 400;
   font-size: 1.05rem; letter-spacing: 2px; text-transform: uppercase; color: #FFE7A6;
 }
 .jr-header h2 .smb-icon { color: var(--sh-gold); }
@@ -8030,7 +8105,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
 }
 .jr-page { flex: 1; min-width: 0; overflow-y: auto; padding: 30px 40px 40px; }
 .jr-title {
-  font-family: var(--sh-font-head); font-style: italic; font-size: 1.5rem;
+  font-family: var(--sh-font-head); font-style: normal; font-size: 1.5rem;
   color: #FFE7A6; letter-spacing: 1px; line-height: 1.2;
 }
 .jr-voice { margin-top: 4px; font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase; color: #B9AC93; }
@@ -8118,7 +8193,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
   cursor: pointer; text-align: left;
   padding: 1px 0 1px 0;
   font-family: var(--sh-font-head);
-  font-style: italic;
+  font-style: normal;
   font-size: clamp(0.95rem, 0.9vw + 1.5vh, 1.7rem);
   letter-spacing: 1.5px; text-transform: uppercase;
   color: var(--sh-bone-dim, #B9AC93);
@@ -8138,8 +8213,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
 .h2-item.is-sel { color: #FFF6E0; padding-left: 10px; }
 .h2-item.is-sel::before { opacity: 1; }
 .h2-item.is-sel .h2-label {
-  background: linear-gradient(180deg, #FFF3D0 0%, #FFD27A 55%, #F2862F 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+  background: none; color: var(--sh-gold); -webkit-text-fill-color: var(--sh-gold);
   filter: drop-shadow(0 2px 0 rgba(7,6,12,0.95));
   text-shadow: none;
 }
@@ -8156,11 +8230,11 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
   display: none;
   margin: 2px 0 4px;
   font-family: inherit; font-style: normal; text-transform: none;
-  font-size: clamp(0.66rem, 0.25vw + 0.9vh, 0.86rem);
+  font-size: clamp(0.74rem, 0.28vw + 1vh, 0.96rem);
   letter-spacing: 0.4px; line-height: 1.35;
   color: var(--sh-bone, #F3E8D2);
   opacity: 0.86;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-ui); font-weight: 600;
 }
 .h2-item.is-sel .h2-desc { display: block; animation: h2Desc 0.18s ease-out both; }
 /* Ember slash under the selected row. */
@@ -8201,13 +8275,13 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
   animation: h2Shine 5.5s ease-in-out 1.2s infinite;
 }
 .h2-play-kicker {
-  font-family: var(--sh-font-head); font-style: italic;
-  font-size: clamp(0.6rem, 0.3vw + 0.8vh, 0.82rem);
-  letter-spacing: 2px; text-transform: uppercase;
+  font-family: var(--font-label); font-weight: 700;
+  font-size: clamp(0.66rem, 0.3vw + 0.85vh, 0.9rem);
+  letter-spacing: 3px; text-transform: uppercase;
   color: #2A0E06; opacity: 0.85;
 }
 .h2-play-go {
-  font-family: var(--sh-font-head); font-style: italic;
+  font-family: var(--sh-font-head); font-style: normal;
   font-size: clamp(1.7rem, 1.6vw + 3vh, 3.2rem); line-height: 1;
   letter-spacing: 3px; text-transform: uppercase;
   text-shadow: 0 3px 0 rgba(90,20,8,0.95);
@@ -8216,9 +8290,9 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
 .h2-play-sub {
   display: flex; gap: 10px; align-items: baseline; justify-content: space-between; width: 100%;
   margin-top: 3px;
-  font-family: var(--sh-font-head); font-style: italic;
-  font-size: clamp(0.62rem, 0.3vw + 0.9vh, 0.9rem);
-  letter-spacing: 1px; text-transform: uppercase;
+  font-family: var(--font-label); font-weight: 700;
+  font-size: clamp(0.68rem, 0.3vw + 0.95vh, 0.96rem);
+  letter-spacing: 2px; text-transform: uppercase;
   color: #FFE9C6; text-shadow: 0 1px 0 rgba(90,20,8,0.9);
   white-space: nowrap; overflow: hidden;
 }
@@ -8261,7 +8335,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
   animation: slIn 0.6s cubic-bezier(.2,.8,.2,1) both;
 }
 #splashLogo .sl-title {
-  font-family: 'SE Logo Brush', 'Potta One', 'Russo One', sans-serif;
+  font-family: var(--sh-font-logo);
   font-weight: 400; text-transform: uppercase;
   font-size: clamp(2rem, 4.6vw + 2vh, 5.4rem); line-height: 1; letter-spacing: 3px;
   transform: skewX(-4deg);
@@ -8273,7 +8347,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
 #splashLogo .sl-mark { margin-top: clamp(6px, 1.2vh, 14px); }
 #splashLogo .sl-mark span {
   display: inline-block;
-  font-family: 'Potta One', 'Russo One', sans-serif;
+  font-family: var(--sh-font-head);
   font-size: clamp(0.7rem, 0.6vw + 0.6vh, 1.1rem); letter-spacing: 6px; text-transform: uppercase;
   color: #F3E8D2; text-shadow: 0 1px 0 #07060C;
   padding: 3px 26px 3px 30px;

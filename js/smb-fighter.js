@@ -6222,7 +6222,7 @@ class Fighter {
       const pulse = Math.abs(Math.sin(this.superFlashTimer * 0.18));
       ctx.save();
       ctx.globalAlpha = Math.min(1, this.superFlashTimer / 20);
-      ctx.font        = `bold ${12 + Math.floor(pulse * 4)}px Arial`;
+      ctx.font        = `bold ${12 + Math.floor(pulse * 4)}px ${FONT_UI}`;
       ctx.fillStyle   = '#ffd700';
       ctx.textAlign   = 'center';
       ctx.shadowColor = '#ff8800';
@@ -6233,7 +6233,7 @@ class Fighter {
 
     // Name tag
     ctx.globalAlpha  = 1;
-    ctx.font         = 'bold 10px Arial';
+    ctx.font         = `bold 10px ${FONT_UI}`;
     ctx.fillStyle    = this.color;
     ctx.textAlign    = 'center';
     ctx.shadowColor  = 'rgba(0,0,0,0.8)';
@@ -7916,7 +7916,7 @@ class Fighter {
       ctx.strokeRect(bx, by, barW, barH);
       // Label "READY" when full
       if (pct >= 1) {
-        ctx.font = 'bold 6.5px Arial';
+        ctx.font = `bold 6.5px ${FONT_UI}`;
         ctx.fillStyle = '#44ffaa';
         ctx.textAlign = 'center';
         ctx.fillText('READY', this.cx(), by - 1);
@@ -7987,7 +7987,7 @@ class Fighter {
       ctx.fill();
       ctx.globalAlpha = _pulse * 0.75;
       ctx.fillStyle   = '#88ddff';
-      ctx.font        = '9px Arial';
+      ctx.font        = `9px ${FONT_UI}`;
       ctx.textAlign   = 'center';
       ctx.fillText('🛡', this.cx(), this.y - 35);
       ctx.restore();

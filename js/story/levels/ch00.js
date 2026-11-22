@@ -106,7 +106,7 @@
       ctx.fillStyle = '#3b5566';
       ctx.beginPath(); ctx.moveTo(PORCH.x + 60, G - 104); ctx.lineTo(PORCH.x + 92, G - 98); ctx.lineTo(PORCH.x + 92, G - 30); ctx.lineTo(PORCH.x + 60, G - 26); ctx.fill();
       ctx.fillStyle = '#c9a54a'; ctx.beginPath(); ctx.arc(PORCH.x + 87, G - 68, 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#efe9da'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('95', PORCH.x + 30, G - 84);
+      ctx.fillStyle = '#efe9da'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('95', PORCH.x + 30, G - 84);
       ctx.fillStyle = '#4f403b';
       ctx.fillRect(PORCH_ROOF.x, PORCH_ROOF.y, PORCH_ROOF.w, 10);
       ctx.fillStyle = '#f1ede4'; ctx.fillRect(PORCH_ROOF.x, PORCH_ROOF.y + 10, PORCH_ROOF.w, 4);
@@ -133,7 +133,7 @@
       ctx.fillStyle = '#2f4a5c'; ctx.fillRect(938, G - 62, 34, 18);
       ctx.beginPath(); ctx.arc(955, G - 62, 17, Math.PI, 0); ctx.fill();
       ctx.fillStyle = '#c03a2a'; ctx.fillRect(970, G - 74, 3, 16); ctx.fillRect(970, G - 74, 9, 6);
-      ctx.fillStyle = '#efe9da'; ctx.font = 'bold 7px Arial'; ctx.fillText('95', 955, G - 51);
+      ctx.fillStyle = '#efe9da'; ctx.font = `bold 7px ${FONT_UI}`; ctx.fillText('95', 955, G - 51);
       ctx.fillStyle = '#ece7dc';
       for (let fx = 990; fx < YARD_END - 10; fx += 16) {
         ctx.beginPath(); ctx.moveTo(fx, G); ctx.lineTo(fx, G - 34); ctx.lineTo(fx + 4, G - 40); ctx.lineTo(fx + 8, G - 34); ctx.lineTo(fx + 8, G); ctx.fill();
@@ -172,7 +172,7 @@
         ctx.fillStyle = '#1e2a1e'; ctx.beginPath(); ctx.arc(hx, G - 212, 6, 0, Math.PI * 2); ctx.fill();
       }
       ctx.fillStyle = '#2d6b45'; ctx.fillRect(px - 40, G - 292, 80, 16);
-      ctx.fillStyle = '#f2f2ea'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#f2f2ea'; ctx.font = `bold 10px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillText('5TH  AVE', px, G - 280);
       ctx.fillStyle = '#2d6b45'; ctx.fillRect(px - 6, G - 312, 12, 18);
       for (const [sx, face] of [[ROAD_L - 26, 1], [ROAD_R + 26, -1]]) {
@@ -197,7 +197,7 @@
       ctx.fillStyle = '#4a5058'; ctx.fillRect(S.x + 4, S.y, 5, G - 22 - S.y); ctx.fillRect(S.x + S.w - 9, S.y, 5, G - 22 - S.y);
       ctx.fillStyle = '#3a3f46'; ctx.fillRect(S.x - 4, S.y - 4, S.w + 8, 12);
       ctx.fillStyle = '#2f6a9a'; ctx.fillRect(S.x + 20, S.y + 22, 50, 64);
-      ctx.fillStyle = '#e8eef2'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#e8eef2'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillText('ROUTE 9', S.x + 45, S.y + 40); ctx.fillText('ELM ST', S.x + 45, S.y + 52);
       ctx.fillStyle = '#5b4a3c'; ctx.fillRect(S.x + 84, G - 48, 54, 6); ctx.fillRect(S.x + 88, G - 42, 4, 20); ctx.fillRect(S.x + 130, G - 42, 4, 20);
       _slShopfront(AWNING.x - 10, G - 20, AWNING.w + 20, 230, '#8c6b58', 'CORNER  MART  · 24H', '#ffd266', null, true);
@@ -218,8 +218,8 @@
       ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
       for (let hx = 4610; hx < 4780; hx += 34) { ctx.beginPath(); ctx.moveTo(hx, G - 120); ctx.lineTo(hx, G - 20); ctx.stroke(); }
       ctx.fillStyle = '#efe9da'; ctx.fillRect(4640, G - 102, 110, 30);
-      ctx.fillStyle = '#9c2a22'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center';
-      ctx.fillText('DANGER', 4695, G - 90); ctx.fillStyle = '#2b2b2b'; ctx.font = '8px Arial'; ctx.fillText('KEEP OUT · DEEP EXCAVATION', 4695, G - 78);
+      ctx.fillStyle = '#9c2a22'; ctx.font = `bold 10px ${FONT_UI}`; ctx.textAlign = 'center';
+      ctx.fillText('DANGER', 4695, G - 90); ctx.fillStyle = '#2b2b2b'; ctx.font = `8px ${FONT_UI}`; ctx.fillText('KEEP OUT · DEEP EXCAVATION', 4695, G - 78);
       const SC = SCAFFOLD;
       ctx.strokeStyle = '#7a828a'; ctx.lineWidth = 3;
       for (const sx of [SC.x + 4, SC.x + SC.w - 4]) { ctx.beginPath(); ctx.moveTo(sx, G); ctx.lineTo(sx, G - 206); ctx.stroke(); }
@@ -250,7 +250,7 @@
       ctx.strokeStyle = '#2a2d31'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(FE.x + 10, G - 128); ctx.lineTo(FE.x + FE.w - 10, G - 226); ctx.moveTo(FE.x + FE.w - 10, G - 226); ctx.lineTo(FE.x + 10, G - 324); ctx.stroke();
       ctx.fillStyle = '#2b2522'; ctx.fillRect(5180, G - 104, 54, 84);
-      ctx.fillStyle = '#d6cfc0'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('1140', 5207, G - 110);
+      ctx.fillStyle = '#d6cfc0'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('1140', 5207, G - 110);
       ctx.fillStyle = '#5e3a30'; ctx.fillRect(5330, G - 330, 200, 330);
       ctx.fillStyle = '#4a2e26'; ctx.fillRect(ALLEY_X + 260, G - 360, 240, 360);
       const ag = ctx.createLinearGradient(ALLEY_X - 30, 0, ALLEY_X + 260, 0);

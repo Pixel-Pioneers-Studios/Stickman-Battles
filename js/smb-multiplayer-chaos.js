@@ -290,7 +290,7 @@ function _drawAnnouncer() {
     ctx.shadowBlur  = Math.round(28 * a.scaleY);
 
     const fs = Math.round(42 * scale * Math.min(1, a.scaleY * 1.2));
-    ctx.font         = `900 ${fs}px Arial`;
+    ctx.font         = `900 ${fs}px ${FONT_UI}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
 
@@ -301,7 +301,7 @@ function _drawAnnouncer() {
 
     if (a.subtext) {
       ctx.shadowBlur = 0;
-      ctx.font = `${Math.round(16 * scale)}px Arial`;
+      ctx.font = `${Math.round(16 * scale)}px ${FONT_UI}`;
       ctx.fillStyle = 'rgba(230,230,230,0.88)';
       ctx.fillText(a.subtext, cx, cy + Math.round(32 * scale));
     }
@@ -524,7 +524,7 @@ function _drawSpectatorLabel() {
   ctx.fillStyle = 'rgba(0,0,0,0.55)';
   const bw = Math.round(170 * sc), bh = Math.round(24 * sc);
   ctx.fillRect(canvas.width / 2 - bw / 2, canvas.height - Math.round(44 * sc), bw, bh);
-  ctx.font = `bold ${Math.round(12 * sc)}px Arial`;
+  ctx.font = `bold ${Math.round(12 * sc)}px ${FONT_UI}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(180,200,255,0.9)';
@@ -541,7 +541,7 @@ function _drawChaosScoreHUD() {
   const y  = Math.round(10 * sc);
 
   ctx.save();
-  ctx.font = `bold ${Math.round(11 * sc)}px Arial`;
+  ctx.font = `bold ${Math.round(11 * sc)}px ${FONT_UI}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
 
@@ -569,7 +569,7 @@ function _drawChaosScoreHUD() {
   const evStr = activeChaosEvent
     ? `⚡ ${CHAOS_EVENT_POOL.find(e => e.id === activeChaosEvent.id)?.name || '?'} — ${Math.ceil(activeChaosEvent.timer / 60)}s left`
     : `⚡ Next chaos in ${secsLeft}s`;
-  ctx.font = `${Math.round(9 * sc)}px Arial`;
+  ctx.font = `${Math.round(9 * sc)}px ${FONT_UI}`;
   ctx.fillStyle = activeChaosEvent ? '#ffdd44' : 'rgba(180,180,180,0.55)';
   ctx.fillText(evStr, cx, y + bh + Math.round(2 * sc));
 
@@ -600,7 +600,7 @@ function _drawActiveEventBadge() {
     ctx.globalAlpha = 1;
   }
 
-  ctx.font = `bold ${Math.round(11 * sc)}px Arial`;
+  ctx.font = `bold ${Math.round(11 * sc)}px ${FONT_UI}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = def.color;
@@ -616,7 +616,7 @@ function _drawChaosEffectBadges() {
     if (!p._chaosEffects || p._chaosEffects.size === 0 || p.health <= 0) return;
     let off = 0;
     ctx.save();
-    ctx.font = `bold ${6}px Arial`;
+    ctx.font = `bold ${6}px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     for (const [id] of p._chaosEffects) {
@@ -660,7 +660,7 @@ function _drawItemDrops() {
     ctx.stroke();
 
     ctx.fillStyle    = item.color;
-    ctx.font         = 'bold 7px Arial';
+    ctx.font         = `bold 7px ${FONT_UI}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(item.label, item.x, item.y + bY + 0.5);

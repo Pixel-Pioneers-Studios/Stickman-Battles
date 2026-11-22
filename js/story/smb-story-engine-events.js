@@ -172,7 +172,7 @@ function _handleBuiltinEvent(name, data) {
       const tfCard = document.getElementById('modeTrueForm');
       if (tfCard) tfCard.style.display = '';
       _showMidFightUnlock({
-        icon: '👁',
+        icon: 'eye',
         name: 'Cosmic Axiom Unlocked',
         desc: 'Something beyond the Creator.\nFind the letters hidden in the arenas.',
         color: '#cc88ff',
@@ -231,7 +231,7 @@ function _showMidFightUnlock(opts) {
 
   const col = opts.color || '#88ffcc';
   banner.innerHTML = `
-    <div style="font-size:2.6rem;line-height:1;margin-bottom:8px;">${opts.icon}</div>
+    <div style="font-size:2.6rem;line-height:1;margin-bottom:8px;color:${opts.color || '#88ffcc'};">${smbIconOrText(opts.icon)}</div>
     <div style="font-size:0.65rem;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:4px;">UNLOCKED</div>
     <div style="font-size:1.2rem;font-weight:800;color:${col};letter-spacing:1px;margin-bottom:8px;">${opts.name}</div>
     <div style="font-size:0.78rem;color:rgba(200,210,255,0.75);line-height:1.5;white-space:pre-line;">${opts.desc}</div>

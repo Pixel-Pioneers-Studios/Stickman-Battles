@@ -22,6 +22,7 @@ let _tutMeterGranted  = false; // super meter topped up once for the super step
 let _tutPrevVy        = 0;     // previous-frame vy, for jump-launch detection
 let _tutFightInit     = false; // bot held for the opening steps
 let _tutActed         = false; // player has moved, jumped or swung
+let _tutPanelBottom   = 0;     // screen y under the prompt panel (and its GOOD banner) while drawn, else 0
 
 // Each step: `need` progress units to clear. `check` runs each frame and returns progress
 // to add. Steps only prompt. They never gate the fight.
@@ -248,6 +249,7 @@ function maybeStartFirstRun() {
 
 /** Draw the prompt panel. Called from the game loop after the world draws. */
 function drawTutorial(ctx) {
+  _tutPanelBottom = 0;
   if (!tutorialActive || !ctx) return;
   const cw = ctx.canvas.width;
 
@@ -255,7 +257,7 @@ function drawTutorial(ctx) {
   if (!step) return;
 
   // Screen pixels, so centre on the real canvas width, not GAME_W. y clears the ~115px HUD band.
-  // Width fits the longest hint at 13px monospace.
+  // Width fits the longest hint at 15px FONT_UI.
   // Compact on short frames so the panel does not eat the arena.
   const ch = ctx.canvas.height;
   const compact = ch < 600;
@@ -266,40 +268,54 @@ function drawTutorial(ctx) {
       (typeof _ladderOver !== 'undefined' && _ladderOver)) return;
   // A jumping fighter can hide behind the panel, so fade it out of the way.
   const panelAlpha = _tutFighterBehind(x, y, w, h) ? 0.5 : 1;
+  _tutPanelBottom = y + h + 56;
 
+  // Same ink plate and deep-gold hairline as the corner HUD (#hud .hud-side).
   ctx.save();
-  ctx.globalAlpha = 0.92 * panelAlpha;
-  ctx.fillStyle = 'rgba(6,12,24,0.88)';
-  ctx.strokeStyle = '#3fb6ff';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect ? ctx.roundRect(x, y, w, h, 10) : ctx.rect(x, y, w, h);
-  ctx.fill();
-  ctx.stroke();
-
   ctx.globalAlpha = panelAlpha;
+  const plate = ctx.createLinearGradient(0, y, 0, y + h);
+  plate.addColorStop(0, 'rgba(21,17,29,0.9)');
+  plate.addColorStop(1, 'rgba(7,6,12,0.9)');
+  ctx.fillStyle = plate;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(7,6,12,0.85)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(x - 1, y - 1, w + 2, h + 2);
+  ctx.strokeStyle = '#8C5E1F';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+
+  const tY = compact ? 20 : 27, hY = compact ? 38 : 50;
+  const title = step.title.toUpperCase();
+  ctx.font = compact ? `16px ${FONT_DISPLAY}` : `18px ${FONT_DISPLAY}`;
+  const titleW = ctx.measureText(title).width;
+  ctx.fillStyle = '#E2B255';
+  ctx.fillText(title, cw / 2, y + tY);
+  // Step counter: a quiet label beside the title, not part of it.
+  ctx.font = `bold 11px ${FONT_UI}`;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#B9AC93';
+  ctx.fillText(`${Math.min(tutorialStep + 1, TUTORIAL_STEPS.length)} / ${TUTORIAL_STEPS.length}`, cw / 2 + titleW / 2 + 10, y + tY - 1);
   ctx.textAlign = 'center';
 
-  const tY = compact ? 19 : 24, hY = compact ? 37 : 46;
-  ctx.fillStyle = '#3fb6ff';
-  ctx.font = compact ? 'bold 14px monospace' : 'bold 15px monospace';
-  ctx.fillText(`${step.title}   (${Math.min(tutorialStep + 1, TUTORIAL_STEPS.length)}/${TUTORIAL_STEPS.length})`, cw / 2, y + tY);
-
-  ctx.fillStyle = '#e8f4ff';
-  ctx.font = compact ? '12.5px monospace' : '13px monospace';
+  ctx.fillStyle = '#F3E8D2';
+  ctx.font = compact ? `600 14px ${FONT_UI}` : `600 16px ${FONT_UI}`;
   ctx.fillText(step.hint, cw / 2, y + hY);
 
   const pct = Math.max(0, Math.min(1, _tutProgress / step.need));
-  const bw = w - 60, bx = x + 30, by = y + (compact ? 43 : 58);
-  ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  ctx.fillRect(bx, by, bw, compact ? 4 : 7);
-  ctx.fillStyle = '#3fb6ff';
-  ctx.fillRect(bx, by, bw * pct, compact ? 4 : 7);
+  const bw = w - 60, bx = x + 30, by = y + (compact ? 44 : 62), bh = compact ? 3 : 5;
+  ctx.fillStyle = '#07060C';
+  ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
+  ctx.fillStyle = '#E2B255';
+  ctx.fillRect(bx, by, bw * pct, bh);
 
   if (_tutBannerTimer > 0) {
     ctx.globalAlpha = Math.min(1, _tutBannerTimer / 30);
     ctx.fillStyle = '#66ffaa';
-    ctx.font = 'bold 26px monospace';
+    ctx.font = `26px ${FONT_DISPLAY}`;
     ctx.fillText('GOOD', cw / 2, y + h + 40);
   }
 
@@ -349,8 +365,9 @@ function showContextTip(id) {
     _tipEl = document.createElement('div');
     _tipEl.id = 'ctxTip';
     _tipEl.style.cssText = 'position:fixed;top:128px;left:50%;transform:translateX(-50%);max-width:min(520px,90vw);' +
-      'background:rgba(6,12,24,0.92);border:2px solid #3fb6ff;border-radius:10px;color:#e8f4ff;padding:10px 16px;' +
-      'font:13px/1.35 monospace;text-align:center;z-index:9000;cursor:pointer;transition:opacity .4s;opacity:0;pointer-events:auto';
+      'background:linear-gradient(180deg,rgba(21,17,29,0.92),rgba(7,6,12,0.92));border:1px solid #8C5E1F;border-radius:2px;' +
+      'box-shadow:0 0 0 2px rgba(7,6,12,0.85);color:#F3E8D2;padding:10px 16px;' +
+      'font:600 14px/1.35 var(--font-ui);text-align:center;z-index:9000;cursor:pointer;transition:opacity .4s;opacity:0;pointer-events:auto';
     _tipEl.addEventListener('click', function (e) {
       if (e.target && e.target.dataset && e.target.dataset.off) _tutWriteFlag('tipsOff', 'smb_tipsOff');
       _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0;
@@ -367,6 +384,15 @@ function showContextTip(id) {
   _tipShownAt = _tipFrames; _tipHide = _tipFrames + 60 * 8;
   return true;
 }
+
+// _tipTick only runs inside the game loop, so a tip shown near the end of a match would
+// stay over the menus. Close it once the game has been stopped for a moment.
+let _tipIdleMs = 0;
+setInterval(function () {
+  if (!_tipEl || _tipEl.style.opacity !== '1') { _tipIdleMs = 0; return; }
+  _tipIdleMs = gameRunning ? 0 : _tipIdleMs + 250;
+  if (_tipIdleMs >= 2500) { _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0; _tipIdleMs = 0; }
+}, 250);
 
 function _tipTick() {
   if (_tipHide && _tipFrames > _tipHide && _tipEl) { _tipEl.style.opacity = '0'; _tipEl.style.pointerEvents = 'none'; _tipHide = 0; }

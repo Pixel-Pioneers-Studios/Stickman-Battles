@@ -269,7 +269,7 @@ const ComboDomain = (() => {
       const frac = d.timer / COMBO_DOMAIN_FRAMES;
       const bx = cW / 2 - BAR_W / 2;
       const title = d.def.name + '  ·  DIRECT HIT';
-      ctx.font        = 'bold 13px Arial';
+      ctx.font        = `bold 13px ${FONT_UI}`;
       ctx.lineWidth   = 3;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
       ctx.strokeText(title, cW / 2, y);
@@ -282,7 +282,7 @@ const ComboDomain = (() => {
       ctx.fillRect(bx, y + 4, BAR_W, BAR_H);
       ctx.fillStyle  = d.def.color;
       ctx.fillRect(bx, y + 4, BAR_W * frac, BAR_H);
-      ctx.font       = '11px Arial';
+      ctx.font       = `11px ${FONT_UI}`;
       ctx.strokeText(d.def.desc, cW / 2, y + 23);
       ctx.fillStyle  = '#ffffff';
       ctx.fillText(d.def.desc, cW / 2, y + 23);

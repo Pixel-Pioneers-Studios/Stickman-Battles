@@ -476,7 +476,7 @@ class Yeti extends Fighter {
 
     // Name tag + HP bar (skipped for BR creature forms).
     if (!this._brForm) {
-      ctx.globalAlpha = 1; ctx.fillStyle = '#88ccff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+      ctx.globalAlpha = 1; ctx.fillStyle = '#88ccff'; ctx.font = `bold 12px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillText('YETI', cx, ty - 12);
       const hpPct = Math.max(0, this.health / this.maxHealth);
       ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(cx - 26, ty - 24, 52, 5);

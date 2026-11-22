@@ -113,7 +113,7 @@
       ctx.fillRect(2716, G - 88, 6, 88); ctx.fillRect(2788, G - 88, 6, 88);
       ctx.save(); ctx.translate(2650, G - 6); ctx.rotate(-0.35);
       ctx.fillStyle = '#d8d0c0'; ctx.fillRect(0, -70, 220, 70);
-      ctx.fillStyle = '#c03a2a'; ctx.font = 'bold 20px Arial'; ctx.textAlign = 'center'; ctx.fillText('MOVING SOON', 110, -28);
+      ctx.fillStyle = '#c03a2a'; ctx.font = `bold 20px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('MOVING SOON', 110, -28);
       ctx.restore();
       _slBrick(PLAZA + 60, G - 300, 300, 300, '#5a4a40');
       _slWindowGrid(PLAZA + 70, G - 290, 280, 200, 4, 3, { lit: 0.55, seed: 11, glow: true });

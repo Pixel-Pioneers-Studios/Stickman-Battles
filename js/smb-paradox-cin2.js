@@ -302,7 +302,7 @@ function drawFalseVictory() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = Math.min(1, (t - 60) / 30);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'italic bold 24px Arial';
+    ctx.font = `italic bold 24px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillText('That was a shadow.', canvas.width / 2, canvas.height / 2 - 40);
     ctx.fillText('The fight begins again.', canvas.width / 2, canvas.height / 2);

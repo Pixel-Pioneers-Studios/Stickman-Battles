@@ -441,7 +441,7 @@ class God extends Fighter {
     ctx.shadowBlur = 14;
     ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
     ctx.fillStyle = '#fff2c4';
-    ctx.font = 'bold 15px Arial';
+    ctx.font = `bold 15px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillText('OPEN', cx, cy + r + 18);
     ctx.restore();
@@ -1122,7 +1122,7 @@ class God extends Fighter {
       ctx.shadowColor = p2 ? 'rgba(200,140,255,0.9)' : 'rgba(255,225,80,0.9)';
       ctx.shadowBlur  = 10;
       ctx.fillStyle   = p2 ? '#f0d8ff' : '#ffffc0';
-      ctx.font        = 'bold 11px Arial';
+      ctx.font        = `bold 11px ${FONT_UI}`;
       ctx.textAlign   = 'center';
       ctx.fillText('✦ GOD ✦', cx, by - 4);
       ctx.textAlign   = 'left';
@@ -1732,7 +1732,7 @@ class GodParadoxAlly extends Fighter {
     ctx.shadowColor = 'rgba(50,170,255,0.9)';
     ctx.shadowBlur  = 9;
     ctx.fillStyle   = '#aaddff';
-    ctx.font        = 'bold 10px Arial';
+    ctx.font        = `bold 10px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     ctx.fillText('✦ PARADOX ✦', cx, by - 3);
     ctx.textAlign   = 'left';

@@ -185,7 +185,7 @@ function _slBarricade(x, G, w, label) {
   ctx.fillRect(x + 4, G - 22, 3, 22); ctx.fillRect(x + w - 7, G - 22, 3, 22);
   if (label) {
     ctx.fillStyle = '#efe9da'; ctx.fillRect(x + w / 2 - 24, G - 52, 48, 16);
-    ctx.fillStyle = '#2b2b2b'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#2b2b2b'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillText(label, x + w / 2, G - 41);
   }
 }
@@ -239,7 +239,7 @@ function _slCar(x, G, w, body, opts) {
   }
   if (opts.taxi) {
     ctx.fillStyle = '#20201c'; ctx.fillRect(x + w * 0.42, G - h - cab - 7, w * 0.16, 7);
-    ctx.fillStyle = '#f4e9b0'; ctx.font = 'bold 6px Arial'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#f4e9b0'; ctx.font = `bold 6px ${FONT_UI}`; ctx.textAlign = 'center';
     ctx.fillText('TAXI', x + w * 0.5, G - h - cab - 1.5);
     ctx.fillStyle = '#20201c';
     for (let c = 0; c < w - 30; c += 10) ctx.fillRect(x + 14 + c, G - 20, 5, 4);
@@ -312,7 +312,7 @@ function _slShopfront(x, G, w, h, wall, sign, signColor, awning, lit) {
   for (let wx = x + 22; wx + 34 < x + w - 10; wx += 56) _slWindow(wx, G - h + 22, 34, 40, '#5b524a', _slHash(wx) < 0.4, null);
   // Sign band
   ctx.fillStyle = '#22252a'; ctx.fillRect(x + 8, G - 128, w - 16, 26);
-  ctx.fillStyle = signColor; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center';
+  ctx.fillStyle = signColor; ctx.font = `bold 15px ${FONT_UI}`; ctx.textAlign = 'center';
   ctx.fillText(sign, x + w / 2, G - 109);
   // Glass
   ctx.fillStyle = '#3e3a36'; ctx.fillRect(x + 6, G - 98, w - 12, 98);

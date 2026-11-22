@@ -111,8 +111,8 @@
     if (_slVisible(v, 0, 440)) {
       ctx.fillStyle = '#d0a020'; for (let k = 0; k < 14; k++) ctx.fillRect(10 + k * 30, FY, 15, 4);
       ctx.fillStyle = '#efe9da'; ctx.fillRect(40, FY - 70, 120, 32);
-      ctx.fillStyle = '#9c2a22'; ctx.font = 'bold 9px Arial'; ctx.textAlign = 'center'; ctx.fillText('HALVERSEN STEEL', 100, FY - 56);
-      ctx.fillStyle = '#2b2b2b'; ctx.font = '7px Arial'; ctx.fillText('BAY 4 · LOADING', 100, FY - 45);
+      ctx.fillStyle = '#9c2a22'; ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('HALVERSEN STEEL', 100, FY - 56);
+      ctx.fillStyle = '#2b2b2b'; ctx.font = `7px ${FONT_UI}`; ctx.fillText('BAY 4 · LOADING', 100, FY - 45);
       _slCrate(240, FY - 44, 44, '#7a5a3a'); _slCrate(300, FY - 34, 34, '#6a4a2e');
     }
     if (_slVisible(v, 440, 760)) {
@@ -122,7 +122,7 @@
         ctx.fillStyle = 'rgba(0,0,0,0.2)'; for (let rx = x + 8; rx < x + w; rx += 10) ctx.fillRect(rx, y + 6, 3, LAVA - y - 6);
         ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(x, y, w, 4);
       });
-      ctx.fillStyle = '#e8e2d0'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.fillText('MAERA', CONT[0][0] + 55, CONT[0][1] + 30);
+      ctx.fillStyle = '#e8e2d0'; ctx.font = `bold 10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('MAERA', CONT[0][0] + 55, CONT[0][1] + 30);
     }
     if (_slVisible(v, 640, 1020)) {
       ctx.fillStyle = '#c8a020'; ctx.fillRect(CRANE.x, CRANE.y, CRANE.w, 12);
@@ -155,7 +155,7 @@
       ctx.fillStyle = '#2a2c30'; ctx.fillRect(1300, FY - 40, 180, 14);
       ctx.fillStyle = '#5a5e64'; for (let k = 0; k < 180; k += 14) ctx.fillRect(1300 + ((k + frameCount * 0.8) % 180), FY - 38, 6, 3);
       ctx.fillStyle = '#34383c'; ctx.fillRect(1310, FY - 26, 8, 26); ctx.fillRect(1460, FY - 26, 8, 26);
-      ctx.fillStyle = '#d8d2c0'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center'; ctx.fillText('LINE 2 · POUR', 1390, FY - 46);
+      ctx.fillStyle = '#d8d2c0'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('LINE 2 · POUR', 1390, FY - 46);
       _slCrate(1760, FY - 40, 40, '#6a4a2e'); _slCrate(1812, FY - 30, 30, '#7a5a3a'); _slCrate(1930, FY - 44, 44, '#6a4a2e');
     }
     {
@@ -171,7 +171,7 @@
       ctx.fillStyle = '#3a3a3e'; ctx.fillRect(2750, FY - 210, 16, 210); ctx.fillRect(3320, FY - 210, 16, 210);
       ctx.fillStyle = '#4a4a4e'; ctx.fillRect(2740, FY - 220, 606, 18);
       ctx.fillStyle = '#d0a020'; for (let k = 0; k < 20; k++) ctx.fillRect(2744 + k * 30, FY - 220, 15, 5);
-      ctx.fillStyle = '#c8321a'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center'; ctx.fillText('LAVA GATE · NO ENTRY', 3043, FY - 226);
+      ctx.fillStyle = '#c8321a'; ctx.font = `bold 11px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('LAVA GATE · NO ENTRY', 3043, FY - 226);
       ctx.fillStyle = '#4a4e54'; ctx.fillRect(NOOK.x, NOOK.y, NOOK.w, 6);
       ctx.strokeStyle = '#4a4e54'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(NOOK.x, NOOK.y - 22); ctx.lineTo(NOOK.x + NOOK.w, NOOK.y - 22); ctx.stroke();
       ctx.fillStyle = '#2a2a2e'; ctx.fillRect(NOOK.x + 8, NOOK.y - 26, 22, 26);
@@ -208,7 +208,7 @@
       ctx.fillStyle = '#4a4a4c'; ctx.fillRect(ROOF.x - 6, ROOF.y, ROOF.w + 12, FY - ROOF.y);        // pump house
       ctx.fillStyle = '#5a5a5c'; ctx.fillRect(ROOF.x - 10, ROOF.y - 4, ROOF.w + 20, 10);
       ctx.fillStyle = '#2a2a2e'; ctx.fillRect(ROOF.x + 20, ROOF.y + 40, 40, FY - ROOF.y - 40);
-      ctx.fillStyle = '#d8d2c0'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center'; ctx.fillText('PUMP 3', ROOF.x + 130, ROOF.y + 30);
+      ctx.fillStyle = '#d8d2c0'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('PUMP 3', ROOF.x + 130, ROOF.y + 30);
       ctx.fillStyle = '#7a8088'; ctx.fillRect(4140, FY - 22, 60, 22); ctx.fillRect(4150, FY - 36, 8, 14);
     }
     for (let i = 0; i < SLABS2.length; i++) {

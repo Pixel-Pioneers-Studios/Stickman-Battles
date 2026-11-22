@@ -209,28 +209,28 @@ function storyNewGame() {
 // Evolution is permanent for a save: only New Game exits it.
 const STORY_DIFFICULTIES = {
   story: {
-    name: 'Story', color: '#88ccff',
+    name: 'Story', color: '#D8CDB6',
     tagline: 'Experience the story with little fighting.',
     lines: ['Enemies are much weaker and slower', 'Easy bot intelligence', 'Fewer enemies in explore levels'],
     shift: 0, hpCap: 1, dmgCap: 1, hp: 0.45, dmg: 0.35, cd: 1.45, speed: 1,
     predict: -1, dodge: -1, ai: 'easy', exploreCap: -2, mercyTo: 6, duelExtra: 0, reward: 1, atkSlots: 1, cpMarks: [0.75, 0.5, 0.25],
   },
   normal: {
-    name: 'Normal', color: '#aaffbb',
+    name: 'Normal', color: '#E2B255',
     tagline: 'The fight as it was designed.',
     lines: ['Enemies grow stronger as the story goes on', 'Normal bot intelligence'],
     shift: 0, hpCap: 1, dmgCap: 1, hp: 1, dmg: 1, cd: 1, speed: 1,
     predict: 0, dodge: 0, ai: 'medium', exploreCap: 0, mercyTo: 6, duelExtra: 0, reward: 1, atkSlots: 2, cpMarks: [0.75, 0.5, 0.25],
   },
   challenge: {
-    name: 'Challenge', color: '#ffcc66',
+    name: 'Challenge', color: '#F2762B',
     tagline: 'Stronger enemies arrive earlier.',
     lines: ['Enemies are a few chapters ahead of you', 'Tougher enemies', 'Hard bot intelligence', 'No beginner mercy', 'An extra enemy joins every duel', '+50% tokens'],
     shift: 6, hpCap: 1.25, dmgCap: 1, hp: 1, dmg: 1, cd: 0.88, speed: 1.08,
     predict: 0.04, dodge: 0.03, ai: 'hard', exploreCap: 0, mercyTo: 0, earlyTo: 6, earlyHp: [140, 200], earlyHit: [14, 20], duelExtra: 1, reward: 1.5, atkSlots: 3, cpMarks: [0.66, 0.33],
   },
   evolution: {
-    name: 'Evolution', color: '#ff6644',
+    name: 'Evolution', color: '#E5452B',
     tagline: 'Evolve or die. Permanent.',
     lines: ['Enemies are ten chapters ahead of you, faster and sharper', 'Expert bot intelligence', 'Enemies adapt to any move you repeat: vary your attacks',
             'No beginner mercy', 'An extra enemy joins every duel', 'Enemies have 25% more health and hit 15% harder',
@@ -281,7 +281,7 @@ function _updateStoryDifficultyBtn() {
   if (!btn) return;
   const cfg = _storyDiffCfg();
   const locked = _storyDifficulty() === 'evolution';
-  btn.textContent = 'Difficulty: ' + cfg.name + (locked ? ' 🔒' : '');
+  btn.innerHTML = 'Difficulty: ' + cfg.name + (locked ? ' ' + smbIcon('lock') : '');
   btn.style.color = cfg.color;
   btn.title = locked ? 'Evolution is permanent. Start a New Game to leave it.' : 'Change difficulty';
 }
@@ -294,6 +294,10 @@ function _maybePickStoryDifficulty() {
 
 // firstPick: a fresh story choosing for the first time (Evolution allowed). Otherwise the
 // player is changing a choice, so Evolution is out of reach (and nothing else is, if it is current).
+// Difficulty cards sit on the same ink plate as the rest of the story menu.
+const _DIFF_BG    = 'linear-gradient(180deg,#15111D,#07060C)';
+const _DIFF_BG_ON = 'linear-gradient(180deg,#2A2136,#15111D)';
+
 function _showStoryDifficultyPicker(firstPick) {
   const old = document.getElementById('storyDifficultyOverlay');
   if (old) old.remove();
@@ -312,14 +316,14 @@ function _showStoryDifficultyPicker(firstPick) {
   box.style.cssText = 'width:min(760px,100%);text-align:center;';
   const title = document.createElement('h2');
   title.textContent = firstPick ? 'Choose Your Difficulty' : 'Change Difficulty';
-  title.style.cssText = 'margin:0 0 6px;color:#fff;font-size:1.5rem;letter-spacing:2px;';
+  title.style.cssText = 'margin:0 0 6px;color:#E2B255;font-family:var(--sh-font-head);font-weight:400;font-size:1.5rem;letter-spacing:3px;text-transform:uppercase;text-shadow:0 2px 0 #07060C,1px 0 0 #07060C,-1px 0 0 #07060C;';
   const sub = document.createElement('p');
   sub.textContent = evoLocked
     ? 'Evolution is permanent. The only way out is a New Game, which wipes your story progress.'
     : firstPick
       ? 'You can switch between Story, Normal and Challenge later. Evolution can only be chosen now, and never left.'
       : 'Evolution can only be chosen when starting a new story.';
-  sub.style.cssText = 'margin:0 0 18px;color:#99a;font-size:0.85rem;line-height:1.5;';
+  sub.style.cssText = 'margin:0 0 18px;color:#B9AC93;font-family:var(--font-ui);font-weight:600;font-size:0.9rem;line-height:1.5;';
   box.appendChild(title);
   box.appendChild(sub);
 
@@ -332,22 +336,30 @@ function _showStoryDifficultyPicker(firstPick) {
     const card = document.createElement('button');
     card.style.cssText = [
       'display:flex', 'flex-direction:column', 'gap:6px', 'padding:14px',
-      'background:' + (isCurrent ? '#262838' : '#161826'),
-      'border:1px solid ' + (isCurrent ? cfg.color : 'rgba(255,255,255,0.14)'),
-      'border-radius:10px', 'color:#ccd', 'font-family:inherit', 'text-align:left',
+      'background:' + (isCurrent ? _DIFF_BG_ON : _DIFF_BG),
+      'border:1px solid ' + (isCurrent ? cfg.color : '#8C5E1F'),
+      'border-top:3px solid ' + cfg.color,
+      'box-shadow:0 0 0 2px #07060C',
+      'border-radius:2px', 'color:#F3E8D2', 'font-family:var(--font-ui)', 'text-align:left',
       'cursor:' + (disabled || isCurrent ? 'default' : 'pointer'),
       'opacity:' + (disabled ? '0.4' : '1'), 'transition:background 0.12s,border-color 0.12s',
     ].join(';');
     const name = document.createElement('div');
-    name.textContent = cfg.name + (isCurrent ? '  (current)' : '');
-    name.style.cssText = 'font-size:1.05rem;font-weight:800;letter-spacing:1px;color:' + cfg.color + ';';
+    name.textContent = cfg.name;
+    if (isCurrent) {
+      const cur = document.createElement('span');
+      cur.textContent = 'current';
+      cur.style.cssText = 'margin-left:8px;font-family:var(--font-ui);font-weight:700;font-size:0.62rem;letter-spacing:1.5px;color:#B9AC93;vertical-align:2px;';
+      name.appendChild(cur);
+    }
+    name.style.cssText = 'font-family:var(--sh-font-head);font-weight:400;font-size:1.05rem;letter-spacing:1.5px;text-transform:uppercase;color:' + cfg.color + ';';
     const tag = document.createElement('div');
     tag.textContent = cfg.tagline;
-    tag.style.cssText = 'font-size:0.8rem;color:#eef;';
+    tag.style.cssText = 'font-size:0.86rem;font-weight:700;color:#F3E8D2;';
     card.appendChild(name);
     card.appendChild(tag);
     const ul = document.createElement('ul');
-    ul.style.cssText = 'margin:2px 0 0;padding-left:16px;font-size:0.72rem;color:#99a;line-height:1.45;';
+    ul.style.cssText = 'margin:2px 0 0;padding-left:16px;font-size:0.8rem;font-weight:500;color:#B9AC93;line-height:1.45;';
     for (const l of cfg.lines) {
       const li = document.createElement('li');
       li.textContent = l;
@@ -355,8 +367,8 @@ function _showStoryDifficultyPicker(firstPick) {
     }
     card.appendChild(ul);
     if (!disabled && !isCurrent) {
-      card.onmouseover = () => { card.style.background = '#22243a'; card.style.borderColor = cfg.color; };
-      card.onmouseout  = () => { card.style.background = '#161826'; card.style.borderColor = 'rgba(255,255,255,0.14)'; };
+      card.onmouseover = () => { card.style.background = _DIFF_BG_ON; card.style.borderColor = cfg.color; };
+      card.onmouseout  = () => { card.style.background = _DIFF_BG; card.style.borderColor = '#8C5E1F'; card.style.borderTopColor = cfg.color; };
       card.onclick = () => {
         if (key === 'evolution' &&
             !confirm('Evolution is permanent.\nYou will never be able to change difficulty on this story. The only way out is New Game, which wipes your story progress.\n\nChoose Evolution?')) return;
@@ -372,7 +384,7 @@ function _showStoryDifficultyPicker(firstPick) {
 
   const close = document.createElement('button');
   close.textContent = firstPick ? 'Not now' : 'Close';
-  close.style.cssText = 'margin-top:18px;padding:7px 22px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.14);border-radius:7px;color:#889;cursor:pointer;font-size:0.8rem;font-family:inherit;';
+  close.style.cssText = 'margin-top:18px;padding:7px 22px;background:linear-gradient(180deg,#211A2B,#15111D);border:1px solid #8C5E1F;border-radius:2px;box-shadow:0 0 0 2px #07060C,0 3px 0 2px #07060C;color:#F3E8D2;cursor:pointer;font-size:0.8rem;font-family:var(--sh-font-head);letter-spacing:1.2px;text-transform:uppercase;';
   close.onclick = () => {
     ov.remove();
     // An unpicked story is not playable yet, so the menu keeps its overlay.
@@ -446,7 +458,12 @@ function _renderStoryJourneyPanel(list) {
   bar.appendChild(fill);
   const prog = document.createElement('div');
   prog.style.cssText = 'font-size:0.74rem;color:#776633;margin-bottom:14px;';
-  prog.textContent = done + ' of ' + total + ' chapters cleared · ' + pct + '%';
+  // Shown counts skip the silent bridge chapters, matching the story map.
+  const _shownIdx = i => !(STORY_CHAPTERS2[i] && STORY_CHAPTERS2[i]._menuHidden);
+  const shownTotal = STORY_CHAPTERS2.filter((c, i) => _shownIdx(i)).length;
+  const shownDone = new Set((Array.isArray(_story2.defeated) ? _story2.defeated : [])
+    .filter(i => Number.isInteger(i) && i >= 0 && i < total && _shownIdx(i))).size;
+  prog.textContent = shownDone + ' of ' + shownTotal + ' chapters cleared · ' + pct + '%';
   const note = document.createElement('div');
   note.style.cssText = 'font-size:0.76rem;color:#8a8070;line-height:1.5;';
   note.textContent = 'Chapter select opens once you finish the story. Until then, the story picks up where you left off.';
@@ -633,7 +650,7 @@ function _renderChapterList() {
         (done ? ' lvl-done' : current ? ' lvl-current' : locked ? ' lvl-locked' : ' lvl-open') +
         (isBoss ? ' lvl-boss' : '');
 
-      const badge = done ? '✓' : locked ? '🔒' : current ? '▶' : (i + 1);
+      const badge = done ? '✓' : locked ? smbIcon('lock') : current ? '▶' : (i + 1);
       const _lives = ch.playerLives !== undefined ? ch.playerLives : 3;
       const _loot  = typeof storyChapterLootProgress === 'function' ? storyChapterLootProgress(i) : { got: 0, total: 0 };
       const _star  = typeof storyChapterStarred === 'function' && storyChapterStarred(i);
@@ -641,7 +658,7 @@ function _renderChapterList() {
         ? "You're not supposed to see that yet."
         : `Level ${i + 1} · ${displayWorld}` +
           (!ch.noFight ? ` · ${_lives === 1 ? '1 life' : _lives + ' lives'}` : '') +
-          (!done && ch.tokenReward ? ` · +${ch.tokenReward}🪙` : '') +
+          (!done && ch.tokenReward ? ` · +${ch.tokenReward} tokens` : '') +
           (_loot.total ? ` · caches ${_loot.got}/${_loot.total}` : '') +
           (_star ? ' · ★ 100%' : done ? ' · replay' : '');
       tile.title = tip;
@@ -983,7 +1000,7 @@ function _storyBuildShopItems() {
   return [
     {
       key: 'chapter_heal',
-      icon: '💉',
+      icon: 'heart',
       name: 'Field Treatment',
       desc: 'Restore 35% chapter health carryover before the next chapter. Cannot heal above 90%.',
       tokenCost: 18 + up.healUses * 10,
@@ -995,7 +1012,7 @@ function _storyBuildShopItems() {
     },
     {
       key: 'meta_damage',
-      icon: '⚔️',
+      icon: 'crossedswords',
       name: 'Damage Upgrade',
       desc: 'Permanent +' + Math.round(8 * _storyBuffScale()) + '% story damage. Cost scales each rank.',
       tokenCost: 28 + up.damage * 20,
@@ -1004,7 +1021,7 @@ function _storyBuildShopItems() {
     },
     {
       key: 'meta_survivability',
-      icon: '🛡️',
+      icon: 'shield',
       name: 'Survivability Upgrade',
       desc: 'Permanent +' + Math.round(10 * _storyBuffScale()) + ' max HP and minor damage reduction in Story Mode.',
       tokenCost: 30 + up.survivability * 22,
@@ -1044,7 +1061,7 @@ const STORY_SKILL_TREE = {
   mobility: {
     label: 'Mobility',
     color: '#44ffaa',
-    icon: '🏃',
+    icon: 'chevrons',
     nodes: [
       { id: 'highJump1',      name: 'Stronger Legs',       desc: 'Jump 15% higher',                           expCost: 25,  requires: null },
       { id: 'highJump2',      name: 'Leap Training',        desc: 'Jump 25% higher total',                     expCost: 45,  requires: 'highJump1' },
@@ -1055,7 +1072,7 @@ const STORY_SKILL_TREE = {
   combat: {
     label: 'Combat',
     color: '#ff8844',
-    icon: '⚔️',
+    icon: 'crossedswords',
     nodes: [
       { id: 'heavyHit1',      name: 'Stronger Strikes',     desc: '+15% attack damage',                        expCost: 25,  requires: null },
       { id: 'heavyHit2',      name: 'Power Blows',          desc: '+25% damage total',                         expCost: 45,  requires: 'heavyHit1' },
@@ -1068,7 +1085,7 @@ const STORY_SKILL_TREE = {
   resilience: {
     label: 'Resilience',
     color: '#88aaff',
-    icon: '🛡️',
+    icon: 'shield',
     nodes: [
       { id: 'tankier1',       name: 'Tougher Body',         desc: '+15 max HP',                                expCost: 25,  requires: null },
       { id: 'tankier2',       name: 'Hardened',             desc: '+25 max HP total',                          expCost: 45,  requires: 'tankier1' },
@@ -1081,7 +1098,7 @@ const STORY_SKILL_TREE = {
   speed: {
     label: 'Speed',
     color: '#ffee44',
-    icon: '⚡',
+    icon: 'bolt',
     nodes: [
       { id: 'fastMove1',      name: 'Quick Feet',           desc: 'Move 10% faster',                           expCost: 20,  requires: null },
       { id: 'fastMove2',      name: 'Sprint Training',      desc: 'Move 20% faster total',                     expCost: 40,  requires: 'fastMove1' },
@@ -1092,7 +1109,7 @@ const STORY_SKILL_TREE = {
   survival: {
     label: 'Survival',
     color: '#ff5588',
-    icon: '❤️',
+    icon: 'heartcrack',
     nodes: [
       { id: 'lastStrike',     name: 'Last Strike',          desc: 'Below 10% HP: next attack deals 2× damage (once per life)', expCost: 60, requires: null },
       { id: 'echoRage',       name: 'Echo Rage',            desc: '3 rapid hits trigger rage: next 5 attacks 3× damage',       expCost: 110, requires: 'lastStrike' },
@@ -1103,7 +1120,7 @@ const STORY_SKILL_TREE = {
   mastery: {
     label: 'Mastery',
     color: '#cc88ff',
-    icon: '🌀',
+    icon: 'fragment',
     // Root requires any tier-2 node from another branch, so progression gates it.
     nodes: [
       { id: 'masterRoot',     name: 'Fragment Sync',        desc: 'Reduces all ability cooldowns by 15%',      expCost: 100, requires: null, requiresAny: ['heavyHit2','tankier2','fastMove2'] },
@@ -1613,7 +1630,7 @@ function storyTickAbilities() {
     const baseDmg   = p1.dmgMult || 1;
     p1.speed   = baseSpeed * 1.6;
     p1.dmgMult = baseDmg   * 2.0;
-    storyFightSubtitle = { text: '🔥 LAST STAND — Speed & Damage doubled!', timer: 200, maxTimer: 200, color: '#ff4400' };
+    storyFightSubtitle = { text: 'LAST STAND — Speed & Damage doubled!', timer: 200, maxTimer: 200, color: '#ff4400' };
     spawnParticles(p1.cx(), p1.cy(), '#ff4400', 20);
     setTimeout(() => {
       if (p1.health > 0) { p1.speed = baseSpeed; p1.dmgMult = baseDmg; }
@@ -1625,7 +1642,7 @@ function storyTickAbilities() {
     abs.voidStepFired = true;
     const baseSpeed = p1.speed;
     p1.speed = baseSpeed * 1.5;
-    storyFightSubtitle = { text: '🌑 VOID STEP — Speed surge activated!', timer: 160, maxTimer: 160, color: '#8844ff' };
+    storyFightSubtitle = { text: 'VOID STEP — Speed surge activated!', timer: 160, maxTimer: 160, color: '#8844ff' };
     spawnParticles(p1.cx(), p1.cy(), '#8844ff', 14);
     setTimeout(() => { if (p1.health > 0) p1.speed = baseSpeed; }, 5000);
   }
@@ -1637,7 +1654,7 @@ function storyTickAbilities() {
     abs.medkitUsed = true;
     const heal = Math.floor(p1.maxHealth * 0.30);
     p1.health = Math.min(p1.maxHealth, p1.health + heal);
-    storyFightSubtitle = { text: `💊 Dimensional Patch — +${heal} HP`, timer: 180, maxTimer: 180, color: '#44ff99' };
+    storyFightSubtitle = { text: `Dimensional Patch — +${heal} HP`, timer: 180, maxTimer: 180, color: '#44ff99' };
     spawnParticles(p1.cx(), p1.cy(), '#44ff99', 16);
   } else if (p1._story2AbilityPending) {
     p1._story2AbilityPending = false; // consumed
@@ -1682,25 +1699,21 @@ function _showPreFightStoreNag(ch, onContinue) {
   });
 
   ov.innerHTML = `
-    <div style="background:rgba(10,6,26,0.98);border:1px solid rgba(255,80,50,0.45);border-radius:14px;padding:24px 28px;max-width:360px;width:92vw;font-family:'Segoe UI',Arial,sans-serif;text-align:center;">
-      <div style="font-size:1.3rem;font-weight:800;color:#ff8855;margin-bottom:8px;">⚠️ Warning</div>
-      <div style="font-size:0.86rem;color:#ddc;line-height:1.55;margin-bottom:14px;">${ch.storeNag}</div>
+    <div style="background:linear-gradient(180deg,#15111D,#07060C);border:1px solid #8C5E1F;border-top:3px solid #F2762B;border-radius:2px;box-shadow:0 0 0 2px #07060C;padding:24px 28px;max-width:360px;width:92vw;font-family:var(--font-ui);text-align:center;">
+      <div style="font-family:var(--sh-font-head);font-size:1.25rem;letter-spacing:2px;text-transform:uppercase;color:#F2762B;margin-bottom:8px;">${smbIcon('warn')} Warning</div>
+      <div style="font-size:0.92rem;font-weight:600;color:#F3E8D2;line-height:1.5;margin-bottom:14px;">${String(ch.storeNag).replace(/^\s*\u26a0\ufe0f?\s*/, '')}</div>
       ${affordable.length > 0 ? `
-        <div style="font-size:0.78rem;color:#ffcc66;margin-bottom:12px;">
-          You can afford <b>${affordable.length}</b> upgrade${affordable.length > 1 ? 's' : ''} right now (${_story2.tokens} 🪙)
+        <div style="font-size:0.84rem;font-weight:600;color:#E2B255;margin-bottom:12px;">
+          You can afford <b>${affordable.length}</b> upgrade${affordable.length > 1 ? 's' : ''} right now (${_story2.tokens} ${smbIcon('token',{cls:'tok-ico'})})
         </div>
       ` : `
-        <div style="font-size:0.78rem;color:#998;margin-bottom:12px;">Tokens: ${_story2.tokens} 🪙</div>
+        <div style="font-size:0.84rem;font-weight:600;color:#B9AC93;margin-bottom:12px;">Tokens: ${_story2.tokens} ${smbIcon('token',{cls:'tok-ico'})}</div>
       `}
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
         ${affordable.length > 0 ? `
-          <button id="_nagStoreBtn" style="padding:10px 20px;background:linear-gradient(135deg,#8833cc,#aa44ee);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.84rem;cursor:pointer;">
-            🏪 Go to Store
-          </button>
+          <button id="_nagStoreBtn" class="b b-primary">Go to Store</button>
         ` : ''}
-        <button id="_nagContinueBtn" style="padding:10px 20px;background:rgba(40,80,180,0.8);border:1px solid rgba(100,150,255,0.4);border-radius:8px;color:#fff;font-weight:700;font-size:0.84rem;cursor:pointer;">
-          ⚔️ Continue
-        </button>
+        <button id="_nagContinueBtn" class="b ${affordable.length > 0 ? 'b-secondary' : 'b-primary'}">Continue</button>
       </div>
     </div>`;
 
@@ -1852,41 +1865,29 @@ function _showStory2RetryScreen(ch) {
     retryDiv.style.cssText = 'margin-top:16px;text-align:center;';
 
     retryDiv.innerHTML = _spiritPanelHTML(_death) + `
-      <div style="font-size:0.72rem;letter-spacing:1px;color:#667;text-transform:uppercase;margin-bottom:4px;">${storyPhaseIndicator ? 'Phase Failed' : 'Chapter'}</div>
-      <div style="font-size:1.05rem;font-weight:700;color:#dde4ff;margin-bottom:10px;">${ch.title}</div>
+      <div style="font-size:0.72rem;font-weight:700;letter-spacing:2px;color:#B9AC93;text-transform:uppercase;margin-bottom:4px;">${storyPhaseIndicator ? 'Phase Failed' : 'Chapter'}</div>
+      <div style="font-family:var(--sh-font-head);font-size:1.05rem;letter-spacing:1px;color:#F3E8D2;margin-bottom:12px;">${ch.title}</div>
       ${storyPhaseIndicator ? `<div style="font-size:0.74rem;color:#8cc8ff;margin-bottom:10px;">PHASE ${storyPhaseIndicator.index}/${storyPhaseIndicator.total} — ${storyPhaseIndicator.label}</div>` : ''}
       ${affordable.length > 0 ? `
-        <div style="font-size:0.74rem;color:#ffcc66;margin-bottom:10px;">
-          💡 ${affordable.length} upgrade${affordable.length > 1 ? 's' : ''} affordable (${_story2.tokens} 🪙)
+        <div style="font-size:0.82rem;font-weight:600;color:#E2B255;margin-bottom:10px;">
+          ${affordable.length} upgrade${affordable.length > 1 ? 's' : ''} affordable (${_story2.tokens} ${smbIcon('token',{cls:'tok-ico'})})
         </div>
       ` : ''}
-      <div style="display:flex;flex-direction:column;gap:7px;max-width:240px;margin:0 auto;">
+      <div class="story-retry-actions">
         ${_canResume ? `
-          <button id="_retryCheckpointBtn" style="padding:10px 0;background:linear-gradient(135deg,#b8741a,#e39a2c);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-            🔥 Retry from Checkpoint
-          </button>
+          <button id="_retryCheckpointBtn" class="b b-primary">Retry from Checkpoint</button>
         ` : ''}
-        <button id="_retryChapterBtn" style="padding:10px 0;background:${_canResume ? 'rgba(40,80,180,0.55)' : 'linear-gradient(135deg,#1a5acc,#2277ee)'};border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-          ↺ ${_canResume ? 'Restart' : 'Retry'} ${storyPhaseIndicator ? 'Phase' : 'Chapter'}
-        </button>
+        <button id="_retryChapterBtn" class="b ${_canResume ? 'b-secondary' : 'b-primary'}">${_canResume ? 'Restart' : 'Retry'} ${storyPhaseIndicator ? 'Phase' : 'Chapter'}</button>
         ${_adOk ? `
-          <button id="_retryAdBtn" class="ad-reward-btn" style="padding:10px 0;background:rgba(255,200,60,0.12);border:1px solid rgba(255,200,60,0.45);border-radius:9px;color:#ffd34d;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-            ▶ Watch ad to continue
-          </button>
+          <button id="_retryAdBtn" class="b b-secondary ad-reward-btn">▶ Watch ad to continue</button>
         ` : ''}
         ${_death.action === 'skills' ? `
-          <button id="_retrySkillsBtn" style="padding:10px 0;background:linear-gradient(135deg,#1f7a44,#2fa05c);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-            🌟 Open Skill Tree
-          </button>
+          <button id="_retrySkillsBtn" class="b b-secondary">Open Skill Tree</button>
         ` : ''}
         ${affordable.length > 0 ? `
-          <button id="_retryStoreBtn" style="padding:10px 0;background:linear-gradient(135deg,#6622aa,#9933cc);border:none;border-radius:9px;color:#fff;font-weight:700;font-size:0.88rem;cursor:pointer;width:100%;">
-            🏪 Go to Store
-          </button>
+          <button id="_retryStoreBtn" class="b b-secondary">Go to Store</button>
         ` : ''}
-        <button id="_retryMenuBtn" style="padding:9px 0;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:9px;color:#aaa;font-size:0.82rem;cursor:pointer;width:100%;">
-          ← Story Menu
-        </button>
+        <button id="_retryMenuBtn" class="b b-secondary">← Story Menu</button>
       </div>`;
 
     const btnRow = ov.querySelector('.btn-row');
@@ -2140,62 +2141,62 @@ const STORY_ABILITIES2 = {
   last_stand2: {
     name: 'Last Stand',
     desc: 'When HP < 15%, gain +60% speed and double damage for 8 seconds. One activation per match.',
-    icon: '🔥', tokenCost: 80, requiresBlueprint: true,
+    icon: 'flame', tokenCost: 80, requiresBlueprint: true,
     lore: 'The fragment knows when you\'re about to break. It doesn\'t let you.',
   },
   time_stop2: {
     name: 'Fracture Pulse',
     desc: 'Super (E) releases a fracture burst that stuns all enemies for 2.5s. 50s cooldown.',
-    icon: '⏱️', tokenCost: 120, requiresBlueprint: true,
+    icon: 'burst', tokenCost: 120, requiresBlueprint: true,
     lore: 'A micro-collapse of local time. The fragment remembers how.',
   },
   rage_mode2: {
     name: 'Echo Rage',
     desc: 'Taking 3 hits in quick succession triggers rage: next 5 attacks deal 3× damage.',
-    icon: '💢', tokenCost: 100, requiresBlueprint: true,
+    icon: 'fist', tokenCost: 100, requiresBlueprint: true,
     lore: 'The echo fighters taught you something you didn\'t expect: anger has a geometry.',
   },
   reflect2: {
     name: 'Mirror Fracture',
     desc: 'While shielding (S), reflect 25% of incoming damage back at the attacker.',
-    icon: '🌀', tokenCost: 90, requiresBlueprint: true,
+    icon: 'diamond', tokenCost: 90, requiresBlueprint: true,
     lore: 'From the mirror pocket. Your echo showed you the technique by using it against you.',
   },
   world_break2: {
     name: 'Core Collapse',
     desc: 'Once per match, activate super to deal 60% of enemy max HP instantly.',
-    icon: '🌍', tokenCost: 350, requiresBlueprint: true,
+    icon: 'planet', tokenCost: 350, requiresBlueprint: true,
     lore: 'The Multiversal Core taught you what concentrated fracture energy feels like when it breaks.',
   },
   ghost_step2: {
     name: 'Fracture Step',
     desc: 'After a double jump, gain 0.4s of invincibility frames. 8s cooldown.',
-    icon: '👁️', tokenCost: 110, requiresBlueprint: true,
+    icon: 'eye', tokenCost: 110, requiresBlueprint: true,
     lore: 'A half-step between dimensions. The Herald showed you — then let you earn it.',
   },
   berserker_blood2: {
     name: 'Fragment Hunger',
     desc: 'Each kill charges your fragment: +8% damage stacked (max 5 kills, resets on death).',
-    icon: '🩸', tokenCost: 130, requiresBlueprint: true,
+    icon: 'drop', tokenCost: 130, requiresBlueprint: true,
     lore: 'The fragment was always absorbing. You learned to direct it.',
   },
   // (Impact Shield, Dimensional Patch, Fracture Surge, Void Step migrated to Skill Tree)
   architects_resolve2: {
     name: 'Architects\' Resolve',
     desc: 'Once per match, when you would be defeated, automatically revive with 25% HP instead.',
-    icon: '🏛️', tokenCost: 160, requiresBlueprint: true,
+    icon: 'halo', tokenCost: 160, requiresBlueprint: true,
     lore: 'Three Architects stood when one fell. Their resolve transferred to you — not as strength. As continuity.',
   },
   void_pulse2: {
     name: 'Void Pulse',
     desc: 'Press Q to emit a void pulse: pushes all nearby enemies back 120px and deals 20 damage. 12s cooldown.',
-    icon: '💫', tokenCost: 95, requiresBlueprint: true,
+    icon: 'orbit', tokenCost: 95, requiresBlueprint: true,
     lore: 'The rift entity showed you what it felt like to exhale after ten thousand years of silence.',
   },
   temporal_anchor2: {
     name: 'Temporal Anchor',
     desc: 'When HP drops below 20%, freeze all enemies in place for 2 seconds. One activation per match.',
-    icon: '⌛', tokenCost: 180, requiresBlueprint: true,
+    icon: 'anchor', tokenCost: 180, requiresBlueprint: true,
     lore: 'The Creator\'s domain runs on dimensional time. You learned to grip it.',
   },
 };

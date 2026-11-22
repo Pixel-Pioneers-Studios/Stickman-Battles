@@ -440,7 +440,7 @@ function _drawGodFinale(sc, cw, ch, scX, scY, sc_) {
     ctx.shadowColor = '#ff1100'; ctx.shadowBlur = 50;
     ctx.fillText('ABSOLUTE AXIOM', cw / 2, ch * 0.48);
     ctx.shadowBlur  = 0;
-    ctx.font        = `${Math.round(ch * 0.022)}px sans-serif`;
+    ctx.font        = `${Math.round(ch * 0.022)}px ${FONT_UI}`;
     ctx.fillStyle   = 'rgba(255,120,40,0.8)';
     ctx.fillText('God. Architect. Kernel. One.', cw / 2, ch * 0.53);
   }
@@ -480,7 +480,7 @@ function _drawSpeakerBox(text, speaker, speakerColor, alpha, isLeft, cw, ch, sc_
   ctx.fillStyle = speakerColor || '#ffffff';
   ctx.textAlign = isLeft ? 'left' : 'right';
   ctx.fillText(speaker, isLeft ? boxX + 12 * sc_ : boxX + boxW - 12 * sc_, boxY + 16 * sc_);
-  ctx.font      = `${Math.round(12 * sc_)}px sans-serif`;
+  ctx.font      = `${Math.round(12 * sc_)}px ${FONT_UI}`;
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.fillText(text, boxX + boxW / 2, boxY + boxH * 0.71);

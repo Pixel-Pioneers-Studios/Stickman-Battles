@@ -660,11 +660,11 @@ const ReplaySystem = (() => {
       rctx.textAlign   = 'center';
       if (ev.t === 'dmg') {
         rctx.fillStyle = '#ffdd55';
-        rctx.font      = `bold ${Math.max(10, Math.round(13 * scale))}px sans-serif`;
+        rctx.font      = `bold ${Math.max(10, Math.round(13 * scale))}px ${FONT_UI}`;
         rctx.fillText(`-${ev.v}`, ex, ey);
       } else if (ev.t === 'ko') {
         rctx.fillStyle = ev.cause === 'ringout' ? '#66ccff' : '#ff5544';
-        rctx.font      = `bold ${Math.max(12, Math.round(17 * scale))}px sans-serif`;
+        rctx.font      = `bold ${Math.max(12, Math.round(17 * scale))}px ${FONT_UI}`;
         rctx.fillText(ev.cause === 'ringout' ? 'RING OUT' : 'KO', ex, ey);
       }
       rctx.restore();
@@ -746,7 +746,7 @@ const ReplaySystem = (() => {
     rctx.lineTo(wx + 10 * sc, footY + 22 * sc);
     rctx.stroke();
 
-    rctx.font      = `${Math.max(8, Math.round(9 * sc))}px sans-serif`;
+    rctx.font      = `${Math.max(8, Math.round(9 * sc))}px ${FONT_UI}`;
     rctx.fillStyle = col;
     rctx.textAlign = 'center';
     rctx.fillText(p.name, wx, headCY - headR - 4 * sc);

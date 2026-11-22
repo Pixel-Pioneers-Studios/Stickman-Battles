@@ -78,13 +78,13 @@
       ctx.fillStyle = '#2b2f33'; ctx.fillRect(dx - 22, G - 84, 44, 84);
       ctx.fillStyle = '#3a4046'; ctx.fillRect(dx - 18, G - 80, 36, 80);
       ctx.fillStyle = '#5a6066'; ctx.fillRect(dx + 10, G - 44, 5, 3);
-      ctx.fillStyle = '#d6d0c0'; ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#d6d0c0'; ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillText(dx % 3 ? 'DELIVERIES' : 'NO ENTRY', dx, G - 90);
       _slWallLamp(dx, G - 110, G, warm);
     }
     const tag = (x, y, txt, col, rot) => {
       if (!_slVisible(v, x - 80, x + 80)) return;
-      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.font = 'italic bold 22px Arial'; ctx.textAlign = 'center';
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.font = `italic bold 22px ${FONT_UI}`; ctx.textAlign = 'center';
       ctx.fillStyle = col; ctx.globalAlpha = 0.55; ctx.fillText(txt, 0, 0); ctx.restore();
     };
     tag(420, G - 60, 'NO KINGS', '#c8486a', -0.08);
@@ -119,7 +119,7 @@
       ctx.fillStyle = 'rgba(255,255,255,0.15)'; ctx.fillRect(PIPE.x - 10, PIPE.y + 2, PIPE.w + 20, 2);
       ctx.fillStyle = '#44494f';
       for (let bx = PIPE.x + 20; bx < PIPE.x + PIPE.w; bx += 70) { ctx.fillRect(bx, PIPE.y + 12, 4, 30); ctx.fillRect(bx - 6, PIPE.y - 2, 16, 3); }
-      ctx.fillStyle = '#ffd04a'; ctx.font = 'bold 7px Arial'; ctx.textAlign = 'left'; ctx.fillText('GAS · DO NOT STEP', PIPE.x + 100, PIPE.y + 10);
+      ctx.fillStyle = '#ffd04a'; ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'left'; ctx.fillText('GAS · DO NOT STEP', PIPE.x + 100, PIPE.y + 10);
       _slAcUnit(ACBOX.x, G - ACBOX.h, ACBOX.w, ACBOX.h);
     }
     // Route 3: loading dock, canopy

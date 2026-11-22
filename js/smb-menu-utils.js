@@ -234,14 +234,14 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
     ctx.fill();
     ctx.rotate(-angle);
     ctx.fillStyle   = '#fff';
-    ctx.font        = 'bold 9px Arial';
+    ctx.font        = `bold 9px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     ctx.shadowColor = '#000';
     ctx.shadowBlur  = 4;
     ctx.fillText(p.name || '?', 0, ARROW + 12);
     if (_ref && _ref !== p && _ref.health > 0) {
       const _dist = Math.round(Math.hypot(p.cx() - _ref.cx(), p.cy() - _ref.cy()));
-      ctx.font = 'bold 10px Arial';
+      ctx.font = `bold 10px ${FONT_UI}`;
       ctx.fillText(_dist + ' px', 0, ARROW + 23);
     }
     ctx.restore();
@@ -306,8 +306,13 @@ function refreshHomeHub() {
   const started  = done > 0 || idx > 0;
 
   if (subEl) {
-    subEl.textContent = done > 0
-      ? (done + (done === 1 ? ' CHAPTER' : ' CHAPTERS') + ' CLEARED')
+    // Count only chapters the story map lists: silent bridge chapters (_menuHidden) are not shown
+    // anywhere, so counting them read 186 here against 182 on the map.
+    const _chs = typeof STORY_CHAPTERS2 !== 'undefined' ? STORY_CHAPTERS2 : [];
+    const shown = [...seen].filter(i => !(_chs[i] && _chs[i]._menuHidden)
+      && (!sagaScoped || isChapterInActiveSaga(i))).length;
+    subEl.textContent = shown > 0
+      ? (shown + (shown === 1 ? ' CHAPTER' : ' CHAPTERS') + ' CLEARED')
       : 'New recruit';
   }
   if (kickEl)  kickEl.textContent  = complete ? 'Story complete' : (started ? 'Continue' : 'Begin');

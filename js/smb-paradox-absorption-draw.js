@@ -78,7 +78,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
       ctx.moveTo(ax, GAME_H / 2 - 22); ctx.lineTo(ax - 9, GAME_H / 2 - 5);
       ctx.moveTo(ax, GAME_H / 2 - 22); ctx.lineTo(ax + 9, GAME_H / 2 - 5);
       ctx.stroke();
-      ctx.font = '11px sans-serif'; ctx.fillStyle = '#aaddff';
+      ctx.font = `11px ${FONT_UI}`; ctx.fillStyle = '#aaddff';
       ctx.fillText('AXIOM', ax, GAME_H / 2 - 70);
       // Paradox (right), slightly glitched outline
       const px2 = GAME_W / 2 + 40;
@@ -92,7 +92,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
       ctx.moveTo(px2, GAME_H / 2 - 22); ctx.lineTo(px2 - 9, GAME_H / 2 - 5);
       ctx.moveTo(px2, GAME_H / 2 - 22); ctx.lineTo(px2 + 9, GAME_H / 2 - 5);
       ctx.stroke();
-      ctx.font = '11px sans-serif'; ctx.fillStyle = '#aa55ff';
+      ctx.font = `11px ${FONT_UI}`; ctx.fillStyle = '#aa55ff';
       ctx.fillText('PARADOX', px2, GAME_H / 2 - 70);
       break;
 
@@ -134,7 +134,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
 
     case 4:
       // Flash 5: A voice, first person. Brief. Incomplete.
-      ctx.font = 'italic 15px sans-serif';
+      ctx.font = `italic 15px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ccaaff';
       ctx.shadowColor = '#aa55ff';
@@ -144,7 +144,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
 
     case 5:
       // Flash 6: The war. Paradox fighting alone, endless. Abstract.
-      ctx.font = 'bold 20px sans-serif';
+      ctx.font = `bold 20px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ff8844';
       ctx.shadowColor = '#ff6600';
@@ -158,7 +158,7 @@ function drawTFAbsorptionMemories(ctx, sc) {
 
     case 6:
       // Flash 7: The end. Final words. Fades with purpose.
-      ctx.font = 'italic 14px sans-serif';
+      ctx.font = `italic 14px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#88ccff';
       ctx.shadowColor = '#44aaff';

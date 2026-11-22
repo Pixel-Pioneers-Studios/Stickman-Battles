@@ -105,17 +105,17 @@ function _showStory2LoseNag(ch) {
     nag.id = 'story2LoseNag';
     nag.style.cssText = [
       'margin-top:14px', 'padding:12px 16px',
-      'background:rgba(180,60,20,0.18)',
-      'border:1px solid rgba(255,120,40,0.35)',
-      'border-radius:10px', 'font-size:0.78rem',
-      'color:#ffcc99', 'text-align:left', 'max-width:340px', 'margin-inline:auto',
+      'background:rgba(7,6,12,0.72)',
+      'border:1px solid rgba(140,94,31,0.55)', 'border-left:3px solid #E2B255',
+      'border-radius:2px', 'font-size:0.84rem', 'font-family:var(--font-ui)', 'font-weight:600',
+      'color:#F3E8D2', 'text-align:left', 'max-width:340px', 'margin-inline:auto',
     ].join(';');
 
     if (affordable.length === 0) {
       // Player can't afford anything, tell them tokens come from winning/replaying
       nag.innerHTML = `
-        <div style="font-weight:700;margin-bottom:5px;color:#ffaa66;">💡 Ability Store</div>
-        <div style="color:#ccbbaa;">You don't have enough tokens to buy anything right now.
+        <div style="font-weight:700;margin-bottom:5px;color:#E2B255;">${smbIcon('token',{cls:'tok-ico'})} Ability Store</div>
+        <div style="color:#B9AC93;">You don't have enough tokens to buy anything right now.
           Beat earlier chapters or replay them to earn more tokens — then spend them in the
           <b>Ability Store</b> before your next attempt.</div>`;
     } else {
@@ -127,29 +127,24 @@ function _showStory2LoseNag(ch) {
 
       const moreCount = affordable.length - 1;
       const moreText  = moreCount > 0
-        ? `<span style="color:#ffee99"> + ${moreCount} more item${moreCount > 1 ? 's' : ''} you can afford</span>`
+        ? `<span style="color:#E2B255"> + ${moreCount} more item${moreCount > 1 ? 's' : ''} you can afford</span>`
         : '';
 
       nag.innerHTML = `
-        <div style="font-weight:700;margin-bottom:6px;color:#ffaa66;">
-          🏪 Ability Store — ${_story2.tokens} 🪙 available
+        <div style="font-weight:700;margin-bottom:6px;color:#E2B255;">
+          ${smbIcon('token',{cls:'tok-ico'})} Ability Store — ${_story2.tokens} ${smbIcon('token',{cls:'tok-ico'})} available
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          <span style="font-size:1.6rem;line-height:1;">${pickAb.icon}</span>
+          <span style="font-size:1.6rem;line-height:1;color:#E2B255;">${smbIconOrText(pickAb.icon)}</span>
           <div>
-            <div style="font-weight:700;color:#fff;">${pickAb.name}
-              <span style="color:#ffcc55;font-weight:400;"> — ${pickAb.tokenCost} 🪙</span>
+            <div style="font-weight:700;color:#F3E8D2;">${pickAb.name}
+              <span style="color:#E2B255;font-weight:600;"> — ${pickAb.tokenCost} ${smbIcon('token',{cls:'tok-ico'})}</span>
             </div>
-            <div style="color:#ddd;font-size:0.73rem;">${pickAb.desc}</div>
+            <div style="color:#B9AC93;font-size:0.8rem;">${pickAb.desc}</div>
           </div>
         </div>
         ${moreText ? `<div style="font-size:0.71rem;margin-bottom:8px;">${moreText}</div>` : ''}
-        <button id="story2NagStoreBtn" style="
-          width:100%;padding:8px 0;background:linear-gradient(135deg,#8833cc,#aa44ee);
-          border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.82rem;
-          cursor:pointer;letter-spacing:0.5px;">
-          🏪 Visit Ability Store
-        </button>`;
+        <button id="story2NagStoreBtn" class="b b-secondary" style="width:100%;">Visit Ability Store</button>`;
     }
 
     // Insert nag above the button row
@@ -450,17 +445,17 @@ function _showStory2Victory(ch) {
 
   if (rewardEl) {
     let html = `<div style="color:#ffd700;font-size:0.80rem;margin-bottom:5px;">Rewards earned:</div>`;
-    html += `<div style="color:#ffee99;font-size:0.76rem;">🪙 +${_storyTokenReward(ch.tokenReward)} tokens (total: ${_story2.tokens})</div>`;
+    html += `<div style="color:#ffee99;font-size:0.76rem;">${smbIcon('token',{cls:'tok-ico'})} +${_storyTokenReward(ch.tokenReward)} tokens (total: ${_story2.tokens})</div>`;
     if (ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop]) {
-      html += `<div style="color:#88ccff;font-size:0.76rem;margin-top:3px;">📋 Blueprint: ${STORY_ABILITIES2[ch.blueprintDrop].name}</div>`;
+      html += `<div style="color:#88ccff;font-size:0.76rem;margin-top:3px;">${smbIcon('clipboard')} Blueprint: ${STORY_ABILITIES2[ch.blueprintDrop].name}</div>`;
     }
     if (ch.armor && ch.armor.length > 0) {
       const _piece = ch.armor[Math.floor(Math.random() * ch.armor.length)];
       const _pieceNames = { helmet: 'Helmet', chestplate: 'Chestplate', leggings: 'Leggings' };
-      html += `<div style="color:#9ab8e8;font-size:0.76rem;margin-top:3px;">🛡️ Armor Blueprint: ${_pieceNames[_piece] || _piece}</div>`;
+      html += `<div style="color:#9ab8e8;font-size:0.76rem;margin-top:3px;">${smbIcon('shield')} Armor Blueprint: ${_pieceNames[_piece] || _piece}</div>`;
     }
     if (ch.isSovereignFight && sovereignBeaten) {
-      html += `<div style="color:#cc44ff;font-size:0.82rem;margin-top:8px;font-weight:800;letter-spacing:1px;text-shadow:0 0 10px #cc44ff;">⚡ NEURAL AI MODES UNLOCKED</div>`;
+      html += `<div style="color:#cc44ff;font-size:0.82rem;margin-top:8px;font-weight:800;letter-spacing:1px;text-shadow:0 0 10px #cc44ff;">${smbIcon('bolt')} NEURAL AI MODES UNLOCKED</div>`;
       html += `<div style="color:#aa88dd;font-size:0.72rem;margin-top:2px;font-style:italic;">Challenge SOVEREIGN &amp; SOVEREIGN Ω from the main menu.</div>`;
     }
     rewardEl.innerHTML = html;
@@ -480,7 +475,7 @@ function _showStory2Victory(ch) {
     if (ch.id === 0) {
       // First chapter beaten, offer "Continue to Game" to unlock the main menu
       nextBtn.style.display = '';
-      nextBtn.textContent = '🎮 Continue to Game';
+      nextBtn.textContent = 'Continue to Game';
       nextBtn.style.cssText = 'padding:12px 28px;font-size:1rem;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,#1a5acc,#2277ee);border:none;border-radius:10px;color:#fff;cursor:pointer;box-shadow:0 4px 20px rgba(50,120,255,0.5);width:100%;margin-top:8px;';
       nextBtn.onclick = () => {
         const overlay = document.getElementById('storyVictoryOverlay');

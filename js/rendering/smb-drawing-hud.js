@@ -41,7 +41,7 @@ function drawStorySubtitle() {
   const labelSize = Math.round(cw * 0.014);
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0); // screen space, whatever the caller's transform
-  ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px ${FONT_UI}`;
   ctx.textAlign = 'center';
   // Cache measureText width on the subtitle; recompute when text or font size changes
   const _measKey = text + '|' + fontSize;
@@ -59,7 +59,7 @@ function drawStorySubtitle() {
   const r  = bh / 2;
 
   if (isGuide) {
-    ctx.font = `bold ${labelSize}px "Segoe UI", Arial, sans-serif`;
+    ctx.font = `bold ${labelSize}px ${FONT_UI}`;
     const labelW = ctx.measureText('🧭 ' + speaker).width + 20;
     const lx = cw / 2 - labelW / 2;
     const ly = by - labelH + 2;
@@ -83,7 +83,7 @@ function drawStorySubtitle() {
     ctx.shadowBlur = 0;
   }
 
-  ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.font = `${isGuide ? 'bold' : 'italic'} ${fontSize}px ${FONT_UI}`;
   ctx.globalAlpha = alpha * 0.82;
   ctx.fillStyle = isGuide ? 'rgba(40,15,70,0.92)' : 'rgba(0,0,0,0.78)';
   ctx.beginPath();
@@ -152,7 +152,7 @@ function drawObjectiveHUD() {
 
   ctx.globalAlpha = alpha * 0.92;
   const fontSize = Math.round(cw * 0.018);
-  ctx.font = `${isComplete ? 'bold ' : ''}${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.font = `${isComplete ? 'bold ' : ''}${fontSize}px ${FONT_UI}`;
   ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
 
@@ -251,7 +251,7 @@ function drawStoryOpponentHUD() {
   const label    = (p2 === (players && players[1]) && storyOpponentName)
     ? storyOpponentName
     : (p2.name || storyOpponentName || 'Enemy');
-  ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+  ctx.font = `bold ${fontSize}px ${FONT_UI}`;
   ctx.textAlign    = 'right';
   ctx.textBaseline = 'middle';
   const tw  = ctx.measureText(label).width;
@@ -286,7 +286,7 @@ function drawStoryOpponentHUD() {
       ? (CLASSES[p2.charClass].name || p2.charClass)
       : p2.charClass;
     const clsFontSize = Math.round(cw * 0.013);
-    ctx.font = `${clsFontSize}px "Segoe UI", Arial, sans-serif`;
+    ctx.font = `${clsFontSize}px ${FONT_UI}`;
     ctx.globalAlpha = 0.65;
     ctx.fillStyle = '#88aaff';
     ctx.shadowBlur = 0;
@@ -354,7 +354,7 @@ function drawHitEffectivenessHUD() {
     const pulse = 0.55 + 0.45 * Math.sin(now / 260);
     const alpha = 0.78 * pulse;
     const fontSize = Math.round(cw * 0.019);
-    ctx.font = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
+    ctx.font = `bold ${fontSize}px ${FONT_UI}`;
     ctx.textAlign    = 'center';
     ctx.textBaseline = 'middle';
     const label = '⚡ PHASE BREAK';
@@ -392,7 +392,7 @@ function drawHitEffectivenessHUD() {
 
     const scale    = 1 + flashBoost * 0.12;
     const fontSize = Math.round(Math.max(18, cw * 0.026) * scale);
-    ctx.font = `bold ${fontSize}px 'Rajdhani', "Segoe UI", sans-serif`;
+    ctx.font = `bold ${fontSize}px ${FONT_UI}`;
     ctx.textAlign    = 'right';
     ctx.textBaseline = 'middle';
     const tx = cw - Math.round(cw * 0.012);
@@ -439,15 +439,23 @@ function drawMatchAnnouncer() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = alpha;
   const fontSize = Math.round(cw * 0.038);
-  ctx.font        = `bold ${fontSize}px "Segoe UI", Arial, sans-serif`;
-  ctx.textAlign   = 'center';
-  ctx.shadowColor = color;
-  ctx.shadowBlur  = 28;
-  ctx.fillStyle   = '#ffffff';
-  ctx.fillText(text, cw / 2, ch * 0.22);
-  ctx.globalAlpha = alpha * 0.55;
-  ctx.fillStyle   = color;
-  ctx.fillText(text, cw / 2, ch * 0.22);
+  // Below the first-run prompt panel while it is up, so the panel never covers the callout.
+  let ay = ch * 0.22;
+  if (typeof _tutPanelBottom === 'number' && _tutPanelBottom > 0) ay = Math.max(ay, _tutPanelBottom + fontSize);
+  ctx.font         = `${fontSize}px ${FONT_DISPLAY}`;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.lineJoin     = 'round';
+  // Inked letters with a hard drop in the scorer's colour: a title card, not a glow.
+  ctx.lineWidth    = Math.max(3, fontSize * 0.14);
+  ctx.strokeStyle  = '#07060C';
+  const drop = Math.max(2, Math.round(fontSize * 0.08));
+  ctx.strokeText(text, cw / 2, ay + drop);
+  ctx.fillStyle    = color;
+  ctx.fillText(text, cw / 2, ay + drop);
+  ctx.strokeText(text, cw / 2, ay);
+  ctx.fillStyle    = '#ffffff';
+  ctx.fillText(text, cw / 2, ay);
   ctx.restore();
 }
 
@@ -525,7 +533,7 @@ function drawExploreMinimap() {
   ctx.beginPath(); ctx.roundRect(bx, by, W, H + PADY + 6, 3); ctx.fill();
   ctx.strokeStyle = 'rgba(150,165,190,0.22)'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(bx + 0.5, by + 0.5, W - 1, H + PADY + 5, 3); ctx.stroke();
-  ctx.font = '600 8px "Segoe UI", Arial, sans-serif';
+  ctx.font = `600 8px ${FONT_UI}`;
   ctx.fillStyle = 'rgba(165,178,200,0.6)';
   ctx.textAlign = 'left';
   ctx.fillText('LEVEL', bx + PADX, by + 10);

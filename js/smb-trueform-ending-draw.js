@@ -26,7 +26,7 @@ function drawTFEnding() {
       _roundRect(ctx, bsx - bw/2, bsy - bh/2, bw, bh, 10 * sc_);
       ctx.fill(); ctx.stroke();
       ctx.fillStyle  = '#ffffff';
-      ctx.font       = `bold ${Math.round(13 * sc_)}px sans-serif`;
+      ctx.font       = `bold ${Math.round(13 * sc_)}px ${FONT_UI}`;
       ctx.textAlign  = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(line, bsx, bsy);
@@ -266,7 +266,7 @@ function drawTFEnding() {
       const promptIdx = sc.finisherHits;
       const pulse = 0.75 + Math.sin(sc.timer * 0.22) * 0.25;
       ctx.globalAlpha = pulse;
-      ctx.font      = `bold ${Math.round(18 * sc_)}px sans-serif`;
+      ctx.font      = `bold ${Math.round(18 * sc_)}px ${FONT_UI}`;
       ctx.textAlign = 'center';
       ctx.fillStyle = _TFE_QTE_FLASH_COLORS[promptIdx] || '#ffffff';
       ctx.shadowColor = _TFE_QTE_FLASH_COLORS[promptIdx] || '#ffffff';
@@ -403,7 +403,7 @@ function drawTFEnding() {
           ctx.textAlign = isLeft ? 'left' : 'right';
           ctx.fillText(line.speaker, isLeft ? boxX + 12 * sc_ : boxX + boxW - 12 * sc_, boxY + 16 * sc_);
         }
-        ctx.font      = `${Math.round(12 * sc_)}px sans-serif`;
+        ctx.font      = `${Math.round(12 * sc_)}px ${FONT_UI}`;
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.fillText(line.text, boxX + boxW / 2, boxY + boxH * (line.speaker ? 0.7 : 0.55));
@@ -433,14 +433,14 @@ function drawTFEnding() {
     const baseY = ch * 0.32;
     const lineH = ch * 0.075;
 
-    ctx.font      = `bold ${Math.round(ch * 0.044)}px sans-serif`;
+    ctx.font      = `bold ${Math.round(ch * 0.044)}px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = '#8800ff'; ctx.shadowBlur = 26;
     ctx.fillText('POWERS GRANTED', cw/2, baseY);
     ctx.shadowBlur = 0;
 
-    ctx.font      = `${Math.round(ch * 0.025)}px sans-serif`;
+    ctx.font      = `${Math.round(ch * 0.025)}px ${FONT_UI}`;
     ctx.fillStyle = 'rgba(180,140,255,0.9)';
     ctx.fillText('The corruption is gone. The fragment stabilized.', cw/2, baseY + lineH * 0.85);
 
@@ -456,7 +456,7 @@ function drawTFEnding() {
     ctx.globalAlpha = sc.powersAlpha;
 
     if (sc.skippable) {
-      ctx.font      = `${Math.round(ch * 0.018)}px sans-serif`;
+      ctx.font      = `${Math.round(ch * 0.018)}px ${FONT_UI}`;
       ctx.fillStyle = 'rgba(150,150,150,0.6)';
       ctx.fillText('[ Press any key to skip ]', cw/2, ch * 0.90);
     }

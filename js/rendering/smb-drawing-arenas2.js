@@ -497,7 +497,7 @@ function drawMirrorGimmickOverlay() {
   // Persistent "mirrored" indicator when controls are inverted
   if (mirrorFlipped) {
     ctx.globalAlpha = 0.7;
-    ctx.font = `bold ${Math.round(ch * 0.022)}px sans-serif`;
+    ctx.font = `bold ${Math.round(ch * 0.022)}px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#aaddff';
     ctx.shadowColor = '#88ccff';
@@ -2857,7 +2857,7 @@ function drawDesertArena() {
     }
     ctx.globalAlpha = 0.7;
     ctx.fillStyle = 'rgba(255,236,180,0.6)';
-    ctx.font = 'bold 10px Arial';
+    ctx.font = `bold 10px ${FONT_UI}`;
     ctx.textAlign = 'center';
     ctx.fillText('QUICKSAND', qsX + qsW * 0.5, groundY - 9);
     ctx.restore();

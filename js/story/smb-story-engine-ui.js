@@ -47,11 +47,11 @@ function _renderStoryJourney() {
     const el = document.createElement('div');
     el.className = 'story-journey-card' + (done ? ' done' : current ? ' current' : locked ? ' locked' : '');
 
-    const icon = done ? '✅' : current ? '▶️' : locked ? '🔒' : '⭐';
+    const icon = done ? '✓' : current ? '▶' : locked ? smbIcon('lock') : '★';
     let rewardHtml = '';
-    if (ch.tokenReward) rewardHtml += `+${_storyTokenReward(ch.tokenReward)} 🪙`;
+    if (ch.tokenReward) rewardHtml += `+${_storyTokenReward(ch.tokenReward)} ${smbIcon('token',{cls:'tok-ico'})}`;
     if (ch.blueprintDrop && STORY_ABILITIES2[ch.blueprintDrop]) {
-      rewardHtml += ` · 📋 ${STORY_ABILITIES2[ch.blueprintDrop].name}`;
+      rewardHtml += ` · ${smbIcon('clipboard')} ${STORY_ABILITIES2[ch.blueprintDrop].name}`;
     }
 
     el.innerHTML = `<span class="sjc-icon">${icon}</span>
@@ -83,10 +83,10 @@ function _renderShopSection(grid) {
     const canBuy = _story2.tokens >= item.tokenCost && item.canBuy();
     const card = document.createElement('div');
     card.className = 'story-ability-card2' + (canBuy ? ' sa-buyable' : ' sa-locked');
-    card.innerHTML = `<div class="sa-icon2">${item.icon}</div>
+    card.innerHTML = `<div class="sa-icon2">${smbIconOrText(item.icon)}</div>
       <div class="sa-name2">${item.name}</div>
       <div class="sa-desc2">${item.desc}</div>
-      <span class="sa-cost2">${item.tokenCost} 🪙</span>`;
+      <span class="sa-cost2">${item.tokenCost} ${smbIcon('token',{cls:'tok-ico'})}</span>`;
     if (canBuy) card.onclick = () => _buyStoryShopItem(item);
     grid.appendChild(card);
   }
@@ -98,11 +98,11 @@ function _renderShopSection(grid) {
     const card   = document.createElement('div');
     card.className = 'story-ability-card2' + (owned ? ' sa-owned' : canBuy ? ' sa-buyable' : ' sa-locked');
     const costLabel = owned
-      ? `<span class="sa-cost2 sa-owned-label">✅ Owned</span>`
+      ? `<span class="sa-cost2 sa-owned-label">${smbIcon('check')} Owned</span>`
       : !hasBP
-      ? `<span class="sa-cost2 sa-locked-label">📋 Blueprint needed</span>`
-      : `<span class="sa-cost2">${ab.tokenCost} 🪙</span>`;
-    card.innerHTML = `<div class="sa-icon2">${ab.icon}</div>
+      ? `<span class="sa-cost2 sa-locked-label">${smbIcon('clipboard')} Blueprint needed</span>`
+      : `<span class="sa-cost2">${ab.tokenCost} ${smbIcon('token',{cls:'tok-ico'})}</span>`;
+    card.innerHTML = `<div class="sa-icon2">${smbIconOrText(ab.icon)}</div>
       <div class="sa-name2">${ab.name}</div>
       <div class="sa-desc2">${ab.desc}</div>
       ${costLabel}`;
@@ -124,7 +124,7 @@ function _renderSkillTreeSection(grid) {
 
   const expBanner = document.createElement('div');
   expBanner.style.cssText = 'padding:8px 12px;background:rgba(100,220,100,0.08);border:1px solid rgba(100,220,100,0.25);border-radius:7px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;';
-  expBanner.innerHTML = `<span style="color:#88cc88;font-size:0.72rem;letter-spacing:1px;">🌟 SKILL POINTS (EXP)</span><span id="storyExpDisplay" style="color:#aaff88;font-size:1.05rem;font-weight:700;">${exp} EXP</span>`;
+  expBanner.innerHTML = `<span style="color:#88cc88;font-size:0.72rem;letter-spacing:1px;">EXP TO SPEND</span><span id="storyExpDisplay" style="color:#aaff88;font-size:1.05rem;font-weight:700;">${exp} EXP</span>`;
   grid.appendChild(expBanner);
 
   for (const [, branch] of Object.entries(STORY_SKILL_TREE)) {
@@ -133,7 +133,7 @@ function _renderSkillTreeSection(grid) {
 
     const header = document.createElement('div');
     header.style.cssText = `display:flex;align-items:center;gap:7px;margin-bottom:10px;padding:5px 10px;background:rgba(0,0,0,0.22);border-left:3px solid ${branch.color};border-radius:0 6px 6px 0;`;
-    header.innerHTML = `<span style="font-size:1rem;">${branch.icon || ''}</span><span style="font-size:0.70rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;">${branch.label}</span>`;
+    header.innerHTML = `<span style="font-size:1rem;">${smbIconOrText(branch.icon)}</span><span style="font-size:0.70rem;letter-spacing:2px;text-transform:uppercase;color:${branch.color};font-weight:700;">${branch.label}</span>`;
     branchWrap.appendChild(header);
 
     const nodeMap = {};
@@ -188,8 +188,8 @@ function _renderSkillTreeSection(grid) {
 
         const reqLabel = isLocked
           ? (node.requiresAny
-              ? '🔒 Requires ' + (node.requiresAny[0] || '').replace(/([A-Z])/g,' $1').trim()
-              : '🔒 ' + (node.requires || '').replace(/([A-Z])/g,' $1').trim() + ' required')
+              ? smbIcon('lock') + ' Requires ' + (node.requiresAny[0] || '').replace(/([A-Z])/g,' $1').trim()
+              : smbIcon('lock') + ' ' + (node.requires || '').replace(/([A-Z])/g,' $1').trim() + ' required')
           : '';
 
         card.innerHTML = `
@@ -235,7 +235,7 @@ function _buySkillNode(node, branch) {
   sk[node.id] = true;
   _saveStory2();
   _renderStoryStore2();
-  if (typeof showToast === 'function') showToast(`✅ ${node.name} unlocked!`);
+  if (typeof showToast === 'function') showToast(`✓ ${node.name} unlocked!`);
 }
 
 function _buyStoryShopItem(item) {
@@ -245,7 +245,7 @@ function _buyStoryShopItem(item) {
   _saveStory2();
   _renderStoryStore2();
   _story2TokenDisplay();
-  if (typeof showToast === 'function') showToast(`✅ Purchased: ${item.name}`);
+  if (typeof showToast === 'function') showToast(`✓ Purchased: ${item.name}`);
 }
 
 function _buyAbility2(key, ab) {
@@ -255,7 +255,7 @@ function _buyAbility2(key, ab) {
   _saveStory2();
   _renderStoryStore2();
   _story2TokenDisplay();
-  if (typeof showToast === 'function') showToast('✅ Unlocked: ' + ab.name + '!');
+  if (typeof showToast === 'function') showToast('✓ Unlocked: ' + ab.name + '!');
 }
 
 function continueStory() {
@@ -551,7 +551,7 @@ function _renderSkillTreeModal() {
   const jumpRow = document.createElement('div');
   jumpRow.style.cssText = 'display:flex;justify-content:flex-end;margin-bottom:6px;';
   const jumpBtn = document.createElement('button');
-  jumpBtn.textContent = '⚔️ Weapon Mastery ↓';
+  jumpBtn.innerHTML = smbIcon('crossedswords') + ' Weapon Mastery ↓';
   jumpBtn.className = 'st-jump';
   jumpBtn.style.cssText = 'padding:4px 10px;font-size:0.68rem;cursor:pointer;letter-spacing:1px;';
   jumpBtn.addEventListener('click', () => {
@@ -725,7 +725,7 @@ function _renderSkillTreeModal() {
       ctx.textBaseline = 'middle';
       if (owned) {
         ctx.fillStyle = 'rgba(7,6,12,0.8)';
-        ctx.font      = 'bold 14px "Segoe UI", Arial, sans-serif';
+        ctx.font      = `bold 14px ${FONT_UI}`;
         ctx.fillText('✓', n.x, n.y + 1);
       } else if (locked) {
         ctx.save();
@@ -740,14 +740,14 @@ function _renderSkillTreeModal() {
         ctx.restore();
       } else if (canBuy) {
         ctx.fillStyle = n.branchColor;
-        ctx.font      = "11px 'Russo One', 'Segoe UI', sans-serif";
+        ctx.font      = `11px ${FONT_DISPLAY}`;
         ctx.fillText(String(n.expCost), n.x, n.y + 1);
       }
 
       ctx.shadowColor  = '#000';
       ctx.shadowBlur   = 5;
       ctx.fillStyle    = owned ? n.branchColor : canBuy ? '#F3E8D2' : '#6E6558';
-      ctx.font         = "700 9.5px 'Rajdhani', 'Segoe UI', Arial, sans-serif";
+      ctx.font         = `700 9.5px ${FONT_UI}`;
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'top';
       ctx.fillText(n.name, n.x, n.y + R + 6);
@@ -776,7 +776,7 @@ function _renderSkillTreeModal() {
     ctx.fillStyle = '#07060C';
     _stDiamond(ctx, rp.x, rp.y, 7); ctx.fill();
     ctx.fillStyle   = '#E2B255';
-    ctx.font        = "italic 9px 'Potta One', 'Russo One', sans-serif";
+    ctx.font        = `bold 10px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText('FRAGMENT CORE', rp.x + 78, rp.y - 5);
@@ -789,7 +789,7 @@ function _renderSkillTreeModal() {
         if (!fp) continue;
         ctx.save();
         ctx.fillStyle = branch.color;
-        ctx.font      = "italic 10px 'Potta One', 'Russo One', sans-serif";
+        ctx.font      = `bold 11px ${FONT_UI}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.shadowColor = '#07060C'; ctx.shadowBlur = 4;
@@ -838,13 +838,13 @@ function _renderSkillTreeModal() {
       const need = n.requiresAny
         ? 'Need any: ' + n.requiresAny.map(r => (nodeMap[r] || {}).name || r).join(', ')
         : 'Requires: ' + ((nodeMap[n.requires] || {}).name || n.requires || '');
-      st = `<span style="color:#8E8371">🔒 ${need}</span>`;
+      st = `<span style="color:#8E8371">${smbIcon('lock')} ${need}</span>`;
     } else {
       st = `<span style="color:#8E8371">${n.expCost} EXP (have ${cexp})</span>`;
     }
 
     ttip.innerHTML = `
-      <div style="font-family:'Potta One','Russo One',sans-serif;font-style:italic;text-transform:uppercase;letter-spacing:0.8px;color:${n.branchColor};margin-bottom:5px;font-size:0.8rem;">${n.name}</div>
+      <div style="font-family:var(--sh-font-head);text-transform:uppercase;letter-spacing:0.8px;color:${n.branchColor};margin-bottom:5px;font-size:0.8rem;">${n.name}</div>
       <div style="color:#B9AC93;margin-bottom:7px;font-size:0.72rem;line-height:1.4;">${n.desc}</div>
       <div style="font-size:0.67rem;">${st}</div>`;
     ttip.style.display = 'block';
@@ -903,7 +903,7 @@ function _renderWeaponMasterySection(container) {
 
   const head = document.createElement('div');
   head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap;';
-  head.innerHTML = `<span style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:#ffcc66;font-weight:700;">⚔️ Weapon Mastery</span>
+  head.innerHTML = `<span style="font-size:0.72rem;letter-spacing:2px;text-transform:uppercase;color:#ffcc66;font-weight:700;">${smbIcon('crossedswords')} Weapon Mastery</span>
     <span style="font-size:0.68rem;color:#aaff88;">${exp} EXP</span>`;
   const sel = document.createElement('select');
   sel.style.cssText = 'background:rgba(10,10,26,0.9);color:#dde4ff;border:1px solid rgba(120,120,200,0.35);border-radius:6px;padding:5px 9px;font-size:0.72rem;font-family:inherit;';
@@ -938,7 +938,7 @@ function _renderWeaponMasterySection(container) {
     const status = owned
       ? '<span style="color:#66ee99">✓ Unlocked</span>'
       : locked
-      ? `<span style="color:#556">🔒 Needs ${((STORY_WEAPON_MASTERY.find(n => n.id === node.requires) || {}).name) || node.requires}</span>`
+      ? `<span style="color:#8E8371">${smbIcon('lock')} Needs ${((STORY_WEAPON_MASTERY.find(n => n.id === node.requires) || {}).name) || node.requires}</span>`
       : `<span style="color:${canBuy ? '#ffcc66' : '#556'}">${node.expCost} EXP</span>`;
 
     card.innerHTML = `<div style="font-size:0.78rem;color:${owned ? '#ffe0a0' : canBuy ? '#dde4ff' : '#556'};font-weight:700;margin-bottom:3px;">${node.name}</div>
@@ -991,7 +991,7 @@ function _showPrologue(onDone) {
       'position:fixed', 'inset:0', 'z-index:9500',
       'background:#000', 'display:flex', 'flex-direction:column',
       'align-items:center', 'justify-content:center',
-      'cursor:pointer', 'font-family:"Segoe UI",Arial,sans-serif',
+      'cursor:pointer', 'font-family:var(--font-ui)',
       'transition:opacity 0.8s ease',
     ].join(';');
     document.body.appendChild(ov);
@@ -1044,7 +1044,8 @@ function _showPrologue(onDone) {
       const p = document.createElement('p');
       p.textContent = line.text;
       p.style.cssText = [
-        'margin:0 0 18px', 'font-size:1.25rem', 'color:#dde4ff',
+        'margin:0 0 18px', 'font-size:1.3rem', 'color:#dde4ff',
+        'font-family:Georgia,serif', 'font-style:italic',
         'opacity:0', 'transition:opacity 1.2s ease',
         line.text === '...' ? 'letter-spacing:6px; color:#667' : '',
       ].filter(Boolean).join(';');

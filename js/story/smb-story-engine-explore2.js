@@ -583,8 +583,8 @@ function updateExploration() {
       _saveStory2();
       storyFightSubtitle = {
         text: portal.type === 'distorted_rift'
-          ? `Distorted Rift conquered — +${_storyTokenReward(portal.reward)} 🪙 and +1 damage rank.`
-          : `Side portal cleared — +${_storyTokenReward(portal.reward)} 🪙`,
+          ? `Distorted Rift conquered — +${_storyTokenReward(portal.reward)} tokens and +1 damage rank.`
+          : `Side portal cleared — +${_storyTokenReward(portal.reward)} tokens`,
         timer: 220,
         maxTimer: 220,
         color: portal.type === 'distorted_rift' ? '#ff88ff' : '#88ffcc'
@@ -667,7 +667,7 @@ function updateExplorePickups(p1) {
       if (it.type === 'coin') {
         _story2.tokens = (_story2.tokens || 0) + it.value;
         if (typeof _saveStory2 === 'function') _saveStory2();
-        storyFightSubtitle = { text: `+${it.value} 🪙`, timer: 120, maxTimer: 120, color: '#ffcc33' };
+        storyFightSubtitle = { text: `+${it.value} tokens`, timer: 120, maxTimer: 120, color: '#ffcc33' };
       } else if (it.type === 'xp') {
         if (typeof _storyAwardKillExp === 'function') _storyAwardKillExp(it.value);
         else _story2.exp = (_story2.exp || 0) + it.value;
@@ -739,7 +739,7 @@ function _updateChestPickup(it, p1) {
     if (it.key) { _story2.lootTaken = _story2.lootTaken || {}; _story2.lootTaken[it.key] = 1; if (typeof _saveStory2 === 'function') _saveStory2(); }
     const c = it.contents || {};
     const parts = [];
-    if (c.tokens) { _story2.tokens = (_story2.tokens || 0) + c.tokens; parts.push(`+${c.tokens} 🪙`); }
+    if (c.tokens) { _story2.tokens = (_story2.tokens || 0) + c.tokens; parts.push(`+${c.tokens} tokens`); }
     if (c.exp) {
       if (typeof _storyAwardKillExp === 'function') _storyAwardKillExp(c.exp);
       else _story2.exp = (_story2.exp || 0) + c.exp;
@@ -789,7 +789,7 @@ function _regionCompleteChapter(chId) {
   if (typeof _saveStory2 === 'function') _saveStory2();
   if (typeof checkCompletionAchievements === 'function') checkCompletionAchievements();
   storyFightSubtitle = {
-    text: `✓ ${ch.title} complete${_first && ch.tokenReward ? '  +' + _storyTokenReward(ch.tokenReward) + ' 🪙' : ''}`,
+    text: `✓ ${ch.title} complete${_first && ch.tokenReward ? '  +' + _storyTokenReward(ch.tokenReward) + ' tokens' : ''}`,
     timer: 260, maxTimer: 260, color: '#88ffcc',
   };
   // Objective points at the next segment's chapter
@@ -1042,7 +1042,7 @@ function drawFallenWarriorMemory() {
     const textA = Math.min(1, (f - 95) / 20) * baseA;
     if (textA > 0) {
       const fs = Math.round(cw * 0.030);
-      ctx.font        = `900 ${fs}px 'Arial Black', Arial, sans-serif`;
+      ctx.font        = `900 ${fs}px ${FONT_UI}`;
       ctx.textAlign   = 'center';
       ctx.letterSpacing = '0.12em';
       ctx.shadowColor = 'rgba(100,80,200,0.9)';

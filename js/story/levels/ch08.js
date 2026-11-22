@@ -65,7 +65,7 @@
     // Under the overpass.
     if (_slVisible(v, -200, 2580)) {
       _concrete(-200, G - 230, 2780, 230, '#4a4a4e');
-      ctx.save(); ctx.globalAlpha = 0.5; ctx.font = 'italic bold 26px Arial'; ctx.textAlign = 'center';
+      ctx.save(); ctx.globalAlpha = 0.5; ctx.font = `italic bold 26px ${FONT_DISPLAY}`; ctx.textAlign = 'center';
       ctx.fillStyle = '#d84a6a'; ctx.fillText('WHO OPENED THE SKY', 420, G - 140);
       ctx.fillStyle = '#4ad8c8'; ctx.fillText('V WAS HERE', 1760, G - 160);
       ctx.restore();
@@ -175,7 +175,7 @@
       // Caged bulkhead lights.
       for (let lx = T.x0 + 80; lx < T.x1; lx += 220) _slWallLamp(lx, G - 200, G, (lx / 220 | 0) % 2 === 0);
       ctx.fillStyle = '#d0a020'; ctx.fillRect(4300, G - 70, 80, 70);
-      ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center'; ctx.fillText('⚡ 11kV', 4340, G - 40);
+      ctx.fillStyle = '#1a1a1a'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('⚡ 11kV', 4340, G - 40);
     }
     // Storm channel and the exit.
     if (_slVisible(v, CHANNEL - 40, 6200)) {

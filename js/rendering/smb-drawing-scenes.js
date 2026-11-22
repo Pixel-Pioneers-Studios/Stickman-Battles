@@ -268,7 +268,7 @@ function drawFakeDeathScene() {
     const a = Math.min(1, (t - 40) / 30);
     ctx.save();
     ctx.globalAlpha = a;
-    ctx.font        = 'bold 42px Arial';
+    ctx.font        = `bold 42px ${FONT_DISPLAY}`;
     ctx.textAlign   = 'center';
     ctx.fillStyle   = '#ff3333';
     ctx.shadowColor = '#ff0000';
@@ -299,7 +299,7 @@ function drawFakeDeathScene() {
     const a2 = Math.min(1, (t - 160) / 20);
     ctx.save();
     ctx.globalAlpha = a2;
-    ctx.font        = 'bold 22px Arial';
+    ctx.font        = `bold 22px ${FONT_UI}`;
     ctx.textAlign   = 'center';
     ctx.fillStyle   = '#dd88ff';
     ctx.shadowColor = '#aa00ff';

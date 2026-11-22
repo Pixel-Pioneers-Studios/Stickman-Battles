@@ -928,12 +928,12 @@ function drawSports() {
     const a = Math.min(1, sportsBanner.t / 20);
     ctx.globalAlpha = a;
     ctx.textAlign = 'center';
-    ctx.font = 'bold 64px Arial';
+    ctx.font = `bold 64px ${FONT_DISPLAY}`;
     ctx.fillStyle = sportsBanner.color || '#ffdd44';
     ctx.shadowColor = '#000'; ctx.shadowBlur = 16;
     ctx.fillText(sportsBanner.text, GAME_W / 2, GAME_H / 2 - 50);
     if (sportsBanner.sub) {
-      ctx.font = 'bold 20px Arial'; ctx.fillStyle = '#ffffff';
+      ctx.font = `bold 20px ${FONT_UI}`; ctx.fillStyle = '#ffffff';
       ctx.fillText(sportsBanner.sub, GAME_W / 2, GAME_H / 2 - 18);
     }
     ctx.shadowBlur = 0; ctx.globalAlpha = 1;
@@ -1009,9 +1009,9 @@ function drawSportsHUD() {
   ctx.fillStyle = 'rgba(0,0,0,0.62)';
   ctx.fillRect(cx - 90, y, 180, 46);
   ctx.textAlign = 'center';
-  ctx.font = 'bold 10px Arial'; ctx.fillStyle = '#bbbbbb';
+  ctx.font = `bold 10px ${FONT_UI}`; ctx.fillStyle = '#bbbbbb';
   ctx.fillText(SPORTS[sportsType].name + '  ·  FIRST TO ' + SPORTS[sportsType].win, cx, y + 13);
-  ctx.font = 'bold 24px Arial'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+  ctx.font = `bold 24px ${FONT_UI}`; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
   ctx.fillStyle = (p1 && p1.color) || '#00d4ff'; ctx.textAlign = 'left';  ctx.fillText(sportsScore[0], cx - 76, y + 39);
   ctx.fillStyle = '#ffffff';                     ctx.textAlign = 'center'; ctx.fillText('–', cx, y + 39);
   ctx.fillStyle = (p2 && p2.color) || '#ff4444'; ctx.textAlign = 'right'; ctx.fillText(sportsScore[1], cx + 76, y + 39);

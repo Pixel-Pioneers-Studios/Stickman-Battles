@@ -133,7 +133,7 @@
       ctx.fillStyle = '#6a4e30';
       ctx.beginPath(); ctx.moveTo(TREEHSE.x + 4, TREEHSE.y - 64); ctx.lineTo(TREEHSE.x + TREEHSE.w / 2, TREEHSE.y - 96); ctx.lineTo(TREEHSE.x + TREEHSE.w - 4, TREEHSE.y - 64); ctx.fill();
       ctx.fillStyle = '#2a1e14'; ctx.fillRect(TREEHSE.x + 60, TREEHSE.y - 46, 30, 46);
-      ctx.fillStyle = '#e8e0d0'; ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center'; ctx.fillText('KEEP OUT', TREEHSE.x + 40, TREEHSE.y - 50);
+      ctx.fillStyle = '#e8e0d0'; ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('KEEP OUT', TREEHSE.x + 40, TREEHSE.y - 50);
       ctx.fillStyle = '#7a5a3a'; ctx.fillRect(TREEHSE.x, TREEHSE.y, TREEHSE.w, 9);
       ctx.fillStyle = '#9a7a54';
       for (let fx = FENCE.x; fx < FENCE.x + FENCE.w; fx += 14) ctx.fillRect(fx, FENCE.y, 12, G - FENCE.y);
@@ -191,7 +191,7 @@
     if (_slVisible(v, TRUCK.x - 120, TRUCK.x + TRUCK.w + 120)) {
       ctx.fillStyle = '#e6e2d8'; ctx.fillRect(TRUCK.x, TRUCK.y, TRUCK.w, G - 26 - TRUCK.y);
       ctx.fillStyle = '#d24a2a'; ctx.fillRect(TRUCK.x, TRUCK.y + 30, TRUCK.w, 22);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 15px Arial'; ctx.textAlign = 'center'; ctx.fillText('U-MOVE', TRUCK.x + TRUCK.w / 2, TRUCK.y + 47);
+      ctx.fillStyle = '#fff'; ctx.font = `bold 15px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('U-MOVE', TRUCK.x + TRUCK.w / 2, TRUCK.y + 47);
       ctx.fillStyle = '#26292c'; ctx.fillRect(TRUCK.x + TRUCK.w, G - 92, 70, 66);
       ctx.fillStyle = '#d24a2a'; ctx.fillRect(TRUCK.x + TRUCK.w, G - 100, 76, 74);
       ctx.fillStyle = '#26323c'; ctx.fillRect(TRUCK.x + TRUCK.w + 30, G - 92, 40, 26);
@@ -212,7 +212,7 @@
       ctx.fillStyle = '#26323c';
       for (let wx = BUS.x + 20; wx < BUS.x + BUS.w - 60; wx += 34) ctx.fillRect(wx, BUS.y + 12, 26, 24);
       ctx.fillStyle = '#1a1a1a'; ctx.fillRect(BUS.x, BUS.y + 44, BUS.w, 4);
-      ctx.fillStyle = '#1a1a1a'; ctx.font = 'bold 10px Arial'; ctx.textAlign = 'center'; ctx.fillText('SCHOOL BUS', BUS.x + BUS.w / 2, BUS.y + 62);
+      ctx.fillStyle = '#1a1a1a'; ctx.font = `bold 10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('SCHOOL BUS', BUS.x + BUS.w / 2, BUS.y + 62);
       ctx.fillStyle = '#e0a82a'; ctx.fillRect(BUS.x + BUS.w, G - 70, 40, 50);
       ctx.fillStyle = '#c0302a'; ctx.fillRect(BUS.x - 18, BUS.y + 50, 18, 16);
       ctx.fillStyle = '#16181a'; for (const wx of [BUS.x + 50, BUS.x + BUS.w - 30]) { ctx.beginPath(); ctx.arc(wx, G - 12, 14, 0, Math.PI * 2); ctx.fill(); }

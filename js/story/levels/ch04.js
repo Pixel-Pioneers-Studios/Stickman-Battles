@@ -135,9 +135,9 @@
       const bg = ctx.createLinearGradient(B.x, 0, B.x + B.w, 0);
       bg.addColorStop(0, gl ? '#6a3aa8' : '#1e6a8a'); bg.addColorStop(1, gl ? '#c9a2ff' : '#3ab0c8');
       ctx.fillStyle = bg; ctx.fillRect(B.x, B.y - 160, B.w, 130);
-      ctx.fillStyle = '#f2f6f8'; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#f2f6f8'; ctx.font = `bold 26px ${FONT_DISPLAY}`; ctx.textAlign = 'center';
       ctx.fillText(gl ? 'STAY INSIDE' : 'STAY HYDRATED', B.x + B.w / 2 + (gl ? 4 : 0), B.y - 88);
-      ctx.font = '12px Arial'; ctx.fillText('AQUA PURE · CITY WATER YOU CAN TRUST', B.x + B.w / 2, B.y - 56);
+      ctx.font = `12px ${FONT_UI}`; ctx.fillText('AQUA PURE · CITY WATER YOU CAN TRUST', B.x + B.w / 2, B.y - 56);
       for (let k = 0; k < 4; k++) { ctx.fillStyle = 'rgba(255,240,200,0.6)'; ctx.fillRect(B.x + 30 + k * 86, B.y - 4, 10, 4); }
     }
     if (_slVisible(v, 2600, 3400)) {
@@ -224,7 +224,7 @@
       ctx.fillStyle = '#3a3e42'; ctx.fillRect(r.x - 8, G - 20, 8, 20); ctx.fillRect(r.x + r.w, G - 20, 8, 20);
       ctx.save(); ctx.translate(r.x + r.w, G - 20); ctx.rotate(-1.1);
       ctx.fillStyle = '#5a6066'; ctx.fillRect(0, -4, r.w * 0.9, 6); ctx.restore();
-      ctx.fillStyle = '#d0a020'; ctx.font = 'bold 7px Arial'; ctx.textAlign = 'center'; ctx.fillText('ROOF ACCESS', r.x + r.w / 2, G - 24);
+      ctx.fillStyle = '#d0a020'; ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillText('ROOF ACCESS', r.x + r.w / 2, G - 24);
     }
   }
 
