@@ -61,6 +61,12 @@ Before making any change:
 4. **Verify syntax:** `node --check js/smb-yourfile.js`
 5. **Do not add features or refactoring** beyond what was asked
 
+### Visual consistency
+`docs/style-guide.md` is the single visual authority: colours, type, components, icons, and the deliberate identity exceptions. Any change to how the game looks (UI, HUD, menus, effects, copy on screen) must:
+- name the style-guide rule it follows, or propose an amendment with before/after screenshots and wait for the owner's approval. Sessions don't make taste calls;
+- reuse the guide's components (`.b.b-primary` / `.b.b-secondary`, the ink plate, `smbIcon()`, `FONT_*`) instead of new inline styles;
+- pass `npm run style` (no new drift against `tools/audit/style-baseline.json`). Never update the baseline to hide new drift.
+
 When in doubt: read more code, ask before assuming.
 
 ---
@@ -87,6 +93,7 @@ All docs are in `docs/`.
 | [docs/sovereign.md](docs/sovereign.md) | Sovereign hub: what ships, every experiment and its numbers, settled conclusions. Add a row after every Sovereign run or fight |
 | [docs/god-of-war-plan.md](docs/god-of-war-plan.md) | Draft plan for connected realms + dungeons: what's remade vs reused, vertical slice, open decisions |
 | [docs/gameplay-notes.md](docs/gameplay-notes.md) | Playtested feel: combat pacing, boss difficulty, adaptive AI goals, story onboarding, online state |
+| [docs/style-guide.md](docs/style-guide.md) | **The visual authority.** Read before any UI, HUD, menu, effect or on-screen copy change; check with `npm run style` |
 
 ---
 
