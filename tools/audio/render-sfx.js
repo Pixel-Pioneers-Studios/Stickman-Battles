@@ -314,6 +314,19 @@ function createEffects() {
     addNoise(s, { duration: 0.12, amp: 0.4, color: 'dark', seed: 102, release: 0.09 });
     return finish(s, 0.6);
   };
+  // Footsteps: a soft heel scuff under a low knock. Two variants so a walk never repeats one sample.
+  effects.step = () => {
+    const s = makeSound(0.12);
+    addNoise(s, { duration: 0.035, amp: 0.32, color: 'mid', seed: 131, release: 0.028, pan: -0.05 });
+    addChirp(s, { duration: 0.06, from: 104, to: 62, amp: 0.3 });
+    return finish(s, 0.32);
+  };
+  effects.step2 = () => {
+    const s = makeSound(0.12);
+    addNoise(s, { duration: 0.03, amp: 0.28, color: 'mid', seed: 133, release: 0.024, pan: 0.05 });
+    addChirp(s, { duration: 0.055, from: 118, to: 70, amp: 0.27 });
+    return finish(s, 0.3);
+  };
   effects.landHard = () => {
     const s = makeSound(0.5);
     addNoise(s, { duration: 0.025, amp: 0.8, color: 'mid', seed: 104, release: 0.018 });

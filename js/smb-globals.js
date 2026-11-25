@@ -13,6 +13,10 @@ const GAME_H = 520;
 const FONT_UI      = "'Rajdhani', 'Segoe UI', Arial, sans-serif";
 const FONT_DISPLAY = "'Russo One', 'Segoe UI', Impact, sans-serif";
 const FONT_LOGO    = "'SE Logo Brush', 'Russo One', sans-serif";
+// Story data still carries ~500 decorative emoji (world labels, wave subtitles). Strip them where that
+// text is drawn (style guide: no stock emoji in UI). Plain marks such as ✓ ★ ✕ ▶ are kept.
+const _SMB_EMOJI_RE = /(?![\u25B6\u2605\u2713\u2715])[\p{Extended_Pictographic}\uFE0F\u200D]/gu;
+function smbStripEmoji(s) { return String(s == null ? '' : s).replace(_SMB_EMOJI_RE, '').replace(/^\s+/, '').replace(/\s{2,}/g, ' '); }
 
 // Resize canvas to fill the window. The game world stays GAME_W x GAME_H (fixed resolution).
 function resizeCanvas() {

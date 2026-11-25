@@ -451,7 +451,7 @@ function drawEscortHUD() {
 
     ctx.font = `bold 9px ${FONT_UI}`; ctx.textAlign = 'left';
     ctx.fillStyle = '#cceeff';
-    ctx.fillText('🛡 ' + escortNPCName, barX, barY - 3);
+    ctx.fillText(escortNPCName, barX, barY - 3);
 
     ctx.font = `8px ${FONT_UI}`; ctx.textAlign = 'right'; ctx.fillStyle = '#aaa';
     ctx.fillText(Math.max(0, Math.ceil(escortNPC.health)) + ' / ' + escortNPC.maxHealth, barX + barW, barY - 3);

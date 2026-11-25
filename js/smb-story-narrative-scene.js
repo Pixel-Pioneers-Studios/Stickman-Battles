@@ -586,7 +586,7 @@
   }
 
   function _drawEchoText(c, text, color, alpha, w, h, t) {
-    c.save(); c.font='italic 18px \'Segoe UI\', serif'; c.textAlign='center';
+    c.save(); c.font='italic 18px Georgia, serif'; c.textAlign='center';
     for (var ei=0;ei<4;ei++) {
       c.globalAlpha=alpha*(0.35-ei*0.08)*(0.5+Math.sin(t*0.03+ei)*0.3);
       c.fillStyle=color||'#aaccff'; c.shadowColor=color||'#aaccff'; c.shadowBlur=10;
@@ -1321,7 +1321,8 @@
     var maxW  = Math.min(w * 0.66, 980);
 
     c.save();
-    c.font = 'italic ' + fSize + 'px \'Segoe UI\', Georgia, serif';
+    // Narration voice is italic Georgia (style guide, type table). Segoe UI first made Windows render it in sans.
+    c.font = 'italic ' + fSize + 'px Georgia, serif';
     var words = shown.split(' '), wrLines = [], cur = '';
     for (var wi = 0; wi < words.length; wi++) {
       var test = cur ? cur + ' ' + words[wi] : words[wi];
@@ -1350,7 +1351,8 @@
     var grd  = c.createLinearGradient(0, top, 0, bot);
     var rgb  = tp.r + ',' + tp.g + ',' + tp.b;
     // The reader keeps a near-solid core to mask the figure behind the text. Both fade at the edges.
-    var _core = _cinMode ? 0.82 : 1.0;
+    // Cinematic core raised from 0.82: bright day scenes (crosswalk stripes in ch. 1) showed through the type.
+    var _core = _cinMode ? 0.94 : 1.0;
     grd.addColorStop(0,    'rgba(' + rgb + ',0)');
     grd.addColorStop(0.30, 'rgba(' + rgb + ',' + (tp.a * 0.78 * _core).toFixed(3) + ')');
     grd.addColorStop(0.72, 'rgba(' + rgb + ',' + (tp.a * _core).toFixed(3) + ')');
@@ -1376,7 +1378,12 @@
     c.shadowBlur  = Math.round(fSize * 0.55);
     c.shadowOffsetY = 1;
     c.fillStyle = '#e6ecff';
+    // A thin ink edge under the fill, so a line stays legible over any bright patch the scrim misses.
+    c.lineJoin = 'round';
+    c.lineWidth = Math.max(2, fSize * 0.14);
+    c.strokeStyle = 'rgba(7,6,12,0.7)';
     for (var li = 0; li < wrLines.length; li++) {
+      c.strokeText(wrLines[li], w * 0.5, by + pad + fSize + li * lineH);
       c.fillText(wrLines[li], w * 0.5, by + pad + fSize + li * lineH);
     }
     c.shadowBlur = 0; c.shadowOffsetY = 0;
@@ -1820,7 +1827,7 @@
 
     // Chapter label
     _ctx.save(); _ctx.globalAlpha=0.65; _ctx.fillStyle='#8899bb'; _ctx.font=`11px ${FONT_UI}`;
-    _ctx.fillText((_chapter&&_chapter.world)||'',18,26); _ctx.fillStyle='#ffcc88'; _ctx.font=`bold 14px ${FONT_UI}`;
+    _ctx.fillText(typeof smbStripEmoji === 'function' ? smbStripEmoji((_chapter&&_chapter.world)||'') : ((_chapter&&_chapter.world)||''),18,26); _ctx.fillStyle='#ffcc88'; _ctx.font=`bold 14px ${FONT_UI}`;
     _ctx.fillText(_cinLabel || (_chapter&&_chapter.title) || '',18,44);
     var _when = _chapter && (_chapter.when || (typeof storyChapterWhen === 'function' ? storyChapterWhen(_chapter.id) : ''));
     if (_when) { _ctx.fillStyle='#cfd6e6'; _ctx.font=`italic 12px ${FONT_UI}`; _ctx.fillText(_when,18,62); }

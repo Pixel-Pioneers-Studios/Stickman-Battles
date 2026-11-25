@@ -13,12 +13,14 @@ const _PV_HEAVY_SWINGS = { smash: 1, sweep: 1, cleave: 1 };
 function _pvOn() { return typeof PixelVFX !== 'undefined'; }
 
 /** Crescent along the weapon's own swing arc, from WEAPON_SWINGS. True when it replaced the ribbon trail. */
-function pixelSwingFX(f) {
+function pixelSwingFX(f, atStrike) {
   if (!_pvOn() || !f || f.isBoss || !f.weapon || f.weapon.type !== 'melee') return false;
-  const g = typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[f.weaponKey] : null;
+  const g = f._swingG ? f._swingG() : (typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[f.weaponKey] : null);
   if (!g || !_PV_ARC_SWINGS[g.archetype]) return false;
+  // A hand-keyed move draws its crescent on its strike, not on the press (pixelSwingStrikeFX).
+  if (g.keys && !atStrike) { f._pvSlashT = g.startup + 1; return true; }
   const heavy = !!_PV_HEAVY_SWINGS[g.archetype];
-  const dur = (g.dur || 10) / 60;
+  const dur = (g.keys ? g.active + 2 : (g.dur || 10)) / 60;
   const fx = PixelVFX.spawn('slash', {
     x: f.cx(), y: f.y + FIG_HEAD_R * 2 + 2 + FIG_NECK,     // the shoulder the arm swings from
     facing: f.facing || 1,
@@ -28,7 +30,7 @@ function pixelSwingFX(f) {
     sweep: Math.max(0.04, dur * 0.55), hold: 0.03, trail: heavy ? 0.2 : 0.14,
     sparks: 0, shake: _pvQuiet,
   });
-  if (fx) f._pvSlashT = (g.dur || 10) + 8;
+  if (fx) f._pvSlashT = g.keys ? g.active + 10 : (g.dur || 10) + 8;
   return !!fx;
 }
 

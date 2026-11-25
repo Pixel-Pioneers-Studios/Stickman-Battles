@@ -89,6 +89,10 @@ function openStoryMenu() {
     _story2.difficulty = 'normal';
     _saveStory2();
   }
+  // Saves that finished on Evolution before the achievement existed.
+  if (_story2.storyComplete && _story2.difficulty === 'evolution' && typeof unlockAchievement === 'function') {
+    unlockAchievement('story_evolution');
+  }
   _updateStoryDifficultyBtn();
 
   if (m && !_story2.prologueSeen) {
@@ -286,6 +290,27 @@ function _updateStoryDifficultyBtn() {
   btn.title = locked ? 'Evolution is permanent. Start a New Game to leave it.' : 'Change difficulty';
 }
 
+// First Story open on a fresh save: one continuous opening (visual overhaul Phase 5).
+// Difficulty first, then Axiom's Tuesday, then Kael's prologue on the same black, then chapter 1.
+// The two Tuesdays stay whole: canon reuses the seam line so it is heard first as his, then as yours.
+// Three clicks from home to the first fight (Story, a difficulty, Begin), down from five.
+// Returns true if it took over the Story click.
+function storyFirstRunOpening() {
+  if (typeof _story2 === 'undefined' || !_story2 || _story2.prologueSeen || _story2.difficulty) return false;
+  if ((Array.isArray(_story2.defeated) && _story2.defeated.length) || (_story2.chapter || 0) > 0) return false;
+  if (typeof _showStoryDifficultyPicker !== 'function' || typeof _showPrologue !== 'function') return false;
+  _showStoryDifficultyPicker(true, function () {
+    const kael = function () {
+      _story2.prologueSeen = true;
+      if (typeof _saveStory2 === 'function') _saveStory2();
+      _showPrologue(function () { if (typeof continueStory === 'function') continueStory(); }, { instant: true });
+    };
+    if (typeof maybePlayTuesdayPrologue === 'function' && maybePlayTuesdayPrologue(kael, { toBlack: true })) return;
+    kael();
+  });
+  return true;
+}
+
 function _maybePickStoryDifficulty() {
   const m = document.getElementById('storyModal');
   if (!m || m.style.display === 'none') return;
@@ -298,7 +323,7 @@ function _maybePickStoryDifficulty() {
 const _DIFF_BG    = 'linear-gradient(180deg,#15111D,#07060C)';
 const _DIFF_BG_ON = 'linear-gradient(180deg,#2A2136,#15111D)';
 
-function _showStoryDifficultyPicker(firstPick) {
+function _showStoryDifficultyPicker(firstPick, onPicked) {
   const old = document.getElementById('storyDifficultyOverlay');
   if (old) old.remove();
   const current = _story2 && _story2.difficulty ? _story2.difficulty : null;
@@ -308,12 +333,13 @@ function _showStoryDifficultyPicker(firstPick) {
   ov.id = 'storyDifficultyOverlay';
   ov.style.cssText = [
     'position:fixed', 'inset:0', 'z-index:9400', 'background:rgba(3,4,10,0.97)',
-    'display:flex', 'align-items:center', 'justify-content:center',
+    'display:flex', 'align-items:flex-start', 'justify-content:center',
     'padding:16px', 'box-sizing:border-box', 'overflow-y:auto',
   ].join(';');
 
   const box = document.createElement('div');
-  box.style.cssText = 'width:min(760px,100%);text-align:center;';
+  // margin:auto centres when it fits and top-aligns when it doesn't. align-items:center clipped the title at 918x470.
+  box.style.cssText = 'width:min(760px,100%);text-align:center;margin:auto;';
   const title = document.createElement('h2');
   title.textContent = firstPick ? 'Choose Your Difficulty' : 'Change Difficulty';
   title.style.cssText = 'margin:0 0 6px;color:#E2B255;font-family:var(--sh-font-head);font-weight:400;font-size:1.5rem;letter-spacing:3px;text-transform:uppercase;text-shadow:0 2px 0 #07060C,1px 0 0 #07060C,-1px 0 0 #07060C;';
@@ -376,6 +402,7 @@ function _showStoryDifficultyPicker(firstPick) {
         _saveStory2();
         _updateStoryDifficultyBtn();
         ov.remove();
+        if (typeof onPicked === 'function') onPicked(key);
       };
     }
     grid.appendChild(card);
@@ -486,7 +513,10 @@ function _renderChapterList() {
   // Saga builds count progress through this game only. Both helpers return the whole story on 'full'.
   const _sagaScoped = typeof activeSagaChapterCount === 'function'
                    && typeof isChapterInActiveSaga === 'function';
-  const totalCh  = _sagaScoped ? activeSagaChapterCount() : STORY_CHAPTERS2.length;
+  // Hidden bridge chapters (_menuHidden) never count, so this matches the 182 shown everywhere else.
+  const _visCh   = i => !(STORY_CHAPTERS2[i] && STORY_CHAPTERS2[i]._menuHidden);
+  const _hiddenN = STORY_CHAPTERS2.filter((c, i) => !_visCh(i) && (!_sagaScoped || isChapterInActiveSaga(i))).length;
+  const totalCh  = (_sagaScoped ? activeSagaChapterCount() : STORY_CHAPTERS2.length) - _hiddenN;
   // `defeated` can hold duplicates and mixes key spaces: ch.id on write, array index on read.
   // Counting distinct in-range entries keeps the bar honest (a finished save read 201%).
   // Display guard only: unlock tests still use .includes().
@@ -495,8 +525,8 @@ function _renderChapterList() {
       .filter(i => Number.isInteger(i) && i >= 0 && i < STORY_CHAPTERS2.length)
   );
   const doneCh   = Math.min(totalCh, _sagaScoped
-    ? [..._seen].filter(i => isChapterInActiveSaga(i)).length
-    : _seen.size);
+    ? [..._seen].filter(i => _visCh(i) && isChapterInActiveSaga(i)).length
+    : [..._seen].filter(_visCh).length);
   const pct      = totalCh > 0 ? Math.min(100, Math.round((doneCh / totalCh) * 100)) : 0;
   const _tally   = typeof storyStarTally === 'function' ? storyStarTally() : null;
   // Retroactive: an existing save may already qualify for the completion awards.

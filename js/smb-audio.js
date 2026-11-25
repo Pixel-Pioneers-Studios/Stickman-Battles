@@ -57,8 +57,16 @@ const SoundManager = (() => {
       .then(buf => { _buffers[key] = buf; finish(buf); })
       .catch(() => {});
   }
+  // Positional pan (visual overhaul Phase 5): at(worldX) pans the samples played this frame toward where
+  // they happen on screen. Frame-scoped, so a pan never leaks into a later frame's sounds.
+  let _panAt = 0, _panFrame = -2;
+  function _framePan() {
+    const f = typeof frameCount !== 'undefined' ? frameCount : -1;
+    return _panFrame === f ? _panAt : 0;
+  }
   // Prefer the rendered pack. The Web Audio fallback means a missing file never mutes gameplay.
   function _sample(key, vol, fallback, pitch = 1, pan = 0) {
+    pan = pan || _framePan();
     _play(c => {
       if (_buffers[key] || _rawBuffers[key]) {
         const variation = 0.965 + Math.random() * 0.07;
@@ -104,6 +112,19 @@ const SoundManager = (() => {
   }
   return {
     setVolume(v) { _vol = Math.max(0, Math.min(1, v)); },
+    // The shared AudioContext, for layers that build their own graphs (smb-ambience.js).
+    audioCtx() { return _getCtx(); },
+    // Pan this frame's sounds by a world x, relative to the camera centre. Capped at +-0.55 so nothing
+    // goes hard into one ear. Returns the manager so calls chain: SoundManager.at(x).hit().
+    at(wx) {
+      if (typeof wx !== 'number' || !isFinite(wx)) return this;
+      const cx = typeof camXCur === 'number' ? camXCur : (typeof GAME_W === 'number' ? GAME_W / 2 : 450);
+      const z  = (typeof camZoomCur === 'number' && camZoomCur > 0) ? camZoomCur : 1;
+      const half = (typeof GAME_W === 'number' ? GAME_W : 900) / 2;
+      _panAt = Math.max(-0.55, Math.min(0.55, ((wx - cx) * z / half) * 0.55));
+      _panFrame = typeof frameCount !== 'undefined' ? frameCount : -1;
+      return this;
+    },
     setMuted(m) { _muted = m; },
     isMuted() { return _muted; },
     getVolume() { return _vol; },
@@ -146,6 +167,7 @@ const SoundManager = (() => {
     pickup()      { _sample('pickup', 0.64, c => { _osc(c,'sine',523,0.08,0.10); _osc(c,'sine',784,0.08,0.10); }); },
     death()       { _sample('death', 0.84, c => { _osc(c,'sawtooth',160,0.30,0.35); _osc(c,'sine',80,0.20,0.50); _noise(c,0.25,0.20,150); }); },
     explosion()   { _sample('explosion', 0.88, c => { _noise(c,0.35,0.55,80); _osc(c,'sawtooth',55,0.25,0.40); }); },
+    step()        { _sample(_next(['step', 'step2']), 0.24, c => { _noise(c,0.03,0.05,500); }); },
     uiClick()     { _sample('uiClick', 0.46, c => { _osc(c,'sine',440,0.06,0.10); }); },
     uiHover()     { _sample('uiHover', 0.34, c => { _osc(c,'sine',330,0.03,0.05); }); },
     menuMove()    { _sample('uiHover', 0.30, c => { _osc(c,'sine',330,0.03,0.05); }); },
@@ -182,7 +204,7 @@ const SFX_ASSET_PATHS = {
   hitZap: 'audio/sfx/hitZap.wav', clang: 'audio/sfx/clang.wav', jump: 'audio/sfx/jump.wav',
   land: 'audio/sfx/land.wav', shoot: 'audio/sfx/shoot.wav', pickup: 'audio/sfx/pickup.wav',
   death: 'audio/sfx/death.wav', explosion: 'audio/sfx/explosion.wav', uiClick: 'audio/sfx/uiClick.wav',
-  uiHover: 'audio/sfx/uiHover.wav', phaseUp: 'audio/sfx/phaseUp.wav', waveStart: 'audio/sfx/waveStart.wav',
+  uiHover: 'audio/sfx/uiHover.wav', step: 'audio/sfx/step.wav', step2: 'audio/sfx/step2.wav', phaseUp: 'audio/sfx/phaseUp.wav', waveStart: 'audio/sfx/waveStart.wav',
   portalOpen: 'audio/sfx/portalOpen.wav', superHeal: 'audio/sfx/superHeal.wav',
   superActivate: 'audio/sfx/superActivate.wav', iaiMark: 'audio/sfx/iaiMark.wav',
   iaiSheathe: 'audio/sfx/iaiSheathe.wav', soulRip: 'audio/sfx/soulRip.wav',

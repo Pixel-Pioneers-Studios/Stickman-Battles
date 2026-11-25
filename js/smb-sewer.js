@@ -257,6 +257,45 @@ function drawSewerArena() {
     }
   }
 
+  // Key light (Phase 4): caged sodium lamps along the vault. Their warm cones and the pools they
+  // leave on the flow give the green tunnel a light source and a range from dark to bright.
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const lx = L + (((i * 340 - t * 0.6) % (W + 340)) + W + 340) % (W + 340) - 120;
+    const ly = 22;
+    const flick = 0.92 + 0.08 * Math.sin(sewerFlowPhase * 7 + i * 2.3);
+    const cg = ctx.createLinearGradient(0, ly, 0, surf);
+    cg.addColorStop(0, 'rgba(255,176,80,' + (0.12 * flick) + ')');
+    cg.addColorStop(1, 'rgba(255,150,60,0.02)');
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.moveTo(lx - 6, ly + 6); ctx.lineTo(lx + 6, ly + 6);
+    ctx.lineTo(lx + 92, surf); ctx.lineTo(lx - 92, surf);
+    ctx.closePath(); ctx.fill();
+    const pg = ctx.createRadialGradient(lx, surf, 4, lx, surf, 110);
+    pg.addColorStop(0, 'rgba(255,170,70,' + (0.22 * flick) + ')');
+    pg.addColorStop(1, 'rgba(255,150,60,0)');
+    ctx.fillStyle = pg;
+    ctx.beginPath(); ctx.ellipse(lx, surf, 110, 16, 0, 0, Math.PI * 2); ctx.fill();
+    const hg = ctx.createRadialGradient(lx, ly + 4, 1, lx, ly + 4, 22);
+    hg.addColorStop(0, 'rgba(255,214,140,' + (0.9 * flick) + ')');
+    hg.addColorStop(1, 'rgba(255,160,60,0)');
+    ctx.fillStyle = hg;
+    ctx.fillRect(lx - 22, ly - 18, 44, 44);
+  }
+  ctx.restore();
+  for (let i = 0; i < 5; i++) {
+    const lx = L + (((i * 340 - t * 0.6) % (W + 340)) + W + 340) % (W + 340) - 120;
+    ctx.fillStyle = '#151a10';
+    ctx.fillRect(lx - 1, -80, 2, 98);
+    ctx.fillStyle = '#ffd890';
+    ctx.fillRect(lx - 5, 20, 10, 7);
+    ctx.strokeStyle = '#2a2f20'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(lx - 6, 18, 12, 10);
+    ctx.beginPath(); ctx.moveTo(lx - 2, 18); ctx.lineTo(lx - 2, 28); ctx.moveTo(lx + 2, 18); ctx.lineTo(lx + 2, 28); ctx.stroke();
+  }
+
   // Outfall pipes pouring into the flow.
   for (let i = 0; i < 6; i++) {
     const px = L + (((i * 380 - t * 0.45) % (W + 420)) + W + 420) % (W + 420) - 160;

@@ -773,22 +773,153 @@ function classRollKind(key) {
 // tipLen is the weapon length in px for hitbox reach. hitFracs samples the hitbox
 // along reach. Ranged entries are firing poses only (tilt 0 keeps the weapon level).
 // Weapons without an entry fall back to the 12-frame diagonal slash.
+//
+// moves (optional): a weapon with its own move list (docs/fighting-animation-plan.md). Repeated
+// presses walk `string`, and a press in the air plays `air`. Each move is hand-keyed and carries its
+// own frame data, which replaces the derived startup for that swing:
+//   startup  frames before the hit can land (the blade is cocked back for all of them)
+//   active   frames the hit can land; the follow-through after them can't hit
+//   dur      frames of the drawn swing (startup + active + follow-through)
+//   endlag   recovery after dur; cooldown is the gap before the next press comes out
+//   keys     { t: frame, a: arm angle (facing right, 0 = forward, + = down), r: reach 0..1, e: ease into this key }
+//   body     whole-body keys for smb-anim-fighter.js (same fields as its swing tracks)
+//   edgeFlip the weapon is turned over in the hand for this move. Arm angles that fall during the strike
+//            (an upward or backhand cut) would otherwise lead with the back of a one-edged head.
+// Moves inherit every other field (tipLen, tilt, trail, hitSound) from the weapon's own entry.
+const AXE_MOVES = {
+  string: [
+    { id: 'axe:cleave', name: 'Side Cleave', archetype: 'cleave',
+      startup: 7, active: 3, dur: 16, endlag: 8, cooldown: 24, dmg: 17, kb: 8,
+      edgeFlip: true,   // the cut comes up from behind the hip, so the head is turned over to lead with the edge
+      keys: [
+        { t: 0,  a: 0.95, r: 1 },                 // from the carry, axe low at the side
+        { t: 5,  a: 2.70, r: 0.90, e: 'out' },    // drawn back behind the hip, weight on the back foot
+        { t: 7,  a: 2.85, r: 0.85, e: 'lin' },    // held tension
+        { t: 8,  a: 1.75, r: 0.45, e: 'in' },     // whips round past the hip, arm tucked in
+        { t: 10, a: -0.05, r: 1, e: 'out' },      // flat out in front at full reach
+        { t: 11, a: -0.32, r: 1, e: 'out' },      // carries past
+        { t: 16, a: 0.40, r: 0.95, e: 'io' },     // settles back to ready
+      ],
+      body: [
+        { t: 5,  e: 'out', lean: -6, hip: -2, drop: 7, front: 14, rear: -15, l: 0.30 },
+        { t: 10, e: 'snap', lean: 12, hip: 7, drop: 9, front: 25, rear: -20, l: 2.90 },
+        { t: 14, e: 'lin', lean: 10, hip: 6, drop: 9, front: 25, rear: -20, l: 2.85 },
+        { t: 28, e: 'io' },
+      ] },
+    { id: 'axe:chop', name: 'Overhead Chop', archetype: 'smash',
+      startup: 10, active: 3, dur: 19, endlag: 12, cooldown: 44, dmg: 20, kb: 12,
+      keys: [
+        { t: 0,  a: 0.40, r: 1 },
+        { t: 6,  a: -2.30, r: 1, e: 'out' },      // raised high behind the head
+        { t: 10, a: -2.50, r: 1, e: 'lin' },      // held at the top
+        { t: 12, a: -0.30, r: 1, e: 'in' },       // drops, still speeding up
+        { t: 13, a: 0.55, r: 1, e: 'lin' },       // impact, head in front of the lead foot
+        { t: 15, a: 0.70, r: 1, e: 'out' },       // bites in and holds
+        { t: 19, a: 0.55, r: 1, e: 'io' },
+      ],
+      body: [
+        { t: 6,  e: 'out', lean: -8, hip: -2, drop: -3, front: 11, rear: -12, l: -0.90 },
+        { t: 10, e: 'lin', lean: -9, hip: -2, drop: -4, front: 11, rear: -12, l: -1.00 },
+        { t: 13, e: 'snap', lean: 17, hip: 8, drop: 16, front: 25, rear: -21, l: 2.30 },
+        { t: 17, e: 'lin', lean: 15, hip: 7, drop: 15, front: 25, rear: -21, l: 2.35 },
+        { t: 32, e: 'io' },
+      ] },
+  ],
+  air: { id: 'axe:air', name: 'Falling Chop', archetype: 'smash',
+    startup: 8, active: 5, dur: 16, endlag: 8, cooldown: 36, dmg: 18, kb: 10, spike: 7,
+    keys: [
+      { t: 0,  a: 0.50, r: 1 },
+      { t: 5,  a: -1.95, r: 1, e: 'out' },
+      { t: 8,  a: -2.10, r: 1, e: 'lin' },
+      { t: 10, a: -0.20, r: 1, e: 'in' },
+      { t: 13, a: 0.95, r: 1, e: 'out' },         // head driven straight down under the reach
+      { t: 16, a: 0.80, r: 1, e: 'io' },
+    ],
+    body: [
+      { t: 5,  e: 'out', lean: -6, hip: -1, drop: -2, front: 8, rear: -8, l: -0.80 },
+      { t: 13, e: 'snap', lean: 14, hip: 6, drop: 8, front: 12, rear: -12, l: 2.40 },
+      { t: 16, e: 'lin', lean: 12, hip: 5, drop: 8, front: 12, rear: -12, l: 2.40 },
+      { t: 26, e: 'io' },
+    ] },
+};
+
+// The sword is the baseline: light and quick where the axe commits. A short diagonal cut,
+// a rising backhand cut, and a wheel slash in the air that carries all the way round.
+const SWORD_MOVES = {
+  string: [
+    { id: 'sword:cut', name: 'Draw Cut', archetype: 'slash',
+      startup: 4, active: 2, dur: 10, endlag: 6, cooldown: 22, dmg: 14, kb: 7,
+      keys: [
+        { t: 0,  a: 0.60 },
+        { t: 3,  a: -1.25, e: 'out' },            // blade up in front of the face
+        { t: 4,  a: -1.35, e: 'lin' },
+        { t: 5,  a: 0.20, e: 'in' },              // snaps down across
+        { t: 6,  a: 1.05, e: 'out' },
+        { t: 7,  a: 1.22, e: 'out' },             // carries past
+        { t: 10, a: 0.85, e: 'io' },
+      ],
+      body: [
+        { t: 3,  e: 'out', lean: -3, hip: 1, drop: 3, front: 12, rear: -12, l: 0.50 },
+        { t: 6,  e: 'snap', lean: 11, hip: 6, drop: 8, front: 21, rear: -17, l: 2.80 },
+        { t: 9,  e: 'lin', lean: 10, hip: 5, drop: 8, front: 21, rear: -17, l: 2.80 },
+        { t: 20, e: 'io' },
+      ] },
+    { id: 'sword:rise', name: 'Rising Cut', archetype: 'slash',
+      startup: 6, active: 3, dur: 14, endlag: 9, cooldown: 44, dmg: 15, kb: 11,
+      keys: [
+        { t: 0,  a: 0.90 },
+        { t: 4,  a: 1.00, r: 0.90, e: 'out' },    // dropped low in front, point near the floor
+        { t: 6,  a: 1.10, r: 0.90, e: 'lin' },
+        { t: 7,  a: 0.20, r: 1, e: 'in' },        // comes up through the body
+        { t: 9,  a: -1.15, e: 'out' },
+        { t: 10, a: -1.40, e: 'out' },            // finishes high
+        { t: 14, a: -0.60, e: 'io' },
+      ],
+      body: [
+        { t: 4,  e: 'out', lean: 6, hip: 3, drop: 13, front: 17, rear: -15, l: 2.40 },   // crouched under it
+        { t: 9,  e: 'snap', lean: -3, hip: 2, drop: -5, front: 13, rear: -12, l: 0.20 }, // rises with the cut
+        { t: 12, e: 'lin', lean: -2, hip: 2, drop: -4, front: 13, rear: -12, l: 0.30 },
+        { t: 24, e: 'io' },
+      ] },
+  ],
+  air: { id: 'sword:wheel', name: 'Wheel Slash', archetype: 'slash',
+    startup: 5, active: 4, dur: 15, endlag: 7, cooldown: 30, dmg: 13, kb: 9,
+    keys: [
+      { t: 0,  a: 0.60 },
+      { t: 4,  a: -1.75, e: 'out' },              // straight up
+      { t: 5,  a: -1.85, e: 'lin' },
+      { t: 7,  a: 0.00, e: 'in' },
+      { t: 9,  a: 1.60, e: 'lin' },               // front half: the hit
+      { t: 12, a: 3.60, e: 'lin' },               // keeps going round behind
+      { t: 15, a: 6.88, e: 'out' },               // full turn, back to ready (0.60)
+    ],
+    body: [
+      { t: 4,  e: 'out', lean: -4, hip: 0, drop: -2, front: 8, rear: -8, l: -0.70 },
+      { t: 9,  e: 'snap', lean: 10, hip: 4, drop: 6, front: 12, rear: -10, l: 2.60 },
+      { t: 15, e: 'lin', lean: 6, hip: 3, drop: 5, front: 11, rear: -10, l: 2.20 },
+      { t: 24, e: 'io' },
+    ] },
+};
+
 const WEAPON_SWINGS = {
   // Melee
-  sword:         { archetype: 'slash',  dur:  9, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 }, hitSound: 'slash' },
+  sword:         { archetype: 'slash',  dur:  9, a0: -0.65, a1: 1.15, ease: 'snap',   tilt: 0.6,  tipLen: 26, trail: { life:  9, cap: 6,  width: 5 }, hitSound: 'slash',
+                   carry: { arm: 0.80, tilt: -0.35 },                       // low guard, point forward just off the floor
+                   moves: SWORD_MOVES },
   katana:        { archetype: 'iai',    dur:  7, a0: -0.35, a1: 0.95, ease: 'iai',    tilt: 0.5,  tipLen: 30, trail: { life: 13, cap: 8,  width: 4 },
-                   hitSound: 'pierce', carry: { arm: 0.80, tilt: 0.45 } },  // held low at the hip, blade angled down
+                   hitSound: 'pierce', carry: { arm: 0.80, tilt: -0.35 } }, // low guard, point forward just off the floor
   hammer:        { archetype: 'smash',  dur: 15, a0: -1.85, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9,  width: 10 },
-                   hitSound: 'blunt', carry: { arm: -0.90, tilt: -0.50 } }, // head rested up over the shoulder
+                   hitSound: 'blunt', carry: { arm: 1.10, tilt: -0.59 } },  // head resting on the floor
   fryingpan:     { archetype: 'smash',  dur: 12, a0: -1.55, a1: 0.80, ease: 'heavy',  tilt: 0.7,  tipLen: 26, trail: { life: 11, cap: 7,  width: 8 },
-                   hitSound: 'clang', carry: { arm: 1.05, tilt: 0.25 } },   // dangling at the side like a skillet
+                   hitSound: 'clang', carry: { arm: 0.85, tilt: -1.75 } },  // raised in front like a paddle, ready to bonk
   axe:           { archetype: 'cleave', dur: 12, a0: -1.05, a1: 1.35, ease: 'snap',   tilt: 0.65, tipLen: 26, trail: { life: 12, cap: 8,  width: 8 }, hitSound: 'slash',
-                   carry: { arm: 0.95, tilt: -0.20 } },                     // held low at the side
+                   carry: { arm: 0.95, tilt: -0.55 },                       // held low, head up off the floor
+                   moves: AXE_MOVES },
   scythe:        { archetype: 'sweep',  dur: 14, a0: -1.45, a1: 1.65, ease: 'sweep',  tilt: 0.8,  tipLen: 30, trail: { life: 13, cap: 9,  width: 7 }, hitSound: 'slash',
                    carry: { arm: -1.30, tilt: -0.20 } },                    // upright reaper pose, blade overhead
   spear:         { archetype: 'thrust', dur: 10, a0:  0.10, a1: 0.02, ease: 'linear', tilt: 0.06, tipLen: 40,
                    reach: { r0: 0.45, r1: 1.0, ease: 'thrust' }, hitFracs: [0.45, 0.7, 0.9, 1.0], trail: { life: 8, cap: 6, width: 4 },
-                   hitSound: 'pierce', carry: { arm: -1.15, tilt: -0.75 } }, // shouldered, point up-back
+                   hitSound: 'pierce', carry: { arm: 0.90, tilt: -2.30 } },  // upright like a staff, point up
   broomstick:    { archetype: 'poke',   dur:  8, a0:  0.18, a1: -0.06, ease: 'linear', tilt: 0.1, tipLen: 34,
                    reach: { r0: 0.5, r1: 1.0, ease: 'thrust' }, hitFracs: [0.5, 0.75, 1.0], trail: { life: 7, cap: 5, width: 4 },
                    hitSound: 'pierce', carry: { arm: -1.00, tilt: -0.85 } }, // slung over the shoulder
@@ -796,21 +927,21 @@ const WEAPON_SWINGS = {
                    reach: { r0: 0.35, r1: 1.0, ease: 'crack' }, hitFracs: [0.4, 0.65, 0.85, 1.0], trail: { life: 10, cap: 8, width: 3 },
                    // Odd swings crack down from overhead, even swings sweep up off the floor.
                    alternate: true, altOff: [-0.58, 0.42],
-                   hitSound: 'snap', carry: { arm: 1.00, tilt: 0.40 } },     // coiled low at the side
+                   hitSound: 'snap', carry: { arm: 1.10, tilt: -0.45 } },    // handle forward and down; the lash is a rope that hangs and drags (Fighter._whipLashDraw)
   combat:  { archetype: 'jab',    dur:  5, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, hitFracs: [0.6, 1.0], trail: { life: 6, cap: 4, width: 4 },
                    hitSound: 'blunt', carry: { arm: -0.35, lArm: -0.60 } },  // guard stance, both fists up
   flail:         { archetype: 'whirl',  dur: 16, a0: -2.6,  a1: 1.25, ease: 'heavy',  tilt: 0.55, tipLen: 28, trail: { life: 14, cap: 10, width: 6 },
-                   hitSound: 'blunt', carry: { arm: 1.10, tilt: 0.50 } },    // ball dangling straight down
+                   hitSound: 'blunt', carry: { arm: -1.05, tilt: -1.95 } },  // cocked back over the shoulder, ready to whirl
   shield:        { archetype: 'bash',   dur:  8, a0:  0.15, a1: -0.05, ease: 'linear', tilt: 0.0, tipLen: 16,
                    reach: { r0: 0.5, r1: 1.0, ease: 'jab' }, hitFracs: [0.7, 1.0], trail: { life: 0, cap: 0, width: 0 },
                    hitSound: 'clang', carry: { arm: 0.35, tilt: 0.0 } },     // held braced in front
   electricstaff: { archetype: 'strike', dur: 11, a0: -0.95, a1: 1.25, ease: 'snap',   tilt: 0.6,  tipLen: 30, trail: { life: 11, cap: 8, width: 6 },
-                   hitSound: 'zap', carry: { arm: 0.70, tilt: -1.30 } },     // walking-staff, held upright
+                   hitSound: 'zap', carry: { arm: 0.70, tilt: -2.10 } },     // walking-staff, held upright
   glassblade:    { archetype: 'slash',  dur:  6, a0: -0.70, a1: 1.10, ease: 'snap',   tilt: 0.55, tipLen: 40, trail: { life: 10, cap: 7, width: 4 },
-                   hitSound: 'slash' },
+                   hitSound: 'slash', carry: { arm: 0.30, tilt: -1.20 } },   // high fencer's guard, point up
   anchor:        { archetype: 'smash',  dur: 13, a0: -1.90, a1: 0.95, ease: 'heavy',  tilt: 0.7,  tipLen: 30, trail: { life: 14, cap: 9, width: 10 },
-                   hitSound: 'blunt', carry: { arm: 0.95, tilt: 0.55 } },    // hauled low, fluke near the floor
+                   hitSound: 'blunt', carry: { arm: 1.00, tilt: -0.55 } },   // dragged, fluke on the floor
   fragment:      { archetype: 'jab',    dur:  7, a0:  0.12, a1: -0.10, ease: 'linear', tilt: 0.0, tipLen: 16, alternate: true,
                    reach: { r0: 0.4, r1: 1.0, ease: 'jab' }, trail: { life: 0, cap: 0, width: 0 },
                    carry: { arm: -0.35, lArm: -0.60 } },
@@ -885,11 +1016,76 @@ function swingArcP(p, lead, easeWindup) {
   if (p < hold) return { p: 0, wind: p / hold, hold };
   return { p: (p - hold) / (1 - hold), wind: 0, hold };
 }
+// Move keys between frames. Ease names are the ones the move tables use.
+function _swingKeyEase(e, u) {
+  if (e === 'out') return 1 - (1 - u) * (1 - u);
+  if (e === 'in')  return u * u;
+  if (e === 'io')  return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  return u;
+}
+// A keyed move's arm angle and reach at a (fractional) frame, facing right.
+function swingKeysAt(g, frame) {
+  const k = g.keys;
+  if (frame <= k[0].t) return { ang: k[0].a, reachFrac: k[0].r === undefined ? 1 : k[0].r };
+  for (let i = 1; i < k.length; i++) {
+    const b = k[i];
+    if (frame > b.t && i < k.length - 1) continue;
+    const a = k[i - 1];
+    const u = b.t > a.t ? _swingKeyEase(b.e, Math.min(1, Math.max(0, (frame - a.t) / (b.t - a.t)))) : 1;
+    const ra = a.r === undefined ? 1 : a.r, rb = b.r === undefined ? 1 : b.r;
+    return { ang: a.a + (b.a - a.a) * u, reachFrac: ra + (rb - ra) * u };
+  }
+  const z = k[k.length - 1];
+  return { ang: z.a, reachFrac: z.r === undefined ? 1 : z.r };
+}
+// Give each move the weapon's own fields (tipLen, tilt, trail, sound) and its strike arc,
+// the angles at the first and last active frame, which the slash VFX draws.
+function _resolveSwingMoves() {
+  for (const key in WEAPON_SWINGS) {
+    const g = WEAPON_SWINGS[key];
+    if (!g.moves || g.moves._resolved) continue;
+    const fill = mv => {
+      for (const f in g) if (f !== 'moves' && f !== 'keys' && mv[f] === undefined) mv[f] = g[f];
+      mv.a0 = swingKeysAt(mv, mv.startup).ang;
+      mv.a1 = swingKeysAt(mv, mv.startup + mv.active).ang;
+      mv.weaponKey = key;
+    };
+    (g.moves.string || []).forEach(fill);
+    if (g.moves.air) fill(g.moves.air);
+    g.moves._resolved = true;
+  }
+}
+_resolveSwingMoves();
+// Online: the id of the move a fighter is playing (0 = its plain swing), and applying it to a remote copy.
+function _netMoveId(f) {
+  const g = f && f.attackTimer > 0 && typeof f._swingG === 'function' ? f._swingG() : null;
+  return (g && g.keys) ? g.id : 0;
+}
+function _netApplyMove(f, id) {
+  if (!f) return;
+  const mv = swingMoveById(id);
+  f._swingMv = mv;
+  if (mv && typeof CLASH_TIER_ATTACK !== 'undefined') f._attackKindTier = CLASH_TIER_ATTACK;
+}
+// A move by its id ('axe:chop'), for online sync. null when unknown.
+function swingMoveById(id) {
+  if (!id) return null;
+  const g = WEAPON_SWINGS[String(id).split(':')[0]], ml = g && g.moves;
+  if (!ml) return null;
+  if (ml.air && ml.air.id === id) return ml.air;
+  return (ml.string || []).find(m => m.id === id) || null;
+}
+
+// weaponKey may be a swing entry itself (a move from a weapon's move list).
 function swingPose(weaponKey, atkP, facing, alt, lead) {
-  const g = WEAPON_SWINGS[weaponKey];
+  const g = (weaponKey && typeof weaponKey === 'object') ? weaponKey : WEAPON_SWINGS[weaponKey];
   let p = Math.min(1, Math.max(0, atkP));
   let ang, reachFrac = 1;
-  if (g) {
+  if (g && g.keys) {
+    // Hand-keyed move: the keys already hold the wind-up, so lead is ignored.
+    const s = swingKeysAt(g, p * g.dur);
+    ang = s.ang; reachFrac = s.reachFrac;
+  } else if (g) {
     let a0 = g.a0, a1 = g.a1;
     // altOff lets a weapon set its own two-pose alternation (the whip).
     if (g.alternate) { const off = alt ? (g.altOff ? g.altOff[0] : 0.30) : (g.altOff ? g.altOff[1] : -0.12); a0 += off; a1 += off; }

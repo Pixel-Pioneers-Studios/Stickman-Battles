@@ -26,7 +26,7 @@
  *                 Nov 17 2026: system Chrome 157 detaches the page frame under puppeteer 25 on every run.
  *   --pilot       cascade (default; the scripted F7 Sovereign) or brain (the neural
  *                 net that drives the shipped Sovereign fight, pressing virtual keys)
- *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/latest.json)
+ *   --ckpt        brain checkpoint for --pilot=brain  (default data/brain/sovereign-20011-cand.json)
  *   --progress    give the pilot the skill-tree nodes a player could own by each chapter.
  *                 Value = a results.json from an earlier run (its measured EXP per chapter is
  *                 the income), or 'auto' (72 EXP = 6 kills per chapter everywhere). Without it
@@ -107,7 +107,8 @@ function progressTree(id) {
   for (const k of SKILL_ORDER) { if (SKILL_COST[k] > exp) break; sk[k] = true; exp -= SKILL_COST[k]; }
   return sk;
 }
-const CKPT       = String(args.ckpt || 'data/brain/latest.json');
+// Pinned to 20011: latest.json (24212, Sovereign's test fight) goes 0/16 in story crowds (docs/sovereign.md, Nov 21).
+const CKPT       = String(args.ckpt || 'data/brain/sovereign-20011-cand.json');
 const STAMP      = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const OUT        = path.resolve(args.out || path.join(ROOT, 'data', 'level-test', STAMP));
 fs.mkdirSync(OUT, { recursive: true });

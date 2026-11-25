@@ -528,7 +528,7 @@ function _drawSpectatorLabel() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = 'rgba(180,200,255,0.9)';
-  ctx.fillText('👁  SPECTATING — Respawning soon', canvas.width / 2, canvas.height - Math.round(32 * sc));
+  ctx.fillText('SPECTATING · respawning soon', canvas.width / 2, canvas.height - Math.round(32 * sc));
   ctx.restore();
 }
 

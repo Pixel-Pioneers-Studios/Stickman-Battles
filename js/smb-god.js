@@ -185,7 +185,7 @@ function _showGodFakeCrash() {
       position:fixed;inset:0;z-index:99999;
       background:rgba(4,0,12,0.97);
       display:flex;align-items:center;justify-content:center;
-      font-family:'Segoe UI',Arial,sans-serif;
+      font-family:var(--font-ui);
       animation:_gcFadeIn 0.25s ease;
     }
     @keyframes _gcFadeIn { from{opacity:0} to{opacity:1} }
@@ -216,7 +216,7 @@ function _showGodFakeCrash() {
         margin-bottom:20px;max-height:140px;overflow-y:auto;word-break:break-all;
         border:1px solid rgba(255,80,80,0.2);">
         Your presence is not accepted here.
-        <div style="margin-top:8px;font-family:'Segoe UI',Arial,sans-serif;font-size:0.72rem;color:#c9b8ff;word-break:normal;">
+        <div style="margin-top:8px;font-family:var(--font-ui);font-size:0.72rem;color:#c9b8ff;word-break:normal;">
           This is not a real crash. It is part of the game: something in this world has noticed you. Your saved progress is safe.
         </div>
       </div>

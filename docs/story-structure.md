@@ -139,3 +139,14 @@ const dup=[...new Set(ids.filter((v,i)=>ids[i+1]===v))];if(dup.length)console.lo
 for(let i=0;i<=ids.at(-1);i++)if(!ids.includes(i))console.log("GAP at",i);
 '
 ```
+
+## First-run opening (Nov 22 2026)
+
+On a fresh save, the home Story click runs one continuous opening (`storyFirstRunOpening()` in `js/story/smb-story-config.js`):
+
+1. The difficulty picker (`_showStoryDifficultyPicker(true, onPicked)`).
+2. Axiom's Tuesday cold open (`TuesdayPrologue.play(done, { toBlack: true })`). The phone fills the frame and goes dark instead of flooding into the menu.
+3. Kael's prologue (`_PROLOGUE_LINES`, `_showPrologue(done, { instant: true })`) on the same black.
+4. Begin starts chapter 1 through `continueStory()`. There is no chapter-list stop.
+
+Three clicks from home to the first fight: Story, a difficulty, Begin. Both Tuesdays stay whole. Canon reuses the seam line so it is heard first as Axiom's origin and then as the player's own (docs/canon.md, TUESDAY). Saves with a difficulty, a seen prologue or any progress skip all of this and get the usual Story panel.

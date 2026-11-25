@@ -282,10 +282,10 @@ function _updateContinueStoryBtn() {
   if (!_story2 || typeof STORY_CHAPTERS2 === 'undefined') return;
   const nextIdx = _story2.chapter || 0;
   if (nextIdx >= STORY_CHAPTERS2.length) {
-    btn.textContent = '✓ Story Complete';
+    // Hidden, not disabled: a dead button in the banner shape made the screen read as two banners (style guide 9).
+    btn.textContent = 'Story Complete';
     btn.disabled    = true;
-    btn.style.opacity  = '0.45';
-    btn.style.cursor   = 'default';
+    btn.style.display = 'none';
   } else {
     // Skip menuHidden chapters to get the visible title
     let visIdx = nextIdx;
@@ -293,6 +293,7 @@ function _updateContinueStoryBtn() {
     const ch = STORY_CHAPTERS2[visIdx] || STORY_CHAPTERS2[nextIdx];
     btn.textContent = '▶ Continue Story' + (ch ? ' — ' + ch.title : '');
     btn.disabled    = false;
+    btn.style.display = '';
     btn.style.opacity = '1';
     btn.style.cursor  = 'pointer';
   }
@@ -454,12 +455,12 @@ const _ST_POS = {
   lastStrike:       { x: 330, y: 130 },
   echoRage:         { x: 305, y: 210 },
   mirrorFracture:   { x: 358, y: 210 },
-  temporalBreak:    { x: 292, y: 290 },
+  temporalBreak:    { x: 305, y: 290 },
   // Mastery sits at the bottom and is gated behind the other branches.
   masterRoot:       { x: 390, y: 400 },
-  fragmentHunger:   { x: 348, y: 475 },
-  architects:       { x: 432, y: 475 },
-  coreCollapse:     { x: 440, y: 530 },
+  fragmentHunger:   { x: 348, y: 460 },
+  architects:       { x: 432, y: 460 },
+  coreCollapse:     { x: 495, y: 515 },
   fastMove1:        { x: 458, y: 130 },
   fastMove2:        { x: 478, y: 210 },
   fastMove3:        { x: 488, y: 290 },
@@ -750,7 +751,14 @@ function _renderSkillTreeModal() {
       ctx.font         = `700 9.5px ${FONT_UI}`;
       ctx.textAlign    = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillText(n.name, n.x, n.y + R + 6);
+      // Nodes on a row sit ~36px apart, so a name wider than its diamond stacks onto two lines.
+      const _sp = n.name.indexOf(' ');
+      if (_sp > 0 && ctx.measureText(n.name).width > R * 2 + 6) {
+        ctx.fillText(n.name.slice(0, _sp), n.x, n.y + R + 6);
+        ctx.fillText(n.name.slice(_sp + 1), n.x, n.y + R + 16);
+      } else {
+        ctx.fillText(n.name, n.x, n.y + R + 6);
+      }
       ctx.shadowBlur = 0;
 
       ctx.restore();
@@ -981,7 +989,7 @@ const _PROLOGUE_LINES = [
   { text: 'It found you.',                                    delay: 7200 },
 ];
 
-function _showPrologue(onDone) {
+function _showPrologue(onDone, opts) {
   let ov = document.getElementById('prologueOverlay');
   if (!ov) {
     ov = document.createElement('div');
@@ -1002,39 +1010,26 @@ function _showPrologue(onDone) {
   ov.innerHTML = '';
   ov.appendChild(linesEl);
 
+  // The screen's one action is the banner button (style guide: components).
   const btn = document.createElement('button');
-  btn.textContent = '▶  Begin Your Story';
-  btn.style.cssText = [
-    'margin-top:48px', 'padding:12px 36px',
-    'background:linear-gradient(135deg,#3a1a6a,#6a2a9a)',
-    'color:#fff', 'border:1px solid rgba(180,100,255,0.4)',
-    'border-radius:8px', 'font-size:1rem', 'letter-spacing:1px',
-    'cursor:pointer', 'opacity:0', 'transition:opacity 0.6s ease',
-    'font-family:inherit',
-  ].join(';');
-  btn.onmouseover = () => { btn.style.background = 'linear-gradient(135deg,#5a2a9a,#8a3abb)'; };
-  btn.onmouseout  = () => { btn.style.background = 'linear-gradient(135deg,#3a1a6a,#6a2a9a)'; };
+  btn.className = 'b b-primary';
+  btn.textContent = 'Begin';
+  btn.style.cssText = 'margin-top:clamp(16px,5vh,44px);opacity:0;transition:opacity 0.6s ease;';
   ov.appendChild(btn);
 
   const hint = document.createElement('div');
   hint.textContent = 'press any key to skip';
-  hint.style.cssText = 'position:absolute;bottom:26px;font-size:0.7rem;letter-spacing:1px;color:rgba(200,200,220,0.4);font-family:inherit;';
+  hint.style.cssText = 'position:absolute;bottom:26px;font-size:0.7rem;letter-spacing:1px;color:rgba(200,200,220,0.62);font-family:inherit;';
   ov.appendChild(hint);
 
   const bail = document.createElement('button');
-  bail.textContent = 'Just let me fight →';
-  bail.style.cssText = [
-    'position:absolute', 'top:22px', 'right:24px',
-    'padding:7px 16px', 'background:rgba(255,255,255,0.06)',
-    'color:rgba(230,230,245,0.75)', 'border:1px solid rgba(255,255,255,0.18)',
-    'border-radius:6px', 'font-size:0.76rem', 'letter-spacing:0.5px',
-    'cursor:pointer', 'font-family:inherit',
-  ].join(';');
-  bail.onmouseover = () => { bail.style.background = 'rgba(255,255,255,0.14)'; };
-  bail.onmouseout  = () => { bail.style.background = 'rgba(255,255,255,0.06)'; };
+  bail.className = 'b b-secondary';
+  bail.textContent = 'Just let me fight';
+  bail.style.cssText = 'position:absolute;top:22px;right:24px;';
   ov.appendChild(bail);
 
-  ov.style.opacity = '0';
+  // instant: the first-run opening hands over from the Tuesday scene's black, so no fade from the menu.
+  ov.style.opacity = (opts && opts.instant) ? '1' : '0';
   ov.style.display = 'flex';
   requestAnimationFrame(() => { ov.style.opacity = '1'; });
 
@@ -1044,7 +1039,8 @@ function _showPrologue(onDone) {
       const p = document.createElement('p');
       p.textContent = line.text;
       p.style.cssText = [
-        'margin:0 0 18px', 'font-size:1.3rem', 'color:#dde4ff',
+        // Sized by height too, so the whole crawl and Begin fit the 918x470 embed.
+        'margin:0 0 clamp(6px,1.8vh,18px)', 'font-size:clamp(1rem,2.4vh + 0.35rem,1.3rem)', 'color:#dde4ff',
         'font-family:Georgia,serif', 'font-style:italic',
         'opacity:0', 'transition:opacity 1.2s ease',
         line.text === '...' ? 'letter-spacing:6px; color:#667' : '',
@@ -1055,7 +1051,8 @@ function _showPrologue(onDone) {
   });
 
   const lastDelay = _PROLOGUE_LINES[_PROLOGUE_LINES.length - 1].delay + 1400;
-  setTimeout(() => { btn.style.opacity = '1'; }, lastDelay);
+  // Begin replaces the skip hint (any key still dismisses), so the two never overlap on short screens.
+  setTimeout(() => { btn.style.opacity = '1'; hint.style.transition = 'opacity 0.6s ease'; hint.style.opacity = '0'; }, lastDelay);
 
   let _dismissed = false;
   function dismiss(e, after) {

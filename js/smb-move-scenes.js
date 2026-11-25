@@ -284,7 +284,7 @@ const MS_PROTO = {
   body(f) {
     let b = this.bodies.get(f);
     if (!b) {
-      b = { f, x: f.x, y: f.y, vx: 0, vy: 0, g: 0, kin: false, rot: 0, spin: 0, pose: null };
+      b = { f, x: f.x, y: f.y, vx: 0, vy: 0, g: 0, kin: false, rot: 0, spin: 0, pose: null, pf: f.y + (f.h || 60) };
       this.bodies.set(f, b);
     }
     return b;
@@ -303,11 +303,17 @@ const MS_PROTO = {
       if (cx > R) { cx = R; if (b.vx > 0) b.vx = 0; }
     }
     b.x = cx - w / 2;
-    const top = _msGroundTop(cx, b.y + h - Math.max(0, b.vy) - 2, 900);
+    // Swept from where the feet were at the last clamp: a blink (Falling Draw moves 120 px
+    // down in one frame) must still land on a floor it passed through, not end up under it.
+    let from = b.y + h - Math.max(0, b.vy) - 2;
+    // (+16 cancels _msGroundTop's 14 px step-up: only floors strictly below the old feet count.)
+    if (b.pf !== undefined && b.pf + 16 < from) from = b.pf + 16;
+    const top = _msGroundTop(cx, from, 900);
     if (top !== null && b.y + h > top) {
       b.y = top - h;
       if (b.vy > 0) { b.vy = 0; b.landed = true; }
     }
+    b.pf = b.y + h;
   },
 
   // Performer: forward motion along facing, never past the span.
@@ -394,7 +400,7 @@ const MS_PROTO = {
     this.landed = true;
     if (!this.victims.includes(t)) this.victims.push(t);
     const b = this.body(t);
-    b.x = t.x; b.y = t.y; b.kin = false; b.vx = 0; b.vy = 0;
+    b.x = t.x; b.y = t.y; b.pf = t.y + t.h; b.kin = false; b.vx = 0; b.vy = 0;
     t.shielding = false;
     t.attackTimer = 0;
     return true;

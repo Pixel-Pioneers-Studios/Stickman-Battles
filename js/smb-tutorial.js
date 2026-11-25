@@ -314,8 +314,11 @@ function drawTutorial(ctx) {
 
   if (_tutBannerTimer > 0) {
     ctx.globalAlpha = Math.min(1, _tutBannerTimer / 30);
-    ctx.fillStyle = '#66ffaa';
+    // Palette gold with an ink stroke, like the announcer (style guide: colour; was off-palette #66ffaa).
     ctx.font = `26px ${FONT_DISPLAY}`;
+    ctx.lineWidth = 4; ctx.strokeStyle = '#07060C'; ctx.lineJoin = 'round';
+    ctx.strokeText('GOOD', cw / 2, y + h + 40);
+    ctx.fillStyle = '#E2B255';
     ctx.fillText('GOOD', cw / 2, y + h + 40);
   }
 

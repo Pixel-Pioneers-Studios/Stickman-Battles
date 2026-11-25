@@ -72,7 +72,7 @@
       'border-radius:9px',
       'padding:9px 16px',
       'color:' + color,
-      "font-family:'Segoe UI',Arial,sans-serif",
+      "font-family:var(--font-ui)",
       'font-size:0.80rem',
       'max-width:280px',
       'line-height:1.4',
@@ -113,7 +113,7 @@
       'position:fixed', 'inset:0', 'z-index:999999',
       'background:rgba(0,0,0,0.88)',
       'display:flex', 'align-items:center', 'justify-content:center',
-      "font-family:'Segoe UI',Arial,sans-serif",
+      "font-family:var(--font-ui)",
     ].join(';');
 
     const box = document.createElement('div');
@@ -191,7 +191,7 @@
         'background:linear-gradient(90deg,rgba(255,175,0,0.16),rgba(255,80,0,0.09))',
         'border-bottom:1px solid rgba(255,175,0,0.32)',
         'color:#ffcc66',
-        "font-family:'Segoe UI',Arial,sans-serif",
+        "font-family:var(--font-ui)",
         'font-size:0.76rem', 'text-align:center',
         'padding:4px 12px', 'letter-spacing:0.04em',
         'pointer-events:none',

@@ -378,10 +378,12 @@ const ARENAS = {
     ]
   },
   volcano: {
-    sky:            ['#1a0500', '#3d1000'],
+    // Night eruption: violet sky, basalt ledges, orange only where rock is molten, blue lightning in the column.
+    // Lava is the open lake at dusk; the two must not read as one place (Phase 4).
+    sky:            ['#12061c', '#3a0f2e'],
     groundColor:    '#5a1800',
-    platColor:      '#6b2b0a',
-    platEdge:       '#8b3a0f',
+    platColor:      '#3c2a3a',
+    platEdge:       '#5c3f52',
     hasLava:        true,
     isHeavyGravity: true,
     lavaY:          490,

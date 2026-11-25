@@ -370,6 +370,12 @@ window.BalanceSim = (function () {
   // --no-abilities: ablate every weapon Q. Basic-attack stats and abilities are
   // two separate balance surfaces and the sweep cannot tell them apart; running
   // the same table with abilities off says which surface the ranking lives on.
+  // --no-moves: weapons with a move list (WEAPON_SWINGS[k].moves) fall back to their one plain swing,
+  // for a before/after read of a move string (docs/fighting-animation-plan.md).
+  if (args['no-moves']) {
+    await page.evaluate(() => { for (const k in WEAPON_SWINGS) if (WEAPON_SWINGS[k].moves) WEAPON_SWINGS[k].moves = null; });
+    log('MOVE LISTS OFF — every weapon uses its plain swing');
+  }
   if (args['no-abilities']) {
     await page.evaluate(() => { Fighter.prototype.ability = function () {}; });
     log('ABILITIES ABLATED — basic attacks only');

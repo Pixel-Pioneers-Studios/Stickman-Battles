@@ -7968,6 +7968,8 @@ input[type="color"] {
 
 /* Unlock toast: ink plate; the tier keeps its own rim colour */
 .ach-notif {
+  /* Top-right under the home icon bar: bottom-right sat on the FIGHT banner. */
+  top: 64px; bottom: auto;
   background: linear-gradient(180deg, rgba(21,17,29,0.96), rgba(7,6,12,0.96));
   border-radius: 2px;
   box-shadow: 0 0 0 2px var(--sh-ink), 0 10px 24px rgba(0,0,0,0.5);
@@ -8202,7 +8204,7 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
   animation: h2In 0.42s cubic-bezier(.2,.8,.2,1) both;
   animation-delay: calc(var(--h2-i, 0) * 38ms + 60ms);
 }
-.h2-item .h2-label { display: inline-block; transform: skewX(-6deg); }
+.h2-item .h2-label { display: inline-block; }   /* upright: Russo One is never skewed (style guide, type) */
 .h2-item::before {
   content: ''; position: absolute; left: -14px; top: 50%;
   width: 6px; height: 0.9em; margin-top: -0.45em;
@@ -8356,3 +8358,32 @@ body.prequel-open #menu, body.prequel-open #homeCanvas, body.prequel-open #gameC
 }
 @keyframes slIn { from { opacity: 0; transform: translateY(-10px) scale(0.98); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { #splashLogo { animation: none; } }
+
+/* Motion (visual overhaul Phase 5). The setup screen arrives the way the home list does:
+   same curve, short rise, rows staggered. It replays whenever the screen or a row is shown.
+   fill-mode backwards, so a row's own transform applies once it lands. Input is live throughout. */
+#menuConfigContent > * { animation: cfgIn 0.26s cubic-bezier(.2,.8,.2,1) backwards; }
+#menuConfigContent > :nth-child(2)  { animation-delay: 30ms; }
+#menuConfigContent > :nth-child(3)  { animation-delay: 60ms; }
+#menuConfigContent > :nth-child(4)  { animation-delay: 60ms; }
+#menuConfigContent > :nth-child(5)  { animation-delay: 90ms; }
+#menuConfigContent > :nth-child(6)  { animation-delay: 90ms; }
+#menuConfigContent > :nth-child(7)  { animation-delay: 120ms; }
+#menuConfigContent > :nth-child(8)  { animation-delay: 120ms; }
+#menuConfigContent > :nth-child(9)  { animation-delay: 150ms; }
+#menuConfigContent > :nth-child(10) { animation-delay: 170ms; }
+@keyframes cfgIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #menuConfigContent > *, .h2-item { animation: none !important; }
+}
+/* The fighter panels arrive from their own edges as the setup screen opens. */
+#menu:not(.menu-home) .menu-side.left  { animation: sideInL 0.3s cubic-bezier(.2,.8,.2,1) backwards; }
+#menu:not(.menu-home) .menu-side.right { animation: sideInR 0.3s cubic-bezier(.2,.8,.2,1) 40ms backwards; }
+@keyframes sideInL { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes sideInR { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .menu-side { animation: none !important; } }
+
+/* Sub-panels (story hub, simulator): no logo. It fell back to the centred layout under the toolbar and
+   covered the coin plate (at the 918x470 embed it hid behind the icons). Home, one click back, keeps it. */
+#menu.home-v2.h2-sub #menuHomeContent > .game-title,
+#menu.home-v2.h2-sub #menuHomeContent > .game-titlemark { display: none; }

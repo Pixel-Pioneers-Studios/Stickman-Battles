@@ -539,6 +539,8 @@ function _openStoryPathPanel() {
 }
 
 function openStoryPath() {
+  // Fresh save: the merged first-run opening (smb-story-config.js) takes the click.
+  if (typeof storyFirstRunOpening === 'function' && storyFirstRunOpening()) return;
   // First Story open plays the Tuesday cold open, then reveals the panel. maybePlayTuesdayPrologue()
   // lives in smb-menu-utils.js, which loads later. Fine at click time.
   if (typeof maybePlayTuesdayPrologue === 'function' &&

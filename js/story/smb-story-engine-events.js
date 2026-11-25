@@ -220,7 +220,7 @@ function _showMidFightUnlock(opts) {
       'border-radius:14px',
       'padding:22px 36px',
       'text-align:center',
-      'font-family:"Segoe UI",Arial,sans-serif',
+      'font-family:var(--font-ui)',
       'pointer-events:none',
       'opacity:0',
       'transition:opacity 0.25s ease, transform 0.25s ease',
@@ -289,7 +289,7 @@ function _showBossCinematicIntro(_bossRef, ch) {
       'background:#000',
       'display:flex', 'flex-direction:column',
       'align-items:center', 'justify-content:center',
-      'font-family:"Segoe UI",Arial,sans-serif',
+      'font-family:var(--font-ui)',
       'opacity:0', 'transition:opacity 0.5s',
     ].join(';');
     document.body.appendChild(ov);

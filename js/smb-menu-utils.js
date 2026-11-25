@@ -106,7 +106,7 @@ selectLives(chosenLives);
 // Tuesday cold open: plays once, on the first Story open.
 // openStoryPath() calls this and the panel opens when the scene ends.
 // Returns true if the prologue took over (caller defers UI to the callback), false if already seen or unavailable.
-function maybePlayTuesdayPrologue(onDone) {
+function maybePlayTuesdayPrologue(onDone, opts) {
   var seen = false;
   try { seen = !!(typeof _story2 !== 'undefined' && _story2 && _story2.tuesdaySeen); } catch (e) {}
   try { if (localStorage.getItem('smb_tuesday_seen') === '1') seen = true; } catch (e) {}
@@ -121,7 +121,7 @@ function maybePlayTuesdayPrologue(onDone) {
   try {
     return !!TuesdayPrologue.play(function () {
       if (typeof onDone === 'function') onDone();
-    });
+    }, opts);
   } catch (e) {
     if (typeof onDone === 'function') onDone();
     return false;
@@ -214,6 +214,14 @@ function drawEdgeIndicators(scX, scY, camCX, camCY) {
       for (const r of window._hudAvoid) {
         if (ix > r.x - ARROW && ix < r.x + r.w + ARROW && iy > r.y - ARROW && iy < r.y + r.h + ARROW) {
           iy = Math.min(canvas.height - MARGIN, r.y + r.h + ARROW + 18);
+        }
+      }
+    }
+    // Battle Royale's minimap and item slots sit on the bottom edge: lift the arrow (and its name/distance lines) above them.
+    if (gameMode === 'battleroyale' && typeof brHudAvoidRects === 'function') {
+      for (const r of brHudAvoidRects()) {
+        if (ix > r.x - ARROW && ix < r.x + r.w + ARROW && iy > r.y - ARROW - 26) {
+          iy = r.y - ARROW - 26;
         }
       }
     }

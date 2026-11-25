@@ -2328,8 +2328,9 @@ function drawBattleRoyaleWorld() {
     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(gi.x, gi.y, 8, 0, Math.PI * 2); ctx.stroke();
     ctx.shadowBlur  = 0;
-    ctx.font = `10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
-    ctx.fillText(gi.item.icon || '?', gi.x, gi.y + 4);
+    // Drawn glyph instead of the emoji (emoji differ by OS). Half size, so it sits inside the 8px disc.
+    if (typeof _exploreItemGlyph === 'function') { ctx.save(); ctx.translate(gi.x, gi.y); ctx.scale(0.5, 0.5); _exploreItemGlyph(gi.item.type, 0, 0, '#ffffff'); ctx.restore(); }
+    else { ctx.font = `10px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(gi.item.icon || '?', gi.x, gi.y + 4); }
     if (gi._pickT > 0) {
       ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 2.5;
       ctx.beginPath();
@@ -2396,7 +2397,7 @@ function drawBattleRoyaleHUD() {
   ctx.font = `bold 15px ${FONT_UI}`; ctx.textAlign = 'center';
   var cStr = brStoryBearers
     ? '◈ ' + brAlive + ' / ' + brFieldTotal + '  BEARERS'
-    : '🏆 ' + brAlive + ' / ' + brFieldTotal;
+    : brAlive + ' / ' + brFieldTotal + ' left';
   var cW   = ctx.measureText(cStr).width + 24;
   ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(GAME_W / 2 - cW / 2, _brTopY, cW, 26);
   ctx.fillStyle = '#fff'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
@@ -2470,8 +2471,9 @@ function drawBattleRoyaleHUD() {
     ctx.strokeRect(sx, iby, slotW, slotH);
     if (item) {
       ctx.shadowColor = item.color; ctx.shadowBlur = 7;
-      ctx.font = `22px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
-      ctx.fillText(item.icon, sx + slotW / 2, iby + 30); ctx.shadowBlur = 0;
+      if (typeof _exploreItemGlyph === 'function') _exploreItemGlyph(item.type, sx + slotW / 2, iby + 22, item.color);
+      else { ctx.font = `22px ${FONT_UI}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(item.icon, sx + slotW / 2, iby + 30); }
+      ctx.shadowBlur = 0; ctx.textAlign = 'center';
       ctx.font = `7px ${FONT_UI}`; ctx.fillStyle = '#ccc';
       ctx.fillText((item.label || item.type).slice(0, 8), sx + slotW / 2, iby + slotH - 5);
     }
@@ -2519,6 +2521,17 @@ function drawBattleRoyaleHUD() {
   ctx.restore();
 }
 
+// Bottom HUD blocks in canvas pixels (minimap, item slots), for drawEdgeIndicators to keep its arrows above.
+// Geometry must match _drawBRMinimap and the slot row in drawBattleRoyaleHUD.
+function brHudAvoidRects() {
+  var sx = canvas.width / GAME_W, sy = canvas.height / GAME_H;
+  var totW = 5 * 50 + 4 * 5;
+  return [
+    { x: (GAME_W - 268) * sx, y: (GAME_H - 82) * sy, w: 260 * sx, h: 74 * sy }, // includes the MAP title above the box
+    { x: (GAME_W - totW) / 2 * sx, y: (GAME_H - 74) * sy, w: totW * sx, h: 50 * sy },
+  ];
+}
+
 // Minimap
 function _drawBRMinimap() {
   // The world is a 12000x1600 strip, so the minimap is a strip too. A square box would squash it and make every distance wrong.
@@ -2549,6 +2562,7 @@ function _drawBRMinimap() {
 
   // Landmark bands: the minimap shows where the volcano is, not individual platforms.
   if (typeof BR_LANDMARKS !== 'undefined') {
+    var _mmLabels = [];
     BR_LANDMARKS.forEach(function(L) {
       if (L.kind === 'open') return;
       var bx = mmX + L.x * scX, bw = Math.max(2, L.w * scX);
@@ -2556,9 +2570,20 @@ function _drawBRMinimap() {
                     : L.danger >= 2 ? 'rgba(255,200,60,0.20)'
                                     : 'rgba(120,170,255,0.18)';
       ctx.fillRect(bx, mmY + 10, bw, mmH - 20);
-      ctx.fillStyle = 'rgba(220,235,255,0.75)';
-      ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'center';
-      ctx.fillText(L.name.replace('The ', '').slice(0, 9), bx + bw / 2, mmY + mmH - 5);
+      _mmLabels.push({ t: L.name.replace('The ', '').slice(0, 9), cx: bx + bw / 2 });
+    });
+    // Neighbouring landmarks are closer than their names: a label that would overlap moves to the top row, and drops if both rows are taken.
+    _mmLabels.sort(function(a, b) { return a.cx - b.cx; });
+    ctx.fillStyle = 'rgba(220,235,255,0.75)';
+    ctx.font = `bold 7px ${FONT_UI}`; ctx.textAlign = 'center';
+    var _rowEnd = [-1e9, -1e9];
+    _mmLabels.forEach(function(lb) {
+      var hw = ctx.measureText(lb.t).width / 2 + 2;
+      lb.cx = Math.max(mmX + hw, Math.min(mmX + mmW - hw, lb.cx));
+      var row = lb.cx - hw >= _rowEnd[0] ? 0 : lb.cx - hw >= _rowEnd[1] ? 1 : -1;
+      if (row < 0) return;
+      _rowEnd[row] = lb.cx + hw;
+      ctx.fillText(lb.t, lb.cx, row === 0 ? mmY + mmH - 5 : mmY + 8);
     });
   }
   ctx.fillStyle = 'rgba(80,100,140,0.55)';
@@ -2614,5 +2639,5 @@ function _drawBRMinimap() {
 
   ctx.font = `bold 8px ${FONT_UI}`; ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(150,180,255,0.7)';
-  ctx.fillText('MAP', mmX + 3, mmY + 9);
+  ctx.fillText('MAP', mmX + 1, mmY - 3);
 }

@@ -28,7 +28,8 @@ function drawStorySubtitle() {
   if (!storyFightSubtitle || storyFightSubtitle.timer <= 0) return;
   storyFightSubtitle.timer--;
 
-  const { text, timer, maxTimer, color, speaker } = storyFightSubtitle;
+  const { timer, maxTimer, color, speaker } = storyFightSubtitle;
+  const text = typeof smbStripEmoji === 'function' ? smbStripEmoji(storyFightSubtitle.text) : storyFightSubtitle.text;
   const fadeIn  = Math.min(1, (maxTimer - timer) / 20);
   const fadeOut = Math.min(1, timer / 30);
   const alpha   = Math.min(fadeIn, fadeOut);

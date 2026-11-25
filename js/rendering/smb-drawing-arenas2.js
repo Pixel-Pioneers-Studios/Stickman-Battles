@@ -295,7 +295,7 @@ function _mirrorBg() {
     shards: Array.from({ length: 16 }, () => ({
       x:     rnd(-30, 930),
       y:     rnd(20, 460),
-      r:     rnd(16, 58),
+      r:     rnd(14, 40),
       rot:   rnd(0, 6.28),
       spin:  rnd(-0.004, 0.004),
       drift: rnd(0.004, 0.012),
@@ -337,7 +337,7 @@ function drawMirrorArena() {
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2 + f * 0.0015;
     const g = ctx.createLinearGradient(0, 0, Math.cos(a) * 420, Math.sin(a) * 420);
-    g.addColorStop(0, 'rgba(90,150,240,0.13)');
+    g.addColorStop(0, 'rgba(90,150,240,0.065)');
     g.addColorStop(1, 'rgba(200,110,220,0)');
     ctx.fillStyle = g;
     ctx.beginPath();
@@ -413,13 +413,13 @@ function drawMirrorArena() {
     });
     ctx.closePath();
     const gg = ctx.createLinearGradient(-sh.r, -sh.r, sh.r, sh.r);
-    gg.addColorStop(0,   `rgba(${sh.tint},0.30)`);
-    gg.addColorStop(0.45, `rgba(255,255,255,0.16)`);
+    gg.addColorStop(0,   `rgba(${sh.tint},0.18)`);
+    gg.addColorStop(0.45, `rgba(255,255,255,0.08)`);
     gg.addColorStop(1,   `rgba(${sh.tint},0.06)`);
     ctx.fillStyle = gg;
     ctx.fill();
-    ctx.strokeStyle = `rgba(220,242,255,0.55)`;
-    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = `rgba(220,242,255,0.3)`;
+    ctx.lineWidth = 1.1;
     ctx.stroke();
     // Specular streak across the face
     ctx.save();
@@ -427,7 +427,7 @@ function drawMirrorArena() {
     ctx.globalCompositeOperation = 'lighter';
     const st = ctx.createLinearGradient(-sh.r, 0, sh.r, 0);
     st.addColorStop(0,   'rgba(255,255,255,0)');
-    st.addColorStop(0.5, `rgba(255,255,255,${0.22 + Math.sin(f * 0.03 + sh.phase) * 0.12})`);
+    st.addColorStop(0.5, `rgba(255,255,255,${0.12 + Math.sin(f * 0.03 + sh.phase) * 0.07})`);
     st.addColorStop(1,   'rgba(255,255,255,0)');
     ctx.fillStyle = st;
     ctx.fillRect(-sh.r, -sh.r * 0.3, sh.r * 2, sh.r * 0.6);
@@ -545,8 +545,9 @@ function _uwBg() {
     })),
     // Two shoals. Fish hold a fixed offset from the leader so the group turns together.
     shoals: [
-      { n: 24, cx: 300, cy: 190, rx: 330, ry: 80, spd: 0.0055, phase: 0.0, size: 7,   col: FISH_COL[0] },
-      { n: 18, cx: 560, cy: 350, rx: 280, ry: 60, spd: 0.0080, phase: 2.1, size: 5.5, col: FISH_COL[2] },
+      // Kept high, above the ledges where fighters stand; they are drawn faded as distant fish.
+      { n: 24, cx: 300, cy: 70,  rx: 330, ry: 30, spd: 0.0055, phase: 0.0, size: 6,   col: FISH_COL[0] },
+      { n: 18, cx: 560, cy: 120, rx: 280, ry: 26, spd: 0.0080, phase: 2.1, size: 5,   col: FISH_COL[2] },
     ].map(s => ({
       ...s,
       members: Array.from({ length: s.n }, () => ({
@@ -869,6 +870,9 @@ function drawUnderwaterArena() {
     ctx.restore();
   }
 
+  // Shoals sit behind the fight: faded toward the water colour so they never compete with the fighters.
+  ctx.save();
+  ctx.globalAlpha = 0.42;
   for (const sh of bg.shoals) {
     const ang  = f * sh.spd + sh.phase;
     const lead = { x: sh.cx + Math.cos(ang) * sh.rx, y: sh.cy + Math.sin(ang * 1.7) * sh.ry };
@@ -883,6 +887,7 @@ function drawUnderwaterArena() {
     }
     void lead;
   }
+  ctx.restore();
 
   for (const l of bg.loners) {
     const span = 1200;
@@ -1002,8 +1007,8 @@ function drawVolcanoArena() {
 
   // Ash sky: a hot glow near the ground fading to soot overhead
   const sky = ctx.createLinearGradient(0, 0, 0, ly + 40);
-  sky.addColorStop(0,    'rgba(18,6,4,0.55)');
-  sky.addColorStop(0.55, 'rgba(64,16,6,0.28)');
+  sky.addColorStop(0,    'rgba(30,8,44,0.55)');
+  sky.addColorStop(0.6,  'rgba(70,14,48,0.30)');
   sky.addColorStop(1,    'rgba(190,60,10,0.30)');
   ctx.fillStyle = sky;
   ctx.fillRect(-200, 0, GAME_W + 400, ly + 60);
@@ -1015,17 +1020,19 @@ function drawVolcanoArena() {
     const t2 = ((p.t0 + f * p.spd) % 1);
     const py = 226 - t2 * 260;
     const px = 175 + p.dx * t2 + Math.sin(f * 0.01 + p.phase) * 14 * t2;
-    const r  = p.rx * (0.35 + t2 * 1.5);
-    ctx.globalAlpha = (1 - t2) * 0.30;
+    const r  = p.rx * (0.45 + t2 * 1.9);
+    // The ash column is the volcano's landmark: dense soot, lit orange from the vent below.
+    ctx.globalAlpha = (1 - t2 * 0.7) * 0.5;
     const g = ctx.createRadialGradient(px, py, 2, px, py, r);
-    g.addColorStop(0, t2 < 0.2 ? 'rgba(120,52,20,1)' : 'rgba(58,44,42,1)');
-    g.addColorStop(1, 'rgba(40,30,30,0)');
+    g.addColorStop(0, t2 < 0.18 ? 'rgba(170,70,26,1)' : 'rgba(78,46,78,1)');
+    g.addColorStop(0.6, t2 < 0.18 ? 'rgba(110,40,30,0.6)' : 'rgba(58,32,60,0.6)');
+    g.addColorStop(1, 'rgba(40,20,44,0)');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
   // Volcanic lightning: a rare crack inside the column
-  const strike = (f % 220);
+  const strike = (f % 160);
   if (strike < 7) {
     ctx.globalAlpha = (1 - strike / 7) * 0.85;
     ctx.strokeStyle = '#cfe0ff';
@@ -1033,10 +1040,10 @@ function drawVolcanoArena() {
     ctx.shadowBlur  = 14;
     ctx.lineWidth   = 2;
     ctx.beginPath();
-    let lx = 160 + ((f / 220 | 0) % 5) * 18, lyy = 20;
+    let lx = 160 + ((f / 160 | 0) % 5) * 18, lyy = 20;
     ctx.moveTo(lx, lyy);
     for (let s = 0; s < 7; s++) {
-      lx += Math.sin(s * 3.7 + (f / 220 | 0)) * 22;
+      lx += Math.sin(s * 3.7 + (f / 160 | 0)) * 22;
       lyy += 26;
       ctx.lineTo(lx, lyy);
     }
@@ -2066,17 +2073,17 @@ function drawCloudsArena() {
   const sunX = 726, sunY = 118;
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  const sg = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 230);
-  sg.addColorStop(0,    'rgba(255,250,225,0.9)');
-  sg.addColorStop(0.16, 'rgba(255,226,150,0.35)');
+  const sg = ctx.createRadialGradient(sunX, sunY, 6, sunX, sunY, 170);
+  sg.addColorStop(0,    'rgba(255,250,225,0.85)');
+  sg.addColorStop(0.16, 'rgba(255,226,150,0.24)');
   sg.addColorStop(1,    'rgba(255,200,110,0)');
   ctx.fillStyle = sg;
   ctx.fillRect(sunX - 240, sunY - 240, 480, 480);
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 + f * 0.0012;
-    const len = 210 + Math.sin(f * 0.02 + i) * 40;
+    const len = 160 + Math.sin(f * 0.02 + i) * 30;
     const g = ctx.createLinearGradient(sunX, sunY, sunX + Math.cos(a) * len, sunY + Math.sin(a) * len);
-    g.addColorStop(0, 'rgba(255,238,180,0.16)');
+    g.addColorStop(0, 'rgba(255,238,180,0.10)');
     g.addColorStop(1, 'rgba(255,220,140,0)');
     ctx.fillStyle = g;
     ctx.beginPath();

@@ -290,7 +290,7 @@ function _showArenaVoteScreen(onResolve) {
   const ov = document.createElement('div');
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.94);z-index:9990;' +
     'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-    'font-family:"Segoe UI",Arial,sans-serif;color:#dde4ff;user-select:none;';
+    'font-family:var(--font-ui);color:#dde4ff;user-select:none;';
 
   ov.innerHTML =
     '<h2 style="font-size:1.5rem;letter-spacing:3px;margin:0 0 4px;color:#fff">CHOOSE YOUR ARENA</h2>' +

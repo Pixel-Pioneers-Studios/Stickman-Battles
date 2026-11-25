@@ -33,6 +33,9 @@ const TUES_AFTER = [
 
 var TuesdayPrologue = (function () {
   let cv = null, cx = null, raf = 0, onDone = null, running = false;
+  // toBlack: the first-run opening runs straight on into Kael's prologue, so the phone goes dark
+  // instead of flooding into the menu (there is no menu behind it).
+  let toBlack = false;
   let px = 40, pvx = 0, facing = 1, walkPhase = 0;
   let camX = 0, t = 0, beatIdx = 0, caption = null, capT = 0;
   let phase = 'walk';          // 'walk' | 'ambush' | 'after' | 'out'
@@ -299,7 +302,7 @@ var TuesdayPrologue = (function () {
     }
 
     if (phFlood > 0) {
-      cx.fillStyle = 'rgba(226,238,255,' + Math.min(1, phFlood) + ')';
+      cx.fillStyle = toBlack ? 'rgba(0,0,0,' + Math.min(1, phFlood) + ')' : 'rgba(226,238,255,' + Math.min(1, phFlood) + ')';
       cx.fillRect(0, 0, TUES_W, TUES_H);
     }
 
@@ -340,15 +343,16 @@ var TuesdayPrologue = (function () {
     if (cv) cv.removeEventListener('pointerdown', onSkipClick);
     if (cv && cv.parentNode) cv.parentNode.removeChild(cv);
     cv = null; cx = null;
-    if (!skipped) bezelDissolve();
+    if (!skipped && !toBlack) bezelDissolve();
     const cb = onDone; onDone = null;
     if (typeof cb === 'function') cb(!!skipped);
   }
 
   return {
-    play(done) {
+    play(done, opts) {
       if (running) return;
       onDone = done;
+      toBlack = !!(opts && opts.toBlack);
       px = 40; pvx = 0; facing = 1; walkPhase = 0; camX = 0; t = 0;
       beatIdx = 0; caption = null; capT = 0; phase = 'walk';
       ambT = 0; afterIdx = 0; shake = 0; flash = 0; fade = 0; mugX = 0; mugKb = 0; mugDown = 0; bagGone = false;

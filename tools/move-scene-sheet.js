@@ -15,6 +15,7 @@
  *   node tools/move-scene-sheet.js --all            (every defined scene, log only unless --sheets)
  *
  * --edge starts the pair 120px from the right ledge to check ring-out safety.
+ * --lift=N starts air variants N px off the floor (default 130; under 120 used to blink Falling Draw through it).
  */
 
 const fs   = require('fs');
@@ -57,7 +58,7 @@ function serve() {
   const server = await serve();
   const opts = { headless: 'new', args: ['--no-sandbox', '--disable-gpu', '--mute-audio', '--window-size=1280,800'] };
   const sys = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-  if (fs.existsSync(sys)) opts.executablePath = sys;
+  if (fs.existsSync(sys) && !args.bundled) opts.executablePath = sys;   // --bundled: system Chrome 157 detaches frames
   const browser = await puppeteer.launch(opts);
   const page = await browser.newPage();
   await page.setCacheEnabled(false);
@@ -176,7 +177,7 @@ function serve() {
         if (cfg.victim === 'shield') { p2.shielding = true; }
         const hp0 = p2.health;
         const _merge = /^(aq|qe|ae)/.exec(kind);
-        if (kind.startsWith('air')) { p1.y -= 130; p1.onGround = false; }
+        if (kind.startsWith('air')) { p1.y -= cfg.lift; p1.onGround = false; }
         if (_merge) {
           const m = _merge[1];
           p1.superMeter = 100; p1.superReady = true;
@@ -239,7 +240,7 @@ function serve() {
         out.sheet = sheet.toDataURL('image/png');
       } catch (e) { out.errors.push(String(e && e.stack || e)); }
       return out;
-    }, wk, kind, { frames: FRAMES, every: EVERY, gap: GAP, victim: VICTIM, edge: EDGE, key, ww: parseInt(args.ww, 10) || 380, brk: parseInt(args.break, 10) || 0, left: !!args.left });
+    }, wk, kind, { frames: FRAMES, every: EVERY, gap: GAP, victim: VICTIM, edge: EDGE, key, ww: parseInt(args.ww, 10) || 380, brk: parseInt(args.break, 10) || 0, left: !!args.left, lift: parseInt(args.lift, 10) || 130 });
     if (res.sheet && (args.sheets || !args.all)) {
       const fn = path.join(OUT, `${wk}-${kind.replace(/:/g, '-')}${EDGE ? '-edge' : ''}${VICTIM !== 'idle' ? '-' + VICTIM : ''}${args.break ? '-break' : ''}${args.left ? '-left' : ''}.png`);
       fs.writeFileSync(fn, Buffer.from(res.sheet.split(',')[1], 'base64'));

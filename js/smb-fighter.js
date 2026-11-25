@@ -91,6 +91,15 @@ const BASIC_CHAIN_RESET = 20;
 // Landing with a basic swing still out costs its remaining endlag plus LAND_LAG_FRAMES.
 // An aerial that finishes before touchdown is free.
 const LAND_LAG_FRAMES = 8;
+// A weapon with a move list keeps walking its string while presses come within this many frames of
+// the previous move's cooldown ending (docs/fighting-animation-plan.md).
+const MOVE_STRING_WINDOW = 18;
+// True while a keyed move is in its strike (one frame either side of its active frames). Read from the
+// attack timers, not _atkAge, so a remote copy that only receives timers draws the same trail.
+function _swgInStrike(f, mv) {
+  const fr = (f.attackDuration || 0) - (f.attackTimer || 0);
+  return fr >= mv.startup && fr <= mv.startup + mv.active + 2;
+}
 
 const SUPER_HEAL        = 25;   // paid when the super connects, not when it's cast
 const SUPER_HEAL_WINDOW = 150;  // frames after the cast in which a hit still pays it
@@ -424,7 +433,14 @@ class Fighter {
       // Story checkpoints record spawnX, so rise there rather than at the arena-wide pick.
       const _exploreCp = !this.isAI && typeof exploreActive !== 'undefined' && exploreActive &&
                          typeof pickSafeSpawnNear === 'function' && Number.isFinite(this.spawnX);
-      const newSpawn = _exploreCp ? pickSafeSpawnNear(this.spawnX, 'any') : pickSafeSpawn(sideHint);
+      // _queuedSpawn: picked at KO time so the respawn countdown could be drawn over it.
+      const _q = this._queuedSpawn;
+      this._queuedSpawn = null;
+      const _qOk = _q && _q.arena === currentArenaKey && currentArena.platforms.some(pl =>
+        !pl.isFloorDisabled && Math.abs(pl.y - _q.y) < 2 && _q.x > pl.x && _q.x < pl.x + pl.w) &&
+        !players.some(o => o && o !== this && o.health > 0 && Math.hypot(o.x - _q.x, o.y - _q.y) < 120);
+      const newSpawn = _exploreCp ? pickSafeSpawnNear(this.spawnX, 'any')
+                     : _qOk ? _q : pickSafeSpawn(sideHint);
       if (newSpawn) { this.spawnX = newSpawn.x; this.spawnY = newSpawn.y; }
       else if (currentArena.isBossArena) {
         // Floor gone: spawn at screen centre, at a height that can reach a platform.
@@ -1565,7 +1581,15 @@ class Fighter {
     // so weaponHit is set before the whiff-stun check.
     // Swing startup (swingStartupFrames, smb-globals.js). SIM_SWING_STARTUP (dev sims) overrides it.
     const _startup = this._swingStartup();
-    if (_prevAtkTimer > 0 && this.weapon.type === 'melee' && !this.weapon.noSwingHitbox && this._atkAge >= _startup) {
+    // A hand-keyed move's slash crescent starts with its strike (the press only cocks the weapon).
+    if (_prevAtkTimer > 0 && this._atkAge === _startup) {
+      const _sgFx = this._swingG();
+      if (_sgFx && _sgFx.keys) {
+        if (typeof pixelSwingFX === 'function') pixelSwingFX(this, true);
+        if (!this.isAI && typeof SoundManager !== 'undefined') { if (SoundManager.at) SoundManager.at(this.cx()); SoundManager.swing(this.weaponKey); }
+      }
+    }
+    if (_prevAtkTimer > 0 && this.weapon.type === 'melee' && !this.weapon.noSwingHitbox && this._atkAge >= _startup && this._swingActiveNow()) {
       const hitPoints = this._getMeleeArcPoints();
       if (hitPoints.length > 0) {
         const hitPad = 6; // tight pad, avoids phantom hits from behind and above
@@ -1596,7 +1620,10 @@ class Fighter {
           if (!this.swingHitTargets.has(tgt) && arcHits(tgt.x, tgt.y, tgt.w, tgt.h, (this.weaponKey === 'whip' ? 4 : 0) + (this._comboDomain ? COMBO_DOMAIN_MELEE_PAD : 0))) {
             // Trade: if the target is mid-swing too, the earlier start lands and the later swing is cancelled.
             // A Combo Domain owner's swing always lands; trades and clashes don't cancel it.
-            if (!this._comboDomain && !this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0) {
+            // Only a swing pointed at us can trade. Swinging away from an attacker is a whiff, and a hit
+            // from behind lands (as a counter-hit, since the target is mid-swing).
+            if (!this._comboDomain && !this.isBoss && !tgt.isBoss && tgt.weapon && tgt.weapon.type === 'melee' && tgt.attackTimer > 0 &&
+                (tgt.facing || 1) * (this.cx() - tgt.cx()) >= 0) {
               const _myStart  = this._attackStartFrame  || 0;
               const _tgtStart = tgt._attackStartFrame   || 0;
               // Only equal-strength actions meet. A weaker action breaks outright and the stronger one lands.
@@ -1633,7 +1660,7 @@ class Fighter {
               }
               }
             }
-            dealDamage(this, tgt, this._swingDamage(tgt), this.weapon.kb);
+            dealDamage(this, tgt, this._swingDamage(tgt), this._swingKb()); this._moveOnHit(tgt);
             this.swingHitTargets.add(tgt);
             this.weaponHit = true;
             if (this.weaponKey === 'katana') {
@@ -1685,7 +1712,7 @@ class Fighter {
           // A Fighter can sit in minions[] (survival, story), so skip self or it hits itself.
             if (mn === this || areAlliedEntities(this, mn)) continue;
             if (!this.swingHitTargets.has(mn) && mn.health > 0 && arcHits(mn.x, mn.y, mn.w, mn.h, 4)) {
-              dealDamage(this, mn, this._swingDamage(mn), this.weapon.kb);
+              dealDamage(this, mn, this._swingDamage(mn), this._swingKb()); this._moveOnHit(mn);
               if (this.weaponKey === 'whip') this._whipApplyBleed(mn, this._whipLastCrack);
               this.swingHitTargets.add(mn);
               this.weaponHit = true;
@@ -1696,7 +1723,7 @@ class Fighter {
           for (const dum of trainingDummies) {
             if (dum === this) continue; // prevent ForestBeast (stored in trainingDummies) from hitting itself
             if (!this.swingHitTargets.has(dum) && dum.health > 0 && arcHits(dum.x, dum.y, dum.w, dum.h, 0)) {
-              dealDamage(this, dum, this._swingDamage(dum), this.weapon.kb);
+              dealDamage(this, dum, this._swingDamage(dum), this._swingKb()); this._moveOnHit(dum);
               if (this.weaponKey === 'whip') this._whipApplyBleed(dum, this._whipLastCrack);
               this.swingHitTargets.add(dum);
               this.weaponHit = true;
@@ -1722,16 +1749,13 @@ class Fighter {
 
     // Endlag when the swing ends. Runs after hit detection so weaponHit is already set.
     if (_prevAtkTimer === 1 && this.attackTimer === 0 && !this.isBoss) {
-      let endlag = this.weapon.endlag || 0;
-      // Whiff punish: extra recovery and a 30% stun chance. Basic melee only. Abilities, supers and
-      // ranged shots also run attackTimer and must not stun their own user.
-      if (!this.weaponHit && this.weapon.type === 'melee' &&
-          this._attackKindTier === CLASH_TIER_ATTACK) {
-        endlag = Math.round(endlag * 2.4);
-        if (Math.random() < 0.30) {
-          this.stunTimer = Math.max(this.stunTimer || 0, 20 + Math.floor(Math.random() * 16));
-        }
-      }
+      let endlag = this._curSwingEndlag();
+      // Whiff punish: extra recovery, and no guard until it is over (see _whiffGuardLock below).
+      // Fixed, not a dice roll: it replaced a 30% random stun (Nov 22 2026), so a whiff always costs the
+      // same and can be learned. Basic melee only. Abilities, supers and ranged shots also run attackTimer.
+      const _whiffed = !this.weaponHit && this.weapon.type === 'melee' &&
+                       this._attackKindTier === CLASH_TIER_ATTACK;
+      if (_whiffed) endlag = Math.round(endlag * 2.4);
       // Low stamina: sluggish recovery (up to +40% at 0 stamina)
       const staminaRatio = this.stamina / (this.maxStamina || 100);
       if (staminaRatio < 0.4) endlag = Math.round(endlag * (1 + 0.4 * (1 - staminaRatio / 0.4)));
@@ -1749,6 +1773,11 @@ class Fighter {
       // A shield stopped this swing (dealDamage, BLOCK_ENDLAG): the defender's turn.
       if (this._blockedEndlag) { endlag += this._blockedEndlag; this._blockedEndlag = 0; }
       this.attackEndlag = endlag;
+      if (typeof frameCount !== 'undefined') {
+        this._strFreeAt = frameCount + endlag;
+        // A whiffed swing can't be covered by raising the guard during its recovery (shieldRaise, dealDamage).
+        if (_whiffed) this._whiffGuardLock = frameCount + endlag;
+      }
       const staminaCost = Math.min(this.stamina, (this.weapon.damage || 10) * 1.5);
       this.stamina = Math.max(0, this.stamina - staminaCost);
       // Clear superActive after a plain swing so it can charge again. Supers with ongoing effects clear it when they end.
@@ -1962,7 +1991,7 @@ class Fighter {
     } else {
       if (this._airSwing && !this._prevOnGround && !this.isBoss) {
         // Weapon cooldown outlasts endlag, so a lag that only delays the next swing costs nothing. It takes away the escape.
-        this._landLag = this.attackTimer + ((this.weapon && this.weapon.endlag) || 0) + LAND_LAG_FRAMES;
+        this._landLag = this.attackTimer + this._curSwingEndlag() + LAND_LAG_FRAMES;
         this.attackEndlag = Math.max(this.attackEndlag, this._landLag);
       }
       this._airSwing = false;
@@ -2354,6 +2383,12 @@ class Fighter {
         spawnParticles(this.cx(), pl.y, '#ff88ff', 10);
       }
       if (!this.isBoss && landVy > 5) { this.squashTimer = 4; this._landVy = landVy; }
+      // Footsteps (Phase 5): the local player only, one per ~38px of ground covered, so a crowd stays quiet.
+      if (!this.isAI && !this.isBoss && !this.isRemote && typeof SoundManager !== 'undefined' && SoundManager.step) {
+        const _sv = Math.abs(this.vx);
+        this._stepDist = _sv > 1.2 ? (this._stepDist || 0) + _sv : 0;
+        if (this._stepDist > 38) { this._stepDist = 0; SoundManager.at(this.cx()).step(); }
+      }
       // Heavy landings crack the surface. Cosmetic only.
       if (landVy > 11 && typeof spawnImpact === 'function') {
         spawnImpact(this.cx(), pl.y, Math.min(1.1, 0.35 + (landVy - 11) / 16), {
@@ -2366,7 +2401,7 @@ class Fighter {
       if (this.isAI) this._pfDoubleJumpPending = false;
       if (settings.landingDust && landVy > 4) {
         spawnParticles(this.cx(), pl.y, 'rgba(200,200,200,0.9)', Math.min(14, Math.floor(landVy * 1.2)));
-        if (!this.isAI && landVy > 6) SoundManager.land(landVy > 13);
+        if (!this.isAI && landVy > 6) { if (SoundManager.at) SoundManager.at(this.cx()); SoundManager.land(landVy > 13); }
       }
       if (this.ragdollTimer > 0 && landVy > 2) {
         spawnParticles(this.cx(), pl.y, this.color, 10);
@@ -2630,14 +2665,64 @@ class Fighter {
     this._degradeVisual = vis;
   }
 
+  // The move list of this fighter's weapon (WEAPON_SWINGS[key].moves), or null. Bosses and the Knight keep their own swings.
+  _moveList() {
+    if (this.isBoss || this.charClass === 'megaknight' || !this.weapon || this.weapon.type !== 'melee') return null;
+    const g = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const ml = g && g.moves;
+    // A designer weapon that borrows another weapon's entry also borrows its moves; those belong to the other key.
+    const first = ml && ((ml.string && ml.string[0]) || ml.air);
+    return (first && first.weaponKey === this.weaponKey) ? ml : null;
+  }
+  // The swing entry being played: the current move, or the weapon's one swing. Pass it to swingPose().
+  _swingG() {
+    const mv = this._swingMv;
+    // Only while that basic swing is what's playing. Abilities, finisher poses and cinematics that drive
+    // attackTimer themselves keep the weapon's own arc.
+    if (mv && mv.weaponKey === this.weaponKey && this.attackDuration === mv.dur &&
+        this._attackKindTier === CLASH_TIER_ATTACK && (this._finPoseP === null || this._finPoseP === undefined)) return mv;
+    return (typeof WEAPON_SWINGS !== 'undefined') ? (WEAPON_SWINGS[this.weaponKey] || null) : null;
+  }
+  // The move the next press would play, without changing any state. null = the weapon has no move list.
+  // Repeated presses walk the string. A press that comes later than MOVE_STRING_WINDOW after the
+  // previous move could come out starts it again. In the air it is the air move.
+  _nextMove() {
+    const ml = this._moveList();
+    if (!ml) return null;
+    if (!this.onGround && ml.air) return ml.air;
+    const s = ml.string;
+    if (!s || !s.length) return null;
+    const fc = typeof frameCount !== 'undefined' ? frameCount : 0;
+    // Counted from when the fighter could act again, so a whiff's longer recovery doesn't break the string by itself.
+    const ready = Math.max(this._strReadyAt || 0, this._strFreeAt || 0);
+    const cont = this._strIdx != null && this._strKey === this.weaponKey && fc <= ready + MOVE_STRING_WINDOW;
+    return s[cont ? (this._strIdx + 1) % s.length : 0];
+  }
+  // Recovery after the current swing.
+  _curSwingEndlag() {
+    const g = this._swingG();
+    return (g && g.keys && g.endlag != null) ? g.endlag : ((this.weapon && this.weapon.endlag) || 0);
+  }
+
   // Frames before this fighter's swing can hit. Bosses have none.
   _swingStartup() {
-    return this.isBoss ? 0 : typeof SIM_SWING_STARTUP !== 'undefined' ? SIM_SWING_STARTUP : swingStartupFrames(this.attackDuration);
+    if (this.isBoss) return 0;
+    if (typeof SIM_SWING_STARTUP !== 'undefined') return SIM_SWING_STARTUP;
+    const g = this._swingG();
+    return (g && g.keys) ? g.startup : swingStartupFrames(this.attackDuration);
   }
   // The same startup as a share of the swing, for swingPose(): the weapon stays cocked back that long.
+  // Keyed moves hold their own wind-up, so they need none.
   _swingLead() {
     if (this.isBoss || !this.weapon || this.weapon.type !== 'melee' || this.weapon.noSwingHitbox || !(this.attackDuration > 0)) return 0;
+    const g = this._swingG();
+    if (g && g.keys) return 0;
     return Math.min(0.8, this._swingStartup() / this.attackDuration);
+  }
+  // False once a keyed move's active frames are over: the follow-through can't hit.
+  _swingActiveNow() {
+    const g = this._swingG();
+    return !(g && g.keys) || (this._atkAge || 0) < g.startup + g.active;
   }
 
   // Returns weapon-tip world position during a melee swing, or null if not attacking.
@@ -2658,7 +2743,7 @@ class Fighter {
         ? lerp(1.2, -1.1, _mp)
         : lerp(Math.PI - 1.2, Math.PI + 1.1, _mp);
     } else {
-      const _sp = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt, _lead);
+      const _sp = swingPose(this._swingG() || this.weaponKey, atkP, this.facing, this._jabAlt, _lead);
       ang = _sp.ang;
       reachFrac = _sp.reachFrac;
     }
@@ -2683,9 +2768,155 @@ class Fighter {
     return Math.max(tip, art) * (this._wxReachMult || 1); // _wxReachMult: Glass Blade stub (smb-weapons-ext.js)
   }
 
+  // The drawn platform this fighter stands on, for the weapon's floor clip in draw(). null in the air or on none.
+  _weaponFloor() {
+    const pls = (typeof currentArena !== 'undefined' && currentArena) ? currentArena.platforms : null;
+    if (!pls) return null;
+    const fy = this.y + this.h, cx = this.cx();
+    for (const pl of pls) {
+      if (pl.isFloorDisabled || pl.noDraw) continue;
+      if (Math.abs(pl.y - fy) < 3 && cx >= pl.x - this.w && cx <= pl.x + pl.w + this.w) return pl;
+    }
+    return null;
+  }
+
+  // Extra draw rotation (rad, at most 0.35) that lifts a swung weapon toward the floor surface instead of sinking it.
+  // Uses the hitbox's blade length and tilt, so the drawn tip is the hitbox tip. 0 = already above the floor.
+  _weaponFloorRest(hx, hy, ang, pl) {
+    const L = this._meleeBladeLen() * (this.drawScale || 1);
+    const floorY = pl.y - 2;
+    if (!(L > 0) || hy >= floorY) return 0;
+    const a0 = ang + this._meleeBladeTilt();
+    const a  = Math.atan2(Math.sin(a0), Math.cos(a0));
+    const k  = (floorY - hy) / L;
+    if (k >= 1 || Math.sin(a) <= k) return 0;
+    // Lift toward level on the side the blade already points to.
+    const want = Math.cos(a) >= 0 ? Math.asin(k) : Math.PI - Math.asin(k);
+    const d = Math.atan2(Math.sin(want - a), Math.cos(want - a));
+    // Capped: a bigger lift lays the weapon flat, far from its hitbox. The floor clip hides the rest.
+    return d > 0.35 ? 0.35 : d < -0.35 ? -0.35 : d;
+  }
+
+  // Whip lash as a rope. Draw-only: hitboxes, the clash tip and the trail never read it.
+  // Out of a swing the lash hangs from the handle, drags on the floor and swings with the body. In a swing the
+  // authored sprite draws and the rope copies its shape, so on release it keeps the swing's momentum and settles.
+  // M maps the sprite's local space to world; T0 is the world transform captured at the top of draw().
+  _whipLashDraw(c, M, T0, wsW, wsH, anchor, pinned, hollow) {
+    const N = 12;
+    const toW = (lx, ly) => M.transformPoint({ x: lx, y: ly });
+    // Lash centreline in sprite pixels (images/weapons/whip.png, 128x25), from the handle collar to the cracker.
+    const SRC = [[38,14.5],[45,15.5],[51,17],[57,19.5],[63,21.5],[69,22.5],[75,22],[81,20],[87,17],
+                 [93,14],[99,10],[105,7],[111,4.5],[117,3.5],[123,3],[127,2.5]];
+    const loc = SRC.map(([x, y]) => [x / 128 * wsW - wsW * anchor, (y - 14.5) / 25 * wsH]);
+    const base = toW(loc[0][0], loc[0][1]);
+    const grip = toW(0, 0);
+    let L = this._whipLash;
+    if (!L || frameCount - L.f > 4 || Math.hypot(base.x - L.bx, base.y - L.by) > 80) {
+      // Rest length from the sprite's own arc, so the rope is as long as the drawn lash.
+      let arc = 0;
+      for (let i = 1; i < loc.length; i++) {
+        const a = toW(loc[i - 1][0], loc[i - 1][1]), b = toW(loc[i][0], loc[i][1]);
+        arc += Math.hypot(b.x - a.x, b.y - a.y);
+      }
+      const rest = arc / N;
+      L = this._whipLash = { pts: [], rest, f: frameCount - 1, bx: base.x, by: base.y };
+      for (let i = 0; i <= N; i++) L.pts.push({ x: base.x, y: base.y + i * rest, px: base.x, py: base.y + i * rest });
+    }
+    const P = L.pts, rest = L.rest;
+    if (L.f !== frameCount) {
+      L.f = frameCount;
+      if (pinned) {
+        // Resample the sprite curve to N even steps and pin the rope to it.
+        const W = loc.map(([x, y]) => toW(x, y));
+        const cum = [0];
+        for (let i = 1; i < W.length; i++) cum.push(cum[i - 1] + Math.hypot(W[i].x - W[i - 1].x, W[i].y - W[i - 1].y));
+        let j = 1;
+        for (let i = 0; i <= N; i++) {
+          const s = cum[cum.length - 1] * i / N;
+          while (j < W.length - 1 && cum[j] < s) j++;
+          const t = (s - cum[j - 1]) / ((cum[j] - cum[j - 1]) || 1);
+          const p = P[i];
+          p.px = p.x; p.py = p.y;
+          p.x = W[j - 1].x + (W[j].x - W[j - 1].x) * t;
+          p.y = W[j - 1].y + (W[j].y - W[j - 1].y) * t;
+        }
+      } else {
+        // Verlet: carry velocity (capped, the snap is fast), damp, fall.
+        for (let i = 1; i <= N; i++) {
+          const p = P[i];
+          let vx = (p.x - p.px) * 0.985, vy = (p.y - p.py) * 0.985;
+          const v = Math.hypot(vx, vy);
+          if (v > 22) { vx *= 22 / v; vy *= 22 / v; }
+          p.px = p.x; p.py = p.y;
+          p.x += vx; p.y += vy + 0.42;
+        }
+        const dl = Math.hypot(base.x - grip.x, base.y - grip.y) || 1;
+        const dx = (base.x - grip.x) / dl, dy = (base.y - grip.y) / dl;
+        const pls = (typeof currentArena !== 'undefined' && currentArena) ? currentArena.platforms : null;
+        for (let it = 0; it < 8; it++) {
+          P[0].x = base.x; P[0].y = base.y;
+          // The first links leave the handle along its line, so the leather doesn't kink at the collar.
+          const s1x = base.x + dx * rest, s1y = base.y + dy * rest;
+          P[1].x += (s1x - P[1].x) * 0.45; P[1].y += (s1y - P[1].y) * 0.45;
+          for (let i = 0; i < N; i++) {
+            const a = P[i], b = P[i + 1];
+            const ex = b.x - a.x, ey = b.y - a.y, d = Math.hypot(ex, ey) || 1e-3;
+            const k = (d - rest) / d;
+            if (i === 0) { b.x -= ex * k; b.y -= ey * k; }
+            else { a.x += ex * k * 0.5; a.y += ey * k * 0.5; b.x -= ex * k * 0.5; b.y -= ey * k * 0.5; }
+          }
+          // Bend stiffness: ease each link toward its neighbours' midpoint, so the leather curves instead of kinking.
+          for (let i = 1; i < N; i++) {
+            const p = P[i], a = P[i - 1], b = P[i + 1];
+            p.x += ((a.x + b.x) / 2 - p.x) * 0.12; p.y += ((a.y + b.y) / 2 - p.y) * 0.12;
+          }
+          // Floor: rest on top of any platform the point came down onto, with drag.
+          if (pls) for (let i = 1; i <= N; i++) {
+            const p = P[i];
+            for (const pl of pls) {
+              if (pl.isFloorDisabled || pl.noDraw) continue;
+              if (p.x < pl.x || p.x > pl.x + pl.w || p.y <= pl.y - 1.5 || p.py > pl.y + 6) continue;
+              p.y = pl.y - 1.5;
+              p.px += (p.x - p.px) * 0.3;
+            }
+          }
+        }
+      }
+      L.bx = base.x; L.by = base.y;
+    }
+    if (pinned) return;
+    // Paint in world space: ink edge (carries the glow), leather, then a braid highlight; tapers to the tip.
+    c.save();
+    c.setTransform(T0);
+    c.lineCap = 'round'; c.lineJoin = 'round';
+    const path = () => {
+      c.beginPath();
+      c.moveTo(P[0].x, P[0].y);
+      for (let i = 1; i < N; i++) c.quadraticCurveTo(P[i].x, P[i].y, (P[i].x + P[i + 1].x) / 2, (P[i].y + P[i + 1].y) / 2);
+      c.lineTo(P[N].x, P[N].y);
+    };
+    const ink = hollow ? '#0a0610' : '#15161c', hide = hollow ? '#2a1240' : '#8a4a1c', braid = hollow ? '#5a2a8c' : '#c07a34';
+    // Taper by drawing the near half thicker over the full length.
+    path(); c.strokeStyle = ink; c.lineWidth = 3.2; c.stroke();
+    c.shadowBlur = 0;
+    c.beginPath(); c.moveTo(P[0].x, P[0].y);
+    for (let i = 1; i <= N / 2; i++) c.lineTo(P[i].x, P[i].y);
+    c.lineWidth = 4.2; c.stroke();
+    path(); c.strokeStyle = hide; c.lineWidth = 1.8; c.stroke();
+    c.beginPath(); c.moveTo(P[0].x, P[0].y);
+    for (let i = 1; i <= N / 2; i++) c.lineTo(P[i].x, P[i].y);
+    c.lineWidth = 2.8; c.stroke();
+    path(); c.setLineDash([2.2, 2.4]); c.strokeStyle = braid; c.lineWidth = 1; c.stroke(); c.setLineDash([]);
+    // Cracker: a short pale tail off the last link.
+    const a = P[N - 1], b = P[N], tl = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+    c.beginPath(); c.moveTo(b.x, b.y); c.lineTo(b.x + (b.x - a.x) / tl * 4, b.y + (b.y - a.y) / tl * 4);
+    c.strokeStyle = hollow ? '#7a4ab0' : '#f2c230'; c.lineWidth = 1.2; c.stroke();
+    c.restore();
+  }
+
   // Grip tilt drawWeapon() applies while attacking, mirrored by facing.
   _meleeBladeTilt() {
-    const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    const _swg = this._swingG();
     const t = (_swg && _swg.tilt !== undefined) ? _swg.tilt : 0.6;
     return this.facing < 0 ? -t : t;
   }
@@ -2715,16 +2946,18 @@ class Fighter {
         reachFrac: 1,
       });
     } else {
-      const _now  = swingPose(this.weaponKey, atkP, this.facing, this._jabAlt, _lead);
+      const _now  = swingPose(this._swingG() || this.weaponKey, atkP, this.facing, this._jabAlt, _lead);
       poses.push(_now);
       if (this.attackDuration > 0) {
         // Never back into the startup hold: the cocked-back pose is not part of the hitting arc.
         const prevP = Math.min(atkP, Math.max(_lead, 1 - (this.attackTimer + 1) / this.attackDuration));
-        const _prev = swingPose(this.weaponKey, prevP, this.facing, this._jabAlt, _lead);
+        const _prev = swingPose(this._swingG() || this.weaponKey, prevP, this.facing, this._jabAlt, _lead);
         const dAng  = Math.abs(_now.ang - _prev.ang);
-        const steps = Math.min(3, Math.floor(dAng / 0.14)); // one extra sample per ~0.14 rad swept
+        const _swgK  = this._swingG();
+        // Keyed moves sweep up to ~2 rad in a frame, so they may take more samples.
+        const steps = Math.min(_swgK && _swgK.keys ? 10 : 3, Math.floor(dAng / 0.14)); // one extra sample per ~0.14 rad swept
         for (let _si2 = 1; _si2 <= steps; _si2++) {
-          poses.push(swingPose(this.weaponKey, prevP + (atkP - prevP) * _si2 / (steps + 1), this.facing, this._jabAlt, _lead));
+          poses.push(swingPose(this._swingG() || this.weaponKey, prevP + (atkP - prevP) * _si2 / (steps + 1), this.facing, this._jabAlt, _lead));
         }
       }
     }
@@ -2733,7 +2966,9 @@ class Fighter {
     const tilt     = this._meleeBladeTilt();
     const nBlade   = Math.max(1, Math.ceil(bladeLen / MELEE_BLADE_STEP));
     const edge     = (typeof WEAPON_EDGE_PROFILE !== 'undefined') ? WEAPON_EDGE_PROFILE[this.weaponKey] : null;
-    const edgeK    = (this.isBoss ? 1 : 1.5) * _sc2 * this.facing; // drawWeapon flips the art's y with facing
+    const _swgE    = this._swingG();
+    // drawWeapon flips the art's y with facing, and again for an edgeFlip move.
+    const edgeK    = (this.isBoss ? 1 : 1.5) * _sc2 * this.facing * (_swgE && _swgE.edgeFlip ? -1 : 1);
     for (const pose of poses) {
       const fullReach = (armLen + wLen) * pose.reachFrac;
       // Drawn blade: from the hand, rotated by the grip tilt, out to the art's tip.
@@ -2777,11 +3012,13 @@ class Fighter {
     const blade  = this._meleeBladeLen() * sc;
     const tilt   = Math.abs(this._meleeBladeTilt());
     let reach = armLen + wLen;
+    // A keyed move only reaches during its active frames, so sample just those.
+    const _mv = this._nextMove();
     for (let i = 0; i <= 8; i++) {
-      const p = i / 8;
+      const p = _mv ? (_mv.startup + _mv.active * i / 8) / _mv.dur : i / 8;
       const pose = this.charClass === 'megaknight'
         ? { ang: lerp(1.2, -1.1, p), reachFrac: 1 }
-        : swingPose(this.weaponKey, p, 1, this._jabAlt);
+        : swingPose(_mv || this.weaponKey, p, 1, this._jabAlt);
       const armR = armLen * (pose.reachFrac !== 1 ? 0.65 + 0.5 * pose.reachFrac : 1);
       reach = Math.max(reach, Math.cos(pose.ang) * armR + Math.cos(pose.ang + tilt) * blade);
     }
@@ -2789,11 +3026,26 @@ class Fighter {
     return reach + tgtHalf + 8; // +8: hitPad and arc slack
   }
 
+  // Knockback of the current swing: the move's own, or the weapon's.
+  _swingKb() {
+    const g = this._swingG();
+    return (g && g.keys && g.kb != null) ? g.kb : ((this.weapon && this.weapon.kb) || 0);
+  }
+  // A move's own effect on a landed hit. spike: an airborne target is driven down.
+  _moveOnHit(tgt) {
+    const g = this._swingG();
+    if (!g || !g.keys || !tgt || tgt.health <= 0) return;
+    if (g.spike && !tgt.onGround && !tgt.isBoss && !(tgt._superArmorUntil >= (typeof frameCount !== 'undefined' ? frameCount : 0))) {
+      tgt.vy = Math.max(tgt.vy || 0, g.spike);
+    }
+  }
+
   // Whip damage depends on where the cord hits. Past crackDist the lash is at the crack point (crackMult). Closer, it's slack and only chips.
   // A Lasso-hooked target always counts as a crack and takes an extra hookMult. Result goes on _whipLastCrack for the VFX branch.
   _swingDamage(tgt) {
     const w = this.weapon;
-    const base = w ? (w.damage || 0) : 0;
+    const _g = this._swingG();
+    const base = (_g && _g.keys && _g.dmg != null) ? _g.dmg : (w ? (w.damage || 0) : 0);
     if (this.weaponKey !== 'whip' || !tgt) { this._whipLastCrack = false; return base; }
     const gap    = Math.abs(tgt.cx() - this.cx());
     const hooked = (tgt._whipHooked > 0) && (!tgt._whipHookSrc || tgt._whipHookSrc === this);
@@ -2824,6 +3076,9 @@ class Fighter {
   // Approx frame into the swing when the blade is fully extended. Used to lead the target.
   // Heavy weapons wind up first, so contact comes later.
   _meleeContactFrames() {
+    // A keyed move connects on its first active frame. This is the next press's move, which the string stun waits for.
+    const _mv = this._nextMove();
+    if (_mv) return _mv.startup + 1;
     const _swg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
     const dur  = (_swg && _swg.dur) || 12;
     const ease = _swg && _swg.ease;
@@ -2927,12 +3182,23 @@ class Fighter {
     }
 
     this._animeQUntil = 0;
+    // Weapons with a move list: this press plays the next move of the string, or the air move.
+    const _mv = this._nextMove();
+    const _baseCd = _mv ? _mv.cooldown : this.weapon.cooldown;
     if (!this.isBoss && this.weapon.type === 'melee') {
       // Counted in dealDamage() when this swing lands, see BASIC_CHAIN_MAX.
       this._basicChainArmed = true;
       this._basicChainKey = _chainKey;
       this._basicChainReadyAt = _fcNow + (this.attackCooldownMult
-        ? Math.ceil(this.weapon.cooldown * this.attackCooldownMult) : this.weapon.cooldown);
+        ? Math.ceil(_baseCd * this.attackCooldownMult) : _baseCd);
+    }
+    this._swingMv = _mv;
+    if (_mv) {
+      const _ml = this._moveList();
+      const _si = _ml.string ? _ml.string.indexOf(_mv) : -1;
+      // The air move leaves the ground string where it was; a ground move sets the step.
+      if (_si >= 0) { this._strIdx = _si; this._strKey = this.weaponKey; }
+      this._strReadyAt = _fcNow + (this.attackCooldownMult ? Math.ceil(_baseCd * this.attackCooldownMult) : _baseCd);
     }
 
     // Weapons with a bespoke basic attack (smb-weapons-ext.js). Returning true
@@ -2942,7 +3208,7 @@ class Fighter {
     // Per-weapon swing duration. Bosses keep their own, since cinematics set it directly.
     if (!this.isBoss) {
       const _sg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
-      this.attackDuration = (this.weapon.type === 'melee' && _sg && _sg.dur) ? _sg.dur : 12;
+      this.attackDuration = _mv ? _mv.dur : (this.weapon.type === 'melee' && _sg && _sg.dur) ? _sg.dur : 12;
       if (_sg && _sg.alternate) this._jabAlt = !this._jabAlt; // combat: high jab / body hook
     }
     if (this.weapon.type === 'melee') {
@@ -2951,7 +3217,7 @@ class Fighter {
       this.weaponHit = false;
       this.swingHitTargets.clear();
       if (!_atkTarget || dist(this, _atkTarget) < this.weapon.range * 1.4 * (this.drawScale || 1)) {
-        if (!this.isAI) SoundManager.swing(this.weaponKey);
+        if (!this.isAI && !_mv) { if (SoundManager.at) SoundManager.at(this.cx()); SoundManager.swing(this.weaponKey); } // a keyed move whooshes on its strike
       }
     } else {
       const _distToTarget = target ? dist(this, target) : 999;
@@ -2976,7 +3242,7 @@ class Fighter {
           this._reloadInterrupted = false;
         }
       }
-      if (!this.isAI) SoundManager.shoot(this.weaponKey);
+      if (!this.isAI) { if (SoundManager.at) SoundManager.at(this.cx()); SoundManager.shoot(this.weaponKey); }
       const bSpd = this.weapon.bulletSpeed || 13;
       const bClr = this.weapon.bulletColor || '#ffdd00';
       const bVy  = this.weapon.bulletVy  || 0;
@@ -3068,7 +3334,7 @@ class Fighter {
       this.vx *= _isFlamer ? 0.9 : _atkRapid ? 0.58 : 0.68;
       this.vx -= this.facing * _recoilPush;
     }
-    this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(this.weapon.cooldown * this.attackCooldownMult)) : this.weapon.cooldown;
+    this.cooldown    = this.attackCooldownMult ? Math.max(1, Math.ceil(_baseCd * this.attackCooldownMult)) : _baseCd;
     this._attackStartFrame = (typeof frameCount !== 'undefined' ? frameCount : 0);
     this._attackKindTier   = CLASH_TIER_ATTACK; // see _clashTier()
     this._blockedEndlag    = 0;                 // a cut-off swing's block penalty never carries over
@@ -5352,6 +5618,12 @@ class Fighter {
     if (this.health <= 0 && !this.isBoss && !this.isDummy && !(_dth && !_dth.hidden)) return; // ragdolls handle dead fighter visuals; dummies always draw
 
     ctx.save();
+    // Floor bite: the platform under the feet and the world transform, so _paintWeapon can stop the drawn
+    // weapon at the floor. Draw-only: the hitbox below the surface can't reach anyone standing on it.
+    const _floorPl = (!this.isBoss && this.onGround && this.ragdollTimer <= 0) ? this._weaponFloor() : null;
+    const _floorT  = _floorPl ? ctx.getTransform() : null;
+    // World transform for the whip rope (_whipLashDraw), taken before any drawScale or pose transforms.
+    this._whipT0 = (this.weaponKey === 'whip' && !this.isBoss) ? ctx.getTransform() : null;
 
     // Scale transform for oversized fighters, pivot at feet so players stay grounded
     if (this.drawScale && this.drawScale !== 1) {
@@ -5648,7 +5920,7 @@ class Fighter {
         rAng = f > 0 ? lerp(1.2, -1.1, _mp) : lerp(Math.PI - 1.2, Math.PI + 1.1, _mp);
         this._swingArmStretch = 1;
       } else {
-        const _sp = (typeof swingPose === 'function') ? swingPose(this.weaponKey, atkProgress, f, this._jabAlt, _lead) : null;
+        const _sp = (typeof swingPose === 'function') ? swingPose(this._swingG() || this.weaponKey, atkProgress, f, this._jabAlt, _lead) : null;
         rAng = _sp ? _sp.ang
                    : (f > 0 ? lerp(-0.45, 1.1, atkProgress) : lerp(Math.PI + 0.45, Math.PI - 1.1, atkProgress));
         // Thrust/jab weapons: arm visibly extends with the reach curve
@@ -5826,6 +6098,8 @@ class Fighter {
       drawFragmentArmSurge(this, cx, shoulderY, rElbX, rElbY, rEx, rEy);
     }
     if (!_fragV || _fragV.grow > 0.02) {
+      // A fragment weapon still growing out of the fist is scaled; the whip draws as its sprite until it's whole.
+      if (_fragV && _fragV.grow < 0.999) this._whipT0 = null;
       ctx.save();
       let _wAng = _rRun ? _rRun.wa : rAng, _wAtk = s === 'attacking';
       if (!_mp && this._msOut && !this._msOut.p.keepState && typeof msBlendOut === 'function') {
@@ -5851,6 +6125,20 @@ class Fighter {
         ctx.scale(_fragV.grow, _fragV.taper);
         ctx.rotate(-rAng);
         ctx.translate(-rEx, -rEy);
+      }
+      if (_floorPl) {
+        // Clip out the slab (3px under its top, so the blade bites in) down to the screen bottom, in world space.
+        const _curT = ctx.getTransform();
+        ctx.setTransform(_floorT);
+        ctx.beginPath();
+        ctx.rect(-1e4, -1e4, 2e4, 2e4);
+        ctx.rect(_floorPl.x, _floorPl.y + 3, _floorPl.w, 1e4);
+        ctx.clip('evenodd');
+        ctx.setTransform(_curT);
+        // A swing that ends low rests its head on the floor. Pixels only: _wAng (clash tip, trail) is unchanged.
+        const _rest = (_wAtk && !_mp && this.weapon && this.weapon.type === 'melee')
+          ? this._weaponFloorRest(rEx, rEy, _wAng, _floorPl) : 0;
+        if (_rest) { ctx.translate(rEx, rEy); ctx.rotate(_rest); ctx.translate(-rEx, -rEy); }
       }
       if (!this._hideWeapon) this.drawWeapon(rEx, rEy, _wAng, _wAtk, this._domainDisplayWeapon || null, weapScale);
       ctx.restore();
@@ -6217,8 +6505,9 @@ class Fighter {
       ctx.restore();
     }
 
-    // SUPER READY flash
-    if (this.superFlashTimer > 0) {
+    // SUPER READY flash. Held for the first 10 frames: the meter usually fills on a hit, and the
+    // impact frame belongs to the hit effect (smb-hit-fx.js), not to a label.
+    if (this.superFlashTimer > 0 && this.superFlashTimer <= 80) {
       const pulse = Math.abs(Math.sin(this.superFlashTimer * 0.18));
       ctx.save();
       ctx.globalAlpha = Math.min(1, this.superFlashTimer / 20);
@@ -6329,6 +6618,17 @@ class Fighter {
       }
       // A pixel slash (smb-pixel-vfx-game.js) already draws this swing's arc.
       if (typeof settings !== 'undefined' && settings.particles && this._swingTrail.length >= 2 && !(this._pvSlashT > 0)) {
+        // Same floor clip as the blade: the ribbon stops at the slab the fighter stands on.
+        ctx.save();
+        if (_floorPl) {
+          const _curT = ctx.getTransform();
+          ctx.setTransform(_floorT);
+          ctx.beginPath();
+          ctx.rect(-1e4, -1e4, 2e4, 2e4);
+          ctx.rect(_floorPl.x, _floorPl.y + 3, _floorPl.w, 1e4);
+          ctx.clip('evenodd');
+          ctx.setTransform(_curT);
+        }
         const _stPts   = this._swingTrail;
         const _stCol   = this._swingTrailColor || '#ffffff';
         const _stHeavy = !!this._swingTrailHeavy;
@@ -6370,6 +6670,7 @@ class Fighter {
         ctx.stroke();
         ctx.restore();
         }
+        ctx.restore();
       }
     }
 
@@ -7017,7 +7318,7 @@ class Fighter {
     const k = overrideKey || this.weaponKey;
     const _hollowArm = !overrideKey && typeof isHollowArm === 'function' && isHollowArm(this); // story enemy's dark copy
     // Per-weapon grip tilt while attacking (legacy weapons keep the 0.6 rad slash tilt)
-    const _swgD = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[k] : null;
+    const _swgD = (!overrideKey && attacking) ? this._swingG() : (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[k] : null;
     let _atkTilt;
     if (attacking) {
       // Mirrored with facing, to match the hitbox (_meleeBladeTilt).
@@ -7074,7 +7375,9 @@ class Fighter {
     if (typeof settings !== 'undefined' && settings.particles && attacking &&
         k !== 'gauntlet' && _glowColors[k] &&
         this.weapon && this.weapon.type === 'melee' &&
-        (!_swgTr || _swgTr.cap > 0)) {
+        (!_swgTr || _swgTr.cap > 0) &&
+        // A keyed move trails only through its strike, not its wind-up or follow-through.
+        (!_swgD || !_swgD.keys || _swgInStrike(this, _swgD))) {
       if (!this._swingTrail) this._swingTrail = [];
       const _stHeavy = this.weapon.weaponType === 'heavy';
       let _stColor = _glowColors[k];
@@ -7100,6 +7403,8 @@ class Fighter {
     // Scoped to the art chain. The ranged cooldown bar below uses world coords.
     ctx.save();
     if (this.facing < 0) ctx.scale(1, -1);
+    // A move that cuts the other way round turns the weapon over in the hand, so the edge leads (edgeFlip).
+    if (!overrideKey && attacking && _swgD && _swgD.edgeFlip) ctx.scale(1, -1);
 
     // Hand-drawn sprite art. Falls back to the vector art if not loaded.
     const _wSpr = (typeof WEAPON_SPRITES !== 'undefined') ? WEAPON_SPRITES[k] : null;
@@ -7113,7 +7418,25 @@ class Fighter {
       const _wsW = _wSpr.len;
       const _wsH = _wSpr.img.height * (_wsW / _wSpr.img.width);
       // Facing is handled by the shared mirror above.
-      ctx.drawImage((_hollowArm && hollowWeaponSprite(_wSpr)) || _wSpr.img, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+      const _wsImg = (_hollowArm && hollowWeaponSprite(_wSpr)) || _wSpr.img;
+      if (k === 'whip' && !overrideKey && !weaponArtCtx && this._whipT0) {
+        // Rope lash: out of a swing only the handle comes from the sprite; the rope tracks the sprite while swinging.
+        const _wM = this._whipT0.inverse().multiply(ctx.getTransform());
+        if (attacking) {
+          ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+          this._whipLashDraw(ctx, _wM, this._whipT0, _wsW, _wsH, _wSpr.anchor, true, _hollowArm);
+        } else {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(-_wsW * _wSpr.anchor, -_wsH, _wsW * 38 / 128, _wsH * 2);
+          ctx.clip();
+          ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+          ctx.restore();
+          this._whipLashDraw(ctx, _wM, this._whipT0, _wsW, _wsH, _wSpr.anchor, false, _hollowArm);
+        }
+      } else {
+        ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+      }
 
     } else if (k === 'sword') {
       // Pommel
@@ -7987,9 +8310,8 @@ class Fighter {
       ctx.fill();
       ctx.globalAlpha = _pulse * 0.75;
       ctx.fillStyle   = '#88ddff';
-      ctx.font        = `9px ${FONT_UI}`;
-      ctx.textAlign   = 'center';
-      ctx.fillText('🛡', this.cx(), this.y - 35);
+      // Drawn shield glyph (emoji differ by OS), half size, where the 9px emoji sat.
+      if (typeof _exploreItemGlyph === 'function') { ctx.translate(this.cx(), this.y - 38); ctx.scale(0.5, 0.5); _exploreItemGlyph('shield', 0, 0, '#88ddff'); }
       ctx.restore();
     }
 

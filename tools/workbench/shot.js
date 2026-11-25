@@ -62,6 +62,13 @@ const SETS = (typeof args.set === 'string' ? args.set.split(',') : []).map(s => 
     await page.evaluate(sets => { for (const [s, f, v] of sets) __wb.set(s, f, v); }, SETS);
     if (args.save) console.log('saved:', JSON.stringify(await page.evaluate(() => __wb.save())));
   }
+  // --move=0|1|air: a move from the weapon's move list instead of its plain swing.
+  let MOVE = null;
+  if (args.move !== undefined) {
+    const m = args.move === 'air' ? 'air' : parseInt(args.move, 10);
+    MOVE = await page.evaluate(m => __wb.setMove(m), m);
+    if (!MOVE) { console.error('no such move: ' + args.move); return done(1); }
+  }
   if (args.clean) await page.evaluate(() => __wb.overlays({ hitbox: false, sweep: false, grip: false }));
 
   // Crop window in world units around the fighter's centre.
@@ -80,7 +87,14 @@ const SETS = (typeof args.set === 'string' ? args.set.split(',') : []).map(s => 
   const shots = [];
   const melee = opened.info.type === 'melee';
   shots.push(await shoot('idle', null, 1));
-  for (let i = 0; i < FRAMES; i++) {
+  if (MOVE) {
+    // One cell per frame (or every other frame), labelled by phase.
+    const step = MOVE.dur > 20 ? 2 : 1;
+    for (let t = 0; t <= MOVE.dur; t += step) {
+      const ph = t < MOVE.startup ? 'startup' : t <= MOVE.startup + MOVE.active ? 'ACTIVE' : 'recovery';
+      shots.push(await shoot(`f${t} ${ph}`, Math.min(1, t / MOVE.dur), 1));
+    }
+  } else for (let i = 0; i < FRAMES; i++) {
     const p = i / (FRAMES - 1);
     shots.push(await shoot(`swing ${p.toFixed(2)}`, p, 1));
   }
@@ -128,7 +142,7 @@ const SETS = (typeof args.set === 'string' ? args.set.split(',') : []).map(s => 
     return out.toDataURL('image/png').split(',')[1];
   }, shots, art, `${KEY}${args.clean || !melee ? '' : '   red: hit points now   yellow: swept area   dashed: reach'}`);
 
-  const file = path.join(OUT, `${KEY}-sheet.png`);
+  const file = path.join(OUT, `${KEY}${MOVE ? '-' + MOVE.id.replace(/\W/g, '_') : ''}-sheet.png`);
   fs.writeFileSync(file, Buffer.from(sheet, 'base64'));
   console.log(file);
   console.log(JSON.stringify({ info: { ...info, dirty: undefined }, melee, source: SP.readSource(KEY), errors: errors.slice(0, 5) }, null, 1));

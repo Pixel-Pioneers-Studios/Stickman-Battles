@@ -225,6 +225,8 @@ Object.assign(_HD_MATERIALS, {
     if (!pl.isFloor) _dressHang(pl, 22, 6, 14, 'rgba(60,110,50,0.8)', 1.2);
   },
   frost(pl) {
+    // Pale ice on a pale sky: a cold shaded belly keeps the ledge separate from the backdrop.
+    if (!pl.isFloor) _dressUnder(pl, 'rgba(70,120,165,0.55)', 'rgba(40,82,128,0.9)', 0.3);
     _dressSheen(pl, 0.22);
     if (!pl.isFloor) _dressHang(pl, 16, 6, 16, 'rgba(214,238,255,0.92)', 2.6);
     _dressCap(pl, '#f6fbff', 4, 4);
@@ -305,6 +307,8 @@ Object.assign(_HD_MATERIALS, {
   },
   cloud(pl) {
     const f = frameCount;
+    // Lit from above, shaded below: white on a bright sky only separates by its belly.
+    if (!pl.isFloor) _dressUnder(pl, 'rgba(150,170,212,0.6)', 'rgba(108,128,178,0.95)', 0.3);
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.beginPath();
     for (const sp of _dSegs(pl)) {
@@ -315,7 +319,7 @@ Object.assign(_HD_MATERIALS, {
     }
     ctx.fill();
     if (!pl.isFloor) {
-      ctx.fillStyle = 'rgba(214,230,250,0.9)';
+      ctx.fillStyle = 'rgba(128,148,194,0.95)';
       ctx.beginPath();
       for (let x = pl.x + 8; x < pl.x + pl.w - 6; x += 15) {
         const r = 4 + _platNoise(pl.y, x) * 4;
@@ -360,7 +364,8 @@ Object.assign(_HD_MATERIALS, {
       }
       _dressHang(pl, 30, 3, 6, 'rgba(30,20,36,0.9)', 2);
     }
-    _dressTopLight(pl, 'rgba(160,120,220,0.18)', 1.4);
+    // Moonlit top edge: the slabs are as dark as the chapel behind them.
+    _dressTopLight(pl, 'rgba(190,160,240,0.4)', 2);
   },
   neonmetal(pl) {
     // panel seams and hazard stripes at the ends
@@ -402,7 +407,8 @@ Object.assign(_HD_MATERIALS, {
   },
   glass(pl) {
     _dressSheen(pl, 0.3);
-    _dressTopLight(pl, 'rgba(180,220,255,0.35)', 1.2);
+    // A bright lip on dark glass, so the standing surface reads against the dark backdrop.
+    _dressTopLight(pl, 'rgba(190,230,255,0.62)', 2);
     if (!pl.isFloor) {
       ctx.save(); ctx.globalCompositeOperation = 'lighter';
       _hdGlow(pl.x + pl.w / 2, pl.y + pl.h + 3, pl.w * 0.5, 8, '120,170,255', 0.14, true);
@@ -410,6 +416,8 @@ Object.assign(_HD_MATERIALS, {
     }
   },
   sand(pl) {
+    // Sand on a sand-orange sky: a shaded belly separates the ledge by value (Phase 4, measured 1.47).
+    if (!pl.isFloor) _dressUnder(pl, 'rgba(120,70,30,0.55)', 'rgba(78,42,18,0.9)', 0.3);
     ctx.strokeStyle = 'rgba(150,104,52,0.35)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -548,13 +556,20 @@ ARENA_HD.volcano = { material: 'magma', front() { _hdHeatFront(true); } };
 
 // FOREST: light shafts through the canopy, falling leaves.
 const _HD_FOREST = {
-  shafts: _hdItems(601, 7, (R, i) => ({ x: -60 + i * 150 + R() * 60, top: -40, w: 26 + R() * 30, len: 560, lean: 120, a: 0.07 + R() * 0.05, ph: R() * 6 })),
+  // Late sun through the canopy (Phase 4): fewer, broader, warmer shafts than before, so the forest
+  // has a golden key light of its own instead of sharing the meadow's flat green.
+  shafts: _hdItems(601, 5, (R, i) => ({ x: -40 + i * 210 + R() * 60, top: -40, w: 34 + R() * 34, len: 560, lean: 130, a: 0.2 + R() * 0.08, ph: R() * 6 })),
   leaves: _hdItems(602, 26, R => ({ x: R() * 1100, y: R() * 700, vx: 0.35 + R() * 0.3, vy: 0.5 + R() * 0.5, s: 2.5 + R() * 2, ph: R() * 6, c: R() < 0.6 ? '#6fbf4a' : '#d6c24a' })),
   flies: _hdItems(603, 18, R => ({ x: R() * 1000, y: 200 + R() * 260, ph: R() * 6 })),
 };
 ARENA_HD.forest = { material: 'moss', front() {
   const f = frameCount;
-  _hdShafts(_HD_FOREST.shafts, '230,255,190');
+  _hdShafts(_HD_FOREST.shafts, '255,232,160');
+  // Where each shaft lands, a dappled pool of light on the forest floor.
+  const fy = _hdFloorY();
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const s of _HD_FOREST.shafts) _hdGlow(s.x + s.w * 0.7 + s.lean * ((fy - s.top) / s.len), fy, s.w * 1.6, 10, '255,226,140', s.a * 1.6 * (0.7 + 0.3 * Math.sin(f * 0.012 + s.ph)), true);
+  ctx.restore();
   _hdMotes(_HD_FOREST.leaves, 1100, 700, (l, x, y) => {
     const m = ctx.getTransform();
     ctx.translate(x + Math.sin(f * 0.03 + l.ph) * 14, y); ctx.rotate(f * 0.04 + l.ph); ctx.scale(1, Math.abs(Math.sin(f * 0.05 + l.ph)) * 0.8 + 0.2);

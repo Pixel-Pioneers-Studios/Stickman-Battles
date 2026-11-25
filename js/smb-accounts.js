@@ -464,16 +464,17 @@ function _acctEnsureModal() {
   const inner = document.createElement('div');
   inner.id = 'accountsModalInner';
   inner.style.cssText = [
-    'background:#0b0b1e',
-    'border:1px solid rgba(100,180,255,0.3)',
-    'border-radius:12px',
+    // Ink plate (style guide, components): was the slate blue modal.
+    'background:linear-gradient(180deg,#15111D,#07060C)',
+    'border:1px solid #8C5E1F',
+    'border-radius:2px',
     'padding:28px',
     'width:min(480px,92vw)',
     'max-height:88vh',
     'overflow-y:auto',
-    'color:#dde4ff',
-    "font-family:'Segoe UI',Arial,sans-serif",
-    'box-shadow:0 0 40px rgba(0,100,255,0.18)',
+    'color:#F3E8D2',
+    "font-family:var(--font-ui)",
+    'box-shadow:0 0 0 2px #07060C,0 12px 40px rgba(0,0,0,0.6)',
   ].join(';');
   m.appendChild(inner);
   document.body.appendChild(m);
@@ -505,10 +506,12 @@ function _acctRenderList(inner) {
     const locked    = AccountManager.isLocked(acct.id);
     const hasPw     = AccountManager.hasPassword(acct.id);
     const date      = new Date(acct.createdAt).toLocaleDateString();
-    const lockIcon  = locked ? '🔒 ' : (hasPw ? '🔓 ' : '');
-    const borderCol = isActive ? 'rgba(80,200,120,0.5)' : 'rgba(100,150,255,0.2)';
-    const bgCol     = isActive ? 'rgba(40,120,80,0.18)' : 'rgba(255,255,255,0.04)';
-    const nameCol   = isActive ? '#88ffaa' : '#dde4ff';
+    // Words, not lock emoji (style guide, icons). A password-protected account says so after the name.
+    const lockIcon  = '';
+    const lockTag   = locked ? ' <span style="font-size:0.7rem;color:#B9AC93;">(locked)</span>' : (hasPw ? ' <span style="font-size:0.7rem;color:#B9AC93;">(password)</span>' : '');
+    const borderCol = isActive ? '#E2B255' : 'rgba(140,94,31,0.6)';
+    const bgCol     = isActive ? 'rgba(226,178,85,0.08)' : 'rgba(7,6,12,0.35)';
+    const nameCol   = isActive ? '#F3E8D2' : '#B9AC93';
 
     let actionBtn = '';
     if (isActive && locked) {
@@ -521,10 +524,10 @@ function _acctRenderList(inner) {
     const pwBtn     = '<button onclick="_acctGoSetPw(\'' + _acctEscId(acct.id) + '\')" style="' + _acctBtnStyle('purple') + '">' + (hasPw ? 'Password' : 'Set PW') + '</button>';
     const delBtn    = '<button onclick="_acctConfirmDelete(\'' + _acctEscId(acct.id) + '\',\'' + _acctEscStr(acct.username) + '\')" style="' + _acctBtnStyle('red') + '">Delete</button>';
 
-    rows += '<div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid ' + borderCol + ';background:' + bgCol + ';margin-bottom:6px;">'
+    rows += '<div style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:2px;border:1px solid ' + borderCol + ';background:' + bgCol + ';margin-bottom:6px;">'
           + '<div style="flex:1;min-width:0;">'
           + '<div style="font-size:0.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:' + nameCol + ';">'
-          + lockIcon + _acctEscHtml(acct.username) + (isActive ? ' <span style="font-size:0.7rem;color:#88ffaa;">(active)</span>' : '')
+          + lockIcon + _acctEscHtml(acct.username) + (isActive ? ' <span style="font-size:0.7rem;color:#E2B255;">(active)</span>' : '') + lockTag
           + '</div>'
           + '<div style="font-size:0.7rem;opacity:0.45;">Created ' + date + ' · <span style="font-family:monospace;user-select:all;cursor:pointer;" title="Click to copy ID" onclick="navigator.clipboard&&navigator.clipboard.writeText(\'' + _acctEscStr(acct.id) + '\').then(function(){_acctToast(\'ID copied\')})">' + _acctEscHtml(acct.id) + '</span></div>'
           + '</div>'
@@ -536,10 +539,10 @@ function _acctRenderList(inner) {
   if (!rows) rows = '<div style="font-size:0.8rem;opacity:0.5;text-align:center;padding:12px;">No accounts found.</div>';
 
   const logoutBtn = (activeHasPassword && !activeIsLocked)
-    ? '<button onclick="_acctLogout()" style="' + _acctBtnStyle('orange') + ';flex:1;">🔒 Log Out</button>'
+    ? '<button onclick="_acctLogout()" style="' + _acctBtnStyle('orange') + ';flex:1;">Log Out</button>'
     : '';
 
-  inner.innerHTML = '<h3 style="margin:0 0 16px;font-size:1.1rem;color:#88ccff;">Account &amp; Saves</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 16px;font-family:var(--sh-font-head);font-weight:400;letter-spacing:2px;text-transform:uppercase;font-size:1.05rem;color:#E2B255;">Account &amp; Saves</h3>'
     + cloudSection
     + '<div style="max-height:300px;overflow-y:auto;margin-bottom:14px;">' + rows + '</div>'
     + '<div style="display:flex;gap:8px;flex-wrap:wrap;">'
@@ -554,13 +557,13 @@ function _acctRenderCloudSection() {
   // CrazyGames forbids external logins and our own username sign-in, so hide the cloud block there.
   if (_acctOnCrazyGamesPortal()) return '';
   if (!window.SupabaseBridge) {
-    return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);font-size:0.78rem;opacity:0.65;">Cloud saves are not loaded.</div>';
+    return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(140,94,31,0.6);border-radius:2px;background:rgba(7,6,12,0.45);font-size:0.78rem;opacity:0.65;">Cloud saves are not loaded.</div>';
   }
   const st = typeof SupabaseBridge.getState === 'function' ? SupabaseBridge.getState() : { ready: false, available: false };
   const session = st.session;
   const user = st.user;
   const signedIn = !!(session && user);
-  const title = signedIn ? '☁️ Cloud Save Connected' : (st.available ? '☁️ Connect Cloud Save' : '☁️ Cloud Save Unavailable');
+  const title = signedIn ? 'Cloud Save Connected' : (st.available ? 'Connect Cloud Save' : 'Cloud Save Unavailable');
   const cloudName = (typeof SupabaseBridge.getDisplayName === 'function' && SupabaseBridge.getDisplayName())
     || (user && (user.email || user.id)) || 'cloud user';
   const status = signedIn
@@ -578,10 +581,10 @@ function _acctRenderCloudSection() {
       + '<button onclick="_acctCloudSignIn()" style="' + _acctBtnStyle('blue') + '">Log In</button>'
       + '<button onclick="_acctCloudSignUp()" style="' + _acctBtnStyle('purple') + '">Create Account</button>';
 
-  return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(100,180,255,0.18);border-radius:8px;background:rgba(255,255,255,0.03);">'
+  return '<div style="margin:0 0 14px;padding:12px;border:1px solid rgba(140,94,31,0.6);border-radius:2px;background:rgba(7,6,12,0.45);">'
     + '<div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;flex-wrap:wrap;">'
     + '<div>'
-    + '<div style="font-size:0.82rem;font-weight:700;color:#88ccff;margin-bottom:4px;">' + title + '</div>'
+    + '<div style="font-size:0.82rem;font-weight:700;color:#E2B255;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">' + title + '</div>'
     + '<div style="font-size:0.76rem;opacity:0.7;line-height:1.4;">' + status + '</div>'
     + '</div>'
     + '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + buttonRow + '</div>'
@@ -595,7 +598,7 @@ function _acctRenderCloudSection() {
     + '<div style="margin-top:6px;font-size:0.72rem;opacity:0.5;line-height:1.4;">Log in with the same username and password on any computer to pick your progress back up. An email address works too if you already made an account that way.</div>'
     + '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">'
     + '<div style="font-size:0.72rem;opacity:0.58;">Community</div>'
-    + '<button onclick="window.open(\'https://discord.gg/dgmhj33a5H\',\'_blank\',\'noopener\')" style="' + _acctBtnStyle('blue') + '">💬 Discord</button>'
+    + '<button onclick="window.open(\'https://discord.gg/dgmhj33a5H\',\'_blank\',\'noopener\')" style="' + _acctBtnStyle('blue') + '">Discord</button>'
     + '</div>'
     + '</div>';
 }
@@ -607,7 +610,7 @@ function _acctRenderLogin(inner) {
   const acct = p.accounts && p.accounts[id];
   if (!acct) { _acctModalData.view = 'list'; _acctRender(); return; }
 
-  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">🔒 Login</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-family:var(--sh-font-head);font-weight:400;letter-spacing:2px;text-transform:uppercase;font-size:1.05rem;color:#E2B255;">Login</h3>'
     + '<p style="margin:0 0 16px;font-size:0.82rem;opacity:0.6;">Enter password for <strong style="color:#dde4ff;">' + _acctEscHtml(acct.username) + '</strong></p>'
     + '<input id="_acctPwInput" type="password" placeholder="Password" autocomplete="current-password"'
     + ' style="' + _acctInputStyle() + '" onkeydown="if(event.key===\'Enter\')_acctSubmitLogin()">'
@@ -651,7 +654,7 @@ function _acctRenderSetPw(inner) {
   if (!acct) { _acctModalData.view = 'list'; _acctRender(); return; }
   const hasPw = AccountManager.hasPassword(id);
 
-  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">🔐 Password — ' + _acctEscHtml(acct.username) + '</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-family:var(--sh-font-head);font-weight:400;letter-spacing:2px;text-transform:uppercase;font-size:1.05rem;color:#E2B255;">Password — ' + _acctEscHtml(acct.username) + '</h3>'
     + '<p style="margin:0 0 12px;font-size:0.78rem;opacity:0.55;">' + (hasPw ? 'Change or remove your password.' : 'Set a password to lock this account. You\'ll receive a recovery code.') + '</p>'
     + (hasPw ? '<input id="_acctOldPw" type="password" placeholder="Current password" autocomplete="current-password" style="' + _acctInputStyle() + ';margin-bottom:8px;">' : '')
     + '<input id="_acctNewPw" type="password" placeholder="' + (hasPw ? 'New password' : 'Password') + '" autocomplete="new-password" style="' + _acctInputStyle() + ';margin-bottom:8px;">'
@@ -715,7 +718,7 @@ function _acctRenderRecovery(inner) {
   const acct = p.accounts && p.accounts[id];
   if (!acct) { _acctModalData.view = 'list'; _acctRender(); return; }
 
-  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">🔑 Password Recovery</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-family:var(--sh-font-head);font-weight:400;letter-spacing:2px;text-transform:uppercase;font-size:1.05rem;color:#E2B255;">Password Recovery</h3>'
     + '<p style="margin:0 0 12px;font-size:0.82rem;opacity:0.6;">Account: <strong style="color:#dde4ff;">' + _acctEscHtml(acct.username) + '</strong></p>'
     + '<p style="margin:0 0 12px;font-size:0.78rem;opacity:0.55;">Enter your 12-character recovery code and a new password.</p>'
     + '<input id="_acctRcCode" type="text" placeholder="XXXX-XXXX-XXXX" autocomplete="off" maxlength="14"'
@@ -849,7 +852,7 @@ function showChapter1SavePrompt() {
       'max-height:88vh',
       'overflow-y:auto',
       'color:#dde4ff',
-      "font-family:'Segoe UI',Arial,sans-serif",
+      "font-family:var(--font-ui)",
       'box-shadow:0 0 40px rgba(0,100,255,0.18)',
     ].join(';');
     modal.appendChild(inner);
@@ -864,7 +867,7 @@ function showChapter1SavePrompt() {
     '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">',
     '<button onclick="_acctOpenCloudSignupFromPrompt()" style="' + _acctBtnStyle('blue') + ';flex:1;">Create Account</button>',
     '<button onclick="_acctCloseChapter1SavePrompt(true)" style="' + _acctBtnStyle('dim') + '">Later</button>',
-    '<button onclick="window.open(\'https://discord.gg/dgmhj33a5H\',\'_blank\',\'noopener\')" style="' + _acctBtnStyle('purple') + '">💬 Discord</button>',
+    '<button onclick="window.open(\'https://discord.gg/dgmhj33a5H\',\'_blank\',\'noopener\')" style="' + _acctBtnStyle('purple') + '">Discord</button>',
     '</div>',
   ].join('');
 
@@ -904,7 +907,7 @@ function _acctRenderShowCode(inner) {
 
 // View: Login by Account ID
 function _acctRenderLoginById(inner) {
-  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">🔑 Login by Account ID</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-family:var(--sh-font-head);font-weight:400;letter-spacing:2px;text-transform:uppercase;font-size:1.05rem;color:#E2B255;">Login by Account ID</h3>'
     + '<p style="margin:0 0 14px;font-size:0.8rem;opacity:0.6;">Enter an account ID (e.g. <code style="font-size:0.76rem;opacity:0.8;">acct_abc123</code>) to switch to it directly.</p>'
     + '<input id="_acctByIdInput" type="text" placeholder="acct_…" autocomplete="off" spellcheck="false"'
     + ' style="' + _acctInputStyle() + ';font-family:monospace;letter-spacing:0.5px;" oninput="this.value=this.value.trim()"'
@@ -997,26 +1000,25 @@ function _acctConfirmDelete(id, username) {
 
 // Style helpers
 function _acctBtnStyle(type) {
-  const base = 'border-radius:6px;padding:5px 12px;cursor:pointer;font-size:0.78rem;';
-  if (type === 'blue')   return base + 'background:rgba(80,160,255,0.15);border:1px solid rgba(80,160,255,0.4);color:#88ccff;';
-  if (type === 'green')  return base + 'background:rgba(120,200,80,0.12);border:1px solid rgba(120,200,80,0.35);color:#aaffaa;';
-  if (type === 'red')    return base + 'background:rgba(255,60,60,0.12);border:1px solid rgba(255,80,80,0.35);color:#ff8888;';
-  if (type === 'purple') return base + 'background:rgba(180,80,255,0.12);border:1px solid rgba(180,100,255,0.35);color:#cc88ff;';
-  if (type === 'orange') return base + 'background:rgba(255,160,40,0.12);border:1px solid rgba(255,160,40,0.35);color:#ffbb66;';
-  return base + 'background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.18);color:#aab;';
+  // Plate buttons (style guide, components). One look; destructive keeps crimson text.
+  const base = 'border-radius:2px;padding:6px 12px;cursor:pointer;font-size:0.76rem;font-family:var(--sh-font-head);letter-spacing:1px;text-transform:uppercase;'
+             + 'background:linear-gradient(180deg,#211A2B,#15111D);border:1px solid #8C5E1F;box-shadow:0 0 0 2px #07060C;';
+  if (type === 'red') return base + 'color:#E5452B;';
+  if (type === 'green' || type === 'orange') return base + 'color:#E2B255;';
+  return base + 'color:#F3E8D2;';
 }
 
 function _acctInputStyle() {
   return [
     'width:100%',
     'box-sizing:border-box',
-    'background:rgba(255,255,255,0.07)',
-    'border:1px solid rgba(100,180,255,0.3)',
-    'border-radius:7px',
-    'color:#dde4ff',
+    'background:#07060C',
+    'border:1px solid #8C5E1F',
+    'border-radius:2px',
+    'color:#F3E8D2',
     'padding:9px 12px',
     'font-size:0.88rem',
-    "font-family:'Segoe UI',Arial,sans-serif",
+    "font-family:var(--font-ui)",
     'outline:none',
   ].join(';');
 }
@@ -1057,7 +1059,7 @@ function _acctToast(msg) {
       'padding:8px 22px','border-radius:8px','font-size:0.82rem',
       'z-index:99999','pointer-events:none','transition:opacity 0.3s',
       'border:1px solid rgba(80,200,120,0.45)',
-      "font-family:'Segoe UI',Arial,sans-serif",
+      "font-family:var(--font-ui)",
     ].join(';');
     document.body.appendChild(t);
   }
@@ -1142,7 +1144,7 @@ function _acctEnsureLoginModal() {
     'padding:26px',
     'width:min(400px,92vw)',
     'color:#dde4ff',
-    "font-family:'Segoe UI',Arial,sans-serif",
+    "font-family:var(--font-ui)",
     'box-shadow:0 0 40px rgba(0,100,255,0.18)',
   ].join(';');
   m.appendChild(inner);
@@ -1157,7 +1159,7 @@ function openLoginModal() {
   }
   const inner = document.getElementById('cloudLoginInner');
   if (!inner) return;
-  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:1.1rem;color:#88ccff;">Log In</h3>'
+  inner.innerHTML = '<h3 style="margin:0 0 6px;font-family:var(--sh-font-head);font-weight:400;letter-spacing:2px;text-transform:uppercase;font-size:1.05rem;color:#E2B255;">Log In</h3>'
     + '<p style="margin:0 0 16px;font-size:0.8rem;opacity:0.6;line-height:1.45;">Use the same username and password on any computer and your progress comes with you. No email needed.</p>'
     + '<input id="_acctQuickUser" type="text" placeholder="Username" autocomplete="username" spellcheck="false"'
     + ' style="' + _acctInputStyle() + ';margin-bottom:8px;" onkeydown="if(event.key===\'Enter\')_acctQuickAuth(\'in\')">'

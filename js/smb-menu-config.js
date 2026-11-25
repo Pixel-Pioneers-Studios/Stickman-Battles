@@ -15,7 +15,7 @@ function openCustomWeaponsPanel() {
     'border-radius:12px','padding:20px 24px','z-index:5000','min-width:320px',
     'max-width:480px','max-height:70vh','overflow-y:auto',
     'box-shadow:0 8px 40px rgba(0,0,0,0.8)',
-    'font-family:"Segoe UI",Arial,sans-serif',
+    'font-family:var(--font-ui)',
   ].join(';');
 
   const closeBtn = document.createElement('button');

@@ -5,7 +5,7 @@ STORY_CHAPTER_REGISTRY.push(
     world: '🌆 Home City',
     narrative: [
       'You were crossing the street when the air ripped.',
-      'Not like a sound. Like a pressure change. Like the world held its breath.',
+      'Every car alarm on the block went off at once.',
       '',
       'A figure stepped through the tear.',
       'They looked at you with recognition.',
@@ -74,7 +74,7 @@ STORY_CHAPTER_REGISTRY.push(
       'The air itself was bleeding light.',
       '',
       'And through each one: fighters.',
-      'Organized. Armed. Purposeful.',
+      'They moved in pairs, with real weapons.',
       '',
       '"Secure the fracture point," one of them said.',
       '"Eliminate all witnesses."',

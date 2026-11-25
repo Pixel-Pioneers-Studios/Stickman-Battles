@@ -660,7 +660,7 @@ const MultiverseManager = (function() {
       if (_multiverseWorldCompleteUnlock) {
         ctx.font = `bold 13px ${FONT_UI}`;
         ctx.fillStyle = `rgba(100,255,160,${alpha})`;
-        ctx.fillText(`🔓 Unlocked: ${_multiverseWorldCompleteUnlock}`, cw / 2, ch * 0.58);
+        ctx.fillText(`Unlocked: ${_multiverseWorldCompleteUnlock}`, cw / 2, ch * 0.58);
       }
       ctx.textAlign = 'left';
       ctx.restore();

@@ -98,6 +98,23 @@ Existing users: `.smb-modal-box`, `.overlay-box`, `#hud .hud-side`, `.ach-notif`
 
 ---
 
+### Hit effects (Phase 3, `js/smb-hit-fx.js`)
+Three tiers, picked once per landed hit in `dealDamage()` by `hitFxTier()`. Finishers and kills keep their own staging.
+- **Normal:** a thin cut line in the weapon's colour along the blade's path (a small four-point star for ranged). Shake capped at 4.
+- **Heavy** (22+ damage, smash archetype, string launcher): a hollow burst in the attacker's accent with an ink edge, then a ring.
+- **Crit** (counter-hit: the victim was mid-swing): heavy, plus a local disc behind both fighters and short speed lines.
+- Bursts use the fighter's accent, never the weapon glow (some glows are near-white). Nothing here is full-screen or white.
+
+### Motion (Phase 5)
+- DOM screens enter with CSS keyframes on the shared curve `cubic-bezier(.2,.8,.2,1)`: short rise or slide, rows staggered 30 ms, total under 0.35 s, `fill-mode: backwards`. Input is live throughout. `prefers-reduced-motion` turns entrances off.
+- GSAP is for canvas and cinematic timelines, not menu entrances. Kill its timelines when a scene ends.
+- No full-screen wipes between menu screens: the entrance is the transition.
+
+### Sound (Phase 5)
+- Every menu control gets a press and hover sound through `js/smb-ui-sound.js`. Mark a control `data-nosound` to opt out.
+- Positional sounds call `SoundManager.at(worldX)` first (frame-scoped stereo pan, max +-0.55).
+- Each base arena has a synthesized ambient bed (`AMBIENT_BEDS` in `js/smb-ambience.js`), well under music, silent in menus.
+
 ## 5. Identity: where consistency stops on purpose
 
 Consistency is for the interface. These are deliberate exceptions, and each one is the only place its look appears:
@@ -106,6 +123,11 @@ Consistency is for the interface. These are deliberate exceptions, and each one 
 |---|---|---|
 | Fighters | Near-black body, neon outline in the fighter's accent, round head, film body | Locked. Never restyle a fighter to fix readability; use camera, HUD scale or effects |
 | Arenas | Each arena has its own palette and lighting (Phase 4) | A place should be recognisable from a single frame |
+
+**Arena rules (Phase 4, Nov 22 2026)**
+- Key light: fighters, platforms and props are shaded from the upper left (lit left bevel, contact shadow down and right). A sun or moon in the sky is a backdrop element and may sit anywhere; it never adds a second shading direction to objects.
+- Every standable ledge separates from the backdrop behind it by value, not only by hue: a shaded belly on bright skies (Clouds, Ice), a lit top lip on dark ones (Mirror, Haunted). Check with a platform-to-backdrop luminance sample when you change an arena.
+- The band where fighters move (roughly world y 150 to the floor) stays calm: crowds of moving background detail (fish shoals, shards, ray bursts, glare) sit above it or are faded back as distance.
 | Tuesday prologue | Muted night city, near-wordless | Axiom's ordinary origin; its quiet is the point |
 | The spirit panel (story defeat) | Ghost-blue tint, Georgia lines | It is a spirit speaking, not UI |
 | Apex beings (Cosmic Axiom, Absolute Axiom, Sovereign, God…) | Code, reality-fracture, fourth-wall visuals | Reserved for apex beings only; lower-tier enemies stay diegetic |
@@ -156,7 +178,15 @@ Approved Nov 21–22 2026. Match these before inventing anything.
 
 The baseline (`tools/audit/style-baseline.json`) records the debt that existed when the guide was written. A count going **up** fails the run and prints the lines. When you pay debt down, run `npm run style -- --update` to lock it in. Never update the baseline to hide new drift. `npm run style -- --list <rule>` prints every match.
 
-Developer-only screens (admin, debug, cheats) are exempt.
+Developer-only screens (admin, debug, cheats) are exempt. `npm run check` runs it too.
+
+---
+
+## 9. Known deviations
+
+Shipped screens that break a rule above. They are listed so nobody copies them. Each line is removed when its fix ships.
+
+- None listed as of Nov 23 2026. Remaining debt is tracked by `npm run style` (emoji, off-palette hex, round corners).
 
 ---
 
@@ -174,3 +204,6 @@ Developer-only screens (admin, debug, cheats) are exempt.
 | 2026-11-21 | Fire gradient for brush marks only; headings flat gold; slate panels retired to the ink plate |
 | 2026-11-22 | Naming: 30 achievements renamed by canon; coins and tokens stay separate with distinct marks; EXP everywhere; 182 chapters |
 | 2026-11-22 | Icons from `smb-icons.js`; one banner button per screen |
+| 2026-11-22 | Hit effects in three tiers (normal cut, heavy burst, crit disc); accent colour, never full-screen white |
+| 2026-11-22 | Arenas: objects lit from the upper left, sky discs are backdrop; ledges separate by value; fight band stays calm; Volcano is a violet night eruption, Lava the orange lake (pending owner verdict) |
+| 2026-11-22 | Motion is CSS entrances on one curve; no menu wipes. UI press/hover sounds everywhere; positional pan; arena ambience (pending owner verdict) |

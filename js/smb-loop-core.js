@@ -179,6 +179,7 @@ function gameLoop(timestamp) {
         // Sync the attack animation so the swing shows on the opponent's screen.
         remoteP.attackTimer    = rs.attackTimer    != null ? rs.attackTimer    : remoteP.attackTimer;
         remoteP.attackDuration = rs.attackDuration != null ? rs.attackDuration : (remoteP.attackDuration || 12);
+        if (typeof _netApplyMove === 'function') _netApplyMove(remoteP, rs.mv);
         remoteP.hurtTimer      = rs.hurtTimer      != null ? rs.hurtTimer      : 0;
         remoteP.stunTimer      = rs.stunTimer2     != null ? rs.stunTimer2     : 0;
         // Synced from the owner, or remote fighters go transparent and unhittable.
@@ -474,6 +475,8 @@ function gameLoop(timestamp) {
   // Impact scars sit on the slabs they were cut into.
   if (typeof drawSurfaceScars === 'function') drawSurfaceScars();
   if (typeof drawWorldReactBack === 'function') drawWorldReactBack();
+  // Counter-hit disc (smb-hit-fx.js): behind the fighters, so they read as silhouettes on it.
+  if (typeof drawHitFXBack === 'function') drawHitFXBack();
   // Circuit void lips and slide telegraph draw above the plate, so the warning isn't hidden under it.
   if (typeof CircuitPlate !== 'undefined') CircuitPlate.drawOverlay();
   // Domain hazards (world-space, above platforms, below entities)
@@ -1096,6 +1099,8 @@ function gameLoop(timestamp) {
   // Debris (cosmetic, no collision or sync)
   if (typeof updateDestruction === 'function') { updateDestruction(); drawDebrisChunks(); }
   if (typeof updateWorldReact === 'function') { updateWorldReact(); drawWorldReactFront(); }
+  // Tiered hit marks (smb-hit-fx.js).
+  if (typeof drawHitFXFront === 'function') drawHitFXFront();
 
   // Domain speech bubbles (world-space, above entities)
   if (typeof DomainManager !== 'undefined') DomainManager.drawSpeechBubbles();

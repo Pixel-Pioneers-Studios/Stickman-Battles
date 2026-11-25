@@ -23,7 +23,7 @@ const _ADMIN_ALL_ACH_IDS = [
   'online_winner',
   'boss_slayer', 'true_form', 'yeti_hunter', 'beast_tamer',
   'sovereign_slayer', 'god_slayer', 'absolute_axiom_slayer',
-  'story_begin', 'story_complete', 'lab_infiltrator',
+  'story_begin', 'story_complete', 'story_evolution', 'lab_infiltrator',
   'multiverse_warrior', 'multiverse_master',
   'fracture_explorer', 'ship_builder',
 ];

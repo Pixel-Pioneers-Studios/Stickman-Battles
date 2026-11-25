@@ -439,7 +439,7 @@ function _lobbyToast(msg, isError) {
       'padding:8px 20px','border-radius:8px','font-size:0.8rem',
       'z-index:99999','pointer-events:none','transition:opacity 0.3s',
       'border:1px solid rgba(100,180,255,0.4)',
-      "font-family:'Segoe UI',Arial,sans-serif",
+      "font-family:var(--font-ui)",
     ].join(';');
     document.body.appendChild(t);
   }

@@ -181,8 +181,8 @@ STORY_CHAPTER_REGISTRY.push(
     world: '🌋 City — Industrial District',
     narrative: [
       'The industrial quarter had been swallowed.',
-      'Lava from a destabilized portal — thermal bleed from a volcanic dimension.',
-      'The floor was literally melting.',
+      'Lava had come through a portal and kept coming.',
+      'The street was melting under it.',
       '',
       'And on the other side: a direct line to the portal source.',
       'The Architect\'s relay station.',
@@ -209,7 +209,7 @@ STORY_CHAPTER_REGISTRY.push(
     id: 11, title: 'The Relay Station',
     world: '🌋 City — Architect\'s Relay',
     narrative: [
-      'The relay station hummed like a living thing.',
+      'The relay station hummed. You felt it in your teeth.',
       'Crystal pillars. Dimensional conduits. Equations scratched on every surface.',
       '',
       '"You made it further than any of the others."',
@@ -278,8 +278,8 @@ STORY_CHAPTER_REGISTRY.push(
     tokenReward: 0,
     narrative: [
       'Something discharged.',
-      'Not like an explosion. Like a frequency — every hit stored, every hit landed,',
-      'releasing at once through the fragment embedded in your chest.',
+      'Windows blew out the length of the street.',
+      'The fragment in your chest burned, then went quiet.',
       '',
       'You didn\'t know you could do that.',
       'You don\'t know what it was.',

@@ -58,6 +58,7 @@ const ACHIEVEMENTS = [
   { id: 'saga2_complete',      cat: 'story', tier: 'gold',   icon: 'orbit',         title: 'The Man Who Built It', desc: 'Finish The Multiverse War',                         hint: 'Clear every chapter of the second saga', secret: true },
   { id: 'saga3_complete',      cat: 'story', tier: 'mythic', icon: 'infinity',      title: 'What Cannot Be Erased', desc: 'Finish The Substrate',                             hint: 'Clear every chapter of the third saga', secret: true },
   { id: 'story_complete',      cat: 'story', tier: 'gold',   icon: 'book',          title: 'End of the Line',      desc: 'Finish Story Mode',                                 hint: 'Reach and win the final chapter' },
+  { id: 'story_evolution',     cat: 'story', tier: 'mythic', icon: 'flame',         title: 'The Ninety-Fifth',     desc: 'Finish Story Mode on Evolution',                    hint: 'Evolution can only be chosen when you start a new story, and it can never be left' },
   { id: 'lab_infiltrator',     cat: 'story', tier: 'silver', icon: 'flask',         title: 'Lab Infiltrator',      desc: 'Complete the Laboratory Infiltration',              hint: 'A side mission. Look for it off the main Story path' },
   { id: 'multiverse_warrior',  cat: 'story', tier: 'silver', icon: 'planet',        title: 'One World Down',   desc: 'Conquer a Multiverse world',                        hint: 'Defeat the champion of any world in Multiverse mode' },
   { id: 'multiverse_master',   cat: 'story', tier: 'gold',   icon: 'map',           title: 'Every World Answered',    desc: 'Conquer every Multiverse world',                    hint: 'Clear all four worlds in Multiverse mode' },
@@ -172,12 +173,16 @@ function unlockAchievement(id) {
   if (onlineMode && NetworkManager.connected) {
     NetworkManager.sendGameEvent('achievementUnlocked', { id });
   }
-  _achBadgeImage(def); // start decoding now so the canvas popup has it on frame 1
-  achievementQueue.push({ ...def, frame: 0 });
   SoundManager.phaseUp();
   // This may have been the last one game_100 was waiting on
   if (id !== 'game_100') checkCompletionAchievements();
   if (typeof _achUpdateNavCount === 'function') _achUpdateNavCount();
+  // One notice per unlock: the canvas plate during a match, the DOM toast on menus and result screens.
+  if (gameRunning) {
+    _achBadgeImage(def); // start decoding now so the canvas popup has it on frame 1
+    achievementQueue.push({ ...def, frame: 0, at: Date.now() });
+    return;
+  }
   const existing = document.getElementById('achNotif');
   if (existing) existing.remove();
   const el = document.createElement('div');
@@ -196,6 +201,11 @@ function unlockAchievement(id) {
 function drawAchievementPopups() {
   if (achievementQueue.length === 0) return;
   const ACH_SHOW = 240; // 4 seconds
+  // A match that ends mid-popup must not carry it into the next one.
+  while (achievementQueue.length && Date.now() - (achievementQueue[0].at || 0) > 20000) achievementQueue.shift();
+  if (achievementQueue.length === 0) return;
+  // Held while a finisher or cinematic owns the top of the screen (their titles sit there).
+  if (activeFinisher || activeCinematic) return;
   const cur = achievementQueue[0];
   cur.frame++;
   if (cur.frame >= ACH_SHOW) { achievementQueue.shift(); return; }
@@ -212,7 +222,14 @@ function drawAchievementPopups() {
   const _cssW = canvas.clientWidth || canvas.width;
   const _r = canvas.width / _cssW;
   ctx.scale(_r, _r);
-  const bw = 270, bh = 56, bx = _cssW / 2 - bw / 2, by = 62 - slideX * 0.25;
+  // KOs usually unlock achievements, so the kill feed under Menu is often showing too: sit below it.
+  let _top = 62;
+  const _feed = document.getElementById('killFeed');
+  if (_feed && _feed.childElementCount) {
+    _top = Math.max(_top, _feed.getBoundingClientRect().bottom - canvas.getBoundingClientRect().top + 6);
+  }
+  cur.top = cur.top == null ? _top : cur.top + (_top - cur.top) * 0.2;
+  const bw = 270, bh = 56, bx = _cssW / 2 - bw / 2, by = cur.top - slideX * 0.25;
   const plate = ctx.createLinearGradient(0, by, 0, by + bh);
   plate.addColorStop(0, 'rgba(21,17,29,0.96)');
   plate.addColorStop(1, 'rgba(7,6,12,0.96)');

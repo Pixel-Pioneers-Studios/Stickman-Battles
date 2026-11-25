@@ -109,7 +109,23 @@
   }
   function play() { wb.mode = 'play'; wb.loop = false; if (wb.ui) syncModeButtons(); }
 
+  // A move from the weapon's move list (WEAPON_SWINGS[key].moves), by index into its string or 'air'. null = the plain swing.
+  function curMove() {
+    const g = WEAPON_SWINGS[wb.key], ml = g && g.moves;
+    if (!ml || wb.move === null || wb.move === undefined) return null;
+    return wb.move === 'air' ? (ml.air || null) : ((ml.string || [])[wb.move] || null);
+  }
+  function setMove(m) { wb.move = m; return curMove() ? { id: curMove().id, dur: curMove().dur, startup: curMove().startup, active: curMove().active } : null; }
+  function applyMove(f, p) {
+    const mv = curMove();
+    if (wb.mode !== 'pose' && !mv) return;   // play mode: the fighter's own swing stands
+    f._swingMv = mv;
+    if (mv) { f._attackKindTier = CLASH_TIER_ATTACK; f._atkAge = Math.floor(p * mv.dur); }
+  }
+
   function swingDur() {
+    const mv = curMove();
+    if (mv) return mv.dur;
     const g = WEAPON_SWINGS[wb.key];
     return (WEAPONS[wb.key].type === 'melee' && g && g.dur) ? g.dur : 12;
   }
@@ -130,6 +146,7 @@
     const dur = swingDur();
     f.attackDuration = dur;
     f.attackTimer = Math.max(0.05, (1 - wb.poseP) * dur);
+    applyMove(f, wb.poseP);
     f.state = 'attacking';
   }
 
@@ -139,9 +156,15 @@
     const dur = swingDur();
     f.attackDuration = dur;
     f.attackTimer = Math.max(0.05, (1 - p) * dur);
+    const age = f._atkAge, smv = f._swingMv, tier = f._attackKindTier;
+    const restore = () => { f.attackTimer = at; f.attackDuration = ad; f._atkAge = age; f._swingMv = smv; f._attackKindTier = tier; };
+    applyMove(f, p);
+    // A keyed move only hits in its active frames; the swept area shows just those.
+    const mv = curMove();
+    if (mv && (f._atkAge < mv.startup || f._atkAge > mv.startup + mv.active)) { restore(); return []; }
     let pts = [];
     try { pts = f._getMeleeArcPoints(); } catch (e) {}
-    f.attackTimer = at; f.attackDuration = ad;
+    restore();
     return pts;
   }
 
@@ -153,7 +176,8 @@
       c.fillStyle = 'rgba(255, 210, 60, 0.28)';
       for (let i = 0; i <= 24; i++) for (const q of pointsAt(f, i / 24)) c.fillRect(q.x - 1, q.y - 1, 2, 2);
     }
-    if (wb.ov.hitbox && f.attackTimer > 0) {
+    const _mvO = curMove();
+    if (wb.ov.hitbox && f.attackTimer > 0 && (!_mvO || (f._atkAge >= _mvO.startup && f._atkAge <= _mvO.startup + _mvO.active))) {
       c.fillStyle = '#ff3355';
       for (const q of f._getMeleeArcPoints()) { c.beginPath(); c.arc(q.x, q.y, 1.6, 0, Math.PI * 2); c.fill(); }
     }
@@ -197,7 +221,7 @@
 
   // Fighter centre in CSS px, plus CSS px per world unit.
   function fighterScreen() {
-    const cv = document.querySelector('canvas');
+    const cv = document.getElementById('gameCanvas');
     if (!cv || !wb.screen) return null;
     const b = cv.getBoundingClientRect();
     const kx = b.width / cv.width;
@@ -524,7 +548,7 @@
 
   function overlays(o) { Object.assign(wb.ov, o || {}); }
 
-  window.__wb = { open, pose, play, set, measureEdge, save, previewArt, shipArt, overlays, hidePanel, fighterScreen, info,
+  window.__wb = { open, pose, play, set, setMove, measureEdge, save, previewArt, shipArt, overlays, hidePanel, fighterScreen, info,
     loop: on => { wb.mode = 'pose'; wb.loop = !!on; wb._loopT = 0; }, state: wb };
 
   async function boot() {

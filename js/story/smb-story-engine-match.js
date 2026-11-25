@@ -417,6 +417,8 @@ function _awardSagaCompletion() {
 function _completeStory2() {
   _story2.storyComplete = true;
   if (typeof unlockAchievement === 'function') unlockAchievement('story_complete');
+  // Evolution is permanent from the first pick, so finishing on it means the whole run was on it.
+  if (_story2.difficulty === 'evolution' && typeof unlockAchievement === 'function') unlockAchievement('story_evolution');
   _awardSagaCompletion();
   if (typeof setAccountFlagWithRuntime === 'function') {
     setAccountFlagWithRuntime(['unlocks', 'storyOnline'], true, function(v) { storyOnline = v; });

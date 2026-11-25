@@ -319,10 +319,17 @@ const GUARD_Q_DRAIN_MIN  = 30;   // ...but never less, so a grab opener's chip s
 const GUARD_Q_CHIP       = 0.35; // share of an ability's damage that goes through a guard that holds
 const SHIELD_PARRY_REST  = 20;   // frames the guard must be down before a parry counts
 
+// True while a fighter is in the recovery of a whiffed basic swing. A guard can't cover it.
+function _whiffGuardLocked(f) {
+  return !!f && typeof frameCount !== 'undefined' && (f._whiffGuardLock || 0) > frameCount;
+}
+
 // Called on the raising edge by every guard path. false = refused.
 function shieldRaise(f) {
   // Guard-break moves stamp shieldCooldown on the victim. Refuse raises until it ticks out.
   if (!f.shielding && (f.shieldCooldown || 0) > 0) return false;
+  // Recovering from a whiffed swing: no guard until it is over (smb-fighter.js, swing end).
+  if (!f.shielding && _whiffGuardLocked(f)) return false;
   if (SHIELD_RULES === 'pool') {
     if ((f.shieldHP || 0) < 1) return false;
     f.shieldStacks = 1;   // keeps dealDamage on the HP-absorb path
@@ -596,7 +603,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Sampled before the overflow break below clears `shielding`. A DoT tick never counts as guarded.
   // Combo Domain owners land direct hits: no parry, no guard (smb-combo-domain.js).
-  let _guardUp = !!target.shielding && !isDot && !(attacker && attacker._comboDomain);
+  let _guardUp = !!target.shielding && !isDot && !(attacker && attacker._comboDomain) && !_whiffGuardLocked(target);
   let _shieldedHit = _guardUp;
   let _parried = false;
   if (_guardUp) {
@@ -1086,16 +1093,21 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
       target.vy = -5;
     }
   }
+  // Hit-effect tier (smb-hit-fx.js): normal, heavy or crit (counter-hit). Visual only. Finishers stage their own.
+  const _hfxTier = (!_guardUp && !_finisherFired && typeof hitFxTier === 'function')
+    ? hitFxTier(attacker, target, actualDmg, isSplash, isDot, _counterHit) : null;
   // BR: only the local player's hits shake the screen.
   if (settings.screenShake && (typeof gameMode === 'undefined' || gameMode !== 'battleroyale' ||
       typeof _brIsLocalPlayerHit !== 'function' || _brIsLocalPlayerHit(attacker, target))) {
-    const _shakeBase = _guardUp ? 2 : Math.min(18, 4 + Math.floor(actualDmg / 5));
+    // Normal hits keep the camera steady enough to read the next exchange.
+    const _shakeBase = _guardUp ? 2 : Math.min(_hfxTier === 'normal' ? 4 : 18, 4 + Math.floor(actualDmg / 5));
     screenShake = Math.max(screenShake, _shakeBase);
   }
   // Environmental hits (no attacker) skip the hit sound or the audio floods.
   // BR: only hits the camera can see are audible.
   const _hitAudible = typeof gameMode === 'undefined' || gameMode !== 'battleroyale' ||
                       typeof _brIsAudibleHit !== 'function' || _brIsAudibleHit(attacker, target);
+  if (_hitAudible && SoundManager.at && target) SoundManager.at(target.cx());   // pan by where the hit lands
   if (!_hitAudible) { /* off-screen BR hit, silent */ }
   else if (_guardUp) SoundManager.clang();
   else if (attacker) {
@@ -1116,7 +1128,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   }
   // Arena reacts to the hit (light, air pressure, dust).
   if (_hitAudible && typeof worldReactHit === 'function') {
-    worldReactHit(attacker, target, actualDmg, actualKb, _guardUp, isSplash);
+    worldReactHit(attacker, target, actualDmg, actualKb, _guardUp, isSplash, _hfxTier);
   }
   // Battle Royale structures record the hit (windows, skyline). State only.
   if (_hitAudible && typeof brStructuresHit === 'function') {
@@ -1126,6 +1138,7 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
   const _pvBlood = typeof pixelHitFX === 'function' && pixelHitFX(attacker, target, actualDmg, _guardUp, isSplash);
   if (typeof animeHitFX === 'function') animeHitFX(attacker, target, actualDmg, _guardUp);
   if (typeof animHitReact === 'function') animHitReact(attacker, target, actualDmg, actualKb, _guardUp);
+  if (_hfxTier && _hitAudible && typeof hitFX === 'function') hitFX(attacker, target, actualDmg, _hfxTier);
   // Blood only on direct entity hits.
   if (!_pvBlood && !_guardUp && !isSplash && attacker && !target.isBoss &&
       actualDmg > 0 && typeof spawnBlood === 'function') {
@@ -1214,7 +1227,8 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     // that swing's contact frame. Set after both decays so they can't open a gap.
     if (_stringHit && !_shieldedHit && actualDmg > 0) {
       const _contact = typeof attacker._meleeContactFrames === 'function' ? attacker._meleeContactFrames() : 5;
-      const _next = Math.max((attacker.attackTimer || 0) + (attacker.weapon.endlag || 0),
+      const _endlag = typeof attacker._curSwingEndlag === 'function' ? attacker._curSwingEndlag() : (attacker.weapon.endlag || 0);
+      const _next = Math.max((attacker.attackTimer || 0) + _endlag,
                              (target.invincible || 0) - _contact + 2);
       attacker.cooldown = Math.min(attacker.cooldown || 0, _next);
       target.stunTimer  = Math.max(target.stunTimer || 0,

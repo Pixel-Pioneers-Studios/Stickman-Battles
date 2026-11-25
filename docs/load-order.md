@@ -5,8 +5,10 @@ Moved out of CLAUDE.md. `index.html` is the source of truth; this list mirrors i
 Script load order in `index.html` — files may only reference globals from earlier entries:
 
 1. `js/smb-errorboundary.js` — Global error boundary/fallback
-2. `js/smb-globals.js` — ALL global state (canvas, settings, TF state, online state, boss floor state)
+2. `js/smb-globals.js` — ALL global state (canvas, settings, TF state, online state, boss floor state; `FONT_*`, `smbStripEmoji`)
 3. `js/smb-audio.js` — SoundManager
+3a. `js/smb-ui-sound.js` — delegated menu press/hover sounds (no globals)
+3b. `js/smb-ambience.js` — `AMBIENT_BEDS`, `Ambience` (per-arena synthesized beds)
 4. `js/smb-director.js` — Game director / flow controller
 5. `js/smb-achievements.js` — Achievement definitions and unlock logic
 6. `js/smb-data-arenas.js` — `ARENAS`, `ARENA_BASE_PLATFORMS`, `randomizeArenaLayout`
@@ -20,6 +22,7 @@ Script load order in `index.html` — files may only reference globals from earl
 13. `js/smb-heatmap.js` — Player heatmap (zone tracking)
 14. `js/smb-verlet.js` — `VerletRagdoll`, `PlayerRagdoll`
 15. `js/smb-cinematics-core.js` — `CinematicManager`, `cinScript`, `CinFX`, `CinCam`, `CinTimeline`
+15a. `js/smb-hit-fx.js` — `hitFxTier`, `hitFX`, `drawHitFXBack`, `drawHitFXFront`, `hitFXClear` (tiered hit effects)
 16. `js/smb-cinematics-backstory.js` — `startBossBackstoryCinematic`
 17. `js/smb-cinematics-boss-thresh.js` — Boss warning/rage/desp threshold cinematics
 18. `js/smb-cinematics-tf-thresh.js` — TrueForm entry/reality/desp threshold cinematics

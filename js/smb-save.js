@@ -1136,7 +1136,7 @@ function _showSaveToast(msg, isError) {
       'padding:9px 24px','border-radius:8px','font-size:0.85rem',
       'z-index:99999','pointer-events:none','transition:opacity 0.3s',
       'border:1px solid rgba(100,180,255,0.45)',
-      'font-family:\'Segoe UI\',Arial,sans-serif',
+      'font-family:var(--font-ui)',
     ].join(';');
     document.body.appendChild(t);
   }

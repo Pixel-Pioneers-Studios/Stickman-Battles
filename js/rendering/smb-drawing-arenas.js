@@ -2388,6 +2388,39 @@ function _platDrawTerrain(pl, baseColor, edgeColor) {
   if (typeof _platDress === 'function') _platDress(pl, baseColor);
 }
 
+// Pickup glyphs for explore items, drawn in the item's glow colour with an ink edge. ~18px tall, centred on (x, y).
+function _exploreItemGlyph(type, x, y, col) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = col; ctx.strokeStyle = '#07060c'; ctx.lineWidth = 1.6; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (type === 'heal' || type === 'medkit') {
+    ctx.rect(-3, -9, 6, 18); ctx.rect(-9, -3, 18, 6);
+  } else if (type === 'coin') {
+    ctx.arc(0, 0, 8, 0, Math.PI * 2);
+  } else if (type === 'shield') {
+    ctx.moveTo(0, -9); ctx.lineTo(8, -6); ctx.quadraticCurveTo(8, 5, 0, 10); ctx.quadraticCurveTo(-8, 5, -8, -6); ctx.closePath();
+  } else if (type === 'super') {
+    ctx.moveTo(2, -10); ctx.lineTo(-6, 1); ctx.lineTo(-1, 1); ctx.lineTo(-3, 10); ctx.lineTo(6, -2); ctx.lineTo(1, -2); ctx.closePath();
+  } else if (type === 'weapon') {
+    ctx.rotate(-Math.PI / 4);
+    ctx.moveTo(-3, -2.5); ctx.lineTo(9, -2.5); ctx.lineTo(13, 0); ctx.lineTo(9, 2.5); ctx.lineTo(-3, 2.5); ctx.closePath();   // blade
+    ctx.rect(-5, -6, 2.5, 12);                                                                                              // guard
+    ctx.rect(-11, -1.6, 6, 3.2);                                                                                            // grip
+  } else if (type === 'lock') {
+    ctx.rect(-6, -2, 12, 9);
+  } else if (type === 'sparkle') {
+    for (let i = 0; i < 8; i++) { const r = i % 2 ? 2 : 7, a = i * Math.PI / 4 - Math.PI / 2; ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.closePath();
+  } else {
+    ctx.moveTo(0, -10); ctx.lineTo(7, 0); ctx.lineTo(0, 10); ctx.lineTo(-7, 0); ctx.closePath();
+  }
+  ctx.stroke(); ctx.fill();
+  if (type === 'lock') { ctx.beginPath(); ctx.arc(0, -2, 4, Math.PI, 0); ctx.lineWidth = 2.4; ctx.strokeStyle = col; ctx.stroke(); }
+  if (type === 'coin') { ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(7,6,12,0.55)'; ctx.stroke(); }
+  ctx.restore();
+}
+
 function drawPlatforms() {
   const isBoss    = !!currentArena.isBossArena;
   const isVoid    = !!currentArena.isVoidArena;
@@ -2525,7 +2558,7 @@ function drawPlatforms() {
     ctx.textAlign   = 'center';
     ctx.shadowColor = 'rgba(0,0,0,0.95)';
     ctx.shadowBlur  = 10;
-    ctx.fillText(`${isLava ? '🌋 LAVA' : '🌑 VOID'} IN ${secs}s`, GAME_W / 2, 444);
+    ctx.fillText(`${isLava ? 'LAVA' : 'VOID'} IN ${secs}s`, GAME_W / 2, 444);
     ctx.restore();
   }
 }
@@ -2716,7 +2749,7 @@ function drawExploreHUD() {
     ctx.fillStyle   = flash ? '#ff6644' : '#ccddff';
     ctx.font = `bold 11px ${FONT_UI}`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-    ctx.fillText('⏱ ESCAPE ROUTE', barX, cbY + barH + 4);
+    ctx.fillText('ESCAPE ROUTE', barX, cbY + barH + 4);
     ctx.fillStyle = flash ? '#ff4422' : '#ffcc44';
     ctx.textAlign = 'right';
     ctx.fillText(`${secsLeft}s`, barX + barW, cbY + barH + 4);
@@ -2898,7 +2931,7 @@ function drawExploreGoalObject() {
       ctx.globalAlpha = 1;
       ctx.font = `13px ${FONT_UI}`;
       ctx.textAlign = 'center';
-      ctx.fillText(locked ? '🔒' : '✨', it.x, it.y - 13);
+      _exploreItemGlyph(locked ? 'lock' : 'sparkle', it.x, it.y - 18, cGlow);
       ctx.restore();
       continue;
     }
@@ -2908,9 +2941,8 @@ function drawExploreGoalObject() {
     ctx.shadowColor = glow;
     ctx.shadowBlur = 14;
     ctx.globalAlpha = 0.92;
-    ctx.font = `22px ${FONT_UI}`;
-    ctx.textAlign = 'center';
-    ctx.fillText(it.icon, it.x, it.y + bob);
+    // Drawn glyph by type, not the authored emoji: emoji render differently on every OS (style guide, icons).
+    _exploreItemGlyph(it.type, it.x, it.y + bob - 7, glow);
     ctx.restore();
   }
   if (exploreGoalFound) return;
@@ -2968,7 +3000,7 @@ function checkDeaths() {
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
-        respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
+        _queueRespawnCountdown(p);
         setTimeout(() => { if (gameRunning) p.respawn(); }, 1100);
         continue;
       }
@@ -3105,7 +3137,7 @@ function checkDeaths() {
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
         p.vy = -10; p.vx = (Math.random() - 0.5) * 14;
-        respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
+        _queueRespawnCountdown(p);
         setTimeout(() => {
           if (!gameRunning) return;
           if (completeRandomizer && gameMode === '2p') {
@@ -3127,7 +3159,7 @@ function checkDeaths() {
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         p.invincible = 999;
-        respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
+        _queueRespawnCountdown(p);
         setTimeout(() => {
           if (!gameRunning) return;
           if (completeRandomizer && gameMode === '2p') {
@@ -3159,7 +3191,7 @@ function checkDeaths() {
         if (typeof DeathAnim !== 'undefined') DeathAnim.begin(p);
         else if (p._rd) PlayerRagdoll.collapse(p);
         if (p.lives > 0) {
-          respawnCountdowns.push({ color: p.color, x: p.spawnX, y: p.spawnY - 80, framesLeft: 66 });
+          _queueRespawnCountdown(p);
           setTimeout(() => {
             if (!gameRunning) return;
             if (completeRandomizer && gameMode === '2p') {
@@ -3246,6 +3278,17 @@ function _feedName(e) {
   if (n && n !== '?') return String(n);
   const t = e && (e.charClass || e.enemyType || e.type || (e.constructor && e.constructor.name));
   return t && t !== 'Object' ? String(t).replace(/[_-]+/g, ' ').toUpperCase() : 'ENEMY';
+}
+
+// The countdown marks where the fighter will rise, so the platform is picked now and
+// respawn() reuses it. Explore checkpoints and boss floors keep picking at respawn time.
+function _queueRespawnCountdown(p) {
+  let s = null;
+  if (currentArena && !currentArena.isBossArena && !exploreActive && typeof pickSafeSpawn === 'function') {
+    s = pickSafeSpawn(p.playerNum === 2 ? 'right' : 'left');
+    if (s) p._queuedSpawn = { x: s.x, y: s.y, arena: currentArenaKey };
+  }
+  respawnCountdowns.push({ color: p.color, x: s ? s.x : p.spawnX, y: (s ? s.y : p.spawnY) - 80, framesLeft: 66 });
 }
 
 function addKillFeed(loser) {
@@ -4160,6 +4203,10 @@ const _FRAC_CRACKS = [
 
 let _fracPtcl = []; // ambient particle pool
 
+// The crack star and void eye sat behind the setup screen's START button, competing with the one primary
+// action, and crack visuals belong to apex beings (style guide, identity table). Off; the vignette and motes stay.
+const MENU_FRACTURE_STAR = false;
+
 function _drawFractureOverlay(ctx, W, H, t) {
   const cx = W / 2, cy = H * 0.34;
 
@@ -4171,6 +4218,7 @@ function _drawFractureOverlay(ctx, W, H, t) {
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
 
+  if (MENU_FRACTURE_STAR) {
   // Sub-surface void bloom beneath crack origin
   const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, 185);
   bloom.addColorStop(0,   'rgba(110,30,200,0.20)');
@@ -4227,6 +4275,7 @@ function _drawFractureOverlay(ctx, W, H, t) {
   ctx.beginPath(); ctx.arc(0,0, eyeR*1.8, 0, Math.PI*2); ctx.fill();
 
   ctx.restore();
+  }
 
   // Floating void particles
   if (_fracPtcl.length < 60 && Math.random() < 0.45) {

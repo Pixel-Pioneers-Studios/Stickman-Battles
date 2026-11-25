@@ -142,7 +142,7 @@ const NetworkManager = (() => {
     if (!t) {
       t = document.createElement('div');
       t.id = 'netToast';
-      t.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,rgba(21,17,29,0.94),rgba(7,6,12,0.94));border:1px solid #8C5E1F;box-shadow:0 0 0 2px rgba(7,6,12,0.85);color:#F3E8D2;padding:9px 20px;border-radius:2px;font:600 15px/1.3 var(--font-ui);z-index:9999;pointer-events:none;transition:opacity 0.4s';
+      t.style.cssText = 'position:fixed;top:92px;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,rgba(21,17,29,0.94),rgba(7,6,12,0.94));border:1px solid #8C5E1F;box-shadow:0 0 0 2px rgba(7,6,12,0.85);color:#F3E8D2;padding:9px 20px;border-radius:2px;font:600 15px/1.3 var(--font-ui);z-index:9999;pointer-events:none;transition:opacity 0.4s';
       document.body.appendChild(t);
     }
     t.textContent = msg;
@@ -936,6 +936,7 @@ const NetworkManager = (() => {
       health: p.health, maxHealth: p.maxHealth, facing: p.facing,
       state: p.attackTimer > 0 ? 'attacking' : p.onGround ? 'idle' : 'jumping',
       attackTimer: p.attackTimer || 0, attackDuration: p.attackDuration || 12,
+      mv: _netMoveId(p),
       hurtTimer: p.hurtTimer || 0, stunTimer2: p.stunTimer || 0,
       weaponKey: p.weaponKey, charClass: p.charClass || 'none',
       shield: p.shielding, stunTimer: p.stunTimer > 0,
@@ -1315,6 +1316,7 @@ window.NetMG = (function () {
       vx: +(f.vx || 0).toFixed(2), vy: +(f.vy || 0).toFixed(2),
       h: Math.round(f.health), mh: f.maxHealth, f: f.facing, og: f.onGround ? 1 : 0,
       at: f.attackTimer || 0, ad: f.attackDuration || 12, hu: f.hurtTimer || 0, st: f.stunTimer || 0,
+      mv: _netMoveId(f),
       inv: f.invincible || 0, sh: f.shielding ? 1 : 0, w: f.weaponKey, col: f.color, n: f.name,
       bw: f.w, bh: f.h, ds: f.drawScale || 1, pn: f.playerNum || 2, rush: f._defenseRusher ? 1 : 0,
       ms: typeof MoveSceneNet !== 'undefined' ? MoveSceneNet.pack(f) : undefined,
@@ -1394,6 +1396,7 @@ window.NetMG = (function () {
       m.onGround = !!s.og;
       m.state = s.at > 0 ? 'attacking' : (s.og ? 'idle' : 'jumping');
       m.attackTimer = s.at || 0; m.attackDuration = s.ad || 12;
+      _netApplyMove(m, s.mv);
       m.hurtTimer = s.hu || 0; m.stunTimer = s.st || 0;
       m.invincible = s.inv || 0; m.shielding = !!s.sh;
       if (s.w && s.w !== m.weaponKey && WEAPONS[s.w]) { m.weaponKey = s.w; m.weapon = WEAPONS[s.w]; }

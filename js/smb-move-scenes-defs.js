@@ -1570,6 +1570,7 @@ msDefine('katana:e', {
       const b = sc.ub;
       b.x = t.cx() + dir * (t.w / 2 + 34) - sc.user.w / 2;
       b.y = t.y + t.h - sc.user.h;
+      b.pf = b.y + sc.user.h;            // a reappear, not a path: no floor between counts
       sc._clampBody(b);
       sc.f = -dir;
       sc.stop(sc.user);

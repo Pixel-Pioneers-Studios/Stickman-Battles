@@ -152,7 +152,7 @@ function _wrScuffColor() {
 
 // Called from dealDamage() after knockback is applied. `guarded` hits still
 // move the air, just far less.
-function worldReactHit(attacker, target, dmg, kb, guarded, isSplash) {
+function worldReactHit(attacker, target, dmg, kb, guarded, isSplash, tier) {
   if (!_wrOn() || !target || typeof target.cx !== 'function') return;
   if (!attacker || dmg < 3) return;
 
@@ -175,7 +175,8 @@ function worldReactHit(attacker, target, dmg, kb, guarded, isSplash) {
             : guarded ? '#bfe0ff'
             : (w && w.type === 'ranged') ? '#ffe0b0'
             : (w && w.weaponType === 'heavy') ? '#ffd2a0' : '#eaf4ff';
-  if (power >= 0.3) _wrLight(hx, hy, col, power);
+  // Normal hits keep the light small: the hit zoom made the full one read as a screen wash (Phase 3 audit).
+  if (power >= 0.3) _wrLight(hx, hy, col, tier === 'normal' ? Math.min(power, 0.35) : power);
 
   // Pressure front through the air, stretched along the line of the blow.
   if (m.air !== false && power >= 0.35) {

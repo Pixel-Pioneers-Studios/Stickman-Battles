@@ -11,7 +11,7 @@
     "style": "node tools/audit/style.js",
     "whatsnew": "node tools/whatsnew/gen.js",
     "split": "node tools/split-saga.js",
-    "check": "npm run build && npm run audit && npm run lint",
+    "check": "npm run build && npm run audit && npm run style && npm run lint",
     "smb": "node tools/smb.js",
     "preflight": "bash tools/dev/preflight.sh"
   },

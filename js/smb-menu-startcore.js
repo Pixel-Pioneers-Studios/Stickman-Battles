@@ -274,6 +274,7 @@ function _startGameCore() {
   if (typeof PixelVFX !== 'undefined') PixelVFX.clear();
   if (typeof resetDestruction === 'function') resetDestruction();
   if (typeof resetWorldReact === 'function') resetWorldReact();
+  if (typeof hitFXClear === 'function') hitFXClear();
   bloodStains        = [];
   verletRagdolls     = [];
   damageTexts        = [];

@@ -411,7 +411,7 @@ function openTrainingDesigner() {
   panel.style.cssText = `
     position:fixed;top:12px;right:12px;width:260px;background:rgba(8,8,22,0.93);
     border:1.5px solid rgba(100,200,255,0.35);border-radius:12px;padding:12px 14px 14px;
-    font-family:'Segoe UI',Arial,sans-serif;color:#ccd;font-size:0.8rem;
+    font-family:var(--font-ui);color:#ccd;font-size:0.8rem;
     z-index:1500;box-shadow:0 4px 30px rgba(0,0,80,0.7);display:flex;
     flex-direction:column;gap:8px;user-select:none;`;
 
@@ -581,7 +581,7 @@ function _tdImport() {
     display:flex;align-items:center;justify-content:center;`;
   modal.innerHTML = `
   <div style="background:#0c0c1e;border:1.5px solid rgba(100,200,255,0.28);border-radius:13px;
-    padding:22px 24px 18px;width:min(480px,92vw);font-family:'Segoe UI',Arial,sans-serif;color:#ccd;">
+    padding:22px 24px 18px;width:min(480px,92vw);font-family:var(--font-ui);color:#ccd;">
     <div style="font-weight:700;font-size:0.95rem;margin-bottom:14px;">Import Platforms (Live)</div>
     <textarea id="_dImportText" rows="6" placeholder="Paste platform JSON array here…"
       style="width:100%;background:#07071a;color:#bdc;border:1px solid rgba(100,200,255,0.2);

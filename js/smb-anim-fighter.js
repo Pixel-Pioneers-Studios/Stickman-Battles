@@ -451,10 +451,19 @@ function _sbTrack(arch, alt, dur) {
   ]);
 }
 
+// Body track for a hand-keyed move (WEAPON_SWINGS moves): its keys as written, ending back at stand.
+function _sbMoveTrack(mv) {
+  if (mv._sbTrack) return mv._sbTrack;
+  const keys = mv.body.map(k => (k.lean === undefined && k.drop === undefined)
+    ? Object.assign({}, _SB_STAND, { t: k.t, e: k.e })
+    : Object.assign({ w: 1, head: 0, ll: 1 }, k));
+  return (mv._sbTrack = keys);
+}
+
 /** A landed hit picks a reaction. Render-only; called from dealDamage. */
 function animHitReact(attacker, target, dmg, kb, guardUp) {
   if (!SWING_BODY_ON || !attacker || !target || guardUp || !(dmg > 0) || target.isBoss) return;
-  const g = typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[attacker.weaponKey] : null;
+  const g = attacker._swingG ? attacker._swingG() : (typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[attacker.weaponKey] : null);
   const arch = g && g.archetype;
   let kind;
   if (dmg >= 26 || (kb || 0) >= 16 || arch === 'smash') kind = 'heavy';
@@ -487,11 +496,13 @@ function animSwingBody(f, s) {
   const clock = f.animTimer || 0;
   const prevAtk = f._sbAtk || 0;
   f._sbAtk = f.attackTimer || 0;
-  const g = typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[f.weaponKey] : null;
+  const g = f._swingG ? f._swingG() : (typeof WEAPON_SWINGS !== 'undefined' ? WEAPON_SWINGS[f.weaponKey] : null);
   // Knight's gauntlet has no swing entry of its own; it fights like a hammer.
   const arch = g && SWING_BODY_ARCH[g.archetype] ? g.archetype : (f.charClass === 'megaknight' ? 'smash' : null);
-  if (s === 'attacking' && f._sbAtk > prevAtk && arch) {
-    f._sbSwing = { t0: clock, track: _sbTrack(arch, !!f._sbAlt, f.attackDuration || (g && g.dur) || 10), from: f._sbCur || null, face: f.facing };
+  if (s === 'attacking' && f._sbAtk > prevAtk && (arch || (g && g.body))) {
+    // A hand-keyed move brings its own body keys, timed to its own startup.
+    const track = (g && g.body) ? _sbMoveTrack(g) : _sbTrack(arch, !!f._sbAlt, f.attackDuration || (g && g.dur) || 10);
+    f._sbSwing = { t0: clock, track, from: f._sbCur || null, face: f.facing };
     f._sbAlt = !f._sbAlt;
     f._sbReact = null;
   }
