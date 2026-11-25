@@ -14,6 +14,8 @@
 //   track: [...] mini Kael keys (t / go may be 'C+n')
 //   hp: true                             show the AI HP counter (default true)
 //   music: { file, from, gain }          default boss-threshold at 0.35
+//   loop: true                           no end card (end may be omitted), no fade-out: the last frame cuts straight
+//                                        back to the first, for loopable Shorts
 // }
 const path = require('path');
 const { render, shotLog } = require('./engine');
@@ -29,7 +31,7 @@ async function episode(spec) {
   const Z = spec.zoom || { z: 1.12, cx: 0.5, cy: 0.9 };
   let T = 0; const segs = [], map = [];
   for (const w of spec.wins) { segs.push({ shot: w.shot || spec.shot, at: w.at, len: w.to - w.at, zoom: w.zoom || Z }); map.push({ t: T, ...w }); T += w.to - w.at; }
-  const C = T, END = spec.end.len, TOTAL = T + END;
+  const C = T, END = spec.end ? spec.end.len : 0, TOTAL = T + END;
   const tf = v => typeof v === 'string' ? C + Number(v.replace(/^C\+?/, '') || 0) : v;
   const vo = spec.vo.map(tf);
   const mouth = new Array(TOTAL).fill(0);
@@ -40,12 +42,12 @@ async function episode(spec) {
   const overlays = [{ type: 'vignette', a: 0.3 }];
   for (const c of spec.captions) overlays.push(slam(tf(c.from), tf(c.to), c.text, c.y || 0.285, c.size || 64, { fill: c.fill || '#ffffff' }));
   if (spec.hp !== false) for (const [k, r] of runs('h').entries()) overlays.push(slam(k ? r.from : -4, r.to, 'AI HP: ' + r.v, 0.8, 80, { steady: true, fill: r.v < (spec.hpLow || 50) ? '#ff5a5a' : '#ffffff' }));
-  overlays.push({ type: 'scrim', from: C, to: TOTAL, a: 0.86, fade: 8 });
-  for (const l of spec.end.lines) overlays.push(slam(C + l.at, TOTAL, l.text, l.y, l.size || 88, { fill: l.fill || '#ffffff' }));
+  if (END) overlays.push({ type: 'scrim', from: C, to: TOTAL, a: 0.86, fade: 8 });
+  if (END) for (const l of spec.end.lines) overlays.push(slam(C + l.at, TOTAL, l.text, l.y, l.size || 88, { fill: l.fill || '#ffffff' }));
   overlays.push({ type: 'kael', from: 0, to: TOTAL, S: spec.S || 3.8, track, mouth });
-  overlays.push({ type: 'fade', from: TOTAL - 12, to: TOTAL, out: true });
-  const m = Object.assign({ file: 'audio/music/boss-threshold.mp3', at: 0, from: 45.0, gain: 0.35, fadeIn: 0.1, fadeOut: 0.8 }, spec.music || {});
-  const r = await render({ W: 1080, H: 1920, name: spec.name + '-1080x1920-bed', profile: PROFILE, segs: segs.concat([{ len: END }]), overlays,
+  if (!spec.loop) overlays.push({ type: 'fade', from: TOTAL - 12, to: TOTAL, out: true });
+  const m = Object.assign({ file: 'audio/music/boss-threshold.mp3', at: 0, from: 45.0, gain: 0.35, fadeIn: 0.1, fadeOut: spec.loop ? 0.05 : 0.8 }, spec.music || {});
+  const r = await render({ W: 1080, H: 1920, name: spec.name + '-1080x1920-bed', profile: PROFILE, segs: END ? segs.concat([{ len: END }]) : segs, overlays,
     pageScripts: SCRIPTS, music: m, stingers: [] });
   const out = path.join(BASE, 'out', spec.name + '-1080x1920.mp4');
   mixVoice(r.out, out, vo.map((at, i) => ({ file: path.join(BASE, spec.voice, `paced-line${i + 1}.wav`), at: at / 60 })));
