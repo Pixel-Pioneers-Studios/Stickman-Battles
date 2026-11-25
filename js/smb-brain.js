@@ -960,6 +960,18 @@ const Brain = (() => {
           logps.push(sample(lg, act, greedy));
         } else logps.push(sample(forward(net, o, mem), act, greedy));
         acts.push(act[0], act[1], act[2], act[3]);
+        // opts.search (eval only, tools/brain/lookahead.js): may replace this decision's keys after simulating
+        // futures. simFrame runs one sim frame exactly as the loop below does.
+        if (opts.search) opts.search({ brain, main, opps, oppIO, act, prevAct, mem, net, obs: o, frame, T, alive, simFrame: fr => {
+          hitStopFrames = 0; slowMotion = 1; aiTick = fr; frameCount = fr; T.frame = fr;
+          try { if (typeof DomainManager !== 'undefined' && DomainManager.update) DomainManager.update(); } catch (e) {}
+          SMK2Trainer.simEnv.tickWorld();
+          try { processInput(); } catch (e) {}
+          try { brain.update(); } catch (e) {}
+          for (const f of opps) { if (!alive(f)) continue; try { f.update(); } catch (e) {} }
+          try { if (typeof MoveScene !== 'undefined') MoveScene.update(); } catch (e) {}
+          _trackFrame(T);
+        } });
         // opts.trace (eval only): one row per decision, both fighters' state as it was decided.
         if (trace) trace.push([frame, act[0], act[1], act[2], act[3], Math.round(main.cx() - brain.cx()), Math.round(main.cy() - brain.cy()),
           brain.onGround ? 1 : 0, main.onGround ? 1 : 0, brain.attackTimer || 0, main.attackTimer || 0, brain.stunTimer || 0, main.stunTimer || 0,
