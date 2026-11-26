@@ -1569,6 +1569,10 @@ _io = new Server(httpServer, {
 const { attachPublicHub } = require('./pubhub');
 attachPublicHub(_io, { log: (type, msg) => _pushAdminLog(type, msg) });
 
+// ── Pixel Pioneers Arcade public lobbies — see arcadehub.js ──────────────────
+const { attachArcadeHub } = require('./arcadehub');
+attachArcadeHub(_io, { log: (type, msg) => _pushAdminLog(type, msg) });
+
 // ── Friends: presence + game invites — see social.js ─────────────────────────
 const { attachSocial } = require('./social');
 attachSocial(_io, { log: (type, msg) => _pushAdminLog(type, msg) });
