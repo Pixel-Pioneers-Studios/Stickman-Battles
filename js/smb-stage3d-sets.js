@@ -232,7 +232,11 @@
   }
   function motesUpdate(list, f) {
     if (!list) return;
+    // Performance Mode (or auto-perf) turns particles off: motes go with them.
+    const on = typeof settings === 'undefined' || settings.particles !== false;
     for (const m of list) {
+      m.visible = on;
+      if (!on) continue;
       const u = m.userData;
       if (u.kind === 'fall') {
         m.position.y = u.y0 + u.h - ((u.y0 + u.h - u.y + f * 0.6 * u.sp) % u.h);
