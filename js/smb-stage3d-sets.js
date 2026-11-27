@@ -201,6 +201,74 @@
     return out;
   }
 
+  // Piers: raised platforms stand on supports down to the surface under them (a lower slab, the floor, or
+  // o.toY over lava), set at the back of the slab so they never sit on the play line. Turns floating set
+  // pieces into one built space. Returns a platDress. Styles: column, girder, stalk, prism, post, block.
+  function piers(o) {
+    let G = null, M = null;
+    return function (g, pl, d, K) {
+      const T = K.T, P = (currentArena && currentArena.platforms) || [];
+      if (!G) G = { cyl: new T.CylinderGeometry(1, 1.08, 1, 12), hex: new T.CylinderGeometry(1, 1, 1, 6), box: new T.BoxGeometry(1, 1, 1), stalk: new T.CylinderGeometry(0.75, 1, 1, 10) };
+      if (!M) M = { s: K.toon(o.color), c: K.toon(o.cap || o.color), glow: o.glow ? K.basic(o.glow, { fog: false }) : null };
+      const r = o.r || 11, z = -d / 2 + (o.inset || 16), parts = [];
+      const xs = pl.w > 200 ? [pl.w * 0.24, pl.w * 0.76] : [pl.w / 2];      // one pier under a narrow slab: two at the ends read as table legs
+      const add = (geo, mat, sx, sy, sz, x, y, zz, rz) => { const m = new T.Mesh(geo, mat); m.scale.set(sx, sy, sz); m.position.set(x, y, zz); if (rz) m.rotation.z = rz; m.castShadow = true; parts.push(m); return m; };
+      const hs = [];
+      for (const lx of xs) {
+        const wx = pl.x + lx;
+        let below = null;
+        for (const q of P) if (q !== pl && !q.isFloorDisabled && !q.noDraw && q.y > pl.y && wx >= q.x && wx <= q.x + q.w && (!below || q.y < below.y)) below = q;
+        const h = below ? below.y - pl.y : o.toY != null ? o.toY - pl.y + 8 : 0;
+        if (h <= 20) continue;                                   // over a pit: no pier
+        hs.push([lx, h]);
+        switch (o.style) {
+          case 'girder':                                         // steel I-beam: two flanges and a web
+            add(G.box, M.s, r * 1.8, h, 3, lx, -h / 2, z + r * 0.7); add(G.box, M.s, r * 1.8, h, 3, lx, -h / 2, z - r * 0.7);
+            add(G.box, M.c, 4, h, r * 1.4, lx, -h / 2, z);
+            if (M.glow) add(G.box, M.glow, 2, h - 20, 1, lx, -h / 2, z + r * 0.7 + 2);
+            add(G.box, M.c, r * 2.6, 8, r * 2.2, lx, -h + 4, z);
+            break;
+          case 'stalk': {                                        // a mushroom stem, flared at the foot, gills under the slab
+            const m = add(G.stalk, M.s, r, h, r, lx, -h / 2, z); m.rotation.z = (lx % 7 - 3) * 0.01;
+            add(G.cyl, M.c, r * 2.4, 6, r * 2.4, lx, -h + 3, z);
+            add(G.cyl, M.c, r * 1.9, 5, r * 1.9, lx, -16, z);
+            break;
+          }
+          case 'prism':                                          // hexagonal pillar (ice, basalt)
+            add(G.hex, M.s, r, h, r, lx, -h / 2, z);
+            add(G.hex, M.c, r * 1.3, 10, r * 1.3, lx, -15, z);
+            if (M.glow) add(G.box, M.glow, 2, h * 0.7, 1, lx + r * 0.3, -h * 0.55, z + r * 0.9);
+            break;
+          case 'post':                                           // timber post with a knee brace up into the slab
+            add(G.box, M.s, r * 1.4, h, r * 1.4, lx, -h / 2, z);
+            add(G.box, M.c, 5, 44, 5, lx + (lx < pl.w / 2 ? 18 : -18), -34, z, lx < pl.w / 2 ? -0.78 : 0.78);
+            break;
+          case 'block':                                          // square dressed-stone pillar
+            add(G.box, M.s, r * 2, h, r * 2, lx, -h / 2, z);
+            add(G.box, M.c, r * 2.8, 9, r * 2.8, lx, -20, z);
+            add(G.box, M.c, r * 2.8, 10, r * 2.8, lx, -h + 5, z);
+            break;
+          default:                                               // column: shaft, capital under the slab, base
+            add(G.cyl, M.s, r, h, r, lx, -h / 2, z);
+            add(G.box, M.c, r * 3, 9, r * 3, lx, -20, z);
+            add(G.box, M.c, r * 2.8, 10, r * 2.8, lx, -h + 5, z);
+        }
+        if (o.contact !== false && below) { const c = K.contactMesh(r * 2.4, r * 2, 0.45); c.position.set(lx, -h + 0.6, z); g.add(c); }
+      }
+      // Two piers on one slab are tied by a brace at the back (girder X, or a stone tie beam).
+      if (hs.length === 2 && o.brace) {
+        const [a, b] = hs, h = Math.min(a[1], b[1]), w = b[0] - a[0];
+        if (o.style === 'girder') {
+          const L = Math.hypot(w, h * 0.6), ang = Math.atan2(h * 0.6, w);
+          add(G.box, M.c, L, 4, 3, (a[0] + b[0]) / 2, -h * 0.4, z - r * 0.9, ang);
+          add(G.box, M.c, L, 4, 3, (a[0] + b[0]) / 2, -h * 0.4, z - r * 0.9, -ang);
+        } else add(G.box, M.c, w, 12, r * 1.6, (a[0] + b[0]) / 2, -Math.min(h * 0.55, 90), z);
+      }
+      // Under the slab a pier would go near-black and read like a fighter's body: no shadow received.
+      for (const m of parts) g.add(m);
+    };
+  }
+
   // Columns with a base and capital; some broken short.
   function columns(K, rnd, o) {
     const T = K.T, base = o.base != null ? o.base : -480, shaft = new T.CylinderGeometry(1, 1.08, 1, 12), cap = new T.BoxGeometry(1, 1, 1);
@@ -319,6 +387,7 @@
     sun: { dir: [-0.5, 0.5, -1], color: '#f4f1e0', size: 330, glow: 'rgba(200,215,255,' },
     ground: { top: '#3c3f4e', backTop: '#33364a', face: ['#4a4d5a', '#3a3d48', '#55586a', '#22242c'], deep: '#2a2c38' },
     plat: { kind: 'block', top: '#5b6075', lip: '#9aa0b8', body: '#2e3242', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'girder', color: '#5a6280', cap: '#6a7290', r: 10, brace: true }),
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 260, size: 1.6, minEl: 0.25 });
       buildings(K, rnd, { colors: ['#1c1f33', '#24283e', '#181a2a'], win: ['#ffd27a', '#ffe9b0', '#ffc860'], winP: 0.24, neon: ['#b46cff', '#ff6ab0'], neonP: 0.25,
@@ -375,6 +444,7 @@
     fog: '#3a1030',
     light: { sky: '#a070d0', ground: '#ff5a20', hemi: 1.0, key: '#ffd0a0', keyI: 1.4 },
     plat: { kind: 'block', top: '#3c2a3a', lip: '#5c3f52', body: '#2a1c2a', glow: '#ff7a2a', depth: [50, 90] },
+    platDress: piers({ style: 'prism', color: '#5a4050', cap: '#6a4c5e', glow: '#ff7a2a', r: 15, toY: 490 }),
     liquid: { y: 490, kind: 'lava', color: '#2a0e18', veins: ['rgba(90,30,40,0.6)', 'rgba(16,4,10,0.6)'], cracks: 'rgba(255,110,30,0.95)', flowX: 0.0002, flowZ: 0.0001 },
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 300, size: 1.5, minEl: 0.3, colors: ['#ffffff', '#ffd8f0'] });
@@ -411,6 +481,7 @@
     sun: { dir: [-0.45, 0.5, -1], color: '#fffdf4', size: 420, glow: 'rgba(255,255,240,' },
     ground: { top: '#eef6fb', backTop: '#e4f0f8', face: ['#b8d8ee', '#9cc4e0', '#cfe6f4', '#7aa8c8'], deep: '#9cc4e0' },
     plat: { kind: 'block', top: '#f4fbff', lip: '#cfe6f4', body: '#8ec0de', drips: '#dff2ff', depth: [60, 100] },
+    platDress: piers({ style: 'prism', color: '#a8d4ee', cap: '#d8eefa', r: 16 }),
     dress(scene, K, rnd) {
       range(K, rnd, { n: 16, x0: -6200, step: 820, z: -6000, zJ: 1400, hMin: 900, hMax: 1800, lit: '#b8d0e8', shade: '#86a6c8', foot: '#dcebf6', snow: '#ffffff', snowSh: '#d0e0f0', snowT: 0.45 });
       trees(K, rnd, { shape: 'pine', trunk: '#4a3a30', crowns: ['#2f5a4a', '#3a6a58'], snow: '#f4fbff',
@@ -427,26 +498,7 @@
     ground: { top: '#b8a47c', backTop: '#7a6445', face: ['#8a7455', '#6a5440', '#9a8460', '#3a2a1c'], deep: '#5a4432',
       tile: { size: 70, paint: (g, w, h) => { g.strokeStyle = '#8a7656'; g.lineWidth = 3; g.strokeRect(1, 1, w - 2, h / 2 - 2); g.strokeRect(-w / 2, h / 2, w, h / 2 - 2); g.strokeRect(w / 2, h / 2, w, h / 2 - 2); g.strokeStyle = 'rgba(70,50,30,0.5)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(30, 20); g.lineTo(52, 44); g.lineTo(48, 60); g.stroke(); } } },
     plat: { kind: 'block', top: '#c8b48c', lip: '#e0d0a8', body: '#8a7455', under: '#4a3a2a', depth: [80, 120] },
-    // Raised slabs stand on piers down to whatever is under them (floor or a lower slab), at the back of the
-    // slab so they never sit on the play line: the platforms are part of the building, not floating props.
-    platDress(g, pl, d, K) {
-      const T = K.T, P = (currentArena && currentArena.platforms) || [];
-      const shaft = new T.CylinderGeometry(1, 1.08, 1, 12), blk = new T.BoxGeometry(1, 1, 1);
-      const sm = K.toon('#c4baa6'), cm = K.toon('#d0c6b2');
-      const xs = pl.w > 150 ? [24, pl.w - 24] : [pl.w / 2];
-      for (const lx of xs) {
-        const wx = pl.x + lx;
-        let below = null;
-        for (const q of P) if (q !== pl && !q.isFloorDisabled && q.y > pl.y && wx >= q.x && wx <= q.x + q.w && (!below || q.y < below.y)) below = q;
-        if (!below) continue;                                    // over a pit: no pier
-        const h = below.y - pl.y, z = -d / 2 + 16, r = 11;
-        const s = new T.Mesh(shaft, sm); s.scale.set(r, h, r); s.position.set(lx, -h / 2, z);
-        const c = new T.Mesh(blk, cm); c.scale.set(r * 3, 9, r * 3); c.position.set(lx, -20, z);     // capital under the slab
-        const b = new T.Mesh(blk, cm); b.scale.set(r * 2.8, 10, r * 2.8); b.position.set(lx, -h + 5, z); // base on the surface
-        // No shadow received: under the slab a pier went near-black and read like a fighter's body.
-        for (const m of [s, c, b]) { m.castShadow = true; g.add(m); }
-      }
-    },
+    platDress: piers({ style: 'column', color: '#c4baa6', cap: '#d0c6b2', r: 13 }),
     dress(scene, K, rnd) {
       const T = K.T, BASE = -440;                              // the floor slabs' top: columns stand on it, not in it
       columns(K, rnd, { color: '#b4aca0', capColor: '#ccc4b4', broken: 0.35, neck: true, contact: true, base: BASE,
@@ -512,6 +564,7 @@
     light: { sky: '#70d0ff', ground: '#003366', hemi: 1.35, key: '#a8e4ff', keyI: 1.4 },
     ground: { top: '#1d5a96', backTop: '#164a80', face: ['#0a3366', '#08284f', '#0e3c77', '#041a33'], deep: '#082a50' },
     plat: { kind: 'block', top: '#2a7ac0', lip: '#5ab0ff', body: '#00447f', depth: [50, 90] },
+    platDress: piers({ style: 'column', color: '#4a88a8', cap: '#5a9ab8', r: 14 }),
     dress(scene, K, rnd) {
       const T2 = K.T, kelpG = new T2.CylinderGeometry(1, 2, 1, 5, 6); kelpG.translate(0, 0.5, 0);
       const kelpM = [K.toon('#2a8a3a'), K.toon('#3aa84a'), K.toon('#1f6a30')];
@@ -540,6 +593,7 @@
     sun: { dir: [-0.4, 0.62, -1], rays: true, color: '#fff4d8', glow: 'rgba(255,236,190,' },
     ground: { top: '#d8b880', backTop: '#c8a870', face: ['#b89060', '#9a7448', '#c8a070', '#6a4a28'], deep: '#8a6438' },
     plat: { kind: 'block', top: '#e0c898', lip: '#f0dcb0', body: '#b89060', depth: [50, 90] },
+    platDress: piers({ style: 'column', color: '#d8b880', cap: '#e8cc98', r: 16 }),
     dress(scene, K, rnd) {
       // The stands: a two-tier arcade wall behind the sand, columns standing proud of each arch, banners between.
       const arches = (g, w, h) => {
@@ -551,7 +605,7 @@
         g.fillStyle = '#e0c090'; g.fillRect(0, 0, w, 6);
       };
       wall(K, { w: 6400, h: 560, x: 450, y: -480 + 280, z: -900, paint: arches, tw: 128, th: 256, rx: 25, ry: 1 });
-      columns(K, rnd, { color: '#d8b880', capColor: '#e8cc98', rows: [{ n: 25, x0: -2750, step: 256, z: -870, h: 250, r: 13 }] });
+      columns(K, rnd, { color: '#d8b880', capColor: '#e8cc98', contact: true, rows: [{ n: 25, x0: -2750, step: 256, z: -870, h: 250, r: 13 }] });
       const T2 = K.T;
       for (let i = 0; i < 12; i++) {
         const b = new T2.Mesh(new T2.PlaneGeometry(46, 150), new T2.MeshToonMaterial({ color: i % 2 ? '#b8301f' : '#d8a030', side: T2.DoubleSide }));
@@ -584,6 +638,7 @@
     light: { sky: '#ff9aff', ground: '#4a1a6a', hemi: 1.3, key: '#ffe0ff', keyI: 1.4 },
     ground: { top: '#7a3a9a', backTop: '#6a2a8a', face: ['#4a1a6a', '#3a1058', '#5a2478', '#200830'], deep: '#3a1058' },
     plat: { kind: 'block', top: '#c890e0', lip: '#ecc0ff', body: '#6a2a8a', depth: [50, 90] },
+    platDress: piers({ style: 'stalk', color: '#f0e0f0', cap: '#d8b8e8', r: 13 }),
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 220, size: 1.6, minEl: 0.3, colors: ['#ffd0ff', '#ffffff'] });
       const T2 = K.T, stemG = new T2.CylinderGeometry(0.7, 1, 1, 10), capG = new T2.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -608,6 +663,7 @@
     sun: { dir: [-0.35, 0.55, -1], color: '#d8c8f0', size: 460, glow: 'rgba(170,140,230,' },
     ground: { top: '#2e2640', backTop: '#262034', face: ['#1f1a2a', '#181422', '#2a2236', '#0a080f'], deep: '#181422' },
     plat: { kind: 'block', top: '#4a3a5a', lip: '#6a5a80', body: '#2a2238', depth: [50, 90] },
+    platDress: piers({ style: 'post', color: '#5a4a5e', cap: '#6a5a70', r: 9 }),
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 200, size: 1.4, minEl: 0.3 });
       trees(K, rnd, { shape: 'dead', trunk: '#1a1422', rows: [{ n: 12, x0: -700, step: 220, z: -500, zJ: 300, s: 1.4, sJ: 0.6 }, { n: 14, x0: -1600, step: 300, z: -1300, zJ: 400, s: 2.2, sJ: 0.8 }] });
@@ -627,6 +683,7 @@
     light: { sky: '#8a70ff', ground: '#200a30', hemi: 0.95, key: '#d8c8ff', keyI: 1.1 },
     ground: { top: '#1a1a2a', backTop: '#141422', face: ['#22223a', '#18182a', '#2a2a44', '#0a0a14'], deep: '#121220' },
     plat: { kind: 'block', top: '#2a2a3a', lip: '#ffb020', body: '#18182a', glow: '#2ad8ff', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'girder', color: '#3a3a58', cap: '#4a4a6a', glow: '#2ad8ff', r: 10, brace: true }),
     dress(scene, K, rnd) {
       buildings(K, rnd, { colors: ['#1a1230', '#22163a', '#140e26'], win: ['#4ad8ff', '#ff4aa8', '#b06aff'], style: 'bands', winP: 0.16, neon: ['#ff2a8a', '#2ad8ff', '#b46cff', '#ffb020'], neonP: 0.7,
         rows: [{ n: 14, x0: -1000, step: 210, z: -1150, zJ: 250, wMin: 120, wMax: 190, hMin: 420, hMax: 950 },
@@ -681,6 +738,7 @@
     sun: { dir: [-0.38, 0.32, -1], rays: true, color: '#fff6dc', size: 620, glow: 'rgba(255,230,170,' },
     ground: { top: '#e8b870', backTop: '#e0ae66', face: ['#c89050', '#b07840', '#d8a060', '#8a5a30'], deep: '#b07840' },
     plat: { kind: 'block', top: '#f0c880', lip: '#d8a860', body: '#c89050', depth: [50, 90] },
+    platDress: piers({ style: 'block', color: '#d0985a', cap: '#e0b070', r: 14, brace: true }),
     dress(scene, K, rnd) {
       range(K, rnd, { mesa: true, n: 10, x0: -5000, step: 1100, z: -5200, zJ: 1600, hMin: 400, hMax: 900, wide: 1.6, lit: '#d88a4a', shade: '#a8603a', foot: '#f0b070' });
       hills(K, rnd, { n: 9, x0: -2000, step: 520, z: -1600, zJ: 700, r: 400, h: 70, color: '#e8b46a' });

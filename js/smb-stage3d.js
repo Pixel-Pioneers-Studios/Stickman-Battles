@@ -1029,6 +1029,7 @@ var Stage3D = (function () {
     const kit = {}, occ = [];
     // Contact shadow: a soft dark oval lying on a surface at world (x, y, z), rx by rz wide. Sells where an
     // object meets the ground, which the shadow map's soft edge alone doesn't.
+    function contactMesh(rx, rz, op) { const m = contact(0, 0, 0, rx, rz, op); scene.remove(m); m.position.y = 0.6; return m; }
     function contact(x, y, z, rx, rz, op) {
       if (!_contactTex) _contactTex = canvasTex(64, 64, (g2, w, h) => {
         const gr = g2.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -1080,7 +1081,7 @@ var Stage3D = (function () {
 
     function build() {
       scene = new T.Scene();
-      Object.assign(kit, { T, scene, toon, seeded, paintedMesh, bladeMesh, canvasTex, basic, occluder, contact });
+      Object.assign(kit, { T, scene, toon, seeded, paintedMesh, bladeMesh, canvasTex, basic, occluder, contact, contactMesh });
       spec = factory(T, kit);
       const sky = spec.sky;
       scene.background = skyTex = skyTexture(sky);
