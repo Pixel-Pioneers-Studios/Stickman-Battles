@@ -339,6 +339,8 @@ function drawSewerArena() {
 // Draw: the flow and the waste (after platforms). Rafts sit IN the sewage, and the garbage on each covers the slab.
 function drawSewerFlow() {
   if (!sewerActive()) return;
+  // ?3d: the sewer set models the flow and the rafts (smb-stage3d-sets.js).
+  if (typeof Stage3D !== 'undefined' && Stage3D.ownsArena()) return;
   const a = currentArena;
   const surf = a.sewageY || 470;
   const t = sewerScroll;

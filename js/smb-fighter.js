@@ -2885,6 +2885,7 @@ class Fighter {
       L.bx = base.x; L.by = base.y;
     }
     if (pinned) return;
+    if (!hollow && typeof Stage3D !== 'undefined' && Stage3D.paintRope(c, T0, P)) return;   // three-quarter view: 3D rope
     // Paint in world space: ink edge (carries the glow), leather, then a braid highlight; tapers to the tip.
     c.save();
     c.setTransform(T0);
@@ -7422,19 +7423,23 @@ class Fighter {
       if (k === 'whip' && !overrideKey && !weaponArtCtx && this._whipT0) {
         // Rope lash: out of a swing only the handle comes from the sprite; the rope tracks the sprite while swinging.
         const _wM = this._whipT0.inverse().multiply(ctx.getTransform());
+        const _s3w = typeof Stage3D !== 'undefined';
         if (attacking) {
-          ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+          if (!(_s3w && Stage3D.paintWeapon(ctx, _wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH)))
+            ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
           this._whipLashDraw(ctx, _wM, this._whipT0, _wsW, _wsH, _wSpr.anchor, true, _hollowArm);
         } else {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(-_wsW * _wSpr.anchor, -_wsH, _wsW * 38 / 128, _wsH * 2);
-          ctx.clip();
-          ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
-          ctx.restore();
+          if (!(_s3w && Stage3D.paintWeapon(ctx, _wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH, 38 / 128))) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(-_wsW * _wSpr.anchor, -_wsH, _wsW * 38 / 128, _wsH * 2);
+            ctx.clip();
+            ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
+            ctx.restore();
+          }
           this._whipLashDraw(ctx, _wM, this._whipT0, _wsW, _wsH, _wSpr.anchor, false, _hollowArm);
         }
-      } else {
+      } else if (!(typeof Stage3D !== 'undefined' && Stage3D.paintWeapon(ctx, _wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH))) {
         ctx.drawImage(_wsImg, -_wsW * _wSpr.anchor, -_wsH * _wSpr.shaftY, _wsW, _wsH);
       }
 

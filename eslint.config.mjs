@@ -30,6 +30,8 @@ const vendorGlobals = {
   supabase: 'readonly',
   // YouTube IFrame API, injected asynchronously and used by smb-audio.js.
   YT: 'readonly',
+  // Three.js r159, vendored and fetched on demand by smb-stage3d.js (?3d only).
+  THREE: 'readonly',
 };
 
 export default [

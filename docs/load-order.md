@@ -137,6 +137,8 @@ Script load order in `index.html` — files may only reference globals from earl
 
 Not in the numbered list yet (the list predates them): `js/smb-figure-rig.js` (`FigureRig`) and, right after it, `js/smb-home-v2.js` — the game-screen home (`_homeV2On`, `_homeV2Scene`, `HOME_V2_MODES`); drawn by the home canvas loop in `smb-menu-ui.js`, `?classichome` turns it off.
 
-Dependencies: GSAP 3.12.5 and PeerJS 1.5.4, vendored in `js/vendor/` (the game is handed around as a zip and run from local folders, where CDNs can be blocked). Player build: `tools/package/build-school.sh` -> `dist/stickman-evolution.zip`.
+`js/smb-stage3d.js` (`Stage3D`) loads right after `js/smb-figure-skin.js`: the 2.5D view, on only with `?3d`. It fetches `js/vendor/three-0.159.0.min.js` itself (no script tag), so normal play never downloads Three.js. Hooks: `FigureSkin.begin/paint/groundShadow` and the render phase of `gameLoop()` (`beginFrame`, `drawWorld` in place of `drawBackground`/`drawPlatforms` on arenas with a 3D set, `endFrame`). `js/smb-stage3d-sets.js` loads right after it and registers one set per base arena through `Stage3D.defineSet(key, factory)`; it defines no globals and does nothing without `?3d`.
+
+Dependencies: GSAP 3.12.5, PeerJS 1.5.4 and Three.js r159 (?3d only), vendored in `js/vendor/` (the game is handed around as a zip and run from local folders, where CDNs can be blocked). Player build: `tools/package/build-school.sh` -> `dist/stickman-evolution.zip`.
 
 **Cache-busting:** All `<script>` tags use a `?v=` suffix (currently `?v=3.9.3`, with the newest scripts at `?v=3.9.4`). When adding a new script to `index.html`, match the current version suffix. Bump the version string across all tags when shipping a breaking change. Verify the current value with `grep -oE '\?v=[0-9.]+' index.html | sort | uniq -c` rather than trusting this doc.

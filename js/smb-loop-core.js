@@ -457,8 +457,14 @@ function gameLoop(timestamp) {
     ctx.setTransform(finalScX, 0, 0, finalScY, sx, sy);
   }
 
+  // ?3d (smb-stage3d.js): the 3D camera matches this world transform; an arena with a 3D set replaces
+  // the 2D backdrop and platforms. Inert unless the page was opened with ?3d.
+  const _s3 = typeof Stage3D !== 'undefined' && Stage3D.ready();
+  if (_s3) Stage3D.beginFrame(ctx.getTransform(), canvas.width, canvas.height);
+  const _s3World = _s3 && Stage3D.ownsArena();
+
   // Phase: render (world, entities, particles, HUD)
-  drawBackground();
+  if (_s3World) Stage3D.drawWorld(); else drawBackground();
   // Battle Royale skyline, volcano cone and office interior: behind the platforms.
   if (gameMode === 'battleroyale' && typeof drawBRStructuresBack === 'function') drawBRStructuresBack();
   if (gameMode === 'endless' && typeof drawEndlessBack === 'function') drawEndlessBack();
@@ -468,7 +474,7 @@ function gameLoop(timestamp) {
   if (typeof ComboDomain !== 'undefined') ComboDomain.draw();
   if (typeof drawCinBgContrast   === 'function') drawCinBgContrast();
   if (typeof drawCinImpactFrame  === 'function') drawCinImpactFrame();
-  drawPlatforms();
+  if (!_s3World) drawPlatforms();
   if (typeof drawStoryLevelGround === 'function') drawStoryLevelGround();
   // The Sewer flow draws after the platforms, so the barge sits in the sewage. Inert on other arenas.
   if (typeof drawSewerFlow === 'function') drawSewerFlow();
@@ -1005,11 +1011,13 @@ function gameLoop(timestamp) {
   // Blood stains: persistent marks on surfaces
   // Pixel Effects on: stains and particles are still simulated here but painted by PixelVFX as pixel art.
   const _pxParts = typeof PixelVFX !== 'undefined' && PixelVFX.particles(null, null);
+  // ?3d three-quarter view: stains lie on the 3D surface tops instead (smb-stage3d.js).
+  const _s3Ground = _s3World && Stage3D.groundDecals();
   for (let i = bloodStains.length - 1; i >= 0; i--) {
     const _bs = bloodStains[i];
     _bs.life--;
     if (_bs.life <= 0) { bloodStains.splice(i, 1); continue; }
-    if (_pxParts) continue;
+    if (_pxParts || _s3Ground) continue;
     ctx.globalAlpha = Math.min(0.55, (_bs.life / _bs.maxLife) * 0.7);
     ctx.fillStyle   = '#660000';
     ctx.beginPath();
@@ -1052,7 +1060,7 @@ function gameLoop(timestamp) {
   // Two passes so the composite mode is set twice per frame, not once per particle.
   // Pass 1: heavy matter (blood, debris, smoke), normal blending.
   // Pass 2: sparks, streaked along velocity and drawn additively. A static dot reads as confetti, a streak reads as impact.
-  if (_pxParts) PixelVFX.particles(_liveParticles, bloodStains);
+  if (_pxParts) PixelVFX.particles(_liveParticles, _s3Ground ? null : bloodStains);
   else {
   ctx.save();
   for (let i = 0; i < _liveParticles.length; i++) {
@@ -1213,6 +1221,7 @@ function gameLoop(timestamp) {
   if (typeof AAMultiverse !== 'undefined') AAMultiverse.drawOverlay(finalScX, finalScY, camCX, camCY);
   if (typeof OwnerTools !== 'undefined') OwnerTools.drawWorld(ctx);
   // Achievement popups (drawn over everything, in screen space)
+  if (_s3) Stage3D.endFrame();
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform for screen-space draw
 
   // Hit vignette: red edge flash when player takes heavy damage

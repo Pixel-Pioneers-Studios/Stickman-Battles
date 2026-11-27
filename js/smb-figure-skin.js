@@ -100,7 +100,24 @@ const FigureSkin = (function () {
     // The same opaque world-space gradient on every part makes overlaps overpaint identically, so no seams.
     return { parts: [], p: new Path2D(), d: new Path2D(), hasD: false,
              film: !!(opts && opts.film && FIG_FILM_BODY),
-             x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+             x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity,
+             // ?3d: the joints and radii, for the 3D body (smb-stage3d.js). Null in 2D, so it costs nothing.
+             r3: (typeof Stage3D !== 'undefined' && Stage3D.wantsRecord()) ? { chains: [], balls: [] } : null };
+  }
+  // ?3d: record a bone chain with the same radii the 2D shape uses (film widths mirror _filmSegment).
+  function _rec3(b, pts, ws) {
+    const n = pts.length, cls = ws[0] / FIG_LINE_W;
+    const limb = cls >= 0.75 && cls <= 1.6;
+    if (!b.film) { b.r3.chains.push({ pts: pts.slice(), r: ws.map(w => w * 0.5), limb }); return; }
+    if (cls < 0.75) {
+      const fw = ws.map(w => w * 0.85);
+      const a0 = n === 2 ? { x: pts[0].x + (pts[1].x - pts[0].x) * 0.5, y: pts[0].y + (pts[1].y - pts[0].y) * 0.5 } : pts[0];
+      b.r3.chains.push({ pts: n === 2 ? [a0, pts[1]] : pts.slice(), r: fw.map(w => w * 0.5), limb: false });
+    } else if (cls > 1.6) {
+      b.r3.chains.push({ pts: [pts[0], pts[n - 1]], r: [FILM_W * 0.525, FILM_W * 0.5], limb: false });
+    } else {
+      b.r3.chains.push({ pts: pts.slice(), r: ws.map((w, i) => FILM_W * 0.5 * (1 - 0.24 * i / Math.max(1, n - 1))), limb: true });
+    }
   }
   function _add(b, q) { b.parts.push(q); b.p.addPath(q); }
   function _bound(b, x, y, r) {
@@ -155,6 +172,7 @@ const FigureSkin = (function () {
 
   // opts.smooth: in film mode, draw this limb as one ribbon (no joint seam). Used for legs.
   function segment(b, pts, ws, detail, opts) {
+    if (b.r3 && pts.length > 1) _rec3(b, pts, ws);
     if (b.film && pts.length > 1) return _filmSegment(b, pts, ws, !!(opts && opts.smooth));
     _ribbon(b, pts, ws, detail);
   }
@@ -217,6 +235,7 @@ const FigureSkin = (function () {
     // Round head: matches the menu art's hand-drawn stickman language.
     P.ellipse(x, y, r * 1.02, r * 1.02, 0, 0, Math.PI * 2);
     _add(b, P);
+    if (b.r3) b.r3.balls.push({ x, y, r: r * 1.02 });
     _bound(b, x, y, r * 1.05);
   }
 
@@ -227,6 +246,7 @@ const FigureSkin = (function () {
     const rx = 3.5 * s, ry = 3.0 * s;
     P.ellipse(x, y, rx, ry, ang * 0.25, 0, Math.PI * 2);
     _add(b, P);
+    if (b.r3) b.r3.balls.push({ x, y, r: (rx + ry) * 0.5 });
     _bound(b, x, y, rx);
   }
 
@@ -255,6 +275,8 @@ const FigureSkin = (function () {
   // Render an accumulated body as one continuous form. far: shadowed back-side limbs, weaker outline. alpha: whole-form opacity.
   function paint(b, p, far, g, alpha) {
     if (!b.parts.length) return;
+    // ?3d: the 3D view draws this body in its slot instead (smb-stage3d.js).
+    if (b.r3 && Stage3D.paintBody(b, p, far, g, alpha)) return;
     const ctx = g || _mainCtx();
     ctx.save();
     ctx.lineJoin = 'round';
@@ -364,6 +386,7 @@ const FigureSkin = (function () {
   // Contact shadow: most of why a figure looks attached to the arena.
   function groundShadow(x, groundY, w, strength) {
     if (quality() < 2) return;
+    if (typeof Stage3D !== 'undefined' && Stage3D.ownsArena()) return;   // the 3D set casts real shadows
     ctx.save();
     ctx.globalAlpha = 0.28 * (strength === undefined ? 1 : strength);
     const g = ctx.createRadialGradient(x, groundY, 0, x, groundY, w);

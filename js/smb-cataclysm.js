@@ -488,7 +488,9 @@ function _cxDrawConv(e) {
 
 function _cxDrawMeteors(e) {
   var fc = _cxFrame();
-  for (var c = 0; c < e.craters.length; c++) {
+  // ?3d three-quarter view: scorch lies on the 3D surface tops instead (smb-stage3d.js).
+  var onTops = typeof Stage3D !== 'undefined' && Stage3D.groundDecals();
+  for (var c = 0; !onTops && c < e.craters.length; c++) {
     var C = e.craters[c];
     ctx.fillStyle = 'rgba(255,120,40,' + (C.life / 80 * 0.6).toFixed(3) + ')';
     ctx.beginPath(); ctx.ellipse(C.x, C.y - 2, 46, 9, 0, 0, Math.PI * 2); ctx.fill();

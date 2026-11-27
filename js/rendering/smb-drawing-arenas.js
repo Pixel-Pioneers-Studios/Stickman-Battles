@@ -2549,7 +2549,12 @@ function drawPlatforms() {
     }
   }
 
-  if (isBoss && bossFloorState === 'warning') {
+  if (isBoss) drawBossFloorWarningText();
+}
+
+// The floor-hazard countdown. Also drawn by the ?3d boss sets (smb-stage3d-sets.js), which skip drawPlatforms.
+function drawBossFloorWarningText() {
+  if (bossFloorState === 'warning') {
     const secs = Math.ceil(bossFloorTimer / 60);
     const isLava = bossFloorType === 'lava';
     ctx.save();
@@ -4073,8 +4078,11 @@ function drawEntityOverlays(scX, scY, camX, camY) {
     if (ent._trialInvisible && ent.health > 0) continue;
     // Battle Royale: someone inside a building is hidden from a viewer outside it, plate included.
     if (typeof brHiddenInStructure === 'function' && brHiddenInStructure(ent)) continue;
-    const sx = canvas.width / 2 + (ent.cx() - camX) * scX;
-    const syRaw = canvas.height / 2 + ((ent.y - 22) - camY) * scY;
+    let sx = canvas.width / 2 + (ent.cx() - camX) * scX;
+    let syRaw = canvas.height / 2 + ((ent.y - 22) - camY) * scY;
+    // ?3d three-quarter view: the plate follows the fighter through the 3D camera.
+    const _s3p = typeof Stage3D !== 'undefined' ? Stage3D.screenPoint(ent.cx(), ent.y - 22) : null;
+    if (_s3p) { sx = _s3p.x; syRaw = _s3p.y; }
     const sy = Math.max(hudFloor, syRaw);
     if (sx < -80 || sx > canvas.width + 80 || sy > canvas.height + 80) continue;
 

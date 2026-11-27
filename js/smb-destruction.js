@@ -132,6 +132,7 @@ function spawnImpact(x, y, power, opts) {
       lx: vertical ? Math.max(3, Math.min(pl.w - 3, x - pl.x)) : (x - pl.x),
       ly: vertical ? Math.max(3, Math.min(pl.h - 3, y - pl.y)) : 1,
       arms: _destMakeArms(power, vJit, vertical),
+      v: vertical,
       power,
       life, maxLife: life,
     });
@@ -216,8 +217,11 @@ function updateDestruction() {
 function drawSurfaceScars() {
   if (!surfaceScars.length) return;
   if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return;
+  // ?3d three-quarter view: floor cracks lie on the 3D surface tops instead (smb-stage3d.js).
+  const _onTops = typeof Stage3D !== 'undefined' && Stage3D.groundDecals();
 
   for (const s of surfaceScars) {
+    if (_onTops && !s.v) continue;
     const pl = s.pl;
     // Stale reference guard: arena may have changed under us.
     if (!pl || currentArena.platforms.indexOf(pl) < 0 || pl.isFloorDisabled) continue;

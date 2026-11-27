@@ -371,7 +371,9 @@ function _wrUpdateFighters(ts) {
 function drawWorldReactBack() {
   if (typeof currentArena === 'undefined' || !currentArena || !currentArena.platforms) return;
 
-  for (const s of _wrScuffs) {
+  // ?3d three-quarter view: scuffs lie on the 3D surface tops instead (smb-stage3d.js).
+  const _onTops = typeof Stage3D !== 'undefined' && Stage3D.groundDecals();
+  if (!_onTops) for (const s of _wrScuffs) {
     const pl = s.pl;
     if (!pl || pl.isFloorDisabled || currentArena.platforms.indexOf(pl) < 0) continue;
     const t = s.life / s.maxLife;
