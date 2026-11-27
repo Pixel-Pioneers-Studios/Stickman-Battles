@@ -1138,7 +1138,10 @@ let gameMode        = '2p';
 let selectedArena   = 'grass';
 let isRandomMapMode    = false;
 let completeRandomizer = false; // Complete Randomizer mode: reroll arena+weapon+class on every death
-let chosenLives     = 3;
+let chosenLives     = 2;   // versus default (Nov 25 2026 retune: was 3, lives are longer now)
+// Health multiplier for versus, ladder and online duels only (applyDuelHp, smb-enemies-class.js).
+// Story, bosses, Sovereign, minigames and BR keep their own health.
+const DUEL_HP_MULT  = 2.0;
 let gameRunning     = false;
 let gameLoading     = false; // true while loading screen is visible: freezes input/physics
 let p1IsBot         = false;

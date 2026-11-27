@@ -3,7 +3,7 @@
 // Depends on smb-globals.js and smb-data-weapons.js (WEAPONS).
 const keysDown      = new Set();
 const keyHeldFrames = {};   // key → frames held continuously
-const ATTACK_MASH_LOCK = 16; // frames the attack key stays dead after a mashed recovery (outlasts STRING_STUN_PAD)
+const INPUT_BUFFER_FRAMES = 10; // a press this many frames before the fighter is free still comes out
 
 // Last input device for on-screen prompts: 'keyboard' | 'touch' | 'gamepad'. Synthetic touch keydowns don't count as keyboard.
 let lastInputDevice = ('ontouchstart' in window && !window.matchMedia('(pointer:fine)').matches) ? 'touch' : 'keyboard';
@@ -296,17 +296,11 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       // Combo Strike aim window: the attack key commits the kick, not a normal swing.
       if (p._comboSuper && p._comboSuper.phase === 3) { p._comboSuper.fire = true; return; }
-      // A press during the swing's cooldown is buffered, so a combo follow-up can land in the window
-      // after recovery. Pressing again inside the recovery is mashing: it drops the buffer and locks
-      // the attack key for ATTACK_MASH_LOCK frames past recovery.
+      // A press during the swing's recovery is buffered, so a follow-up comes out the moment recovery
+      // ends. Pressing again only refreshes the buffer: no press is ever locked out (Nov 25 2026 retune).
       const _recovering = p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0);
       if (!incapacitated && typeof MoveScene !== 'undefined' && MoveScene.tryMerge(p, 'a', other)) { /* merged */ }
-      else if (frameCount < (p._attackMashUntil || 0)) { /* mashed: ignored */ }
       else if (!incapacitated && !_recovering) { p.attack(other); }
-      else if (_recovering && !incapacitated && p._inputBuffer && p._inputBuffer.action === 'attack') {
-        p._inputBuffer = null;
-        p._attackMashUntil = frameCount + Math.max(p.cooldown, p.attackEndlag || 0) + ATTACK_MASH_LOCK;
-      }
       else { p._inputBuffer = { action: 'attack', frame: frameCount }; }
     }
     if (_nk === p.controls.ability) {
@@ -408,16 +402,17 @@ function processInput() {
     const _burst = p.stunTimer > 0 && (keyHeldFrames[p.controls.shield] || 0) === 1 && guardBurst(p);
     if (!_burst && (p.ragdollTimer > 0 || p.stunTimer > 0)) {
       // Expire stale buffer so it can't fire far outside the intended window
-      if (p._inputBuffer && (frameCount - p._inputBuffer.frame) > 8) p._inputBuffer = null;
+      if (p._inputBuffer && (frameCount - p._inputBuffer.frame) > INPUT_BUFFER_FRAMES) p._inputBuffer = null;
       p.shielding = false;
       return;
     }
     // Input buffer: if a buffered action was queued while incapacitated and the
-    // window (~133ms / 8 frames) hasn't expired, execute it now and clear.
+    // window (INPUT_BUFFER_FRAMES, ~167ms) hasn't expired, execute it now and clear.
     const _bufWait = p._inputBuffer && p._inputBuffer.action === 'attack' &&
                      (p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0));
     if (p._inputBuffer && !_bufWait) {
-      if ((frameCount - p._inputBuffer.frame) <= 8) {
+      // +1: recovery reaches 0 during update(), so the buffer fires on the frame after it.
+      if ((frameCount - p._inputBuffer.frame) <= INPUT_BUFFER_FRAMES + 1) {
         const _buf      = p._inputBuffer;
         const _pi       = players.indexOf(p);
         const _bufOther = _inputTarget(p, _pi);

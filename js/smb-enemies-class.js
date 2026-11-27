@@ -16,6 +16,16 @@ function applyClass(fighter, classKey) {
   }
 }
 
+// Duels (versus, ladder, online) get DUEL_HP_MULT health so a life lasts long enough for momentum to
+// swing (Nov 25 2026 retune). Called from _startGameCore after class and ladder health are set, so a
+// ladder rung's p1HpMul stacks on it. force: BalanceSim, which measures duels outside a real match.
+function applyDuelHp(fighter, force) {
+  if (!fighter || fighter.isBoss || typeof DUEL_HP_MULT === 'undefined') return;
+  if (!force && (storyModeActive || (gameMode !== '2p' && gameMode !== 'online'))) return;
+  fighter.maxHealth = Math.round(fighter.maxHealth * DUEL_HP_MULT);
+  fighter.health    = fighter.maxHealth;
+}
+
 function updateClassWeapon(player) {
   const clsKey   = document.getElementById(player + 'Class').value;
   const cls      = CLASSES[clsKey];

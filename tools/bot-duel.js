@@ -3,7 +3,7 @@
 /*
  * tools/bot-duel.js — how does a stock bot hold up against a human? DEV ONLY.
  *
- * Runs 3-stock versus duels in BalanceSim (tools/class-balance.js): the
+ * Runs 2-stock (--stocks=N) versus duels in BalanceSim (tools/class-balance.js): the
  * calibrated human proxy (tools/human-proxy.js, v4 params) against one stock
  * bot, on the `ledge` arena so ring-outs count. Defaults reproduce the Fight
  * Ladder's Champion: an expert katana Ronin against a sword Warrior.
@@ -15,6 +15,7 @@
  *
  * Usage:
  *   node tools/bot-duel.js [--n=24] [--diff=expert] [--bot=ronin] [--botw=katana]
+ *                          [--stocks=2]   lives per side (versus default since Nov 25 2026)
  *                          [--me=warrior] [--mew=sword] [--arena=ledge] [--port=8104]
  *                          [--vs=sov]   Sovereign plays the human's side (a strong attacker)
  *                          [--vs=bot]   another stock bot plays it (bot against bot)
@@ -31,7 +32,7 @@ const ROOT = path.resolve(__dirname, '..');
 const args = Object.fromEntries(process.argv.slice(2).map(a => {
   const m = a.match(/^--([^=]+)(?:=(.*))?$/); return m ? [m[1], m[2] === undefined ? true : m[2]] : [a, true];
 }));
-const N = parseInt(args.n, 10) || 24, PORT = parseInt(args.port, 10) || 8104;
+const N = parseInt(args.n, 10) || 24, PORT = parseInt(args.port, 10) || 8104, STOCKS = parseInt(args.stocks, 10) || 2;
 const O = { diff: String(args.diff || 'expert'), bot: String(args.bot || 'ronin'), botw: String(args.botw || 'katana'),
   me: String(args.me || 'warrior'), mew: String(args.mew || 'sword'), arena: String(args.arena || 'ledge'),
   vs: String(args.vs || 'proxy'), off: args.off ? String(args.off).split(',') : [],
@@ -133,7 +134,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
     };
     for (let i = 0; i < N; i++) {
       me = null; bot = null;
-      const m = BalanceSim.runMatch(O.me, O.bot, 1000 + i * 7919, { stocks: 3, diff: O.diff, arena: O.arena, swap: i % 2 === 1,
+      const m = BalanceSim.runMatch(O.me, O.bot, 1000 + i * 7919, { stocks: args.STOCKS, diff: O.diff, arena: O.arena, swap: i % 2 === 1,
         wA: O.mew, wB: O.botw, brain: 'fighter', brainA: O.vs === 'sov' ? 'sovereign' : 'fighter', maxFrames: 14400 });
       S.n++; S.frames += m.frames; S.stocksMe += m.deathsB; S.stocksBot += m.deathsA;
       if (m.timeout) S.timeouts++; else if (m.stockDiff > 0) S.meWins++; else if (m.stockDiff < 0) S.botWins++;
@@ -141,12 +142,14 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
     }
     Fighter.prototype.update = up; Fighter.prototype.ability = ab; Fighter.prototype.useSuper = su;
     return S;
-  }, N, O, params, args);
+  }, N, O, params, Object.assign({}, args, { STOCKS }));
 
   const pc = (a, b) => b ? (100 * a / b).toFixed(1) + '%' : '-';
   const g = r.gaps.slice().sort((a, b) => a - b), med = g.length ? g[g.length >> 1] : 0;
   console.log(`${O.diff} ${O.bot}/${O.botw} bot vs ${O.vs} ${O.me}/${O.mew}, ${r.n} matches on ${O.arena}` + (O.off.length ? '  [off: ' + O.off.join(',') + ']' : '') + (O.tune ? '  [tune: ' + args.tune + ']' : '') + (args.mehp ? '  [mehp: ' + args.mehp + ']' : '') + (args.params ? '  [params: ' + path.basename(String(args.params)) + ']' : '') + (args.mentor ? '  [mentor: ' + args.mentor + ']' : ''));
   console.log(`  proxy wins ${r.meWins}  bot wins ${r.botWins}  timeouts ${r.timeouts}   stocks taken: proxy ${r.stocksMe}, bot ${r.stocksBot}   avg ${(r.frames / r.n / 60).toFixed(0)}s`);
+  { const lives = r.stocksMe + r.stocksBot;
+    console.log(`  pace: ${(r.frames / 60 / Math.max(1, lives)).toFixed(1)} s per life, ${((r.botHits + r.meHits) / Math.max(1, lives)).toFixed(1)} hits per life`); }
   console.log(`  tactics layer active ${pc(r.tac, r.live)} of bot frames`);
   console.log(`  bot guard up ${pc(r.shield, r.live)}   airborne ${pc(r.air, r.live)}   in reach ${pc(r.reach, r.live)}, of that free and idle ${pc(r.idleReach, r.reach)}`);
   console.log(`  bot: ${r.botHits} hits, ${(r.botDmg / Math.max(1, r.botHits)).toFixed(1)} dmg each; Q casts ${(r.q / r.n).toFixed(1)}/match, E casts ${(r.e / r.n).toFixed(1)}/match`);

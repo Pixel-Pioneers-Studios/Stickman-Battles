@@ -605,8 +605,8 @@
             <span class="online-label">Lives</span>
             <div class="online-chips">
               <button class="online-chip-btn" data-onlinelives="1" onclick="setOnlineLives(1)">1</button>
-              <button class="online-chip-btn" data-onlinelives="2" onclick="setOnlineLives(2)">2</button>
-              <button class="online-chip-btn active" data-onlinelives="3" onclick="setOnlineLives(3)">3</button>
+              <button class="online-chip-btn active" data-onlinelives="2" onclick="setOnlineLives(2)">2</button>
+              <button class="online-chip-btn" data-onlinelives="3" onclick="setOnlineLives(3)">3</button>
               <button class="online-chip-btn" data-onlinelives="5" onclick="setOnlineLives(5)">5</button>
             </div>
           </div>
@@ -748,7 +748,8 @@
           <p class="section-label">Lives</p>
           <select id="livesSelect" onchange="selectLives(parseInt(this.value))" style="width:100px;background:rgba(10,10,30,0.85);color:#c8d8ff;border:1px solid rgba(100,140,255,0.35);border-radius:8px;padding:6px 8px;font-size:0.82rem;outline:none;cursor:pointer;">
             <option value="1">1 Life</option>
-            <option value="3" selected>3 Lives</option>
+            <option value="2" selected>2 Lives</option>
+            <option value="3">3 Lives</option>
             <option value="5">5 Lives</option>
             <option value="10">10 Lives</option>
             <option value="0" id="infiniteOption">∞ Infinite</option>
@@ -1017,7 +1018,7 @@
       <span class="cd-label">S</span>
       <div class="cd-bar-track"><div class="cd-bar-fill" id="p1ShieldBar"></div></div>
     </div>
-    <div class="lives-display" id="p1Lives">3</div>
+    <div class="lives-display" id="p1Lives">2</div>
   </div>
 
   <!-- Center / kill feed + boss HP bar (2P boss mode) -->
@@ -1055,7 +1056,7 @@
       <span class="cd-label">S</span>
       <div class="cd-bar-track"><div class="cd-bar-fill" id="p2ShieldBar"></div></div>
     </div>
-    <div class="lives-display" id="p2Lives">3</div>
+    <div class="lives-display" id="p2Lives">2</div>
   </div>
 </div>
 
@@ -1903,7 +1904,7 @@
   <script src="./js/smb-errorboundary.js?v=4.9.120"></script>
   <!-- Global state, canvas setup -->
   <script src="./js/smb-icons.js?v=4.7.1"></script>
-  <script src="./js/smb-globals.js?v=4.9.211"></script>
+  <script src="./js/smb-globals.js?v=4.9.214"></script>
   <script src="./js/smb-palette.js?v=4.9.52"></script>
   <!-- Hand-drawn weapon sprite art (must follow smb-globals.js, precede smb-fighter.js) -->
   <script src="./js/smb-weapon-sprites.js?v=4.9.72"></script>
@@ -1933,7 +1934,7 @@
   <script src="./js/smb-weapon-lore.js?v=4.9.155"></script>
   <script src="./js/smb-map-analyzer.js?v=4.3.8"></script>
   <!-- Combat pipeline, particles, heatmap, ragdoll (split from smb-particles.js) -->
-  <script src="./js/smb-combat.js?v=4.9.183"></script>
+  <script src="./js/smb-combat.js?v=4.9.214"></script>
   <script src="./js/smb-particles-core.js?v=4.9.142"></script>
   <!-- Pixel-art VFX host + effects (Sprite Fusion, MIT). Effects register into PIXEL_VFX, so they follow the host. -->
   <script src="./js/smb-pixel-vfx.js?v=4.9.125"></script>
@@ -2014,7 +2015,7 @@
   <script src="./js/smb-enemies-core.js?v=4.9.49"></script>
   <script src="./js/smb-enemies-creatures.js?v=4.9.49"></script>
   <script src="./js/smb-enemies-training.js?v=4.8.9"></script>
-  <script src="./js/smb-enemies-class.js?v=4.9.159"></script>
+  <script src="./js/smb-enemies-class.js?v=4.9.214"></script>
   <!-- God entity and encounter system -->
   <script src="./js/smb-god.js?v=4.9.137"></script>
   <script src="./js/smb-god-cinematics.js?v=4.9.21"></script>
@@ -2114,20 +2115,20 @@
   <script src="./js/smb-camera-trace.js?v=4.3.8"></script>
   <script src="./js/smb-screenfx.js?v=4.9.58"></script>
   <script src="./js/smb-loop-core.js?v=4.9.203"></script>
-  <script src="./js/smb-input.js?v=4.9.210"></script>
+  <script src="./js/smb-input.js?v=4.9.214"></script>
   <script src="./js/smb-cheats.js?v=4.9.82"></script>
   <!-- Menu UI, startGame, tutorial -->
   <script src="./js/smb-menu-ui.js?v=4.9.196"></script>
   <script src="./js/smb-journal.js?v=4.9.210"></script>
   <script src="./js/smb-home-art.js?v=4.9.169"></script>
-  <script src="./js/smb-menu-select.js?v=4.9.154"></script>
+  <script src="./js/smb-menu-select.js?v=4.9.214"></script>
   <script src="./js/smb-menu-config.js?v=4.9.173"></script>
   <script src="./js/smb-loadscreen.js?v=4.9.160"></script>
   <script src="./js/smb-menu-spawn.js?v=4.9.168"></script>
-  <script src="./js/smb-menu-startcore.js?v=4.9.186"></script>
+  <script src="./js/smb-menu-startcore.js?v=4.9.214"></script>
   <script src="./js/smb-menu-utils.js?v=4.9.60"></script>
   <!-- Network / online multiplayer -->
-  <script src="./js/smb-network.js?v=4.9.92"></script>
+  <script src="./js/smb-network.js?v=4.9.214"></script>
   <!-- Centralized runtime state (accounts, admin overrides, online session) -->
   <!-- Must load before smb-online.js, smb-accounts.js, and smb-admin.js -->
   <script src="./js/smb-state.js?v=4.3.8"></script>

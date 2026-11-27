@@ -466,7 +466,7 @@ function _setBossFightLivesLock(active) {
   if (!bossFightLivesLock) return;
   bossFightLivesLock = false;
   infiniteMode = false;
-  chosenLives = bossFightLivesPrev != null ? bossFightLivesPrev : 3;
+  chosenLives = bossFightLivesPrev != null ? bossFightLivesPrev : 2;
   bossFightLivesPrev = null;
   const sel = document.getElementById('livesSelect');
   if (sel) sel.value = String(chosenLives);

@@ -81,12 +81,16 @@ function resolveEntityClashes() {
   }
 }
 
-// Basic swings chain at most BASIC_CHAIN_MAX in a row. The next one must be an
-// ability, a super, or a swing from the other stance. Pausing BASIC_CHAIN_RESET
-// frames past the last swing's cooldown also clears it.
+// A string of basic swings is BASIC_CHAIN_MAX landed hits; the last one launches (STRING_LEN in
+// smb-combat.js), so the target ends up out of reach. The next press starts a fresh string. It used
+// to be refused outright ("SWITCH IT UP", before the Nov 25 2026 retune).
+// Pausing BASIC_CHAIN_RESET frames past the last swing's cooldown also clears it.
 // Only landed swings count: dealDamage() bumps _basicChainN. Whiffs, blocks and 0-dmg hits break the run.
-const BASIC_CHAIN_MAX   = 2;
+const BASIC_CHAIN_MAX   = 4;
 const BASIC_CHAIN_RESET = 20;
+// Every weapon's Q cooldown is scaled by this (Nov 25 2026 retune: Q comes round more often).
+// Not applied to bosses or to moves that set _abilityCdOverride themselves.
+const ABILITY_CD_MULT   = 0.75;
 
 // Landing with a basic swing still out costs its remaining endlag plus LAND_LAG_FRAMES.
 // An aerial that finishes before touchdown is free.
@@ -1740,6 +1744,7 @@ class Fighter {
               screenShake = Math.max(screenShake, 5);
               this.attackTimer = Math.min(this.attackTimer, 4); // cut swing short
               this.weaponHit   = true;
+              this._swingFloorHit = true;   // the floor is not a target: still a whiff (endlag block below)
               break;
             }
           }
@@ -1753,8 +1758,10 @@ class Fighter {
       // Whiff punish: extra recovery, and no guard until it is over (see _whiffGuardLock below).
       // Fixed, not a dice roll: it replaced a 30% random stun (Nov 22 2026), so a whiff always costs the
       // same and can be learned. Basic melee only. Abilities, supers and ranged shots also run attackTimer.
-      const _whiffed = !this.weaponHit && this.weapon.type === 'melee' &&
-                       this._attackKindTier === CLASH_TIER_ATTACK;
+      // Striking only the floor is a whiff too: a downward cut clipped the floor on every ground miss.
+      const _whiffed = (!this.weaponHit || (this._swingFloorHit && !this.swingHitTargets.size)) &&
+                       this.weapon.type === 'melee' && this._attackKindTier === CLASH_TIER_ATTACK;
+      this._swingFloorHit = false;
       if (_whiffed) endlag = Math.round(endlag * 2.4);
       // Low stamina: sluggish recovery (up to +40% at 0 stamina)
       const staminaRatio = this.stamina / (this.maxStamina || 100);
@@ -1773,6 +1780,12 @@ class Fighter {
       // A shield stopped this swing (dealDamage, BLOCK_ENDLAG): the defender's turn.
       if (this._blockedEndlag) { endlag += this._blockedEndlag; this._blockedEndlag = 0; }
       this.attackEndlag = endlag;
+      // Recovery decides when the next swing can come (see _swingCd): a swing cut short or a quicker
+      // recovery never leaves the cooldown running past it. A slowing attackCooldownMult still applies.
+      if (this.weapon.type === 'melee' && !this.weapon.customAttack && this._attackKindTier === CLASH_TIER_ATTACK) {
+        const _m = this.attackCooldownMult > 1 ? this.attackCooldownMult : 1;
+        this.cooldown = Math.min(this.cooldown, Math.ceil(endlag * _m));
+      }
       if (typeof frameCount !== 'undefined') {
         this._strFreeAt = frameCount + endlag;
         // A whiffed swing can't be covered by raising the guard during its recovery (shieldRaise, dealDamage).
@@ -2698,6 +2711,17 @@ class Fighter {
     const cont = this._strIdx != null && this._strKey === this.weaponKey && fc <= ready + MOVE_STRING_WINDOW;
     return s[cont ? (this._strIdx + 1) % s.length : 0];
   }
+  // Frames from a press until the next press can swing (before attackCooldownMult).
+  // Non-boss melee: the swing plus its recovery, so a press is accepted the moment recovery ends
+  // (Nov 25 2026 retune). A whiff or a blocked swing still costs more through attackEndlag, which
+  // attack() checks separately. Bosses, ranged and bespoke (customAttack) weapons keep their cooldown.
+  _swingCd(mv) {
+    const w = this.weapon;
+    if (this.isBoss || !w || w.type !== 'melee' || w.customAttack) return mv ? mv.cooldown : w.cooldown;
+    if (mv) return mv.dur + (mv.endlag || 0);
+    const sg = (typeof WEAPON_SWINGS !== 'undefined') ? WEAPON_SWINGS[this.weaponKey] : null;
+    return ((sg && sg.dur) || 12) + (w.endlag || 0);
+  }
   // Recovery after the current swing.
   _curSwingEndlag() {
     const g = this._swingG();
@@ -3148,14 +3172,8 @@ class Fighter {
     if (!_held) this._basicChainHeld = false;
     // Still armed = the previous swing never dealt damage, so the run is broken.
     if (!this.isBoss && this.weapon.type === 'melee' && (!_chained || this._basicChainArmed)) this._basicChainN = 0;
-    if (_chained && this._basicChainN >= BASIC_CHAIN_MAX) {
-      if (!this.isAI && _fcNow - (this._basicChainToldAt || -999) > 40 && settings.dmgNumbers &&
-          typeof DamageText !== 'undefined') {
-        this._basicChainToldAt = _fcNow;
-        damageTexts.push(new DamageText(this.cx(), this.y - 30, 'SWITCH IT UP', '#aaaaaa'));
-      }
-      return;
-    }
+    // A full string ended in a launch: this press starts the next one.
+    if (_chained && this._basicChainN >= BASIC_CHAIN_MAX) this._basicChainN = 0;
 
     // AI whiff guard. Melee reach is armLen+tipLen, far shorter than the AI's commit band, and the swing lands during its windup.
     // Bots committed to swings that couldn't connect and then ate the whiff punish. Project the gap to contact and abort
@@ -3185,7 +3203,7 @@ class Fighter {
     this._animeQUntil = 0;
     // Weapons with a move list: this press plays the next move of the string, or the air move.
     const _mv = this._nextMove();
-    const _baseCd = _mv ? _mv.cooldown : this.weapon.cooldown;
+    const _baseCd = this._swingCd(_mv);
     if (!this.isBoss && this.weapon.type === 'melee') {
       // Counted in dealDamage() when this swing lands, see BASIC_CHAIN_MAX.
       this._basicChainArmed = true;
@@ -3216,6 +3234,7 @@ class Fighter {
       const _atkTarget = target || this.target || trainingDummies[0] || players.find(p => p !== this);
       // Damage comes from the arc hitbox in update(). Clear so the previous swing's targets can be hit again.
       this.weaponHit = false;
+      this._swingFloorHit = false;
       this.swingHitTargets.clear();
       if (!_atkTarget || dist(this, _atkTarget) < this.weapon.range * 1.4 * (this.drawScale || 1)) {
         if (!this.isAI && !_mv) { if (SoundManager.at) SoundManager.at(this.cx()); SoundManager.swing(this.weaponKey); } // a keyed move whooshes on its strike
@@ -3432,7 +3451,8 @@ class Fighter {
       this.abilityCooldown = this._abilityCdOverride;
       this._abilityCdOverride = null;
     } else {
-      this.abilityCooldown = Math.round(this.weapon.abilityCooldown * (this._weaponAbilityCdMult || 1));
+      this.abilityCooldown = Math.round(this.weapon.abilityCooldown * (this._weaponAbilityCdMult || 1) *
+                                        (this.isBoss ? 1 : ABILITY_CD_MULT));
     }
     // A scene poses the body itself; a live attackTimer would also arm the swing hitbox.
     this.attackTimer     = _scene ? 0 : this.attackDuration * 2;

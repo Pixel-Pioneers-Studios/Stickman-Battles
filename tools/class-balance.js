@@ -165,13 +165,10 @@ window.BalanceSim = (function () {
     return f;
   }
 
-  // One match. Returns the stock differential from A's point of view plus the
-  // process stats, so a win can be told apart from a win that was nearly a loss.
-  function runMatch(keyA, keyB, seed, opts) {
-    const o = opts || {};
+  // Arena, fresh brains and the two fighters, exactly as a match starts.
+  function _setup(keyA, keyB, seed, o) {
     const stocks = o.stocks || 3, diff = o.diff || 'hard';
-    const MAX_FRAMES = o.maxFrames || 18000;
-    const swap = !!o.swap;   // swap spawn sides to cancel positional bias
+    const swap = !!o.swap;
     _env(o.arena);
     const rng = _rng(seed);
     const xA = swap ? 620 : 280, xB = swap ? 280 : 620;
@@ -189,6 +186,98 @@ window.BalanceSim = (function () {
     const B = build(keyB, xB, '#ff4444', diff, stocks, o.wB, o.brainB || o.brain);
     A.target = B; B.target = A;
     players.length = 0; players.push(A, B);
+    // Duel health, as a versus/ladder/online match has it (smb-enemies-class.js). duelHp:false = raw class HP.
+    if (o.duelHp !== false && typeof applyDuelHp === 'function') { applyDuelHp(A, true); applyDuelHp(B, true); }
+    return { A, B, rng };
+  }
+
+  // Frame-by-frame access for tests (tools/fight-retune-test.js): setup() builds
+  // the same fighters runMatch would, step(n) advances n frames of the same world.
+  // setTimeout is shimmed onto sim frames only while step() runs.
+  let _st = null;
+  function setup(keyA, keyB, opts) {
+    const o = opts || {};
+    if (typeof _combatTimers !== 'undefined') _combatTimers.length = 0;
+    const r = _setup(keyA, keyB, o.seed || 7, o);
+    _st = { A: r.A, B: r.B, rng: r.rng, fr: 0, timers: [], err: null };
+    return { A: r.A, B: r.B };
+  }
+  function step(n) {
+    if (!_st) return;
+    const st = _st, _rto = window.setTimeout;
+    window.setTimeout = (fn, ms) => { if (typeof fn === 'function') st.timers.push({ at: st.fr + Math.max(1, Math.ceil((ms || 0) / 16.67)), fn }); return 0; };
+    try {
+      for (let i = 0; i < (n || 1); i++) {
+        const e = _frame(st.A, st.B, st.rng, st.fr, st.timers, () => { st.fr++; });
+        if (e && !st.err) st.err = e;
+      }
+    } finally { window.setTimeout = _rto; }
+    return st.err;
+  }
+
+  // One sim frame of the world, shared by runMatch and setup/step so a test
+  // stepping frame by frame sees exactly what a match sees.
+  function _frame(A, B, rng, fr, _timers, onTick) {
+    let err = null;
+    hitStopFrames = 0; slowMotion = 1; aiTick = fr; frameCount = fr;
+    for (let ti = _timers.length - 1; ti >= 0; ti--) {
+      if (_timers[ti].at > fr) continue;
+      const tf = _timers.splice(ti, 1)[0].fn;
+      try { tf(); } catch (e) { if (!err) err = 'timer:' + e.message; }
+    }
+    // combatAfter() replaced setTimeout in combat code (Thor's storm, gun and
+    // pea bursts); gameLoop ticks it every frame, so the sim has to as well.
+    try { if (typeof tickCombatTimers === 'function') tickCombatTimers(); } catch (e) { if (!err) err = 'ctimer:' + e.message; }
+    if (onTick) onTick();   // runMatch advances its frame counter here (timer scheduling reads it)
+    A.target = B; B.target = A;
+    // Update order is ALTERNATED every frame. It is not cosmetic: with a fixed
+    // order the mirror control read 0-16 for ten of thirteen classes, i.e.
+    // whoever updates SECOND wins essentially every melee trade (it acts on a
+    // state the first fighter has already committed to). Fixed-order results
+    // measure that artifact, not the class. Ranged mirrors sat near 50% —
+    // which is exactly the tell, since a projectile resolves on a later frame
+    // and so does not care who moved first.
+    // DomainManager owns domain rise/expiry; without a tick a fighter whose
+    // domain rises skips gravity forever (measured y=-3578 on 2026-09-20).
+    try { if (typeof DomainManager !== 'undefined' && DomainManager.update) DomainManager.update(); } catch (e) { if (!err) err = 'domain:' + e.message; }
+    // Strict alternation still leaks: frame 0 is always A-first, and two
+    // mirrored brains that act on the same frames with even-length swing
+    // cycles lock onto the same parity, so A keeps getting the first-mover
+    // frame. Measured 2026-09-21 with Sovereign on both sides: combat mirror
+    // 22-2. A seeded coin flip per frame has no period to lock onto.
+    const order = (rng() < 0.5) ? [A, B] : [B, A];
+    for (const f of order) {
+      try { f.update(); } catch (e) { if (!err) err = (f === A ? 'A:' : 'B:') + e.message; }
+    }
+    // gameLoop runs move scenes after physics (every Q/E is one since 4.9),
+    // and the passive super trickle. Without the first, a fighter froze in
+    // its first ability forever; without the second supers came only from hits.
+    try { if (typeof MoveScene !== 'undefined') MoveScene.update(); } catch (e) { if (!err) err = 'scene:' + e.message; }
+    for (const f of order) {
+      if (f.isBoss || f.superActive || f.health <= 0) continue;
+      const _pr = f.superReady;
+      f.superMeter = Math.min(100, f.superMeter + 0.04);
+      if (!_pr && f.superMeter >= 100) { f.superReady = true; f.superFlashTimer = 90; }
+    }
+    // gameLoop owns these two, not Fighter.update(). Without them a bow shot
+    // hangs in the air forever and a Summoner familiar never acts.
+    try {
+      projectiles.forEach(pr => pr.update());
+      projectiles = projectiles.filter(pr => pr.active);
+      minions.forEach(mn => { if (mn.health > 0) mn.update(); });
+      minions = minions.filter(mn => mn.health > 0);
+    } catch (e) { if (!err) err = 'world:' + e.message; }
+    return err;
+  }
+
+  // One match. Returns the stock differential from A's point of view plus the
+  // process stats, so a win can be told apart from a win that was nearly a loss.
+  function runMatch(keyA, keyB, seed, opts) {
+    const o = opts || {};
+    const stocks = o.stocks || 3, diff = o.diff || 'hard';
+    const MAX_FRAMES = o.maxFrames || 18000;
+    const swap = !!o.swap;   // swap spawn sides to cancel positional bias
+    const { A, B, rng } = _setup(keyA, keyB, seed, o);
 
     let dmgA = 0, dmgB = 0, lockA = 0, lockB = 0, deathsA = 0, deathsB = 0;
     let pvA = A.health, pvB = B.health, frames = 0, err = null;
@@ -206,54 +295,7 @@ window.BalanceSim = (function () {
     window.setTimeout = (fn, ms) => { if (typeof fn === 'function') _timers.push({ at: frames + Math.max(1, Math.ceil((ms || 0) / 16.67)), fn }); return 0; };
     try {
     for (let fr = 0; fr < MAX_FRAMES; fr++) {
-      hitStopFrames = 0; slowMotion = 1; aiTick = fr; frameCount = fr;
-      for (let ti = _timers.length - 1; ti >= 0; ti--) {
-        if (_timers[ti].at > fr) continue;
-        const tf = _timers.splice(ti, 1)[0].fn;
-        try { tf(); } catch (e) { if (!err) err = 'timer:' + e.message; }
-      }
-      // combatAfter() replaced setTimeout in combat code (Thor's storm, gun and
-      // pea bursts); gameLoop ticks it every frame, so the sim has to as well.
-      try { if (typeof tickCombatTimers === 'function') tickCombatTimers(); } catch (e) { if (!err) err = 'ctimer:' + e.message; }
-      frames = fr + 1;
-      A.target = B; B.target = A;
-      // Update order is ALTERNATED every frame. It is not cosmetic: with a fixed
-      // order the mirror control read 0-16 for ten of thirteen classes, i.e.
-      // whoever updates SECOND wins essentially every melee trade (it acts on a
-      // state the first fighter has already committed to). Fixed-order results
-      // measure that artifact, not the class. Ranged mirrors sat near 50% —
-      // which is exactly the tell, since a projectile resolves on a later frame
-      // and so does not care who moved first.
-      // DomainManager owns domain rise/expiry; without a tick a fighter whose
-      // domain rises skips gravity forever (measured y=-3578 on 2026-09-20).
-      try { if (typeof DomainManager !== 'undefined' && DomainManager.update) DomainManager.update(); } catch (e) { if (!err) err = 'domain:' + e.message; }
-      // Strict alternation still leaks: frame 0 is always A-first, and two
-      // mirrored brains that act on the same frames with even-length swing
-      // cycles lock onto the same parity, so A keeps getting the first-mover
-      // frame. Measured 2026-09-21 with Sovereign on both sides: combat mirror
-      // 22-2. A seeded coin flip per frame has no period to lock onto.
-      const order = (rng() < 0.5) ? [A, B] : [B, A];
-      for (const f of order) {
-        try { f.update(); } catch (e) { if (!err) err = (f === A ? 'A:' : 'B:') + e.message; }
-      }
-      // gameLoop runs move scenes after physics (every Q/E is one since 4.9),
-      // and the passive super trickle. Without the first, a fighter froze in
-      // its first ability forever; without the second supers came only from hits.
-      try { if (typeof MoveScene !== 'undefined') MoveScene.update(); } catch (e) { if (!err) err = 'scene:' + e.message; }
-      for (const f of order) {
-        if (f.isBoss || f.superActive || f.health <= 0) continue;
-        const _pr = f.superReady;
-        f.superMeter = Math.min(100, f.superMeter + 0.04);
-        if (!_pr && f.superMeter >= 100) { f.superReady = true; f.superFlashTimer = 90; }
-      }
-      // gameLoop owns these two, not Fighter.update(). Without them a bow shot
-      // hangs in the air forever and a Summoner familiar never acts.
-      try {
-        projectiles.forEach(pr => pr.update());
-        projectiles = projectiles.filter(pr => pr.active);
-        minions.forEach(mn => { if (mn.health > 0) mn.update(); });
-        minions = minions.filter(mn => mn.health > 0);
-      } catch (e) { if (!err) err = 'world:' + e.message; }
+      const _e = _frame(A, B, rng, fr, _timers, () => { frames = fr + 1; }); if (_e && !err) err = _e;
       if (A.stunTimer > 0 || A.ragdollTimer > 0) lockA++;
       if (B.stunTimer > 0 || B.ragdollTimer > 0) lockB++;
       if (A.health < pvA) dmgB += pvA - A.health;   // damage DEALT BY B
@@ -338,7 +380,7 @@ window.BalanceSim = (function () {
     return out;
   }
 
-  return { runMatch, weaponFor, drill };
+  return { runMatch, weaponFor, drill, setup, step, frame: () => (_st ? _st.fr : 0) };
 })();
 `;
 

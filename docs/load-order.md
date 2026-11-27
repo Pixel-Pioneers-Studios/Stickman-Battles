@@ -42,7 +42,7 @@ Script load order in `index.html` — files may only reference globals from earl
 32. `js/smb-enemies-core.js` — `Minion`, `ForestBeast` classes
 33. `js/smb-enemies-creatures.js` — `Yeti`, `Dummy` classes
 34. `js/smb-enemies-training.js` — Training mode, map creator, custom weapon creator
-35. `js/smb-enemies-class.js` — `applyClass`, `updateClassWeapon`, `showDesc`, mirror AI patch
+35. `js/smb-enemies-class.js` — `applyClass`, `applyDuelHp`, `updateClassWeapon`, `showDesc`, mirror AI patch
 36. `js/smb-god.js` — God entity, encounter system, fake crash screen, Godslayer weapon
 37. `js/boss/smb-boss.js` — Boss class (3-phase)
 38. `js/boss/smb-boss-cinematics.js` — Boss cinematic sequences
@@ -91,7 +91,7 @@ Script load order in `index.html` — files may only reference globals from earl
 79. `js/smb-cutscene.js` — Cutscene helpers
 80. `js/smb-camera.js` — Camera sequences, drama cam, `updateCamera`
 81. `js/smb-loop-core.js` — `applyWorldModifiers` + main `gameLoop` (monolithic)
-82. `js/smb-input.js` — `processInput`, shield constants, key normalization
+82. `js/smb-input.js` — `processInput`, `INPUT_BUFFER_FRAMES`, shield constants, key normalization
 83. `js/smb-cheats.js` — `applyCode`, all cheat code logic
 84. `js/smb-menu-ui.js` — Mode selection, cosmetics/store, bot toggle
 84a. `js/smb-journal.js` — `JOURNAL_ENTRIES`, `showJournalModal`, `journalUpdateNav` (lore journal; unlock gates use story ids and prequel progress from smb-menu-ui.js)

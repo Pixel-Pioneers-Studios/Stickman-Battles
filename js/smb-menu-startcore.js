@@ -921,7 +921,9 @@ function _startGameCore() {
   if (p2 && ladderDef) {
     p2.name  = ladderDef.name.toUpperCase();
     p2.lives = p2._maxLives = ladderDef.lives;
-    if (ladderDef.p1Lives) p1.lives = p1._maxLives = ladderDef.p1Lives;
+    // The player keeps 3 lives on the ladder unless the rung says otherwise. The versus default dropped
+    // to 2 (Nov 25 2026) and would otherwise leave the player a life short of rungs 4-10.
+    p1.lives = p1._maxLives = ladderDef.p1Lives || 3;
     if (ladderDef.p1HpMul && ladderDef.p1HpMul !== 1) { p1.maxHealth = Math.round(p1.maxHealth * ladderDef.p1HpMul); p1.health = p1.maxHealth; }
     if (ladderDef.p2HpMul && ladderDef.p2HpMul !== 1) { p2.maxHealth = Math.round(p2.maxHealth * ladderDef.p2HpMul); p2.health = p2.maxHealth; }
     if (ladderDef.tac) p2._btTune = ladderDef.tac;
@@ -953,6 +955,8 @@ function _startGameCore() {
 
   // Story upgrades, enemy scaling and Sovereign's mirror of the player (smb-story-engine-frame.js).
   if (storyModeActive && typeof _storyApplyFightStartBuffs === 'function') _storyApplyFightStartBuffs();
+  // Versus, ladder and online duels: more health per life (no-op in every other mode).
+  if (typeof applyDuelHp === 'function') for (const _dp of players) if (_dp && !_dp.isBoss) applyDuelHp(_dp);
   gameRunning = true;
   if (typeof ReplaySystem !== 'undefined') ReplaySystem.startRecording();
   // Paradox companion: speak on boss start

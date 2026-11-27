@@ -240,7 +240,7 @@ function applyLaunch(attacker, target, launchVy, opts) {
 }
 
 // Combo strings: early basic hits push and stun lightly. The last one launches.
-const STRING_LEN      = 3;    // the hit that launches
+const STRING_LEN      = 4;    // the hit that launches (= BASIC_CHAIN_MAX in smb-fighter.js)
 const STRING_KB       = 0.2;  // knockback multiplier on the hits before it
 const STRING_STUN_PAD = 10;   // slack past the next swing's contact for late human presses
 

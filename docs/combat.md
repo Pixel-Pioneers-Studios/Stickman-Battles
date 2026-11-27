@@ -92,10 +92,22 @@ Hit-stop pauses physics via `hitStopFrames` counter in `gameLoop`.
 - Melee: sweep arc based on `weapon.range`; arc points via `_getMeleeArcPoints()`
 - Ranged: `spawnBullet()` — uses `weapon.damageFunc` if present, else `weapon.damage`
 - `swingHitTargets` Set prevents hitting same target twice per swing
+- **Swing gating (Nov 25 2026 retune):** a non-boss melee press is accepted the moment the previous swing
+  and its recovery are over. `Fighter._swingCd(mv)` = move `dur + endlag` (or `WEAPON_SWINGS[key].dur +
+  weapon.endlag`), and the swing-end block caps `cooldown` at the actual recovery. Whiffs still cost
+  `endlag x 2.4` and lock the guard (`_whiffGuardLock`); a blade that only strikes the floor counts as a
+  whiff. Bosses, ranged and `customAttack` weapons keep their own `cooldown`.
+- **Input:** a press during recovery is buffered (`INPUT_BUFFER_FRAMES = 10`, `smb-input.js`); pressing
+  again just refreshes it. The old mash lock (`ATTACK_MASH_LOCK`) is gone.
+- **Strings:** `BASIC_CHAIN_MAX = 4` landed basics (`smb-fighter.js`) and `STRING_LEN = 4`
+  (`smb-combat.js`): hits 1-3 push lightly (`STRING_KB`), the 4th launches, and the next press starts a
+  new string. There is no SWITCH IT UP refusal any more. `COMBO_SCALE`, the 7+ forced launch and the
+  stun handoff still apply.
 
 ### Ability (Q key)
 - Each weapon has a unique `ability(user, target)` function
 - `abilityCooldown` in frames; checked before activation
+- Every weapon's cooldown is scaled by `ABILITY_CD_MULT = 0.75` (not bosses, not `_abilityCdOverride`)
 - Feedback: `abilityFlashTimer` expanding ring at player position
 
 ### Super (E key)

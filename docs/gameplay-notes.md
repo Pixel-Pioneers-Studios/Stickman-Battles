@@ -7,6 +7,10 @@ This file documents things that cannot be inferred from code alone — actual fe
 ## Combat
 
 **Pacing**
+- Nov 25 2026 retune (owner: "fighting feels slow and lives end too fast"): swings gated by recovery, no
+  mash lock, 10f buffer, 4-hit strings that end in a launch, Q cooldowns x0.75, versus default 2 lives,
+  duel health x`DUEL_HP_MULT` (2.0, versus/ladder/online only). Sim pace went from ~8 s to ~15-19 s per
+  life at ~28 hits per life (`tools/bot-duel.js`). Stage 2 (cancels, combo escape) comes after the owner plays it.
 - Combat is fast and punishing — skilled players can chain pressure effectively.
 - Spam has been a known community complaint ("faster spammer wins").
 - Countermeasures already in place: consecutive-miss stun chance, parry system.
