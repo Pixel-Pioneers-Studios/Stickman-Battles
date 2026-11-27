@@ -89,6 +89,7 @@
     for (const row of o.rows) {
       for (let i = 0; i < row.n; i++) {
         const x = row.x0 + i * row.step + rnd() * row.step * 0.5, z = row.z - rnd() * (row.zJ || 200), s = row.s + rnd() * (row.sJ || 0.5);
+        if (row.z > -700) K.contact(x, base, z, (o.shape === 'tall' ? 26 : o.shape === 'dead' ? 14 : 30) * s, (o.shape === 'tall' ? 22 : 18) * s, 0.4);   // near rows only
         if (o.shape === 'tall') {
           const h = 1400, w = 14 * s;
           const tr = new T.Mesh(trunkG, trunkM); tr.scale.set(w, h, w); tr.position.set(x, base + h / 2, z); add(tr);
@@ -385,7 +386,7 @@
     fog: '#2a2448',
     light: { sky: '#7a88d0', ground: '#2a2440', hemi: 1.1, key: '#c8d4ff', keyI: 1.2 },
     sun: { dir: [-0.5, 0.5, -1], color: '#f4f1e0', size: 330, glow: 'rgba(200,215,255,' },
-    ground: { top: '#3c3f4e', backTop: '#33364a', face: ['#4a4d5a', '#3a3d48', '#55586a', '#22242c'], deep: '#2a2c38' },
+    ground: { top: '#3c3f4e', backTop: '#33364a', face: ['#4a4d5a', '#3a3d48', '#55586a', '#22242c'], deep: '#2a2c38' , trim: { color: '#4a4e60', steps: [[0, 10, 8], [10, 40, 3]] } },
     plat: { kind: 'block', top: '#5b6075', lip: '#9aa0b8', body: '#2e3242', depth: [50, 80], topH: 5 },
     platDress: piers({ style: 'girder', color: '#5a6280', cap: '#6a7290', r: 10, brace: true }),
     dress(scene, K, rnd) {
@@ -394,6 +395,17 @@
         rows: [{ n: 16, x0: -1100, step: 190, z: -1250, zJ: 250, wMin: 110, wMax: 180, hMin: 260, hMax: 640 },
                { n: 22, x0: -2400, step: 250, z: -2100, zJ: 400, wMin: 160, wMax: 260, hMin: 500, hMax: 1200, glow: 0.8 },
                { n: 20, x0: -4200, step: 450, z: -3200, zJ: 600, wMin: 260, wMax: 420, hMin: 700, hMax: 1700, glow: 0.6 }] });
+      // Street edge: a parapet wall with a rail behind the fight and lamp posts on it, joining the street to the towers.
+      const pm = K.toon('#3c4054'), rm = K.toon('#6a7088'), lampM = K.basic('#ffe0a0', { fog: false });
+      box(K, pm, 450, -438, -230, 1500, 46, 24);
+      box(K, rm, 450, -438 + 46, -230, 1500, 6, 30);
+      for (let x = -240; x <= 1140; x += 230) {
+        box(K, rm, x, -438 + 52, -230, 6, 150, 6, true);
+        box(K, rm, x + 14, -438 + 198, -230, 34, 4, 4);
+        box(K, lampM, x + 28, -438 + 190, -230, 14, 6, 10);
+        glow(K, x + 28, -438 + 186, -226, 46, 'rgba(255,220,150,');
+        K.contact(x, -438, -214, 30, 14, 0.4);
+      }
     },
   }));
 
@@ -562,7 +574,7 @@
     sky: [[0, '#0a5a9a'], [0.4, '#023a6a'], [1, '#01102a']],
     fog: '#023a6a', fogSpan: 1900,
     light: { sky: '#70d0ff', ground: '#003366', hemi: 1.35, key: '#a8e4ff', keyI: 1.4 },
-    ground: { top: '#1d5a96', backTop: '#164a80', face: ['#0a3366', '#08284f', '#0e3c77', '#041a33'], deep: '#082a50' },
+    ground: { top: '#1d5a96', backTop: '#164a80', face: ['#0a3366', '#08284f', '#0e3c77', '#041a33'], deep: '#082a50' , trim: { color: '#245a80', steps: [[0, 12, 8], [12, 26, 16]] } },
     plat: { kind: 'block', top: '#2a7ac0', lip: '#5ab0ff', body: '#00447f', depth: [50, 90] },
     platDress: piers({ style: 'column', color: '#4a88a8', cap: '#5a9ab8', r: 14 }),
     dress(scene, K, rnd) {
@@ -581,6 +593,8 @@
         m.scale.set(s * 1.3, s, s); m.position.set(-800 + rnd() * 2500, -480 + s * 0.4, -60 - rnd() * 900); K.scene.add(m);
       }
       shafts(K, rnd, { n: 8, color: 'rgba(160,230,255,', x0: -500, x1: 1400, top: 900, h: 1700, w: 90, z0: -900, z1: -200, opacity: 0.4, tilt: -0.18 });
+      // Sunken colonnade behind the fight: what's left of a drowned hall, broken and leaning.
+      columns(K, rnd, { color: '#2e6488', capColor: '#3a7aa0', broken: 0.5, neck: true, contact: true, rows: [{ n: 7, x0: -260, step: 230, z: -380, h: 380, r: 20, lintel: true }] });
     },
     update(f) { if (_kelp) for (const m of _kelp) { m.rotation.z = Math.sin(f * 0.02 + m.userData.ph) * 0.08; m.rotation.x = Math.cos(f * 0.017 + m.userData.ph) * 0.05; } },
   }));
@@ -591,7 +605,7 @@
     fog: '#d8b070',
     light: { sky: '#ffe0a0', ground: '#a07040', hemi: 1.4, key: '#ffe8c0', keyI: 1.8 },
     sun: { dir: [-0.4, 0.62, -1], rays: true, color: '#fff4d8', glow: 'rgba(255,236,190,' },
-    ground: { top: '#d8b880', backTop: '#c8a870', face: ['#b89060', '#9a7448', '#c8a070', '#6a4a28'], deep: '#8a6438' },
+    ground: { top: '#d8b880', backTop: '#c8a870', face: ['#b89060', '#9a7448', '#c8a070', '#6a4a28'], deep: '#8a6438' , trim: { color: '#c8a070', steps: [[0, 14, 8], [14, 24, 18]] } },
     plat: { kind: 'block', top: '#e0c898', lip: '#f0dcb0', body: '#b89060', depth: [50, 90] },
     platDress: piers({ style: 'column', color: '#d8b880', cap: '#e8cc98', r: 16 }),
     dress(scene, K, rnd) {
@@ -612,6 +626,11 @@
         b.position.set(-1150 + i * 256 * 1.5, -480 + 420, -885); K.scene.add(b);
       }
       columns(K, rnd, { color: '#b89060', capColor: '#c8a070', rows: [{ n: 12, x0: -2400, step: 520, z: -2200, h: 900, r: 40, lintel: true }] });
+      // Podium: the low wall ringing the sand, between the floor and the stands, with a capping course.
+      const pm = K.toon('#c49a62'), cm = K.toon('#e4c68e');
+      box(K, pm, 450, -480, -320, 2600, 96, 40);
+      box(K, cm, 450, -480 + 96, -316, 2620, 10, 52);
+      for (let x = -700; x <= 1600; x += 128) box(K, cm, x, -480, -296, 18, 96, 8);
     },
   }));
 
@@ -667,12 +686,18 @@
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 200, size: 1.4, minEl: 0.3 });
       trees(K, rnd, { shape: 'dead', trunk: '#1a1422', rows: [{ n: 12, x0: -700, step: 220, z: -500, zJ: 300, s: 1.4, sJ: 0.6 }, { n: 14, x0: -1600, step: 300, z: -1300, zJ: 400, s: 2.2, sJ: 0.8 }] });
-      const T2 = K.T, stoneM = K.toon('#4a4458'), box = new T2.BoxGeometry(1, 1, 1);
-      for (let i = 0; i < 26; i++) { const s = new T2.Mesh(box, stoneM); s.scale.set(16, 22 + rnd() * 14, 6); s.position.set(-500 + rnd() * 1900, -470, -80 - rnd() * 500); s.rotation.z = (rnd() - 0.5) * 0.3; s.castShadow = true; K.scene.add(s); }
-      const houseM = K.toon('#1e1828'), house = new T2.Mesh(box, houseM); house.scale.set(420, 380, 260); house.position.set(1200, -480 + 190, -1500); K.scene.add(house);
+      const T2 = K.T, stoneM = K.toon('#4a4458'), bxG = new T2.BoxGeometry(1, 1, 1);
+      for (let i = 0; i < 26; i++) { const s = new T2.Mesh(bxG, stoneM); s.scale.set(16, 22 + rnd() * 14, 6); s.position.set(-500 + rnd() * 1900, -470, -80 - rnd() * 500); s.rotation.z = (rnd() - 0.5) * 0.3; s.castShadow = true; K.scene.add(s); K.contact(s.position.x, -480, s.position.z, 16, 8, 0.45); }
+      const houseM = K.toon('#1e1828'), house = new T2.Mesh(bxG, houseM); house.scale.set(420, 380, 260); house.position.set(1200, -480 + 190, -1500); K.scene.add(house);
       const roof = new T2.Mesh(new T2.ConeGeometry(320, 240, 4), houseM); roof.position.set(1200, -480 + 500, -1500); roof.rotation.y = Math.PI / 4; K.scene.add(roof);
       const winM = K.basic('#ffb040', { fog: false });
-      for (const [wx, wy] of [[-110, 100], [110, 100], [-110, 250], [110, 250]]) { const w = new T2.Mesh(box, winM); w.scale.set(60, 80, 4); w.position.set(1200 + wx, -480 + wy, -1368); K.scene.add(w); glow(K, 1200 + wx, -480 + wy, -1360, 220, 'rgba(255,170,60,'); }
+      for (const [wx, wy] of [[-110, 100], [110, 100], [-110, 250], [110, 250]]) { const w = new T2.Mesh(bxG, winM); w.scale.set(60, 80, 4); w.position.set(1200 + wx, -480 + wy, -1368); K.scene.add(w); glow(K, 1200 + wx, -480 + wy, -1360, 220, 'rgba(255,170,60,'); }
+      // Graveyard fence behind the fight: iron pickets between stone posts, a few bent or missing.
+      const im = K.toon('#3a3448'), sm = K.toon('#544c64');
+      for (let x = -250; x <= 1150; x += 200) { box(K, sm, x, -480, -260, 18, 80, 18, true); box(K, sm, x, -400, -260, 24, 8, 24); }
+      box(K, im, 450, -480 + 58, -260, 1400, 4, 3);
+      box(K, im, 450, -480 + 20, -260, 1400, 4, 3);
+      for (let x = -240; x <= 1140; x += 16) { if (rnd() < 0.08) continue; const pk = box(K, im, x, -480, -260, 3, 66 + (x % 3) * 4, 3); pk.rotation.z = rnd() < 0.1 ? (rnd() - 0.5) * 0.4 : 0; }
     },
   }));
 
@@ -681,7 +706,7 @@
     sky: [[0, '#03020a'], [0.5, '#0c0618'], [1, '#2a0e3a']],
     fog: '#160a26',
     light: { sky: '#8a70ff', ground: '#200a30', hemi: 0.95, key: '#d8c8ff', keyI: 1.1 },
-    ground: { top: '#1a1a2a', backTop: '#141422', face: ['#22223a', '#18182a', '#2a2a44', '#0a0a14'], deep: '#121220' },
+    ground: { top: '#1a1a2a', backTop: '#141422', face: ['#22223a', '#18182a', '#2a2a44', '#0a0a14'], deep: '#121220' , trim: { color: '#24243a', steps: [[0, 8, 6], [8, 30, 2]] } },
     plat: { kind: 'block', top: '#2a2a3a', lip: '#ffb020', body: '#18182a', glow: '#2ad8ff', depth: [50, 80], topH: 5 },
     platDress: piers({ style: 'girder', color: '#3a3a58', cap: '#4a4a6a', glow: '#2ad8ff', r: 10, brace: true }),
     dress(scene, K, rnd) {
@@ -689,6 +714,11 @@
         rows: [{ n: 14, x0: -1000, step: 210, z: -1150, zJ: 250, wMin: 120, wMax: 190, hMin: 420, hMax: 950 },
                { n: 20, x0: -2400, step: 280, z: -1900, zJ: 400, wMin: 160, wMax: 260, hMin: 800, hMax: 1700 },
                { n: 18, x0: -4200, step: 500, z: -3000, zJ: 600, wMin: 300, wMax: 460, hMin: 1200, hMax: 2600, glow: 0.7 }] });
+      // Guard rail along the deck's back edge: posts, a neon top rail, the gap to the towers below.
+      const pm = K.toon('#2a2a42'), nm = K.basic('#ff2a8a', { fog: false });
+      box(K, pm, 450, -480, -210, 1400, 12, 18);
+      box(K, nm, 450, -480 + 64, -210, 1400, 3, 4);
+      for (let x = -230; x <= 1130; x += 80) box(K, pm, x, -480 + 12, -210, 5, 52, 5, true);
     },
   }));
 
@@ -747,6 +777,13 @@
         const x = -700 + rnd() * 2300, z = -200 - rnd() * 900, h = 50 + rnd() * 70;
         const t = new T2.Mesh(cg, cm); t.scale.set(9, h / 2, 9); t.position.set(x, -480 + h / 2, z); t.castShadow = true; K.scene.add(t);
         for (const sd of [-1, 1]) if (rnd() < 0.7) { const a = new T2.Mesh(cg, cm), ah = 14 + rnd() * 16; a.scale.set(6, ah / 2, 6); a.position.set(x + sd * 18, -480 + h * (0.5 + rnd() * 0.3), z); a.castShadow = true; K.scene.add(a); }
+      }
+      // Ruined adobe wall in the middle ground: broken segments with stepped tops, sand drifted at the foot.
+      const wm = K.toon('#c88a52'), dm = K.toon('#e0ae66');
+      for (const [x, w, h] of [[-260, 220, 120], [10, 160, 70], [380, 260, 150], [720, 140, 90], [980, 240, 130]]) {
+        box(K, wm, x, -480, -420, w, h, 34, true);
+        box(K, wm, x - w * 0.2, -480 + h, -420, w * 0.45, 22, 34);
+        const drift = new T.Mesh(new T.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), dm); drift.scale.set(w * 0.6, 22, 40); drift.position.set(x, -480, -396); K.scene.add(drift);
       }
     },
   }));
@@ -1021,6 +1058,7 @@
     light: { sky: '#7a88d8', ground: '#1a1a30', hemi: 1.05, key: '#c8d4ff', keyI: 1.15 },
     ground: { top: '#3a3d52', backTop: '#30334a', face: ['#4a4d62', '#3a3d50', '#55586e', '#22242e'], deep: '#2a2c3a' },
     plat: { kind: 'block', top: '#5a6090', lip: '#9aa4d8', body: '#2e3250', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'girder', color: '#5a6080', cap: '#6a7090', r: 10, brace: true }),
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 220, size: 1.5, minEl: 0.3 });
       buildings(K, rnd, { colors: ['#161a30', '#1c2038', '#12152a'], win: ['#ffd27a', '#b8d0ff', '#ffe9b0'], winP: 0.24, neon: ['#6a8aff', '#ff6ab0'], neonP: 0.2,

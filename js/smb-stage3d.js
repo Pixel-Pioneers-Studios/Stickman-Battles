@@ -1023,7 +1023,7 @@ var Stage3D = (function () {
   const LAND_BACK = 420;         // where a floor's tongue joins the wide land behind it (z = -LAND_BACK)
 
   function makeSet(factory) {
-    let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], backLand = null;
+    let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], trims = [], backLand = null;
     let landMats = null, mats = null, sunRays = null, sunDisc = null, tufts = null, SUN_DIR = null, liquid = null;
     let _clodG = null, _dripG = null, _contactTex = null;
     const kit = {}, occ = [];
@@ -1374,6 +1374,26 @@ var Stage3D = (function () {
           // In block units (the block is 3000 tall unscaled): x spans the floor, a 1.5 px rim at the top, z at a face.
           e.scale.set(1, 1.5, 2 / (front + LAND_BACK + 2));
           e.position.set(0, 1500 - 0.75, e.userData.side * 0.5);
+        }
+      }
+      // Foundation trim (side camera): stepped courses along each floor's front face, so the floor reads as a
+      // built footing, not a cut block. ground.trim = { color, steps: [[drop, height, out], ...] }.
+      const tr = spec.ground && spec.ground.trim;
+      if (tr) {
+        while (trims.length < floors.length) {
+          const g = new T.Group(), m = toon(tr.color);
+          for (const st of tr.steps) { const b = new T.Mesh(new T.BoxGeometry(1, 1, 1), m); b.userData.st = st; b.castShadow = b.receiveShadow = true; g.add(b); }
+          scene.add(g); trims.push(g);
+        }
+        for (let i = 0; i < trims.length; i++) {
+          const fl = floors[i], g = trims[i];
+          g.visible = !!fl && !angleFrame;
+          if (!g.visible) continue;
+          for (const b of g.children) {
+            const [drop, h, out] = b.userData.st;
+            b.scale.set(fl.w + out * 2, h, out + 10);
+            b.position.set(fl.x + fl.w / 2, -fl.y - drop - h / 2, front + out / 2 - 5);
+          }
         }
       }
       const floor = floors.slice().sort((a, b) => b.w - a.w)[0];
