@@ -270,6 +270,29 @@
     };
   }
 
+  // Foreground props on the floor's front strip (between the camera and the fight). They overlap the floor and
+  // the set so the space reads in depth, and fade to a ghost over a fighter (kit.occluder). Kept low.
+  // list: [[x, kind, size], ...]; kinds rock, barrel, bush, crate, bollard, drift, fern.
+  function foreground(K, list, o) {
+    const T = K.T, y = o.y, G = { d: new T.DodecahedronGeometry(1, 0), c: new T.CylinderGeometry(1, 1, 1, 12), s: new T.SphereGeometry(1, 12, 8), b: new T.BoxGeometry(1, 1, 1), h: new T.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), k: new T.ConeGeometry(1, 1, 5) };
+    const m = {}; const mat = c => m[c] || (m[c] = K.toon(c));
+    let i = 0;
+    for (const [x, kind, sz] of list) {
+      const g = new T.Group(), z = (o.z || 110) + ((i++ * 37) % 3) * 12, s = sz || 1, col = o.colors[kind] || o.colors.rock;
+      const add = (geo, c, sx, sy, sz2, px, py, pz, ry) => { const n = new T.Mesh(geo, mat(c)); n.scale.set(sx, sy, sz2); n.position.set(px, py, pz || 0); if (ry) n.rotation.y = ry; g.add(n); };
+      if (kind === 'rock') { add(G.d, col, 26 * s, 18 * s, 22 * s, 0, 10 * s, 0, x * 0.1); add(G.d, col, 14 * s, 10 * s, 12 * s, 24 * s, 6 * s, 6, x); }
+      else if (kind === 'barrel') { add(G.c, col, 14 * s, 36 * s, 14 * s, 0, 18 * s, 0); add(G.c, o.colors.band || '#3a3a3a', 14.6 * s, 3, 14.6 * s, 0, 8 * s, 0); add(G.c, o.colors.band || '#3a3a3a', 14.6 * s, 3, 14.6 * s, 0, 28 * s, 0); }
+      else if (kind === 'bush') { add(G.s, col, 30 * s, 20 * s, 22 * s, 0, 10 * s, 0); add(G.s, col, 20 * s, 16 * s, 18 * s, 24 * s, 8 * s, 4); add(G.s, col, 18 * s, 14 * s, 16 * s, -22 * s, 7 * s, -2); }
+      else if (kind === 'crate') { add(G.b, col, 32 * s, 32 * s, 30 * s, 0, 16 * s, 0, 0.25); add(G.b, col, 24 * s, 24 * s, 22 * s, 6 * s, 44 * s, 0, -0.2); }
+      else if (kind === 'bollard') { add(G.c, col, 5 * s, 34 * s, 5 * s, 0, 17 * s, 0); add(G.s, col, 5.5 * s, 4 * s, 5.5 * s, 0, 34 * s, 0); }
+      else if (kind === 'drift') { add(G.h, col, 46 * s, 16 * s, 26 * s, 0, 0, 0); }
+      else if (kind === 'fern') { for (let k = 0; k < 6; k++) { const n = new T.Mesh(G.k, mat(col)); n.scale.set(4 * s, 34 * s, 2 * s); n.rotation.set(0.5 * Math.cos(k), k, 0.9 * Math.sin(k * 1.3)); n.position.set(0, 12 * s, 0); g.add(n); } }
+      g.traverse(n => { if (n.isMesh) n.castShadow = n.receiveShadow = true; });
+      g.position.set(x, y, z); K.scene.add(g); K.occluder(g);
+      K.contact(x, y, z, 30 * s, 16 * s, 0.45);
+    }
+  }
+
   // Columns with a base and capital; some broken short.
   function columns(K, rnd, o) {
     const T = K.T, base = o.base != null ? o.base : -480, shaft = new T.CylinderGeometry(1, 1.08, 1, 12), cap = new T.BoxGeometry(1, 1, 1);
@@ -377,6 +400,7 @@
       trees(K, rnd, { shape: 'round', trunk: '#5a3a22', crowns: ['#3f9a3c', '#52ad46', '#2f8034'],
         rows: [{ n: 22, x0: -900, step: 125, z: -820, zJ: 260, s: 1.1 }, { n: 18, x0: -1300, step: 190, z: -1250, zJ: 350, s: 1.5, sJ: 0.6 }] });
       towers(K, rnd, { top: '#fffaf0', body: '#eaf1fb', belly: '#a9bfdf', list: [[-5200, 1500, 1700], [-2600, 1900, 2000], [200, 1400, 1500], [2900, 1800, 1900], [5600, 1500, 1600], [-7600, 1300, 1500]] });
+      foreground(K, [[10, 'bush', 1.1], [300, 'rock', 0.8], [620, 'bush', 0.9], [890, 'rock', 1]], { y: -480, colors: { bush: '#4a9a3a', rock: '#8a8a7a' } });
     },
   }));
 
@@ -406,6 +430,7 @@
         glow(K, x + 28, -438 + 186, -226, 46, 'rgba(255,220,150,');
         K.contact(x, -438, -214, 30, 14, 0.4);
       }
+      foreground(K, [[-20, 'bollard', 1], [40, 'bollard', 1], [300, 'barrel', 0.9], [610, 'crate', 0.8], [880, 'bollard', 1], [940, 'bollard', 1]], { y: -438, colors: { bollard: '#c8a030', barrel: '#3a5a7a', band: '#22283a', crate: '#4a4e60' } });
     },
   }));
 
@@ -482,6 +507,7 @@
       trees(K, rnd, { shape: 'tall', trunk: '#3a2818', crowns: ['#1f5a22', '#2a6a2a', '#184a1c'],
         rows: [{ n: 9, x0: -700, step: 260, z: -380, zJ: 150, s: 1.6, sJ: 0.6 }, { n: 14, x0: -1500, step: 300, z: -900, zJ: 300, s: 2.2, sJ: 0.8 }, { n: 16, x0: -2600, step: 400, z: -1900, zJ: 500, s: 3, sJ: 1 }] });
       shafts(K, rnd, { n: 7, color: 'rgba(230,255,190,', x0: -400, x1: 1300, top: 700, h: 1500, w: 70, z0: -700, z1: -150, opacity: 0.45 });
+      foreground(K, [[-20, 'fern', 1.3], [180, 'bush', 1], [430, 'rock', 0.9], [640, 'fern', 1.1], [900, 'bush', 1.2]], { y: -480, colors: { fern: '#2f7a2a', bush: '#2a6a26', rock: '#6a6a5a' } });
     },
   }));
 
@@ -498,6 +524,7 @@
       range(K, rnd, { n: 16, x0: -6200, step: 820, z: -6000, zJ: 1400, hMin: 900, hMax: 1800, lit: '#b8d0e8', shade: '#86a6c8', foot: '#dcebf6', snow: '#ffffff', snowSh: '#d0e0f0', snowT: 0.45 });
       trees(K, rnd, { shape: 'pine', trunk: '#4a3a30', crowns: ['#2f5a4a', '#3a6a58'], snow: '#f4fbff',
         rows: [{ n: 20, x0: -1000, step: 140, z: -800, zJ: 300, s: 1.1 }, { n: 22, x0: -1800, step: 200, z: -1500, zJ: 400, s: 1.6 }] });
+      foreground(K, [[0, 'drift', 1.4], [330, 'rock', 0.8], [620, 'drift', 1.1], [900, 'rock', 1]], { y: -460, colors: { drift: '#f4fbff', rock: '#9ab4c8' } });
     },
   }));
 
@@ -631,6 +658,7 @@
       box(K, pm, 450, -480, -320, 2600, 96, 40);
       box(K, cm, 450, -480 + 96, -316, 2620, 10, 52);
       for (let x = -700; x <= 1600; x += 128) box(K, cm, x, -480, -296, 18, 96, 8);
+      foreground(K, [[0, 'barrel', 1], [40, 'crate', 0.8], [470, 'rock', 0.7], [860, 'barrel', 1.1]], { y: -480, colors: { barrel: '#8a5a30', band: '#3a2a1a', crate: '#a07040', rock: '#c8a878' } });
     },
   }));
 
@@ -698,6 +726,7 @@
       box(K, im, 450, -480 + 58, -260, 1400, 4, 3);
       box(K, im, 450, -480 + 20, -260, 1400, 4, 3);
       for (let x = -240; x <= 1140; x += 16) { if (rnd() < 0.08) continue; const pk = box(K, im, x, -480, -260, 3, 66 + (x % 3) * 4, 3); pk.rotation.z = rnd() < 0.1 ? (rnd() - 0.5) * 0.4 : 0; }
+      foreground(K, [[10, 'rock', 1], [420, 'fern', 1], [880, 'rock', 1.1]], { y: -480, colors: { rock: '#4a4458', fern: '#2a2236' } });
     },
   }));
 
@@ -785,6 +814,7 @@
         box(K, wm, x - w * 0.2, -480 + h, -420, w * 0.45, 22, 34);
         const drift = new T.Mesh(new T.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), dm); drift.scale.set(w * 0.6, 22, 40); drift.position.set(x, -480, -396); K.scene.add(drift);
       }
+      foreground(K, [[-10, 'rock', 1.2], [260, 'drift', 1.4], [560, 'rock', 0.8], [900, 'drift', 1.2]], { y: -480, colors: { rock: '#b87848', drift: '#f0c07a' } });
     },
   }));
 
