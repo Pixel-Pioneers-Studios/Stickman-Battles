@@ -85,7 +85,7 @@
     const trunkG = new T.CylinderGeometry(o.shape === 'tall' ? 0.7 : 0.62, 1, 1, 7), trunkM = K.toon(o.trunk);
     const sphere = new T.SphereGeometry(1, 14, 10), cone = new T.ConeGeometry(1, 1, 8);
     const crowns = (o.crowns || []).map(c => K.toon(c)), snowM = o.snow ? K.toon(o.snow) : null;
-    const add = (m, cast) => { m.castShadow = cast !== false; m.receiveShadow = true; K.scene.add(m); };
+    const add = (m, cast) => { m.castShadow = cast !== false; m.receiveShadow = true; m.userData.st = true; K.scene.add(m); };
     for (const row of o.rows) {
       for (let i = 0; i < row.n; i++) {
         const x = row.x0 + i * row.step + rnd() * row.step * 0.5, z = row.z - rnd() * (row.zJ || 200), s = row.s + rnd() * (row.sJ || 0.5);
@@ -267,7 +267,7 @@
         } else add(G.box, M.c, w, 12, r * 1.6, (a[0] + b[0]) / 2, -Math.min(h * 0.55, 90), z);
       }
       // Under the slab a pier would go near-black and read like a fighter's body: no shadow received.
-      for (const m of parts) g.add(m);
+      for (const m of K.merge(parts)) g.add(m);
     };
   }
 
@@ -319,6 +319,7 @@
         }
       }
     }
+    for (const m of K.scene.children) if (m.isMesh && (m.material === m1 || m.material === m2)) m.userData.st = true;
     return out;
   }
 
@@ -976,7 +977,7 @@
   function rowsAlong(pad, list) { const s = span(pad); return list.map(r => Object.assign({ x0: s.L, n: Math.ceil((s.R - s.L) / r.step) }, r)); }
   function box(K, mat, x, y, z, w, h, d, cast) {
     const m = new K.T.Mesh(box._g || (box._g = new K.T.BoxGeometry(1, 1, 1)), mat);
-    m.scale.set(w, h, d); m.position.set(x, y + h / 2, z); m.receiveShadow = true; m.castShadow = !!cast;
+    m.scale.set(w, h, d); m.position.set(x, y + h / 2, z); m.receiveShadow = true; m.castShadow = !!cast; m.userData.st = true;
     K.scene.add(m); return m;
   }
   function wire(K, geo, color, x, y, z, s, op) {

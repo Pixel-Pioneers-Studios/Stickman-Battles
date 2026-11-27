@@ -93,6 +93,7 @@ var Stage3D = (function () {
     renderer.setClearColor(0x000000, 0);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.info.autoReset = false;     // counted per frame (reset in beginFrame), so the dev readout covers every pass
     renderer.shadowMap.autoUpdate = true;
 
     camera = new T.PerspectiveCamera(30, 900 / 520, 10, 20000);
@@ -205,6 +206,7 @@ var Stage3D = (function () {
   function beginFrame(m, w, h) {
     if (!ok) return;
     W0 = m; W0inv = m.inverse(); cw = w; ch = h; ctx0 = ctx;
+    renderer.info.reset();
     if (gl.width !== w || gl.height !== h) renderer.setSize(w, h, false);
     placeCamera();
     inWorld = true;
@@ -1025,10 +1027,66 @@ var Stage3D = (function () {
   function makeSet(factory) {
     let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], trims = [], fShadows = [], backLand = null;
     let landMats = null, mats = null, sunRays = null, sunDisc = null, tufts = null, SUN_DIR = null, liquid = null;
-    let _clodG = null, _dripG = null, _contactTex = null;
+    let _clodG = null, _dripG = null, _contactTex = null, _dressing = false;
+    const _contactMats = {};
     const kit = {}, occ = [];
     // Contact shadow: a soft dark oval lying on a surface at world (x, y, z), rx by rz wide. Sells where an
     // object meets the ground, which the shadow map's soft edge alone doesn't.
+    // Static batching: scenery the kit marks static (userData.st: columns, trees, boxes, contact shadows) is
+    // merged into one mesh per material after dress(), so a set of hundreds of pieces costs a few draw calls.
+    function mergeStatic() {
+      scene.updateMatrixWorld(true);
+      const groups = new Map();
+      for (const m of scene.children.slice()) {
+        if (!m.isMesh || !m.userData.st || Array.isArray(m.material) || m.isInstancedMesh) continue;
+        const a = m.geometry.attributes;
+        if (!a.position || !a.normal || !a.uv || Object.keys(a).length !== 3) continue;
+        const k = m.material.uuid + '|' + m.castShadow + m.receiveShadow + '|' + m.renderOrder;
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push(m);
+      }
+      for (const list of groups.values()) {
+        if (list.length < 2) continue;
+        const mm = mergeList(list, true);
+        for (const m of list) scene.remove(m);
+        scene.add(mm);
+      }
+    }
+    // One mesh from same-material meshes (position/normal/uv only), baked with each mesh's world matrix (or its
+    // local matrix when it has no parent yet: kit.merge for platform dressing).
+    function mergeList(list, world) {
+      {
+        const pos = [], nor = [], uv = [];
+        for (const m of list) {
+          const g = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
+          if (!world) m.updateMatrix();
+          g.applyMatrix4(world ? m.matrixWorld : m.matrix);
+          pos.push(g.attributes.position.array); nor.push(g.attributes.normal.array); uv.push(g.attributes.uv.array);
+          g.dispose();
+        }
+        const cat = (arrs) => { let n = 0; for (const x of arrs) n += x.length; const out = new Float32Array(n); let o = 0; for (const x of arrs) { out.set(x, o); o += x.length; } return out; };
+        const geo = new T.BufferGeometry();
+        geo.setAttribute('position', new T.BufferAttribute(cat(pos), 3));
+        geo.setAttribute('normal', new T.BufferAttribute(cat(nor), 3));
+        geo.setAttribute('uv', new T.BufferAttribute(cat(uv), 2));
+        const f = list[0], mm = new T.Mesh(geo, f.material);
+        mm.castShadow = f.castShadow; mm.receiveShadow = f.receiveShadow; mm.renderOrder = f.renderOrder;
+        return mm;
+      }
+    }
+    // kit.merge(meshes): loose (unparented) meshes to one mesh per material and shadow flags.
+    function merge(meshes) {
+      const by = new Map(), out = [];
+      for (const m of meshes) {
+        const a = m.geometry.attributes;
+        if (Array.isArray(m.material) || !a.position || !a.normal || !a.uv || Object.keys(a).length !== 3) { out.push(m); continue; }
+        const k = m.material.uuid + '|' + m.castShadow + m.receiveShadow;
+        if (!by.has(k)) by.set(k, []);
+        by.get(k).push(m);
+      }
+      for (const list of by.values()) out.push(list.length > 1 ? mergeList(list, false) : list[0]);
+      return out;
+    }
     function contactMesh(rx, rz, op) { const m = contact(0, 0, 0, rx, rz, op); scene.remove(m); m.position.y = 0.6; return m; }
     function contact(x, y, z, rx, rz, op) {
       if (!_contactTex) _contactTex = canvasTex(64, 64, (g2, w, h) => {
@@ -1036,8 +1094,12 @@ var Stage3D = (function () {
         gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
         g2.fillStyle = gr; g2.fillRect(0, 0, w, h);
       });
-      const m = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: _contactTex, color: 0x000000, transparent: true,
-        opacity: op != null ? op : 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      const o = op != null ? op : 0.5;
+      const mk = () => new T.MeshBasicMaterial({ map: _contactTex, color: 0x000000, transparent: true,
+        opacity: o, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+      // Scenery shadows share a material per opacity (so they batch); live ones (platform blobs, fighters) own theirs.
+      const m = new T.Mesh(new T.PlaneGeometry(1, 1), _dressing ? (_contactMats[o] || (_contactMats[o] = mk())) : mk());
+      if (_dressing) m.userData.st = true;
       m.rotation.x = -Math.PI / 2; m.scale.set(rx * 2, rz * 2, 1); m.position.set(x, y + 0.6, z);
       m.renderOrder = 1;
       scene.add(m);
@@ -1081,7 +1143,7 @@ var Stage3D = (function () {
 
     function build() {
       scene = new T.Scene();
-      Object.assign(kit, { T, scene, toon, seeded, paintedMesh, bladeMesh, canvasTex, basic, occluder, contact, contactMesh });
+      Object.assign(kit, { T, scene, toon, seeded, paintedMesh, bladeMesh, canvasTex, basic, occluder, contact, contactMesh, merge });
       spec = factory(T, kit);
       const sky = spec.sky;
       scene.background = skyTex = skyTexture(sky);
@@ -1133,7 +1195,9 @@ var Stage3D = (function () {
         }
       }
       if (spec.liquid) liquid = liquidSurface(spec.liquid);
-      if (spec.dress) spec.dress(scene, kit, rnd);
+      _dressing = true;
+      try { if (spec.dress) spec.dress(scene, kit, rnd); } finally { _dressing = false; }
+      mergeStatic();
       if (spec.sun) {
         const s = spec.sun;
         SUN_DIR = new T.Vector3(...(s.dir || [-0.42, 0.58, -1])).normalize();
@@ -1297,7 +1361,10 @@ var Stage3D = (function () {
           }
         }
       }
-      for (const m of parts) { m.castShadow = true; m.receiveShadow = true; (rake && m.userData.rk ? rake : g).add(m); }
+      for (const m of parts) { m.castShadow = true; m.receiveShadow = true; }
+      // One mesh per material (drips and puffs are dozens of pieces), raked top parts kept in their own group.
+      for (const m of merge(parts.filter(m => !(rake && m.userData.rk)))) g.add(m);
+      if (rake) for (const m of merge(parts.filter(m => m.userData.rk))) rake.add(m);
       g.userData.d = d;
       if (spec.blades && !big) {
         // Blades over the top and thicker along the front and back lips, where the 2D fringe sits.
@@ -1474,6 +1541,7 @@ var Stage3D = (function () {
 
   return {
     get wanted() { return WANT; },
+    get info() { return renderer ? { calls: renderer.info.render.calls, tris: renderer.info.render.triangles, geos: renderer.info.memory.geometries } : null; },   // dev: draw cost
     ready, beginFrame, endFrame, ownsArena, drawWorld, paintBody, paintWeapon, paintRope, wantsRecord, screenPoint, groundDecals, defineSet,
   };
 })();
