@@ -208,6 +208,7 @@
   function piers(o) {
     let G = null, M = null;
     return function (g, pl, d, K) {
+      if (pl.w > 600) return;                                    // a ceiling or bridge spans the stage: no legs
       const T = K.T, P = (currentArena && currentArena.platforms) || [];
       if (!G) G = { cyl: new T.CylinderGeometry(1, 1.08, 1, 12), hex: new T.CylinderGeometry(1, 1, 1, 6), box: new T.BoxGeometry(1, 1, 1), stalk: new T.CylinderGeometry(0.75, 1, 1, 10) };
       if (!M) M = { s: K.toon(o.color), c: K.toon(o.cap || o.color), glow: o.glow ? K.basic(o.glow, { fog: false }) : null };
@@ -480,7 +481,7 @@
     sky: [[0, '#0a0412'], [0.5, '#22082e'], [0.85, '#3a0f2e'], [1, '#7a2234']],
     fog: '#3a1030',
     light: { sky: '#a070d0', ground: '#ff5a20', hemi: 1.0, key: '#ffd0a0', keyI: 1.4 },
-    plat: { kind: 'block', top: '#3c2a3a', lip: '#5c3f52', body: '#2a1c2a', glow: '#ff7a2a', depth: [50, 90] },
+    plat: { kind: 'block', top: '#58404e', lip: '#6e5062', body: '#3c2a38', under: '#24161e', glow: '#ff7a2a', depth: [50, 90] },
     platDress: piers({ style: 'prism', color: '#5a4050', cap: '#6a4c5e', glow: '#ff7a2a', r: 15, toY: 490 }),
     liquid: { y: 490, kind: 'lava', color: '#2a0e18', veins: ['rgba(90,30,40,0.6)', 'rgba(16,4,10,0.6)'], cracks: 'rgba(255,110,30,0.95)', flowX: 0.0002, flowZ: 0.0001 },
     dress(scene, K, rnd) {
@@ -587,6 +588,7 @@
     light: { sky: '#9aa8e0', ground: '#4a2a20', hemi: 1.5, key: '#d0dcff', keyI: 1.7 },
     ground: { top: '#5a4232', backTop: '#3e2c22', face: ['#3a2618', '#2a1a10', '#4a3020', '#100806'], deep: '#2a1a10' },
     plat: { kind: 'island', top: '#6a4a38', lip: '#8a6a50', body: '#4a3020', under: '#2a1a10' },
+    platDress: piers({ style: 'prism', color: '#5a4434', cap: '#6a5240', r: 14 }),      // stalagmite pillars: ledges grow out of the rock
     dress(scene, K, rnd) {
       const rock = (g, w, h) => { const r = (s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)(41); g.fillStyle = '#2a1c20'; g.fillRect(0, 0, w, h); for (let i = 0; i < 90; i++) { g.fillStyle = r() < 0.5 ? '#3a282e' : '#1c1216'; g.beginPath(); g.ellipse(r() * w, r() * h, 10 + r() * 30, 6 + r() * 16, r() * 3, 0, 7); g.fill(); } };
       wall(K, { w: 9000, h: 3000, x: 450, y: 200, z: -1600, paint: rock, rx: 10, ry: 4 });
