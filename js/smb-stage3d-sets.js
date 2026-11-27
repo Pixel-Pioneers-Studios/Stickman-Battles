@@ -385,12 +385,18 @@
   }
 
   // A soft glow sprite (additive), for craters, lamps and windows.
+  const _glowMats = {};
   function glow(K, x, y, z, size, color) {
-    const T = K.T, tex = K.canvasTex(128, 128, (g) => {
-      const r = g.createRadialGradient(64, 64, 4, 64, 64, 64); r.addColorStop(0, color + '0.9)'); r.addColorStop(1, color + '0)');
-      g.fillStyle = r; g.fillRect(0, 0, 128, 128);
-    });
-    const s = new T.Sprite(new T.SpriteMaterial({ map: tex, blending: T.AdditiveBlending, depthWrite: false, fog: false, transparent: true }));
+    // One texture and material per colour (lamp rows and mushroom caps make dozens of these).
+    const T = K.T, key = color + (K.scene.uuid || '');
+    if (!_glowMats[key]) {
+      const tex = K.canvasTex(128, 128, (g) => {
+        const r = g.createRadialGradient(64, 64, 4, 64, 64, 64); r.addColorStop(0, color + '0.9)'); r.addColorStop(1, color + '0)');
+        g.fillStyle = r; g.fillRect(0, 0, 128, 128);
+      });
+      _glowMats[key] = new T.SpriteMaterial({ map: tex, blending: T.AdditiveBlending, depthWrite: false, fog: false, transparent: true });
+    }
+    const s = new T.Sprite(_glowMats[key]);
     s.scale.set(size, size, 1); s.position.set(x, y, z);
     K.scene.add(s);
     return s;
@@ -712,12 +718,17 @@
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 220, size: 1.6, minEl: 0.3, colors: ['#ffd0ff', '#ffffff'] });
       const T2 = K.T, stemG = new T2.CylinderGeometry(0.7, 1, 1, 10), capG = new T2.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-      const caps = ['#4ad8ff', '#ff6ab8', '#ff9a4a', '#c86aff', '#e0e0ff'].map(c => new T2.MeshToonMaterial({ color: c, emissive: c, emissiveIntensity: 0.35 }));
+      const capCols = ['#4ad8ff', '#ff6ab8', '#ff9a4a', '#c86aff', '#e0e0ff'];
+      // Caps glow (the 2D arena's signature): strong emissive plus a halo under the near ones.
+      const caps = capCols.map(c => new T2.MeshToonMaterial({ color: c, emissive: c, emissiveIntensity: 0.8 }));
+      const halo = ['rgba(74,216,255,', 'rgba(255,106,184,', 'rgba(255,154,74,', 'rgba(200,106,255,', 'rgba(224,224,255,'];
       const stemM = K.toon('#f0e0f0');
       const shroom = (x, z, s) => {
         const h = 120 * s, st = new T2.Mesh(stemG, stemM); st.scale.set(10 * s, h, 10 * s); st.position.set(x, -480 + h / 2, z);
-        const c = new T2.Mesh(capG, caps[Math.floor(rnd() * caps.length)]); c.scale.set(60 * s, 34 * s, 60 * s); c.position.set(x, -480 + h - 4, z);
+        const ci = Math.floor(rnd() * caps.length);
+        const c = new T2.Mesh(capG, caps[ci]); c.scale.set(60 * s, 34 * s, 60 * s); c.position.set(x, -480 + h - 4, z);
         st.castShadow = c.castShadow = true; st.receiveShadow = c.receiveShadow = true; K.scene.add(st, c);
+        if (z > -700) glow(K, x, -480 + h - 10, z + 4, 150 * s, halo[ci]);
       };
       for (let i = 0; i < 18; i++) shroom(-800 + i * 150 + rnd() * 80, -250 - rnd() * 300, 0.5 + rnd() * 0.7);
       for (let i = 0; i < 12; i++) shroom(-1400 + i * 330 + rnd() * 120, -900 - rnd() * 500, 1.8 + rnd() * 1.4);
@@ -726,6 +737,7 @@
   }));
 
   // Haunted: purple night, dead trees, gravestones, a house with lit windows, big violet moon.
+  let _hMist = null;
   def('haunted', (T, K) => ({
     sky: [[0, '#06040e'], [0.5, '#140c24'], [1, '#3a2850']],
     fog: '#2a1a3a',
@@ -750,7 +762,22 @@
       box(K, im, 450, -480 + 20, -260, 1400, 4, 3);
       for (let x = -240; x <= 1140; x += 16) { if (rnd() < 0.08) continue; const pk = box(K, im, x, -480, -260, 3, 66 + (x % 3) * 4, 3); pk.rotation.z = rnd() < 0.1 ? (rnd() - 0.5) * 0.4 : 0; }
       foreground(K, [[10, 'rock', 1], [420, 'fern', 1], [880, 'rock', 1.1]], { y: -480, colors: { rock: '#4a4458', fern: '#2a2236' } });
+      // Ground mist (the 2D graveyard's rolling fog): soft bands low over the ground at several depths, the
+      // nearest faint so feet stay readable. Drifts in update.
+      const mistT = K.canvasTex(256, 64, (g, w, h) => {
+        const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(170,150,210,0)'); gr.addColorStop(0.6, 'rgba(170,150,210,0.8)'); gr.addColorStop(1, 'rgba(170,150,210,0.3)');
+        g.fillStyle = gr; g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'destination-out';
+        for (let n = 0; n < 14; n++) { const cx = (n * 53) % w, rr = 20 + (n * 17) % 30; const r2 = g.createRadialGradient(cx, 10, 0, cx, 10, rr); r2.addColorStop(0, 'rgba(0,0,0,0.9)'); r2.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r2; g.fillRect(0, 0, w, h); }
+      });
+      mistT.wrapS = T.RepeatWrapping; mistT.repeat.set(4, 1);
+      _hMist = [[-560, 120, 0.55], [-300, 90, 0.45], [-120, 70, 0.35], [70, 40, 0.18]].map(([z, h, op], n) => {
+        const tx = mistT.clone(); tx.needsUpdate = true; tx.offset.x = n * 0.31;
+        const m = new T.Mesh(new T.PlaneGeometry(2400, h), new T.MeshBasicMaterial({ map: tx, transparent: true, opacity: op, depthWrite: false, fog: false }));
+        m.position.set(450, -480 + h / 2 - 6, z); m.renderOrder = 3; K.scene.add(m); return m;
+      });
     },
+    update(f) { if (_hMist) _hMist.forEach((m, n) => { m.material.map.offset.x = n * 0.31 + f * (0.00025 + n * 0.0001); }); },
   }));
 
   // Cyberpunk: black-violet towers with pink and cyan neon, hazard-striped ledges.
