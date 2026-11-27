@@ -1656,7 +1656,7 @@
   let _coWave = null;
   def('storyCoast', (T, K) => ({
     sky: [[0, '#01030a'], [0.5, '#06102a'], [1, '#1a2c50']],
-    fog: '#0e1c3a',
+    fog: '#0e1c3a', fogSpan: 4200,                     // the wave stands far back: the default haze hid it
     light: { sky: '#90b0ff', ground: '#0a1430', hemi: 1.1, key: '#d8e4ff', keyI: 1.2 },
     sun: { dir: [0.2, 0.5, -1], color: '#f4f6ff', size: 300, glow: 'rgba(200,220,255,' },
     ground: { top: '#3a4048', backTop: '#30363e', face: ['#3a4048', '#2c3238', '#444a52', '#1a1e24'], deep: '#2c3238', back: false },
@@ -1669,6 +1669,17 @@
       wave.position.set(700, -200, -3200); wave.rotation.set(0, 0, 0.1); wave.scale.set(1.4, 1, 0.6); scene.add(wave); _coWave = wave;
       const crest = new T.Mesh(new T.TorusGeometry(700, 40, 8, 48, Math.PI * 1.1), K.basic('#e0f0ff', { fog: false })); crest.position.copy(wave.position); crest.scale.copy(wave.scale); crest.position.y += 4; scene.add(crest);
       range(K, rnd, { n: 3, x0: -1400, step: 300, z: -900, zJ: 200, hMin: 500, hMax: 900, wide: 0.9, base: -500, lit: '#1a2230', shade: '#0e141c', foot: '#1a2438' });
+      // The lighthouse on the headland (2D art): a tapered tower, a lit lamp room, its beam over the sea.
+      const rock = new T.Mesh(new T.CylinderGeometry(70, 120, 600, 7), K.toon('#1a2230')); rock.position.set(-120, -350, -900); scene.add(rock);   // its rock stack
+      const lhM = K.toon('#c8ccd4'), lhR = K.toon('#8a3030'), tower = new T.Mesh(new T.CylinderGeometry(18, 30, 260, 12), lhM);
+      tower.position.set(-120, 80, -900); scene.add(tower);
+      const band = new T.Mesh(new T.CylinderGeometry(24.5, 25.5, 30, 12), lhR); band.position.set(-120, 50, -900); scene.add(band);
+      const lamp = new T.Mesh(new T.CylinderGeometry(16, 16, 22, 10), K.basic('#fff2b0', { fog: false })); lamp.position.set(-120, 221, -900); scene.add(lamp);
+      const roof = new T.Mesh(new T.ConeGeometry(22, 26, 10), lhR); roof.position.set(-120, 245, -900); scene.add(roof);
+      glow(K, -120, 221, -895, 260, 'rgba(255,240,180,');
+      const beamT = K.canvasTex(256, 32, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0); gr.addColorStop(0, 'rgba(255,240,190,0.55)'); gr.addColorStop(1, 'rgba(255,240,190,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(0, h / 2 - 3); g.lineTo(w, 0); g.lineTo(w, h); g.lineTo(0, h / 2 + 3); g.fill(); });
+      const beam = new T.Mesh(new T.PlaneGeometry(1400, 160), new T.MeshBasicMaterial({ map: beamT, transparent: true, blending: T.AdditiveBlending, depthWrite: false, fog: false }));
+      beam.geometry.translate(700, 0, 0); beam.position.set(-120, 221, -895); beam.rotation.z = -0.08; beam.renderOrder = 4; scene.add(beam);
     },
   }));
 
