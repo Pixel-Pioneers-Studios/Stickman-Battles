@@ -188,6 +188,29 @@ Ranged specifics:
 - City: cars deal contact damage
 - Lava: eruption columns
 
+### 7a. 3D sets (`?3d`)
+
+`js/smb-stage3d.js` (`Stage3D`) renders an arena's set in Three.js behind the 2D game; `js/smb-stage3d-sets.js` defines one set per arena with `def(key, (T, K) => spec)`. Gameplay never reads the set: hitboxes, platforms and physics stay 2D.
+
+Cameras: `?3d` side camera (default), `?3d=angle` three-quarter, `?3d=high`. Raised platform tops are raked 0.2 rad toward the eye in the side camera (pivot at the play line, so feet stay on the collision height).
+
+Spec keys: `sky`, `fog`, `fogSpan`, `light {sky, ground, hemi, key, keyI}`, `sun`, `ground {top, face, deep, tile, trim, edge, front, back}`, `plat {kind island|block|cloud, top, lip, body, under, glow, drips, depth}`, `platDress(g, pl, d, K)`, `dress(scene, K, rnd)`, `update(f, K)`, `overlay()`.
+
+Kit (`K`) and helpers, Nov 27 2026 depth pass:
+
+| Helper | What it does |
+|---|---|
+| `piers({style, color, cap, r, brace, toY})` | `platDress` that stands raised slabs on supports down to the surface below (column, girder, stalk, prism, post, block). One central pier under slabs up to 200 px wide; none on slabs wider than 600 (ceilings). Batched across the set when no platform moves |
+| `ground.trim {color, steps: [[drop, h, out]]}` | stepped footing along each floor's front (side camera) |
+| `foreground(K, [[x, kind, size]], {y, colors})` | low props on the floor's front strip; occluders that fade over fighters |
+| `K.occluder(mesh)` | registers a foreground piece to fade to 0.2 when it covers any fighter |
+| `K.contact(x, y, z, rx, rz, op)` | soft contact-shadow oval; platforms and fighters get theirs automatically |
+| `motes(K, rnd, {kind rise/fall/wander, ...})` + `motesUpdate(list, f)` | fireflies, bubbles, snow, embers; hidden when `settings.particles` is off |
+| `columns`, `trees`, `box`, `buildings` | static scenery, tagged `userData.st` and merged per material after `dress()` |
+| `K.merge(meshes)` | merge loose meshes per material (used for slab and pier parts) |
+
+Budget: `Stage3D.info` gives draw calls per frame. Sets sit around 110-210 calls at 1280x720 (Nov 27 2026). Tag new static scenery `userData.st = true` so it merges; anything animated in `update()` must not be tagged.
+
 ---
 
 ## 8. Particle & Effects System
