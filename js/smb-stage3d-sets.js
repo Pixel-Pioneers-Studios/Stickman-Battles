@@ -1535,7 +1535,7 @@
     dress(scene, K, rnd) {
       buildings(K, rnd, { colors: ['#1a1620', '#221c2a', '#141018'], win: ['#c02030', '#601018'], style: 'bands', winP: 0.1,
         rows: [{ n: 16, x0: -1100, step: 190, z: -900, zJ: 250, wMin: 120, wMax: 180, hMin: 400, hMax: 900 }, { n: 20, x0: -2400, step: 280, z: -1900, zJ: 400, wMin: 180, wMax: 280, hMin: 700, hMax: 1500, glow: 0.7 }] });
-      _inBeams = shafts(K, rnd, { n: 3, color: 'rgba(255,40,60,', x0: -200, x1: 1100, top: 1100, h: 1700, w: 120, z0: -800, z1: -500, opacity: 0.4, tilt: 0.3 });
+      _inBeams = shafts(K, rnd, { n: 3, color: 'rgba(255,40,60,', x0: -100, x1: 1000, top: 520, h: 1100, w: 110, z0: -700, z1: -400, opacity: 0.75, tilt: 0.3 });   // bright end just above the frame, so the sweeping beams read
     },
     update(f) { if (_inBeams) _inBeams.forEach((b, i) => { b.rotation.z = Math.sin(f * 0.006 + i * 2) * 0.45; }); },
   }));
