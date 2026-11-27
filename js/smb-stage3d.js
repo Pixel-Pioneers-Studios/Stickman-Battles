@@ -18,11 +18,12 @@ var Stage3D = (function () {
   const WANT = typeof location !== 'undefined' && /[?&]3d\b/.test(location.search || '');
   // ?3d: three-quarter camera on arenas with a set. ?3d=high: swung further round and raised, a chase-style
   // view from above. ?3d=side: the side-on camera locked to the 2D view.
-  const _q3 = (typeof location !== 'undefined' && (location.search || '').match(/[?&]3d=(side|high)\b/)) || null;
+  // Nov 27: the side camera is the default (owner's pick); ?3d=angle is the three-quarter view.
+  const _q3 = (typeof location !== 'undefined' && (location.search || '').match(/[?&]3d=(side|high|angle)\b/)) || null;
   // On file:// every local image is cross-origin, so the game canvas is tainted and WebGL can't upload it as
   // the three-quarter card (weapons and effects vanish). There the side view, which needs no card, stands in.
   const CARD_OK = typeof location === 'undefined' || location.protocol !== 'file:';
-  const MODE = (_q3 && _q3[1] === 'side') || !CARD_OK ? 'side' : 'angle';
+  const MODE = _q3 && (_q3[1] === 'angle' || _q3[1] === 'high') && CARD_OK ? 'angle' : 'side';
   let angleFrame = false;       // this frame uses the three-quarter camera
   let T = null;                 // THREE, once loaded
   let ok = false;               // renderer built
@@ -185,7 +186,9 @@ var Stage3D = (function () {
     // Key light from the upper left and in front, following the shot so the shadow map stays sharp.
     const L = vh * 2.2;
     for (const lt of [sun, bodySun]) {
-      lt.position.set(_cx - L * 0.55, -_cy + L * 0.9, L * 0.6);
+      // Upper left, from the side and high: tops lit, fronts a step down, right sides in shade, and
+      // platforms drop their shadow onto the floor under them.
+      lt.position.set(_cx - L * 0.7, -_cy + L * 0.95, L * 0.3);
       lt.target.position.set(_cx, -_cy, 0);
       lt.target.updateMatrixWorld();
     }
@@ -291,7 +294,9 @@ var Stage3D = (function () {
     camera.updateProjectionMatrix();
     _aimCamera(_cx, _cy, dist);
     const L = vh * 2.2;
-    sun.position.set(_cx - L * 0.55, -_cy + L * 0.9, L * 0.6);
+    // Raking key: still upper left, but from the side, not over the camera's shoulder. Tops lit, camera-facing
+    // fronts a step down, right-hand sides in shade, so every box and column shows three values, not one.
+    sun.position.set(_cx - L * 0.85, -_cy + L * 0.8, L * 0.22);
     sun.target.position.set(_cx, -_cy, 0);
     sun.target.updateMatrixWorld();
     const sc = sun.shadow.camera, half = Math.max(500, vh * 1.25);
@@ -948,7 +953,7 @@ var Stage3D = (function () {
   let _ramp = null;
   function toon(color) {
     if (!_ramp) {
-      const d = new Uint8Array([150, 205, 255]);
+      const d = new Uint8Array([88, 172, 255]);    // three values a step apart: shade, half light, lit
       _ramp = new T.DataTexture(d, 3, 1, T.RedFormat);
       _ramp.minFilter = _ramp.magFilter = T.NearestFilter;
       _ramp.needsUpdate = true;
@@ -1020,12 +1025,62 @@ var Stage3D = (function () {
   function makeSet(factory) {
     let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], backLand = null;
     let landMats = null, mats = null, sunRays = null, sunDisc = null, tufts = null, SUN_DIR = null, liquid = null;
-    let _clodG = null, _dripG = null;
-    const kit = {};
+    let _clodG = null, _dripG = null, _contactTex = null;
+    const kit = {}, occ = [];
+    // Contact shadow: a soft dark oval lying on a surface at world (x, y, z), rx by rz wide. Sells where an
+    // object meets the ground, which the shadow map's soft edge alone doesn't.
+    function contact(x, y, z, rx, rz, op) {
+      if (!_contactTex) _contactTex = canvasTex(64, 64, (g2, w, h) => {
+        const gr = g2.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.45, 'rgba(0,0,0,0.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g2.fillStyle = gr; g2.fillRect(0, 0, w, h);
+      });
+      const m = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: _contactTex, color: 0x000000, transparent: true,
+        opacity: op != null ? op : 0.5, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+      m.rotation.x = -Math.PI / 2; m.scale.set(rx * 2, rz * 2, 1); m.position.set(x, y + 0.6, z);
+      m.renderOrder = 1;
+      scene.add(m);
+      return m;
+    }
+    // Foreground pieces between the camera and the fight. They frame the shot and overlap the set, and fade
+    // to a ghost whenever they cover a fighter, so they never hide play.
+    function occluder(mesh) {
+      mesh.updateMatrixWorld(true);
+      const b = new T.Box3().setFromObject(mesh), mats = [];
+      mesh.traverse(o => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; mats.push(o.material); } });
+      occ.push({ mesh, b, mats, a: 1 });
+      return mesh;
+    }
+    let _ob = null;
+    function _ndcBox(pts) {
+      if (!_ob) _ob = new T.Vector3();
+      let x0 = 9, x1 = -9, y0 = 9, y1 = -9;
+      for (const p of pts) { _ob.copy(p).project(camera); x0 = Math.min(x0, _ob.x); x1 = Math.max(x1, _ob.x); y0 = Math.min(y0, _ob.y); y1 = Math.max(y1, _ob.y); }
+      return [x0, x1, y0, y1];
+    }
+    function fadeOccluders() {
+      if (!occ.length) return;
+
+      // Each live fighter's own screen box (padded for the weapon), not the box around all of them.
+      const Fs = [];
+      for (const p of (typeof players !== 'undefined' ? players : [])) {
+        if (!p || p.health <= 0 || !isFinite(p.x) || !isFinite(p.y)) continue;
+        const x0 = p.x - 30, x1 = p.x + (p.w || 0) + 30, y0 = p.y - 40, y1 = p.y + (p.h || 0);
+        Fs.push(_ndcBox([new T.Vector3(x0, -y0, 0), new T.Vector3(x1, -y0, 0), new T.Vector3(x0, -y1, 0), new T.Vector3(x1, -y1, 0)]));
+      }
+      for (const o of occ) {
+        const B = o.b, c = [];
+        for (const x of [B.min.x, B.max.x]) for (const y of [B.min.y, B.max.y]) for (const z of [B.min.z, B.max.z]) c.push(new T.Vector3(x, y, z));
+        const N = _ndcBox(c);
+        const hit = Fs.some(F => N[0] < F[1] && N[1] > F[0] && N[2] < F[3] && N[3] > F[2]);
+        o.a += ((hit ? 0.2 : 1) - o.a) * 0.15;
+        for (const m of o.mats) { m.opacity = o.a; m.depthWrite = o.a > 0.95; }
+      }
+    }
 
     function build() {
       scene = new T.Scene();
-      Object.assign(kit, { T, scene, toon, seeded, paintedMesh, bladeMesh, canvasTex, basic });
+      Object.assign(kit, { T, scene, toon, seeded, paintedMesh, bladeMesh, canvasTex, basic, occluder, contact });
       spec = factory(T, kit);
       const sky = spec.sky;
       scene.background = skyTex = skyTexture(sky);
@@ -1181,6 +1236,7 @@ var Stage3D = (function () {
       const dr = P.depth || [60, 110];
       const d = big ? 340 : Math.min(dr[1], Math.max(dr[0], pl.w * 0.55));
       const parts = [];
+      let rake = null;
       if (kind === 'cloud') {
         // Packed puffs, flat on top where fighters stand.
         const puff = _clodG || (_clodG = new T.DodecahedronGeometry(1, 1));
@@ -1195,15 +1251,24 @@ var Stage3D = (function () {
         }
       } else {
         const topH = P.topH || 6;
+        // Raked top (side camera): the walking surface tips toward the eye about the play line (z = 0), so
+        // fighters' feet stay on the collision height while the top reads as a surface, not a line.
+        if (MODE === 'side' && !big) { rake = new T.Group(); rake.rotation.x = 0.2; g.add(rake); }
         const top = new T.Mesh(new T.BoxGeometry(pl.w, topH, d), mats.top);
         top.position.set(pl.w / 2, -topH / 2, 0);
         const lip = new T.Mesh(new T.BoxGeometry(pl.w + 4, 3, d + 4), mats.lip);
         lip.position.set(pl.w / 2, -topH - 0.5, 0);
         // Draw-only depth below the collision box: the body reads as a chunk, not a plank.
-        const bodyH = big ? 600 : Math.max(14, pl.h + 4);
+        const bodyH = big ? 600 : kind === 'block' ? Math.max(30, pl.h + 14) : Math.max(14, pl.h + 4);
         const body = new T.Mesh(new T.BoxGeometry(pl.w - 4, bodyH, d - 6), mats.body);
         body.position.set(pl.w / 2, -topH - bodyH / 2, 0);
+        top.userData.rk = lip.userData.rk = true;
         parts.push(top, lip, body);
+        if (kind === 'block' && !big) {
+          // Underside band a value down, inset: the slab reads as a cut block seen from below, not a plank.
+          const u = new T.Mesh(new T.BoxGeometry(pl.w - 14, 8, d - 16), mats.under);
+          u.position.set(pl.w / 2, -topH - bodyH - 3, 0); parts.push(u);
+        }
         if (kind === 'island' && !big) {
           // Underside: a rough clod, wider than tall, not a spike.
           const root = new T.Mesh(_clodG || (_clodG = new T.DodecahedronGeometry(1, 0)), mats.under);
@@ -1216,7 +1281,7 @@ var Stage3D = (function () {
           // Neon edge: a thin unlit strip along the front and back of the top.
           for (const z of [d / 2 + 1, -d / 2 - 1]) {
             const s = new T.Mesh(new T.BoxGeometry(pl.w, 2, 1), mats.glow);
-            s.position.set(pl.w / 2, -topH + 0.5, z); parts.push(s);
+            s.position.set(pl.w / 2, -topH + 0.5, z); s.userData.rk = true; parts.push(s);
           }
         }
         if (mats.drips && !big) {
@@ -1231,10 +1296,11 @@ var Stage3D = (function () {
           }
         }
       }
-      for (const m of parts) { m.castShadow = true; m.receiveShadow = true; g.add(m); }
+      for (const m of parts) { m.castShadow = true; m.receiveShadow = true; (rake && m.userData.rk ? rake : g).add(m); }
+      g.userData.d = d;
       if (spec.blades && !big) {
         // Blades over the top and thicker along the front and back lips, where the 2D fringe sits.
-        g.add(bladeMesh(Math.round(pl.w * 0.9), (r, i) => {
+        (rake || g).add(bladeMesh(Math.round(pl.w * 0.9), (r, i) => {
           const edge = i % 3 === 0, z = edge ? (r() < 0.5 ? -1 : 1) * (d / 2 - r() * 4) : (r() - 0.5) * d;
           return [2 + r() * (pl.w - 4), 0, z, 4 + r() * 7];
         }));
@@ -1250,6 +1316,7 @@ var Stage3D = (function () {
       if (k !== key) {
         for (const e of plats) {
           scene.remove(e.g);
+          if (e.blob) { scene.remove(e.blob); e.blob.geometry.dispose(); e.blob.material.dispose(); }
           e.g.traverse(o => { if (o.geometry && o.geometry !== _clodG && o.geometry !== _dripG && o.geometry !== _bladeG) o.geometry.dispose(); });
         }
         plats = list.map(pl => { const g = slab(pl); scene.add(g); return { pl, g }; });
@@ -1258,6 +1325,22 @@ var Stage3D = (function () {
         for (let i = 0; i < list.length; i++) plats[i].pl = list[i];
       }
       for (const e of plats) e.g.position.set(e.pl.x, -e.pl.y, 0);
+      // Each raised platform darkens the floor straight under it: stronger the lower it hangs.
+      for (const e of plats) {
+        const pl = e.pl;
+        if (pl.isFloor) continue;
+        const cx = pl.x + pl.w / 2;
+        let fy = Infinity;
+        for (const q of list) if (q.isFloor && cx >= q.x && cx <= q.x + q.w && q.y > pl.y && q.y < fy) fy = q.y;
+        if (!e.blob && fy < Infinity) e.blob = contact(0, 0, 0, 1, 1, 0.5);
+        if (!e.blob) continue;
+        e.blob.visible = fy < Infinity;
+        if (!e.blob.visible) continue;
+        const k = Math.max(0.3, Math.min(1, 1 - (fy - pl.y) / 520));
+        e.blob.position.set(cx, -fy + 0.6, 0);
+        e.blob.scale.set(pl.w * (1.25 - k * 0.15), (e.g.userData.d || 80) * (1.7 - k * 0.3), 1);
+        e.blob.material.opacity = 0.62 * k;
+      }
 
       // Land: each floor platform is the top of its own block (pits between floors stay open), running
       // down past any zoom. The 2D game fills ground under the floor (drawBackground), so the set does too.
@@ -1308,14 +1391,14 @@ var Stage3D = (function () {
 
       // The light rig is shared by every set: take this set's colours.
       const L = spec.light || {};
-      hemiL.color.set(L.sky || 0xd8ecff); hemiL.groundColor.set(L.ground || 0x8a7448); hemiL.intensity = L.hemi != null ? L.hemi : 1.45;
+      hemiL.color.set(L.sky || 0xd8ecff); hemiL.groundColor.set(L.ground || 0x8a7448); hemiL.intensity = (L.hemi != null ? L.hemi : 1.45) * 0.72;   // less fill: shade sides and shadows must read
       sun.color.set(L.key || 0xfff1d8); sun.intensity = L.keyI != null ? L.keyI : 1.8;
 
       skyDome.visible = angleFrame;
       skyDome.position.copy(camera.position);
       skyDome.scale.setScalar(Math.min(1, camera.far * 0.9 / 16000));
       scene.fog.near = _fogNear + (spec.fogNear || 0);
-      scene.fog.far = scene.fog.near + (spec.fogSpan || (angleFrame ? 2600 : 3050));
+      scene.fog.far = scene.fog.near + (spec.fogSpan || (angleFrame ? 2000 : 2300));   // far rows lose contrast
       scene.background = angleFrame ? null : skyTex;
       const f = typeof frameCount === 'number' ? frameCount : 0;
       if (sunDisc) {
@@ -1332,6 +1415,7 @@ var Stage3D = (function () {
         liquid.tex.offset.set(f * (liquid.lq.flowX || 0.0004), f * (liquid.lq.flowZ || 0.0002));
       }
       if (spec.update) spec.update(f, kit);
+      fadeOccluders();
     }
 
     function overlay() {

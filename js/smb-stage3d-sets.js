@@ -213,7 +213,14 @@
         const b = new T.Mesh(cap, m2); b.scale.set(r * 2.6, 12, r * 2.6); b.position.set(x, base + 6, z);
         s.castShadow = s.receiveShadow = b.receiveShadow = true;
         K.scene.add(s, b);
-        if (!broken) { const c = new T.Mesh(cap, m2); c.scale.set(r * 2.8, 14, r * 2.8); c.position.set(x, base + h, z); c.receiveShadow = true; K.scene.add(c); out.push(c); }
+        if (o.contact) K.contact(x, base, z, r * 2.3, r * 2.3, 0.5);
+        if (!broken) {
+          const c = new T.Mesh(cap, m2); c.scale.set(r * 2.8, 14, r * 2.8); c.position.set(x, base + h, z); c.receiveShadow = true; K.scene.add(c); out.push(c);
+          if (o.neck) { const n = new T.Mesh(shaft, m2); n.scale.set(r * 1.25, 8, r * 1.25); n.position.set(x, base + h - 14, z); n.receiveShadow = true; K.scene.add(n); }
+        } else if (o.neck) {
+          // A broken top: a tilted chunk of shaft, so the break reads as stone, not a capped pipe.
+          const k = new T.Mesh(shaft, m1); k.scale.set(r * 0.9, r * 0.9, r * 0.9); k.position.set(x + r * 0.2, base + h + r * 0.2, z); k.rotation.set(0.5, 0, 0.6); K.scene.add(k);
+        }
         if (row.lintel && i < row.n - 1 && !broken) {
           const l = new T.Mesh(cap, m2); l.scale.set(row.step, 22, r * 2.2); l.position.set(x + row.step / 2, base + h + 18, z); l.receiveShadow = true; K.scene.add(l);
         }
@@ -414,16 +421,71 @@
   // Ruins: dusk-brown hall of broken columns and lintels, pale sandstone floors over open pits.
   def('ruins', (T, K) => ({
     sky: [[0, '#140a04'], [0.5, '#1f1008'], [1, '#4a3020']],
-    fog: '#3a2418',
-    light: { sky: '#c0c8e4', ground: '#5a4a3a', hemi: 1.2, key: '#fff0d8', keyI: 1.6 },
+    fog: '#6a4a34', fogSpan: 1700,                       // dusty haze: far rows step back toward one warm value
+    light: { sky: '#c0c8e4', ground: '#5a4a3a', hemi: 1.2, key: '#ffe6c0', keyI: 2.1 },
     blades: ['#4a6a2a', '#5a7a30', '#3a5a22'], floorBlades: 700,
     ground: { top: '#b8a47c', backTop: '#7a6445', face: ['#8a7455', '#6a5440', '#9a8460', '#3a2a1c'], deep: '#5a4432',
       tile: { size: 70, paint: (g, w, h) => { g.strokeStyle = '#8a7656'; g.lineWidth = 3; g.strokeRect(1, 1, w - 2, h / 2 - 2); g.strokeRect(-w / 2, h / 2, w, h / 2 - 2); g.strokeRect(w / 2, h / 2, w, h / 2 - 2); g.strokeStyle = 'rgba(70,50,30,0.5)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(30, 20); g.lineTo(52, 44); g.lineTo(48, 60); g.stroke(); } } },
-    plat: { kind: 'block', top: '#c8b48c', lip: '#e0d0a8', body: '#8a7455', depth: [50, 90] },
+    plat: { kind: 'block', top: '#c8b48c', lip: '#e0d0a8', body: '#8a7455', under: '#4a3a2a', depth: [80, 120] },
+    // Raised slabs stand on piers down to whatever is under them (floor or a lower slab), at the back of the
+    // slab so they never sit on the play line: the platforms are part of the building, not floating props.
+    platDress(g, pl, d, K) {
+      const T = K.T, P = (currentArena && currentArena.platforms) || [];
+      const shaft = new T.CylinderGeometry(1, 1.08, 1, 12), blk = new T.BoxGeometry(1, 1, 1);
+      const sm = K.toon('#c4baa6'), cm = K.toon('#d0c6b2');
+      const xs = pl.w > 150 ? [24, pl.w - 24] : [pl.w / 2];
+      for (const lx of xs) {
+        const wx = pl.x + lx;
+        let below = null;
+        for (const q of P) if (q !== pl && !q.isFloorDisabled && q.y > pl.y && wx >= q.x && wx <= q.x + q.w && (!below || q.y < below.y)) below = q;
+        if (!below) continue;                                    // over a pit: no pier
+        const h = below.y - pl.y, z = -d / 2 + 16, r = 11;
+        const s = new T.Mesh(shaft, sm); s.scale.set(r, h, r); s.position.set(lx, -h / 2, z);
+        const c = new T.Mesh(blk, cm); c.scale.set(r * 3, 9, r * 3); c.position.set(lx, -20, z);     // capital under the slab
+        const b = new T.Mesh(blk, cm); b.scale.set(r * 2.8, 10, r * 2.8); b.position.set(lx, -h + 5, z); // base on the surface
+        // No shadow received: under the slab a pier went near-black and read like a fighter's body.
+        for (const m of [s, c, b]) { m.castShadow = true; g.add(m); }
+      }
+    },
     dress(scene, K, rnd) {
-      columns(K, rnd, { color: '#b4aca0', capColor: '#ccc4b4', broken: 0.35,
-        rows: [{ n: 8, x0: -300, step: 210, z: -420, h: 520, r: 26 }, { n: 10, x0: -900, step: 300, z: -1000, h: 760, r: 38, lintel: true }, { n: 9, x0: -1800, step: 520, z: -2000, h: 1100, r: 56, lintel: true }] });
+      const T = K.T, BASE = -440;                              // the floor slabs' top: columns stand on it, not in it
+      columns(K, rnd, { color: '#b4aca0', capColor: '#ccc4b4', broken: 0.35, neck: true, contact: true, base: BASE,
+        rows: [{ n: 4, x0: 40, step: 270, z: -170, h: 300, r: 20 }, { n: 8, x0: -300, step: 210, z: -420, h: 520, r: 26, lintel: true }, { n: 10, x0: -900, step: 300, z: -1000, h: 760, r: 38, lintel: true }, { n: 9, x0: -1800, step: 520, z: -2000, h: 1100, r: 56, lintel: true }] });
+      // The hall's back wall behind the second colonnade: plinth, ashlar courses, a broken cornice line.
+      const wallM = K.toon('#8c7f6c'), trimM = K.toon('#a89a84');
+      box(K, trimM, 450, BASE, -1240, 5200, 40, 70);
+      for (let x = -2100; x < 3000; x += 160) {
+        const h = 380 + (rnd() < 0.3 ? -rnd() * 220 : rnd() * 40);
+        box(K, wallM, x + 80, BASE + 40, -1250, 162, h, 50);
+        if (h > 360) box(K, trimM, x + 80, BASE + 40 + h, -1240, 170, 18, 70);
+      }
+      // Foundation: two stepped courses along the front of each floor slab (stylobate).
+      const stepM = K.toon('#9a8866');
+      for (const fx of [0, 320, 640]) {
+        box(K, stepM, fx + 130, BASE - 26, 160, 270, 18, 22, true);
+        box(K, stepM, fx + 130, BASE - 62, 172, 280, 28, 46, true);
+      }
       shafts(K, rnd, { n: 4, color: 'rgba(255,220,160,', x0: 0, x1: 1000, top: 600, h: 1300, w: 120, z0: -800, z1: -300, opacity: 0.35 });
+      // Foreground: broken stubs and fallen drums on the front of each floor slab, between camera and fight.
+      const stone = K.toon('#a49a8a'), dark = K.toon('#7a7062'), drum = new T.CylinderGeometry(1, 1.05, 1, 14), blk = new T.BoxGeometry(1, 1, 1);
+      for (const [x, z, kind, h] of [[30, 110, 'stub', 120], [250, 125, 'drum', 0], [445, 130, 'block', 0], [610, 130, 'stub', 70], [870, 110, 'stub', 160]]) {
+        const g = new T.Group();
+        if (kind === 'stub') {
+          const s2 = new T.Mesh(drum, stone); s2.scale.set(26, h, 26); s2.position.y = h / 2;
+          const b = new T.Mesh(blk, dark); b.scale.set(66, 12, 50); b.position.y = 6;
+          g.add(s2, b);
+        } else if (kind === 'drum') {
+          const s2 = new T.Mesh(drum, stone); s2.scale.set(24, 60, 24); s2.rotation.set(Math.PI / 2, 0, 0.5); s2.position.y = 24;
+          g.add(s2);
+        } else {
+          const s2 = new T.Mesh(blk, dark); s2.scale.set(60, 30, 34); s2.rotation.y = 0.4; s2.position.y = 15;
+          const t = new T.Mesh(blk, stone); t.scale.set(40, 20, 26); t.rotation.set(0, -0.3, 0.12); t.position.set(8, 40, 0);
+          g.add(s2, t);
+        }
+        g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+        g.scale.setScalar(0.8); g.position.set(x, BASE, z); K.scene.add(g); K.occluder(g);
+        K.contact(x, BASE, z, 44, 26, 0.55);
+      }
     },
   }));
 
