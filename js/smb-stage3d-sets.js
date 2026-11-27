@@ -304,6 +304,7 @@
   function columns(K, rnd, o) {
     const T = K.T, base = o.base != null ? o.base : -480, shaft = new T.CylinderGeometry(1, 1.08, 1, 12), cap = new T.BoxGeometry(1, 1, 1);
     const m1 = K.toon(o.color), m2 = K.toon(o.capColor || o.color), out = [];
+    let vineM = null, leafG = null;
     for (const row of o.rows) {
       for (let i = 0; i < row.n; i++) {
         const x = row.x0 + i * row.step, z = row.z - rnd() * (row.zJ || 0), r = row.r || 16;
@@ -313,6 +314,19 @@
         s.castShadow = s.receiveShadow = b.receiveShadow = true;
         K.scene.add(s, b);
         if (o.contact) K.contact(x, base, z, r * 2.3, r * 2.3, 0.5);
+        if (o.vines && z > -700 && rnd() < 0.55) {
+          // Ivy: a few strands down the camera-facing side, leaf clumps along them (the 2D ruins' vines).
+          const vm = vineM || (vineM = [K.toon(o.vines), K.toon(o.vinesLit || o.vines)]), leaf = leafG || (leafG = new T.IcosahedronGeometry(1, 0));
+          for (let k = 0; k < 2 + Math.floor(rnd() * 2); k++) {
+            const a = -0.9 + rnd() * 1.8, vh = h * (0.3 + rnd() * 0.55), top = base + h * (0.55 + rnd() * 0.4);
+            const vx = x + Math.sin(a) * r * 1.02, vz = z + Math.cos(a) * r * 1.02;
+            const st = new T.Mesh(cap, vm[0]); st.scale.set(2.2, vh, 2.2); st.position.set(vx, top - vh / 2, vz); st.rotation.y = a; st.userData.st = true; K.scene.add(st);
+            for (let q = 0; q < vh / 22; q++) {
+              const l = new T.Mesh(leaf, vm[q % 2]), ls = 4 + rnd() * 3;
+              l.scale.set(ls, ls * 0.8, ls * 0.6); l.position.set(vx + (rnd() - 0.5) * 6, top - q * 22 - rnd() * 10, vz + 1.5); l.userData.st = true; K.scene.add(l);
+            }
+          }
+        }
         if (!broken) {
           const c = new T.Mesh(cap, m2); c.scale.set(r * 2.8, 14, r * 2.8); c.position.set(x, base + h, z); c.receiveShadow = true; K.scene.add(c); out.push(c);
           if (o.neck) { const n = new T.Mesh(shaft, m2); n.scale.set(r * 1.25, 8, r * 1.25); n.position.set(x, base + h - 14, z); n.receiveShadow = true; K.scene.add(n); }
@@ -548,7 +562,7 @@
     platDress: piers({ style: 'column', color: '#c4baa6', cap: '#d0c6b2', r: 13 }),
     dress(scene, K, rnd) {
       const T = K.T, BASE = -440;                              // the floor slabs' top: columns stand on it, not in it
-      columns(K, rnd, { color: '#b4aca0', capColor: '#ccc4b4', broken: 0.35, neck: true, contact: true, base: BASE,
+      columns(K, rnd, { color: '#b4aca0', capColor: '#ccc4b4', broken: 0.35, neck: true, contact: true, base: BASE, vines: '#3f6a2a', vinesLit: '#5a8a38',
         rows: [{ n: 4, x0: 40, step: 270, z: -170, h: 300, r: 20 }, { n: 8, x0: -300, step: 210, z: -420, h: 520, r: 26, lintel: true }, { n: 10, x0: -900, step: 300, z: -1000, h: 760, r: 38, lintel: true }, { n: 9, x0: -1800, step: 520, z: -2000, h: 1100, r: 56, lintel: true }] });
       // The hall's back wall behind the second colonnade: plinth, ashlar courses, a broken cornice line.
       const wallM = K.toon('#8c7f6c'), trimM = K.toon('#a89a84');
