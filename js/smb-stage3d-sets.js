@@ -217,8 +217,14 @@
   // Returns a list for motesUpdate(list, f) in the set's update.
   function motes(K, rnd, o) {
     const out = [];
+    let nm = null;
     for (let i = 0; i < o.n; i++) {
       const sp = glow(K, o.x0 + rnd() * (o.x1 - o.x0), o.y0 + rnd() * (o.y1 - o.y0), o.z0 + rnd() * (o.z1 - o.z0), o.sMin + rnd() * (o.sMax - o.sMin), o.color);
+      if (o.normal) {
+        // Light flakes over a pale sky: additive would vanish, so these blend normally.
+        if (!nm) { nm = sp.material.clone(); nm.blending = K.T.NormalBlending; }
+        sp.material = nm;
+      }
       sp.userData = { x: sp.position.x, y: sp.position.y, ph: rnd() * 6.28, sp: 0.6 + rnd() * 0.8, kind: o.kind, y0: o.y0, h: o.y1 - o.y0, s: sp.scale.x };
       out.push(sp);
     }
@@ -228,7 +234,10 @@
     if (!list) return;
     for (const m of list) {
       const u = m.userData;
-      if (u.kind === 'rise') {
+      if (u.kind === 'fall') {
+        m.position.y = u.y0 + u.h - ((u.y0 + u.h - u.y + f * 0.6 * u.sp) % u.h);
+        m.position.x = u.x + Math.sin(f * 0.015 * u.sp + u.ph) * 18;
+      } else if (u.kind === 'rise') {
         m.position.y = u.y0 + ((u.y - u.y0 + f * 0.5 * u.sp) % u.h);
         m.position.x = u.x + Math.sin(f * 0.03 * u.sp + u.ph) * 5;
       } else {
@@ -522,6 +531,7 @@
   }));
 
   // Lava: night red sky over a lava sea, black cones glowing at the foot, basalt islands with molten lips.
+  let _lvEmbers = null;
   def('lava', (T, K) => ({
     sky: [[0, '#140000'], [0.55, '#3d0800'], [0.85, '#7a1a04'], [1, '#c2420c']],
     fog: '#5a1205',
@@ -531,11 +541,14 @@
     dress(scene, K, rnd) {
       range(K, rnd, { n: 14, x0: -5200, step: 820, z: -4200, zJ: 1600, hMin: 700, hMax: 1500, wide: 1.1, base: -490, lit: '#4a160c', shade: '#2a0a06', foot: '#ff5a10' });
       for (let i = 0; i < 6; i++) glow(K, -3000 + i * 1300 + rnd() * 400, -300 + rnd() * 500, -4000 - rnd() * 1200, 900, 'rgba(255,110,30,');
+      _lvEmbers = motes(K, rnd, { n: 40, kind: 'rise', color: 'rgba(255,150,60,', sMin: 5, sMax: 10, x0: -300, x1: 1200, y0: -490, y1: 300, z0: -500, z1: 20 });
     },
+    update(f) { motesUpdate(_lvEmbers, f); },
   }));
 
   // Volcano: violet night, one erupting cone dead centre, basalt ledges with orange seams, lava lake.
   let _volGlow = null;
+  let _vcEmbers = null;
   def('volcano', (T, K) => ({
     sky: [[0, '#0a0412'], [0.5, '#22082e'], [0.85, '#3a0f2e'], [1, '#7a2234']],
     fog: '#3a1030',
@@ -551,8 +564,9 @@
       scene.add(big);
       _volGlow = glow(K, 450, 1150, -3380, 1300, 'rgba(255,120,40,');
       glow(K, 450, 1700, -3420, 900, 'rgba(255,200,120,');
+      _vcEmbers = motes(K, rnd, { n: 40, kind: 'rise', color: 'rgba(255,140,50,', sMin: 5, sMax: 10, x0: -300, x1: 1200, y0: -490, y1: 300, z0: -500, z1: 20 });
     },
-    update(f) { if (_volGlow) { const s = 1300 + Math.sin(f * 0.05) * 120; _volGlow.scale.set(s, s, 1); } },
+    update(f) { motesUpdate(_vcEmbers, f); if (_volGlow) { const s = 1300 + Math.sin(f * 0.05) * 120; _volGlow.scale.set(s, s, 1); } },
   }));
 
   // Forest: deep green under a canopy, tall trunks into the leaves, light shafts, mossy islands.
@@ -575,6 +589,7 @@
   }));
 
   // Ice: pale sky, snowy range and pines, glacier floor, ice shelves with icicles.
+  let _iceSnow = null;
   def('ice', (T, K) => ({
     sky: [[0, '#6aa8d8'], [0.5, '#99c8e8'], [1, '#e8f6fc']],
     fog: '#d8ecf6',
@@ -588,7 +603,9 @@
       trees(K, rnd, { shape: 'pine', trunk: '#4a3a30', crowns: ['#2f5a4a', '#3a6a58'], snow: '#f4fbff',
         rows: [{ n: 20, x0: -1000, step: 140, z: -800, zJ: 300, s: 1.1 }, { n: 22, x0: -1800, step: 200, z: -1500, zJ: 400, s: 1.6 }] });
       foreground(K, [[0, 'drift', 1.4], [330, 'rock', 0.8], [620, 'drift', 1.1], [900, 'rock', 1]], { y: -460, colors: { drift: '#f4fbff', rock: '#9ab4c8' } });
+      _iceSnow = motes(K, rnd, { n: 60, kind: 'fall', normal: true, color: 'rgba(255,255,255,', sMin: 5, sMax: 11, x0: -300, x1: 1200, y0: -470, y1: 420, z0: -600, z1: 60 });
     },
+    update(f) { motesUpdate(_iceSnow, f); },
   }));
 
   // Ruins: dusk-brown hall of broken columns and lintels, pale sandstone floors over open pits.
