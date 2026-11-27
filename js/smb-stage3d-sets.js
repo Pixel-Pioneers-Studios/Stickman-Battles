@@ -149,21 +149,27 @@
       tx.wrapS = tx.wrapT = T.RepeatWrapping; tx.magFilter = T.NearestFilter;
       return tx;
     });
-    const neonM = (o.neon || []).map(c => K.basic(c, { fog: false }));
+    const neonM = (o.neon || []).map(c => K.basic(c, { fog: false })), mats = {};
     for (const row of o.rows) {
       for (let i = 0; i < row.n; i++) {
         const w = row.wMin + rnd() * (row.wMax - row.wMin), h = row.hMin + rnd() * (row.hMax - row.hMin), d = w * (0.6 + rnd() * 0.5);
-        const tex = winTex[i % 3].clone(); tex.needsUpdate = true; tex.repeat.set(Math.max(1, Math.round(w / 110)), Math.max(1, Math.round(h / 220)));
-        const mat = new T.MeshToonMaterial({ color: o.colors[i % o.colors.length], emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: row.glow || 1 });
-        const m = new T.Mesh(box, mat), x = row.x0 + i * row.step + rnd() * row.step * 0.4, z = row.z - rnd() * (row.zJ || 300);
+        // Window tiling lives in the UVs (not a cloned texture per building), so buildings sharing a look share
+        // one material and the set merges them into a few draw calls.
+        const rx = Math.max(1, Math.round(w / 110)), ry = Math.max(1, Math.round(h / 220));
+        const mk = (i % 3) + '|' + (i % o.colors.length) + '|' + (row.glow || 1);
+        const mat = mats[mk] || (mats[mk] = new T.MeshToonMaterial({ color: o.colors[i % o.colors.length], emissive: 0xffffff, emissiveMap: winTex[i % 3], emissiveIntensity: row.glow || 1 }));
+        const geo = box.clone(), uv = geo.attributes.uv;
+        for (let k = 0; k < uv.count; k++) uv.setXY(k, uv.getX(k) * rx, uv.getY(k) * ry);
+        const m = new T.Mesh(geo, mat), x = row.x0 + i * row.step + rnd() * row.step * 0.4, z = row.z - rnd() * (row.zJ || 300);
         m.scale.set(w, h, d); m.position.set(x, base + h / 2 - 2, z);
-        m.receiveShadow = true;
+        m.receiveShadow = true; m.userData.st = true;
         K.scene.add(m);
         if (neonM.length && rnd() < (o.neonP || 0.4)) {
           const s = new T.Mesh(box, neonM[Math.floor(rnd() * neonM.length)]), sh = h * (0.25 + rnd() * 0.4);
           const vert = rnd() < 0.6;
           if (vert) s.scale.set(6, sh, 3); else s.scale.set(w * 0.6, 14, 3);
           s.position.set(x + (rnd() - 0.5) * w * 0.6, base + h * (0.35 + rnd() * 0.45), z + d / 2 + 2);
+          s.userData.st = true;
           K.scene.add(s);
         }
       }
@@ -255,7 +261,7 @@
             add(G.box, M.c, r * 3, 9, r * 3, lx, -20, z);
             add(G.box, M.c, r * 2.8, 10, r * 2.8, lx, -h + 5, z);
         }
-        if (o.contact !== false && below) { const c = K.contactMesh(r * 2.4, r * 2, 0.45); c.position.set(lx, -h + 0.6, z); g.add(c); }
+        if (o.contact !== false && below) { const c = K.contactMesh(r * 2.4, r * 2, 0.45); c.position.set(lx, -h + 0.6, z); c.userData.pier = true; g.add(c); }
       }
       // Two piers on one slab are tied by a brace at the back (girder X, or a stone tie beam).
       if (hs.length === 2 && o.brace) {
@@ -267,7 +273,7 @@
         } else add(G.box, M.c, w, 12, r * 1.6, (a[0] + b[0]) / 2, -Math.min(h * 0.55, 90), z);
       }
       // Under the slab a pier would go near-black and read like a fighter's body: no shadow received.
-      for (const m of K.merge(parts)) g.add(m);
+      for (const m of K.merge(parts)) { m.userData.pier = true; g.add(m); }
     };
   }
 

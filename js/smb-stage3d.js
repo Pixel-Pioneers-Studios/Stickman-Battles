@@ -1025,7 +1025,7 @@ var Stage3D = (function () {
   const LAND_BACK = 420;         // where a floor's tongue joins the wide land behind it (z = -LAND_BACK)
 
   function makeSet(factory) {
-    let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], trims = [], fShadows = [], backLand = null;
+    let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], trims = [], fShadows = [], pierBatch = [], backLand = null;
     let landMats = null, mats = null, sunRays = null, sunDisc = null, tufts = null, SUN_DIR = null, liquid = null;
     let _clodG = null, _dripG = null, _contactTex = null, _dressing = false;
     const _contactMats = {};
@@ -1087,7 +1087,7 @@ var Stage3D = (function () {
       for (const list of by.values()) out.push(list.length > 1 ? mergeList(list, false) : list[0]);
       return out;
     }
-    function contactMesh(rx, rz, op) { const m = contact(0, 0, 0, rx, rz, op); scene.remove(m); m.position.y = 0.6; return m; }
+    function contactMesh(rx, rz, op) { const d = _dressing; _dressing = true; const m = contact(0, 0, 0, rx, rz, op); _dressing = d; delete m.userData.st; scene.remove(m); m.position.y = 0.6; return m; }   // shared material per opacity: these never change
     function contact(x, y, z, rx, rz, op) {
       if (!_contactTex) _contactTex = canvasTex(64, 64, (g2, w, h) => {
         const gr = g2.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -1389,6 +1389,27 @@ var Stage3D = (function () {
         }
         plats = list.map(pl => { const g = slab(pl); scene.add(g); return { pl, g }; });
         key = k;
+        // Supports on a stage whose platforms never move: merge every platform's pier pieces across the set
+        // (26 platforms on Megacity were ~80 extra draw calls).
+        for (const m of pierBatch) { scene.remove(m); m.geometry.dispose(); }
+        pierBatch = [];
+        if (!list.some(pl => pl.oscX || pl.oscY)) {
+          for (const e of plats) e.g.position.set(e.pl.x, -e.pl.y, 0);
+          scene.updateMatrixWorld(true);
+          const by = new Map();
+          for (const e of plats) e.g.traverse(o => {
+            if (!o.isMesh || !o.userData.pier || Array.isArray(o.material)) return;
+            const k2 = o.material.uuid + '|' + o.castShadow + o.receiveShadow + '|' + o.renderOrder;
+            if (!by.has(k2)) by.set(k2, []);
+            by.get(k2).push(o);
+          });
+          for (const l of by.values()) {
+            if (l.length < 2) continue;
+            const mm = mergeList(l, true);
+            for (const o of l) o.parent.remove(o);
+            scene.add(mm); pierBatch.push(mm);
+          }
+        }
       } else {
         for (let i = 0; i < list.length; i++) plats[i].pl = list[i];
       }
