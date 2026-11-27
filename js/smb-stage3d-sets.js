@@ -1592,10 +1592,11 @@
     ground: CONCRETE, plat: SLAB,
     platDress: piers({ style: 'column', color: '#4a4a5c', cap: '#5a5a6e', r: 13 }),
     dress(scene, K, rnd) {
-      const arch = (g, w, h) => { g.fillStyle = '#121218'; g.fillRect(0, 0, w, h); g.fillStyle = '#050507'; g.beginPath(); g.moveTo(30, h); g.lineTo(30, h * 0.45); g.quadraticCurveTo(w / 2, -h * 0.05, w - 30, h * 0.45); g.lineTo(w - 30, h); g.fill(); };
+      const arch = (g, w, h) => { g.fillStyle = '#2c2c3a'; g.fillRect(0, 0, w, h); g.fillStyle = '#06060a'; g.beginPath(); g.moveTo(30, h); g.lineTo(30, h * 0.45); g.quadraticCurveTo(w / 2, -h * 0.05, w - 30, h * 0.45); g.lineTo(w - 30, h); g.fill(); };
       wall(K, { w: 4800, h: 900, x: 450, y: -480 + 450, z: -600, paint: arch, tw: 128, th: 256, rx: 24, ry: 1 });
-      columns(K, rnd, { color: '#16161e', capColor: '#1e1e28', rows: [{ n: 24, x0: -1950, step: 200, z: -580, h: 700, r: 12 }] });
-      shafts(K, rnd, { n: 1, color: 'rgba(200,210,255,', x0: 450, x1: 450, top: 800, h: 1400, w: 260, z0: -500, z1: -500, opacity: 0.35, tilt: 0 });
+      columns(K, rnd, { color: '#2a2a36', capColor: '#363644', contact: true, rows: [{ n: 24, x0: -1950, step: 200, z: -580, h: 700, r: 12 }] });
+      shafts(K, rnd, { n: 1, color: 'rgba(200,210,255,', x0: 450, x1: 450, top: 700, h: 1200, w: 300, z0: -300, z1: -300, opacity: 0.7, tilt: 0 });
+      glow(K, 450, -470, -250, 520, 'rgba(190,200,255,');   // where the light lands
     },
   }));
 
