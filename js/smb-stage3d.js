@@ -1023,7 +1023,7 @@ var Stage3D = (function () {
   const LAND_BACK = 420;         // where a floor's tongue joins the wide land behind it (z = -LAND_BACK)
 
   function makeSet(factory) {
-    let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], trims = [], backLand = null;
+    let spec = null, scene = null, skyTex = null, skyDome = null, plats = [], key = '', lands = [], trims = [], fShadows = [], backLand = null;
     let landMats = null, mats = null, sunRays = null, sunDisc = null, tufts = null, SUN_DIR = null, liquid = null;
     let _clodG = null, _dripG = null, _contactTex = null;
     const kit = {}, occ = [];
@@ -1437,6 +1437,25 @@ var Stage3D = (function () {
       }
       if (spec.update) spec.update(f, kit);
       fadeOccluders();
+      // Fighter contact shadows: a soft oval on the surface under each fighter (not at the feet), darkest when
+      // standing, wider and fainter with height, so a jump reads as distance from the ground.
+      let fi = 0;
+      for (const p of (typeof players !== 'undefined' ? players : [])) {
+        if (!p || p.health <= 0 || !isFinite(p.x) || !isFinite(p.y) || p.isBoss) continue;
+        const cx = p.x + (p.w || 0) / 2, feet = p.y + (p.h || 0);
+        let sy = Infinity;
+        for (const q of list) if (cx >= q.x && cx <= q.x + q.w && q.y >= feet - 4 && q.y < sy) sy = q.y;
+        if (sy === Infinity) continue;
+        const gap = sy - feet;
+        if (gap > 420) continue;
+        if (!fShadows[fi]) fShadows[fi] = contact(0, 0, 0, 1, 1, 0.5);
+        const m = fShadows[fi++], k = Math.max(0, 1 - gap / 420);
+        m.visible = true;
+        m.position.set(cx, -sy + 0.8, 0);
+        m.scale.set(2 * (17 + (1 - k) * 14), 2 * (12 + (1 - k) * 8), 1);
+        m.material.opacity = 0.55 * k * k;
+      }
+      for (; fi < fShadows.length; fi++) fShadows[fi].visible = false;
     }
 
     function overlay() {
