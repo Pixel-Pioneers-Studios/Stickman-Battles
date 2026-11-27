@@ -204,8 +204,40 @@
       m.position.set(o.x0 + rnd() * (o.x1 - o.x0), (o.y != null ? o.y : -480) + (o.hang ? -h * 0.6 : h * 0.4), o.z0 + rnd() * (o.z1 - o.z0));
       if (o.hang) m.rotation.x += Math.PI;
       K.scene.add(m); out.push(m);
+      if (o.halo && m.position.z > -700 && rnd() < o.halo) {
+        // A light pool around the near ones, so the crystals light the cave instead of sitting in it.
+        const c = new T.Color(o.colors[i % o.colors.length]);
+        glow(K, m.position.x, m.position.y, m.position.z + 6, h * 2.4, 'rgba(' + Math.round(c.r * 255) + ',' + Math.round(c.g * 255) + ',' + Math.round(c.b * 255) + ',');
+      }
     }
     return out;
+  }
+
+  // Motes: small additive lights that live in a box. kind 'rise' (bubbles, embers) or 'wander' (fireflies).
+  // Returns a list for motesUpdate(list, f) in the set's update.
+  function motes(K, rnd, o) {
+    const out = [];
+    for (let i = 0; i < o.n; i++) {
+      const sp = glow(K, o.x0 + rnd() * (o.x1 - o.x0), o.y0 + rnd() * (o.y1 - o.y0), o.z0 + rnd() * (o.z1 - o.z0), o.sMin + rnd() * (o.sMax - o.sMin), o.color);
+      sp.userData = { x: sp.position.x, y: sp.position.y, ph: rnd() * 6.28, sp: 0.6 + rnd() * 0.8, kind: o.kind, y0: o.y0, h: o.y1 - o.y0, s: sp.scale.x };
+      out.push(sp);
+    }
+    return out;
+  }
+  function motesUpdate(list, f) {
+    if (!list) return;
+    for (const m of list) {
+      const u = m.userData;
+      if (u.kind === 'rise') {
+        m.position.y = u.y0 + ((u.y - u.y0 + f * 0.5 * u.sp) % u.h);
+        m.position.x = u.x + Math.sin(f * 0.03 * u.sp + u.ph) * 5;
+      } else {
+        m.position.x = u.x + Math.sin(f * 0.007 * u.sp + u.ph) * 40;
+        m.position.y = u.y + Math.sin(f * 0.011 * u.sp + u.ph * 2) * 22;
+        const blink = 0.55 + 0.45 * Math.sin(f * 0.05 * u.sp + u.ph);
+        m.scale.setScalar(u.s * blink);
+      }
+    }
   }
 
   // Piers: raised platforms stand on supports down to the surface under them (a lower slab, the floor, or
@@ -524,6 +556,7 @@
   }));
 
   // Forest: deep green under a canopy, tall trunks into the leaves, light shafts, mossy islands.
+  let _ffMotes = null;
   def('forest', (T, K) => ({
     sky: [[0, '#0e2a14'], [0.5, '#1a4020'], [1, '#3d7a46']],
     fog: '#2d6b3a',
@@ -536,7 +569,9 @@
         rows: [{ n: 9, x0: -700, step: 260, z: -380, zJ: 150, s: 1.6, sJ: 0.6 }, { n: 14, x0: -1500, step: 300, z: -900, zJ: 300, s: 2.2, sJ: 0.8 }, { n: 16, x0: -2600, step: 400, z: -1900, zJ: 500, s: 3, sJ: 1 }] });
       shafts(K, rnd, { n: 7, color: 'rgba(230,255,190,', x0: -400, x1: 1300, top: 700, h: 1500, w: 70, z0: -700, z1: -150, opacity: 0.45 });
       foreground(K, [[-20, 'fern', 1.3], [180, 'bush', 1], [430, 'rock', 0.9], [640, 'fern', 1.1], [900, 'bush', 1.2]], { y: -480, colors: { fern: '#2f7a2a', bush: '#2a6a26', rock: '#6a6a5a' } });
+      _ffMotes = motes(K, rnd, { n: 36, kind: 'wander', color: 'rgba(230,255,140,', sMin: 10, sMax: 18, x0: -300, x1: 1200, y0: -470, y1: -150, z0: -500, z1: 40 });
     },
+    update(f) { motesUpdate(_ffMotes, f); },
   }));
 
   // Ice: pale sky, snowy range and pines, glacier floor, ice shelves with icicles.
@@ -620,12 +655,13 @@
       const rock = (g, w, h) => { const r = (s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296)(41); g.fillStyle = '#2a1c20'; g.fillRect(0, 0, w, h); for (let i = 0; i < 90; i++) { g.fillStyle = r() < 0.5 ? '#3a282e' : '#1c1216'; g.beginPath(); g.ellipse(r() * w, r() * h, 10 + r() * 30, 6 + r() * 16, r() * 3, 0, 7); g.fill(); } };
       wall(K, { w: 9000, h: 3000, x: 450, y: 200, z: -1600, paint: rock, rx: 10, ry: 4 });
       crystals(K, rnd, { n: 22, colors: ['#7a3cff', '#2ad0ff', '#c050ff'], hMin: 40, hMax: 150, hang: true, y: 220, x0: -800, x1: 1700, z0: -1400, z1: -200, glow: 0.2 });
-      crystals(K, rnd, { n: 40, colors: ['#2ad0ff', '#8a4aff', '#40ffd0'], hMin: 20, hMax: 90, x0: -600, x1: 1500, z0: -1300, z1: -60, glow: 0.7 });
+      crystals(K, rnd, { n: 40, halo: 0.6, colors: ['#2ad0ff', '#8a4aff', '#40ffd0'], hMin: 20, hMax: 90, x0: -600, x1: 1500, z0: -1300, z1: -60, glow: 0.7 });
     },
   }));
 
   // Underwater: blue depths, kelp that sways, coral, light shafts from the surface, a coral-blue seabed.
   let _kelp = null;
+  let _uwBubbles = null;
   def('underwater', (T, K) => ({
     sky: [[0, '#0a5a9a'], [0.4, '#023a6a'], [1, '#01102a']],
     fog: '#023a6a', fogSpan: 1900,
@@ -651,8 +687,9 @@
       shafts(K, rnd, { n: 8, color: 'rgba(160,230,255,', x0: -500, x1: 1400, top: 900, h: 1700, w: 90, z0: -900, z1: -200, opacity: 0.4, tilt: -0.18 });
       // Sunken colonnade behind the fight: what's left of a drowned hall, broken and leaning.
       columns(K, rnd, { color: '#2e6488', capColor: '#3a7aa0', broken: 0.5, neck: true, contact: true, rows: [{ n: 7, x0: -260, step: 230, z: -380, h: 380, r: 20, lintel: true }] });
+      _uwBubbles = motes(K, rnd, { n: 40, kind: 'rise', color: 'rgba(190,240,255,', sMin: 6, sMax: 14, x0: -300, x1: 1200, y0: -480, y1: 380, z0: -700, z1: -60 });
     },
-    update(f) { if (_kelp) for (const m of _kelp) { m.rotation.z = Math.sin(f * 0.02 + m.userData.ph) * 0.08; m.rotation.x = Math.cos(f * 0.017 + m.userData.ph) * 0.05; } },
+    update(f) { motesUpdate(_uwBubbles, f); if (_kelp) for (const m of _kelp) { m.rotation.z = Math.sin(f * 0.02 + m.userData.ph) * 0.08; m.rotation.x = Math.cos(f * 0.017 + m.userData.ph) * 0.05; } },
   }));
 
   // Colosseum: warm sand floor inside a ring of arches, banners on the wall, sun high.
