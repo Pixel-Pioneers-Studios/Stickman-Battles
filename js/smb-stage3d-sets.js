@@ -746,6 +746,33 @@
       box(K, cm, 450, -480 + 96, -316, 2620, 10, 52);
       for (let x = -700; x <= 1600; x += 128) box(K, cm, x, -480, -296, 18, 96, 8);
       foreground(K, [[0, 'barrel', 1], [40, 'crate', 0.8], [470, 'rock', 0.7], [860, 'barrel', 1.1]], { y: -480, colors: { barrel: '#8a5a30', band: '#3a2a1a', crate: '#a07040', rock: '#c8a878' } });
+      // The crowd (the 2D stands are packed): three rows of spectators along the top of the arcade wall, one
+      // instanced mesh, coloured per head. Mid-ground, so no shadows.
+      {
+        const N = 540, body = new T.CylinderGeometry(0.55, 0.8, 1, 6);
+        body.translate(0, 0.5, 0);
+        const crowd = new T.InstancedMesh(body, K.toon('#ffffff'), N), M4 = new T.Matrix4(), col = new T.Color();
+        const shirts = ['#b8301f', '#d8a030', '#6a4a8a', '#3a6a9a', '#e0d0b0', '#8a5a30', '#2a5a3a'];
+        for (let n = 0; n < N; n++) {
+          const row = n % 3, x = -2100 + ((n / 3) | 0) * (5000 / (N / 3)) + (rnd() - 0.5) * 10;
+          const h = 26 + rnd() * 8, y = -480 + 560 + row * 16, z = -912 + row * -14;
+          M4.makeScale(9, h, 9).setPosition(x, y, z);
+          crowd.setMatrixAt(n, M4);
+          crowd.setColorAt(n, col.set(shirts[Math.floor(rnd() * shirts.length)]).multiplyScalar(0.75 + rnd() * 0.25));
+        }
+        crowd.instanceMatrix.needsUpdate = true; crowd.instanceColor.needsUpdate = true;
+        crowd.frustumCulled = false;
+        K.scene.add(crowd);
+        const heads = new T.InstancedMesh(new T.SphereGeometry(1, 8, 6), K.toon('#c89068'), N);
+        for (let n = 0; n < N; n++) {
+          crowd.getMatrixAt(n, M4); const p = new T.Vector3().setFromMatrixPosition(M4), sc = new T.Vector3().setFromMatrixScale(M4);
+          M4.makeScale(6, 6, 6).setPosition(p.x, p.y + sc.y + 4, p.z);
+          heads.setMatrixAt(n, M4);
+          heads.setColorAt(n, col.set(rnd() < 0.5 ? '#c89068' : rnd() < 0.5 ? '#8a5a3a' : '#e0b088'));
+        }
+        heads.instanceMatrix.needsUpdate = true; heads.instanceColor.needsUpdate = true; heads.frustumCulled = false;
+        K.scene.add(heads);
+      }
     },
   }));
 
