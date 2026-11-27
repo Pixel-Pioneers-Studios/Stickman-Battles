@@ -103,6 +103,24 @@ Hit-stop pauses physics via `hitStopFrames` counter in `gameLoop`.
   (`smb-combat.js`): hits 1-3 push lightly (`STRING_KB`), the 4th launches, and the next press starts a
   new string. There is no SWITCH IT UP refusal any more. `COMBO_SCALE`, the 7+ forced launch and the
   stun handoff still apply.
+- **Hit-confirm cancel (Nov 27 2026, stage 2):** a landed string hit 1-3 (not blocked, not the 4th)
+  sets `_hitCancelFrom` in `dealDamage()`. For the rest of that swing and its recovery,
+  `Fighter._canHitCancel()` lets Q (`ability()`) or E (`useSuper()`) cut it: `_endSwingForCancel()` ends
+  the swing and recovery, and for Q holds the target's stun until the Q's contact
+  (`botMoveTime + STRING_STUN_PAD`, capped at `HIT_CANCEL_STUN_MAX = 90`). A miss, a block or the 4th
+  hit keeps Q and E locked for the whole recovery; a press then is buffered and fires when it ends (its
+  10-frame window counts from the end of recovery). The hold skips bosses, True Form and any target
+  inside `_stunGuardUntil`. A clash or break closes the cancel.
+  Stock bots cancel out of recovery only through `botHitCancel()` (`smb-bot-tactics.js`, hard about
+  half their chances, expert most, after hit 2 or 3). Bosses are untouched.
+- **Wall combo escape:** fires at `WALL_ESCAPE_HITS = STRING_LEN + 1` hits within 90 frames near a wall,
+  so a full 4-hit string lands in the corner. DoT ticks don't count; a Q counts once (keyed on its move
+  scene). True Form still warps at 3.
+- **Super burst read:** a burst (E while stunned, two presses) into the attacker (`_lastAttacker` or
+  `_stunOwner`) guarding inside `BURST_RADIUS` doesn't push them (a guarding bystander isn't pushed either,
+  but doesn't read it); the burster still loses the meter and gets `BURST_READ_RECOVERY = 30`
+  frames of recovery with no guard (recovery, not stun). Every burst shows a `BURST` damage-text label.
+  Bot bursts start at combo 3 (hard 50%, expert 70%).
 
 ### Ability (Q key)
 - Each weapon has a unique `ability(user, target)` function

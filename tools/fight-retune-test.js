@@ -24,6 +24,12 @@ function check(name, fn, kind, arg) { CHECKS.push({ name, fn, kind: kind || 'sim
 
 // ── Helpers injected into the page before every check ───────────────────────
 const HELPERS = `
+// BalanceSim no-ops every SoundManager function, so getVolume() returns undefined and the ambience timer
+// writes NaN into a gain (harness-only page error). Give the stubs a muted answer.
+(function () {
+  const setup = BalanceSim.setup;
+  BalanceSim.setup = function (...a) { const r = setup.apply(this, a); SoundManager.getVolume = () => 0; SoundManager.isMuted = () => true; return r; };
+})();
 window.RT = {
   // A pair standing in reach on the flat arena, AI off on both.
   pair(wA, wB, gap) {
@@ -90,6 +96,77 @@ window.RT = {
     return hits;
   },
   gaps(log) { const g = []; for (let i = 1; i < log.length; i++) g.push(log[i].at - log[i - 1].at); return g; },
+  // Stage 2: press attack until B has taken n hits (B held in reach), then stop pressing and step
+  // into that swing's recovery. Returns the number of hits landed.
+  landN(A, B, n, gap) {
+    let hits = 0, hp = B.health;
+    for (let i = 0; i < 200 && hits < n; i++) {
+      A.attack(B); BalanceSim.step(1);
+      if (B.health < hp) hits++;
+      hp = B.health;
+      if (hits < n) { B.x = A.x + A.w / 2 + (gap || 40) - B.w / 2; B.vx = 0; }
+    }
+    for (let i = 0; i < 60 && !(A.attackEndlag > 0); i++) BalanceSim.step(1);
+    return hits;
+  },
+  // Whiff, press Q or E 5 frames before recovery ends; report when it fired (string concat: inside HELPERS).
+  async bufferedAfterMiss(kind) {
+    const { P1, P2 } = await RT.duel('sword');
+    RT.face(P1, P2, 400);
+    if (kind === 'super') RT.fullMeter(P1);
+    RT.tap(P1.controls.attack);
+    await RT.until(() => P1.attackTimer === 0 && P1.attackEndlag > 0 && P1.attackEndlag <= 5, 120);
+    const left = P1.attackEndlag;
+    RT.tap(kind === 'super' ? P1.controls.super : P1.controls.ability);
+    const fired = () => kind === 'super' ? !P1.superReady : P1.abilityCooldown > 0;
+    const early = fired();
+    await RT.until(() => !(P1.attackEndlag > 0), 60);
+    const endAt = frameCount;
+    await RT.until(fired, INPUT_BUFFER_FRAMES + 4);
+    const lag = fired() ? frameCount - endAt : 'never';
+    return { pass: !early && fired() && lag <= INPUT_BUFFER_FRAMES + 2,
+             detail: 'pressed ' + left + 'f before recovery ended; fired early ' + early + '; ' + lag + 'f after it ended' };
+  },
+  // Count wall combo escapes on B (dealDamage sets _wallEscape when one fires).
+  watchEscape(B) {
+    const w = { n: 0 }; let v = null;
+    Object.defineProperty(B, '_wallEscape', { configurable: true, get() { return v; }, set(x) { if (x) w.n++; v = x; } });
+    return w;
+  },
+  // A faces B with B against the right wall, in reach.
+  corner(A, B) { B.x = 900 - B.w - 2; A.x = B.x - 40 - A.w / 2 + B.w / 2; A.facing = 1; B.facing = -1; A.vx = B.vx = 0; },
+  // Bot A (difficulty diff) against a still dummy B kept in reach for n frames; counts A's Q cancels.
+  botCancels(diff, n, legacy) {
+    const { A, B } = RT.pair('sword', 'sword', 40);
+    A.isAI = true; A.aiDiff = diff; A.target = B;
+    let cancels = 0; const opened = new Set();
+    const orig = A._endSwingForCancel;
+    A._endSwingForCancel = function (kind) {
+      if (kind === 'q') { cancels++; if (this._basicChainN === 2 || this._basicChainN === 3) opened.add(this._hitCancelFrom); }
+      return orig.call(this, kind);
+    };
+    // Deliberate cancels: the ones botHitCancel (smb-bot-tactics.js) made.
+    let taught = 0; const bhc = typeof botHitCancel === 'function' ? botHitCancel : null;
+    if (bhc) window.botHitCancel = function (f, t) { const r = bhc(f, t); if (r && f === A) taught++; return r; };
+    const was = BOT_TACTICS.enabled;
+    if (legacy) BOT_TACTICS.enabled = false;
+    try {
+      for (let i = 0; i < n; i++) {
+        if (A._canHitCancel() && (A._basicChainN === 2 || A._basicChainN === 3) && !(A.abilityCooldown > 0)) opened.add(A._hitCancelFrom);
+        BalanceSim.step(1);
+        if (!(B.ragdollTimer > 0)) { B.x = A.x + A.w / 2 + 40 * (A.facing || 1) - B.w / 2; B.vx = 0; }
+        B.health = B.maxHealth;
+      }
+    } finally { BOT_TACTICS.enabled = was; if (bhc) window.botHitCancel = bhc; }
+    const rate = opened.size ? cancels / opened.size : 0;
+    return { cancels, taught, opened: opened.size, rate, txt: cancels + ' cancels (' + taught + ' by botHitCancel) / ' + opened.size + ' windows (' + Math.round(rate * 100) + '%)' };
+  },
+  fullMeter(f) { f.superMeter = 100; f.superReady = true; },
+  // Swing at nothing and step into the whiff's recovery.
+  whiff(A, B) {
+    A.attack(B);
+    for (let i = 0; i < 60 && !(A.attackEndlag > 0); i++) BalanceSim.step(1);
+  },
 };
 `;
 
@@ -298,6 +375,393 @@ check('ladder_p1_lives', async () => {
            detail: `rung ${r}: P1 ${P1.lives} lives (want ${want}) ${P1.maxHealth}hp, bot ${P2.lives} lives ${P2.maxHealth}hp` };
 }, 'page');
 
+// ═══ Stage 2 (docs/superpowers/plans/2026-11-26-fighting-rework-stage2.md) ═══
+
+// ── Task 1: hit-confirm cancel into Q ───────────────────────────────────────
+check('cancel_on_hits_1_to_3', () => {
+  const out = []; let ok = true;
+  for (let n = 1; n <= 3; n++) {
+    const { A, B } = RT.pair('sword', 'sword', 40);
+    const got = RT.landN(A, B, n);
+    const inRec = A.attackEndlag > 0;
+    A.ability(B);
+    const fired = A.abilityCooldown > 0;
+    if (!(got === n && inRec && fired)) ok = false;
+    out.push(`n${n}: hits ${got} rec ${inRec} fired ${fired}`);
+    BalanceSim.step(120);
+  }
+  return { pass: ok, detail: out.join('; ') };
+});
+check('no_cancel_on_hit_4', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  const got = RT.landN(A, B, 4);
+  const inRec = A.attackEndlag > 0;
+  A.ability(B);
+  return { pass: got === 4 && inRec && A.abilityCooldown === 0, detail: `hits ${got} rec ${inRec} qcd ${A.abilityCooldown}` };
+});
+check('no_cancel_on_miss', () => {
+  const { A, B } = RT.pair('sword', 'sword', 200);
+  RT.whiff(A, B);
+  const inRec = A.attackEndlag > 0;
+  A.ability(B);
+  return { pass: inRec && A.abilityCooldown === 0, detail: `rec ${inRec} qcd ${A.abilityCooldown}` };
+});
+check('cancel_not_on_block', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  B.shielding = true; B.shieldHP = 999; B._parryFresh = false; B.shieldHoldTimer = 60;
+  const hp = B.health;
+  A.attack(B);
+  for (let i = 0; i < 60 && !(A.attackEndlag > 0); i++) { B.shielding = true; B._parryFresh = false; BalanceSim.step(1); }
+  const inRec = A.attackEndlag > 0;
+  A.ability(B);
+  return { pass: inRec && B.health === hp && A.abilityCooldown === 0, detail: `rec ${inRec} dmg ${hp - B.health} qcd ${A.abilityCooldown}` };
+});
+check('cancel_clears_swing', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.landN(A, B, 1);
+  A.ability(B);
+  const fired = A.abilityCooldown > 0;
+  const clean = A.attackEndlag === 0 && !(A._whiffGuardLock > frameCount) && A._hitCancelFrom == null;
+  // The old swing must deal nothing more: every later hit on B is the Q's.
+  let stray = 0, hp = B.health;
+  for (let i = 0; i < 10; i++) {
+    BalanceSim.step(1);
+    if (B.health < hp && A._attackKindTier !== CLASH_TIER_ABILITY) stray++;
+    hp = B.health;
+  }
+  return { pass: fired && clean && stray === 0,
+           detail: `fired ${fired} endlag ${A.attackEndlag} guardLock ${A._whiffGuardLock > frameCount} from ${A._hitCancelFrom} stray ${stray}` };
+});
+// Qs that cannot reach a target stunned by hit 3 even with the stun hold, and why. Filled after measuring.
+const Q_CONNECT_EXCEPTIONS = {};
+check('q_connects_from_hit_3', (exc) => {
+  const miss = [], ok = [], skip = [];
+  for (const w of WEAPON_KEYS) {
+    const wd = WEAPONS[w];
+    if (!wd || wd.type !== 'melee' || wd.customAttack) { skip.push(w); continue; }
+    const { A, B } = RT.pair(w, 'sword', 40);
+    const got = RT.landN(A, B, 3);
+    if (got < 3) { miss.push(w + '(string ' + got + ')'); BalanceSim.step(120); continue; }
+    A.ability(B);
+    const cd = A.abilityCooldown;
+    let hp = B.health, hit = false;
+    for (let i = 0; i < 90 && !hit; i++) {
+      const stunned = B.stunTimer > 0 || B.ragdollTimer > 0;
+      BalanceSim.step(1);
+      if (B.health < hp && stunned) hit = true;
+      hp = B.health;
+    }
+    if (cd > 0 && hit) ok.push(w); else if (!exc[w]) miss.push(w + (cd > 0 ? '' : '(no Q)'));
+    BalanceSim.step(150);
+  }
+  return { pass: miss.length === 0, detail: `connect ${ok.length}; miss ${miss.join(',') || '-'}; excepted ${Object.keys(exc).join(',') || '-'}; skip ${skip.join(',')}` };
+}, 'sim', Q_CONNECT_EXCEPTIONS);
+
+// ── Task 2: super (E) follows the same rule ─────────────────────────────────
+check('e_refused_after_miss', () => {
+  const { A, B } = RT.pair('sword', 'sword', 200);
+  RT.whiff(A, B); RT.fullMeter(A);
+  const inRec = A.attackEndlag > 0;
+  A.useSuper(B);
+  return { pass: inRec && A.superReady === true, detail: `rec ${inRec} superReady ${A.superReady}` };
+});
+check('e_refused_after_hit_4', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  const got = RT.landN(A, B, 4); RT.fullMeter(A);
+  const inRec = A.attackEndlag > 0;
+  A.useSuper(B);
+  return { pass: got === 4 && inRec && A.superReady === true, detail: `hits ${got} rec ${inRec} superReady ${A.superReady}` };
+});
+check('e_cancel_on_hit_2', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  const got = RT.landN(A, B, 2); RT.fullMeter(A);
+  const inRec = A.attackEndlag > 0;
+  A.useSuper(B);
+  return { pass: got === 2 && inRec && A.superReady === false, detail: `hits ${got} rec ${inRec} superReady ${A.superReady}` };
+});
+check('burst_still_fires', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.fullMeter(B);
+  RT.landN(A, B, 1);
+  const stunned = B.stunTimer > 0;
+  B.useSuper(A); BalanceSim.step(1); B.useSuper(A);
+  return { pass: stunned && B.stunTimer === 0 && B.superMeter === 0, detail: `stunned ${stunned} stun ${B.stunTimer} meter ${B.superMeter}` };
+});
+check('boss_e_ungated', () => {
+  const { A, B } = RT.pair('sword', 'sword', 200);
+  A.isBoss = true;
+  A.attackEndlag = 20; RT.fullMeter(A);
+  A.useSuper(B);
+  return { pass: A.superReady === false, detail: `boss superReady ${A.superReady}` };
+});
+
+// ── Task 3: Q and E pressed in recovery are buffered (real keys) ────────────
+check('q_buffered_after_miss', () => RT.bufferedAfterMiss('ability'), 'page');
+check('e_buffered_after_miss', () => RT.bufferedAfterMiss('super'), 'page');
+check('q_cancel_by_key', async () => {
+  const { P1, P2 } = await RT.duel('sword');
+  RT.face(P1, P2, 40);
+  const hp = P2.health;
+  RT.tap(P1.controls.attack);
+  await RT.until(() => P2.health < hp, 40);
+  const hit = P2.health < hp;
+  RT.tap(P1.controls.ability);
+  return { pass: hit && P1.abilityCooldown > 0, detail: `hit ${hit}, Q fired on the press ${P1.abilityCooldown > 0}` };
+}, 'page');
+check('buffer_respects_story_lock', async () => {
+  const { P1, P2 } = await RT.duel('sword');
+  RT.face(P1, P2, 400);
+  P1._storyNoAbility = true;
+  RT.tap(P1.controls.attack);
+  await RT.until(() => P1.attackTimer === 0 && P1.attackEndlag > 0 && P1.attackEndlag <= 5, 120);
+  RT.tap(P1.controls.ability);
+  await RT.frames(40);
+  return { pass: P1.abilityCooldown === 0, detail: `qcd ${P1.abilityCooldown}` };
+}, 'page');
+
+// ── Task 4: wall escape only past a full string ─────────────────────────────
+// Corner string with B pinned at the wall the whole time (the knockback would otherwise carry it out).
+check('corner_string_lands', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.corner(A, B); const esc = RT.watchEscape(B);
+  let hits = 0, hp = B.health;
+  for (let i = 0; i < 200 && hits < 4; i++) {
+    A.attack(B); BalanceSim.step(1);
+    if (B.health < hp) hits++;
+    hp = B.health;
+    if (hits < 4) { B.x = 900 - B.w - 2; B.vx = 0; }
+  }
+  return { pass: hits === 4 && esc.n === 0, detail: `hits ${hits} escapes ${esc.n}` };
+});
+check('corner_3_plus_q_lands', () => {
+  // The melee weapon whose Q lands the most separate hits in open space.
+  let best = null, bestN = 0;
+  for (const w of WEAPON_KEYS) {
+    const wd = WEAPONS[w]; if (!wd || wd.type !== 'melee' || wd.customAttack) continue;
+    const { A, B } = RT.pair(w, 'sword', 40);
+    A.ability(B); let n = 0, hp = B.health;
+    for (let i = 0; i < 120; i++) { BalanceSim.step(1); if (B.health < hp) n++; hp = B.health; B.x = A.x + A.w / 2 + 40 - B.w / 2; }
+    if (n > bestN) { bestN = n; best = w; }
+    BalanceSim.step(120);
+  }
+  const { A, B } = RT.pair(best, 'sword', 40);
+  RT.corner(A, B); const esc = RT.watchEscape(B);
+  const got = RT.landN(A, B, 3);
+  B.x = 900 - B.w - 2; B.vx = 0;
+  A.ability(B);
+  let qh = 0, hp = B.health;
+  for (let i = 0; i < 120; i++) { BalanceSim.step(1); if (B.health < hp) qh++; hp = B.health; if (B.x < 900 - B.w - 30) { B.x = 900 - B.w - 2; B.vx = 0; } }
+  return { pass: got === 3 && qh >= 2 && esc.n === 0, detail: `${best} (Q ${bestN} hits open): string ${got}, Q hits ${qh}, escapes ${esc.n}` };
+});
+check('corner_string_plus_q_escapes', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.corner(A, B); const esc = RT.watchEscape(B);
+  let hits = 0, hp = B.health;
+  for (let i = 0; i < 200 && hits < 4; i++) {
+    A.attack(B); BalanceSim.step(1);
+    if (B.health < hp) hits++;
+    hp = B.health;
+    B.x = 900 - B.w - 2; B.vx = 0;
+  }
+  // Put B back at the wall in reach and Q as soon as A is free.
+  let fired = false, qh = 0;
+  for (let i = 0; i < 80; i++) {
+    RT.corner(A, B); B.vy = Math.max(0, B.vy);
+    if (!fired && !(A.attackEndlag > 0)) { A.ability(B); fired = A.abilityCooldown > 0; }
+    BalanceSim.step(1);
+    if (B.health < hp) qh++;
+    hp = B.health;
+    if (esc.n) break;
+  }
+  return { pass: hits === 4 && fired && esc.n === 1, detail: `hits ${hits} q ${fired} qhits ${qh} escapes ${esc.n}` };
+});
+check('trueform_wall_warp_3', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  B.isTrueForm = true;
+  RT.corner(A, B); const esc = RT.watchEscape(B);
+  let hits = 0, hp = B.health;
+  for (let i = 0; i < 200 && hits < 3 && !esc.n; i++) {
+    A.attack(B); BalanceSim.step(1);
+    if (B.health < hp) hits++;
+    hp = B.health;
+    if (!esc.n) { B.x = 900 - B.w - 2; B.vx = 0; }
+  }
+  return { pass: hits === 3 && esc.n === 1, detail: `hits ${hits} escapes ${esc.n}` };
+});
+check('dot_not_counted', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.corner(A, B);
+  B._wallComboHits = 0; B._wallComboTimer = 0;
+  for (let i = 0; i < 6; i++) { dealDamage(A, B, 1, 0, 1, false, 0, true); B.invincible = 0; }
+  return { pass: (B._wallComboHits || 0) === 0, detail: `wall hits after 6 DoT ticks: ${B._wallComboHits}` };
+});
+
+// ── Task 5: baitable burst, BURST label, bot burst timing ───────────────────
+// A strings B to hit 2; B (full meter) bursts. guard: A raises its guard first.
+check('burst_read', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.fullMeter(B);
+  RT.landN(A, B, 2);
+  // A drops its recovery and guards (test shortcut) as B bursts.
+  A.attackEndlag = 0; A.attackTimer = 0; A._whiffGuardLock = 0;
+  A.shieldHP = 999; A.shielding = true; A.vx = 0;
+  const vx0 = A.vx, vy0 = A.vy;
+  B.burst();
+  const pushed = A.vx !== vx0 || A.vy !== vy0;
+  const rec = B.attackEndlag, locked = _whiffGuardLocked(B), stun = B.stunTimer;
+  const ok1 = !pushed && B.superMeter === 0 && rec >= BURST_READ_RECOVERY - 1 && locked && stun === 0;
+  // The punish: A drops guard and swings; the sword lands on the read burster.
+  A.shielding = false;
+  B.invincible = 0;   // burst i-frames (8) run out well inside the read recovery
+  let hp = B.health, landed = false;
+  BalanceSim.step(BURST_IFRAMES);
+  for (let i = 0; i < 30 && !landed; i++) {
+    A.attack(B); BalanceSim.step(1);
+    if (B.health < hp) landed = true;
+    B.x = A.x + A.w / 2 + 40 - B.w / 2; B.vx = 0;
+  }
+  return { pass: ok1 && landed, detail: `A pushed ${pushed}, meter ${B.superMeter}, rec ${rec}/${typeof BURST_READ_RECOVERY !== 'undefined' ? BURST_READ_RECOVERY : '?'}, guardLock ${locked}, stun ${stun}, punish landed ${landed}` };
+});
+check('burst_unread', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.fullMeter(B);
+  RT.landN(A, B, 2);
+  A.shielding = false;
+  B.burst();
+  return { pass: Math.abs(A.vx) >= BURST_KB_X - 1 && !(B.attackEndlag > 0), detail: `A vx ${A.vx.toFixed(1)}, B endlag ${B.attackEndlag}` };
+});
+check('burst_label', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  settings.dmgNumbers = true;
+  const texts = [], push = damageTexts.push;
+  damageTexts.push = function (...a) { for (const t of a) texts.push(t && String(t.amount)); return push.apply(this, a); };
+  try { RT.fullMeter(B); RT.landN(A, B, 2); B.burst(); }
+  finally { damageTexts.push = push; settings.dmgNumbers = false; }
+  return { pass: texts.includes('BURST'), detail: `texts: ${texts.filter(t => isNaN(t)).join(',') || '-'}` };
+});
+check('bot_burst_hit3', () => {
+  let reach3 = 0, burst3 = 0, early = 0, strings = 0;
+  for (let k = 0; k < 200; k++) {
+    const { A, B } = RT.pair('sword', 'sword', 40);
+    B.isAI = true; B.aiDiff = 'hard'; B.target = A; RT.fullMeter(B);
+    let maxCn = 0, burstAt = null, ready3 = false;
+    const orig = B.burst.bind(B);
+    B.burst = function () { if (burstAt == null) burstAt = A._comboHitCount || 0; return orig(); };
+    for (let i = 0; i < 150 && burstAt == null; i++) {
+      if (burstAt == null) RT.fullMeter(B);   // the stock AI would otherwise spend it on a plain super
+      A.attack(B); BalanceSim.step(1);
+      const cn = A._comboHitCount || 0;
+      if (cn >= 3 && maxCn < 3) ready3 = B.superReady && B.stunTimer > 0;   // the bot could still burst at hit 3
+      maxCn = Math.max(maxCn, cn);
+      if (!(B.ragdollTimer > 0)) { B.x = A.x + A.w / 2 + 40 - B.w / 2; B.vx = 0; }
+      if (maxCn >= 4 && !(B.stunTimer > 0)) break;
+    }
+    if (maxCn >= 1) strings++;
+    if (burstAt != null && burstAt < 3) early++;
+    if (maxCn >= 3 && (ready3 || burstAt != null)) { reach3++; if (burstAt != null && burstAt >= 3) burst3++; }
+    BalanceSim.step(60);
+  }
+  const rate = reach3 ? burst3 / reach3 : 0;
+  return { pass: early === 0 && reach3 >= 10 && rate >= 0.3 && rate <= 0.7,
+           detail: `strings ${strings}, early bursts ${early}, reached 3: ${reach3}, burst after 3: ${burst3} (${(rate * 100).toFixed(0)}%)` };
+});
+
+// ── Task 6: hard and expert bots use the cancel ─────────────────────────────
+check('bot_cancels_hard', () => { const r = RT.botCancels('hard', 4800); return { pass: r.taught >= 1, detail: 'hard ' + r.txt }; });
+check('bot_cancels_expert', () => { const r = RT.botCancels('expert', 4800); return { pass: r.taught >= 1, detail: 'expert ' + r.txt }; });
+check('bot_no_cancel_medium', () => { const r = RT.botCancels('medium', 2400); return { pass: typeof botHitCancel === 'function' && r.taught === 0, detail: 'medium ' + r.txt }; });
+check('bot_cancels_legacy', () => { const r = RT.botCancels('hard', 4800, true); return { pass: r.taught >= 1, detail: 'hard, no tactics layer: ' + r.txt }; });
+
+// ── Task 7: interruption probe — fast attacker vs live hard/medium bots, middle and wall, meter full/empty ──
+check('probe_strings', () => {
+  const rows = []; let bad = 0;
+  for (const diff of ['hard', 'medium']) for (const wall of [false, true]) for (const meter of [true, false]) {
+    let full = 0, burst = 0, early = 0, esc = 0, n = 0, gb = 0, other = [];
+    const gbOrig = window.guardBurst; let gbHit;
+    window.guardBurst = function (f) { const r = gbOrig(f); if (r) gbHit = true; return r; };
+    for (let k = 0; k < 30; k++) {
+      gbHit = false;
+      const { A, B } = RT.pair('sword', 'sword', 40);
+      B.isAI = true; B.aiDiff = diff; B.target = A;
+      if (wall) RT.corner(A, B);
+      const w = RT.watchEscape(B);
+      let burstAt = null; const orig = B.burst.bind(B);
+      B.burst = function () { if (burstAt == null) burstAt = A._comboHitCount || 0; return orig(); };
+      let hits = 0, hp = B.health;
+      for (let i = 0; i < 150 && hits < 4 && burstAt == null && !w.n; i++) {
+        if (meter) RT.fullMeter(B); else { B.superMeter = 0; B.superReady = false; }
+        A.attack(B); BalanceSim.step(1);
+        if (B.health < hp) hits++;
+        hp = B.health;
+        if (hits < 4) { B.x = wall ? 900 - B.w - 2 : A.x + A.w / 2 + 40 - B.w / 2; B.vx = 0; }
+      }
+      if (hits >= 1) n++;
+      if (hits === 4) full++;
+      if (burstAt != null) { burst++; if (burstAt < 3) early++; }
+      if (w.n) esc++;
+      if (gbHit) gb++;
+      if (hits >= 1 && hits < 4 && burstAt == null && !gbHit && other.length < 3)
+        other.push('h' + hits + (B.shielding ? ' guard' : '') + (B.invincible > 0 ? ' inv' : '') + (A.stunTimer > 0 ? ' Astun' : '') + (B.ragdollTimer > 0 ? ' Brag' : ''));
+      BalanceSim.step(60);
+    }
+    window.guardBurst = gbOrig;
+    if (early || esc) bad++;
+    rows.push(`${diff}/${wall ? 'wall' : 'mid'}/${meter ? 'full' : 'empty'}: ${full}/${n} land 4, burst ${burst} (early ${early}), guard bursts ${gb}, escapes ${esc}; other ${other.join(',') || '-'}`);
+  }
+  return { pass: bad === 0, detail: rows.join(' | ') };
+});
+
+// ── Final review fixes ──────────────────────────────────────────────────────
+check('hold_skips_boss', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.landN(A, B, 3);
+  B.isBoss = true; B.stunTimer = 5;
+  A.ability(B);
+  const st = B.stunTimer; B.isBoss = false;
+  return { pass: A.abilityCooldown > 0 && st <= 5, detail: `boss stun after cancel ${st} (was 5)` };
+});
+check('hold_skips_stun_guard', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.landN(A, B, 3);
+  B.stunTimer = 5; B._stunGuardUntil = frameCount + 30;
+  A.ability(B);
+  return { pass: A.abilityCooldown > 0 && B.stunTimer <= 5, detail: `stun ${B.stunTimer} inside no-restun window` };
+});
+check('clash_closes_cancel', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.landN(A, B, 1);
+  const C = new Fighter(A.x, A.y, '#0f0', 'sword');
+  C.health = C.maxHealth = 100; A._clashCd = 0; C._clashCd = 0;
+  const pre = { cd: A._clashCd, hp: C.health };
+  A._resolveClash(C);
+  if (!(A.attackEndlag > 0)) return { pass: false, detail: 'clash did not apply ' + JSON.stringify(pre) };
+  A.ability(B);
+  return { pass: A.attackEndlag > 0 && A.abilityCooldown === 0, detail: `after clash: endlag ${A.attackEndlag} qcd ${A.abilityCooldown}` };
+});
+check('burst_read_by_attacker_only', () => {
+  const { A, B } = RT.pair('sword', 'sword', 40);
+  RT.fullMeter(B);
+  RT.landN(A, B, 2);
+  A.shielding = false;
+  // A guarding hostile bystander next to B, not the one who hit it.
+  const C = new Fighter(B.x + 30, B.y, '#0f0', 'sword');
+  C.shielding = true; C.shieldHP = 999; C.team = A.team; C.isAI = false; players.push(C);
+  try { B.burst(); } finally { players.splice(players.indexOf(C), 1); }
+  return { pass: !(B.attackEndlag > 0) && Math.abs(A.vx) >= BURST_KB_X - 1, detail: `B endlag ${B.attackEndlag}, A vx ${A.vx.toFixed(1)}` };
+});
+check('q_buffered_early_in_whiff', async () => {
+  const { P1, P2 } = await RT.duel('hammer');
+  RT.face(P1, P2, 400);
+  RT.tap(P1.controls.attack);
+  await RT.until(() => P1.attackTimer === 0 && P1.attackEndlag > 20, 120);
+  const left = P1.attackEndlag;
+  RT.tap(P1.controls.ability);
+  await RT.until(() => !(P1.attackEndlag > 0), 90);
+  const e0 = frameCount;
+  await RT.until(() => P1.abilityCooldown > 0, INPUT_BUFFER_FRAMES + 4);
+  return { pass: P1.abilityCooldown > 0, detail: 'pressed ' + left + 'f before recovery ended; fired ' + (P1.abilityCooldown > 0 ? (frameCount - e0) + 'f after' : 'never') };
+}, 'page');
+
 // ─────────────────────────────────────────────────────────────────────────────
 (async () => {
   const server = await new Promise(res => {
@@ -316,7 +780,7 @@ check('ladder_p1_lives', async () => {
   const browser = await puppeteer.launch(lo);
   const page = await browser.newPage();
   let errs = [];
-  page.on('pageerror', e => errs.push(e.message));
+  page.on('pageerror', e => errs.push(e.message + (args.stack ? ' @ ' + String(e.stack).split('\n').slice(1,4).join(' | ') : '')));
   const SIM = fs.readFileSync(path.join(ROOT, 'tools', 'class-balance.js'), 'utf8').match(/const SIM_SRC = `([\s\S]*?)\n`;/)[1];
   async function boot() {
     await page.goto(`http://localhost:${PORT}/index.html?v=${Date.now()}`, { waitUntil: 'load', timeout: 60000 });
@@ -333,7 +797,10 @@ check('ladder_p1_lives', async () => {
     errs = [];
     let r;
     try {
-      r = await page.evaluate(c.fn, c.arg === undefined ? null : c.arg);
+      // Sim checks stop the live loop before returning: a sim world has no sky, and drawing it throws (stage 2).
+      const fn = c.kind === 'page' ? c.fn
+        : new Function('arg', 'try { return (' + c.fn.toString() + ')(arg); } finally { gameRunning = false; }');
+      r = await page.evaluate(fn, c.arg === undefined ? null : c.arg);
     } catch (e) { r = { pass: false, detail: 'threw: ' + e.message.split('\n')[0] }; }
     if (r && r.pass && errs.length) r = { pass: false, detail: 'page error: ' + errs[0] };
     if (r && r.pass) console.log('PASS', c.name, r.detail ? '(' + r.detail + ')' : '');

@@ -5,6 +5,11 @@ const keysDown      = new Set();
 const keyHeldFrames = {};   // key → frames held continuously
 const INPUT_BUFFER_FRAMES = 10; // a press this many frames before the fighter is free still comes out
 
+// Q/E can't come out of a swing's recovery unless a landed string hit 1-3 opened the cancel (stage 2).
+function _qeRecoveryLocked(p) {
+  return !p.isBoss && p.attackEndlag > 0 && !(typeof p._canHitCancel === 'function' && p._canHitCancel());
+}
+
 // Last input device for on-screen prompts: 'keyboard' | 'touch' | 'gamepad'. Synthetic touch keydowns don't count as keyboard.
 let lastInputDevice = ('ontouchstart' in window && !window.matchMedia('(pointer:fine)').matches) ? 'touch' : 'keyboard';
 document.addEventListener('keydown', e => { if (e.isTrusted) lastInputDevice = 'keyboard'; }, true);
@@ -312,9 +317,10 @@ document.addEventListener('keydown', e => {
         spawnParticles(p.cx(), p.cy(), '#8844ff', 4);
       } else if (p._storyNoAbility) {
         // ability locked in story: silently ignore
-      } else if (!incapacitated) {
+      } else if (!incapacitated && !_qeRecoveryLocked(p)) {
         if (!(typeof MoveScene !== 'undefined' && MoveScene.tryMerge(p, 'q', other))) p.ability(other);
       } else {
+        // Stunned, or in a swing's recovery that no landed hit opened: fire when it ends.
         p._inputBuffer = { action: 'ability', frame: frameCount };
       }
     }
@@ -327,7 +333,7 @@ document.addEventListener('keydown', e => {
         spawnParticles(p.cx(), p.cy(), '#00aaff', 4);
       } else if (p._storyNoSuper) {
         // super locked in story: silently ignore
-      } else if (!incapacitated || (p.stunTimer > 0 && !(p.ragdollTimer > 0) && p.superReady)) {
+      } else if ((!incapacitated && !_qeRecoveryLocked(p)) || (p.stunTimer > 0 && !(p.ragdollTimer > 0) && p.superReady)) {
         // Stunned with a full meter: two presses of useSuper() burst out of the combo.
         checkSecretLetterCollect(p);
         if (!incapacitated && typeof MoveScene !== 'undefined' && MoveScene.tryMerge(p, 'e', other)) return;
@@ -408,8 +414,13 @@ function processInput() {
     }
     // Input buffer: if a buffered action was queued while incapacitated and the
     // window (INPUT_BUFFER_FRAMES, ~167ms) hasn't expired, execute it now and clear.
-    const _bufWait = p._inputBuffer && p._inputBuffer.action === 'attack' &&
-                     (p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0));
+    // Q and E wait out a recovery too, unless a landed string hit opened the cancel (Fighter._canHitCancel).
+    const _bufWait = p._inputBuffer && (p._inputBuffer.action === 'attack'
+      ? (p.cooldown > 0 || (!p.isBoss && p.attackEndlag > 0))
+      : _qeRecoveryLocked(p));
+    // A Q/E held for a recovery counts its window from the end of that recovery, so a press early in a
+    // long whiff recovery still comes out (attack presses keep the press-time window).
+    if (_bufWait && p._inputBuffer.action !== 'attack') p._inputBuffer.frame = frameCount;
     if (p._inputBuffer && !_bufWait) {
       // +1: recovery reaches 0 during update(), so the buffer fires on the frame after it.
       if ((frameCount - p._inputBuffer.frame) <= INPUT_BUFFER_FRAMES + 1) {

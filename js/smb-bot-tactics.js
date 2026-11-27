@@ -172,6 +172,29 @@ function botMoveWants(f, kind, t, lock, urgent) {
   return tth <= (urgent ? 50 : 20) || d >= 170 || (!!m && m[4] >= 100 && d >= 90);
 }
 
+// Stage 2 hit-confirm cancel: after a landed string hit 2 or 3, hard and expert bots cut the swing's
+// recovery into Q when it's ready and in range. Hard takes about half its chances, expert most; one roll
+// per opened cancel. Easy and medium aren't taught it (their Q can still fall in the window by chance).
+// Stock bots only: Sovereign and other own-brain fighters aren't taught it either.
+function botHitCancel(f, t) {
+  if (!f || !t || !f.isAI || f.isBoss || f.isRemote) return false;
+  if (f.constructor !== Fighter && !f._storyFoe) return false;
+  if (f.aiDiff !== 'hard' && f.aiDiff !== 'expert') return false;
+  if (typeof f._canHitCancel !== 'function' || !f._canHitCancel()) return false;
+  if (f._basicChainN !== 2 && f._basicChainN !== 3) return false;
+  if (f.abilityCooldown > 0 || f._storyNoAbility || !(t.health > 0)) return false;
+  if (f._btCancelRollFor !== f._hitCancelFrom) {
+    f._btCancelRollFor  = f._hitCancelFrom;
+    f._btCancelRollPass = Math.random() < (f.aiDiff === 'expert' ? 0.85 : 0.5);
+  }
+  if (!f._btCancelRollPass) return false;
+  if (botMoveWants(f, 'q', t, 0) !== true) return false;
+  const cd0 = f.abilityCooldown;
+  f._btCancelling = true;
+  try { f.ability(t); } finally { f._btCancelling = false; }
+  return f.abilityCooldown > 0 && !(cd0 > 0);
+}
+
 // Called by Fighter.ability() / useSuper() while the old brain is running:
 // its random casts only go through when the move can actually connect.
 function botTacVeto(f, kind, t) {

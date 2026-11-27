@@ -241,6 +241,7 @@ function applyLaunch(attacker, target, launchVy, opts) {
 
 // Combo strings: early basic hits push and stun lightly. The last one launches.
 const STRING_LEN      = 4;    // the hit that launches (= BASIC_CHAIN_MAX in smb-fighter.js)
+const WALL_ESCAPE_HITS = STRING_LEN + 1;   // corner hits in 90 f before the wall combo escape (True Form: 3)
 const STRING_KB       = 0.2;  // knockback multiplier on the hits before it
 const STRING_STUN_PAD = 10;   // slack past the next swing's contact for late human presses
 
@@ -919,6 +920,12 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
         (typeof BASIC_CHAIN_RESET !== 'undefined' ? BASIC_CHAIN_RESET : 20)) {
     attacker._basicChainArmed = false;
     attacker._basicChainN = (attacker._basicChainN || 0) + 1;
+    // String hits 1-3 open a cancel into Q or E for the rest of this swing (Fighter._canHitCancel).
+    // The 4th hit ends the string: nothing follows it.
+    if (!attacker.isBoss && attacker.weapon && attacker.weapon.type === 'melee' && attacker._basicChainN < STRING_LEN) {
+      attacker._hitCancelFrom   = attacker._attackStartFrame;
+      attacker._hitCancelTarget = target;
+    }
   }
   // Super payout on its first hit: heal plus one domain charge. Whiffs earn nothing.
   // Doesn't require superActive, since the super's projectile can land after the animation.
@@ -1007,13 +1014,20 @@ function dealDamage(attacker, target, dmg, kbForce, stunMult = 1.0, isSplash = f
     const _wb = _wallBounds();
     target._wallComboTimer = target._wallComboTimer || 0;
     target._wallComboHits  = target._wallComboHits  || 0;
-    // 90-frame window.
+    // 90-frame window. DoT ticks don't count, and a Q counts once however many times it hits.
     if (target._wallComboTimer <= 0) target._wallComboHits = 0;
-    target._wallComboHits++;
-    target._wallComboTimer = 90;
+    // A move scene restamps _attackStartFrame on every hit, so the scene itself is the Q's identity.
+    const _qId = attacker._msScene || attacker._attackStartFrame;
+    const _qRepeat = attacker._attackKindTier === CLASH_TIER_ABILITY && target._wallComboQ === _qId;
+    if (!isDot && !_qRepeat) {
+      target._wallComboHits++;
+      target._wallComboTimer = 90;
+    }
+    if (attacker._attackKindTier === CLASH_TIER_ABILITY) target._wallComboQ = _qId;
     const _nearLeft  = target.x < _wb.left + 80;
     const _nearRight = target.x + target.w > _wb.right - 80;
-    if (target._wallComboHits >= 3 && (_nearLeft || _nearRight)) {
+    // A full string lands in the corner; past it (5+), the target slips out. True Form warps at 3.
+    if (target._wallComboHits >= (target.isTrueForm ? 3 : WALL_ESCAPE_HITS) && (_nearLeft || _nearRight)) {
       target._wallComboHits  = 0;
       target._wallComboTimer = 0;
       // Applied after knockback below, or knockback would overwrite the velocity.

@@ -87,6 +87,7 @@ function resolveEntityClashes() {
 // Pausing BASIC_CHAIN_RESET frames past the last swing's cooldown also clears it.
 // Only landed swings count: dealDamage() bumps _basicChainN. Whiffs, blocks and 0-dmg hits break the run.
 const BASIC_CHAIN_MAX   = 4;
+const HIT_CANCEL_STUN_MAX = 90;   // cap on the stun hold a hit-confirm cancel gives its Q (Fighter._endSwingForCancel)
 const BASIC_CHAIN_RESET = 20;
 // Every weapon's Q cooldown is scaled by this (Nov 25 2026 retune: Q comes round more often).
 // Not applied to bosses or to moves that set _abilityCdOverride themselves.
@@ -114,6 +115,7 @@ const BURST_KB_X    = 13;   // horizontal push on everyone hostile in range
 const BURST_KB_Y    = 6;
 const BURST_IFRAMES = 8;    // just enough that the swing already in flight misses
 const SUPER_IFRAMES = 8;    // a swing already in flight misses; super armor covers the rest. Longer let E dodge supers
+const BURST_READ_RECOVERY  = 30; // a burst into a raised guard leaves the burster this many frames open (recovery, not stun)
 const BURST_CONFIRM_WINDOW = 24; // second super press must land within this many frames
 
 // 'crescent' fills the area the blade sweeps. 'line' is the thin blade-tip streak.
@@ -1856,6 +1858,8 @@ class Fighter {
       this.updateAI();
       this._tacLegacy = false;
     }
+    // Hit-confirm cancel into Q for hard/expert stock bots, with or without the tactics layer (stage 2).
+    if (_aiFree && this.target && typeof botHitCancel === 'function') botHitCancel(this, this.target);
     // Per-frame tactics for the stock bots (smb-bot-tactics.js).
     if (_aiFree && this.target && typeof botTacticsFrame === 'function') botTacticsFrame(this);
       if (this._aiClimbSteer) this._aiTickClimbSteer();
@@ -2572,6 +2576,7 @@ class Fighter {
     loser.attackTimer = 0;
     loser.weaponHit   = false;
     loser.attackEndlag = Math.max(loser.attackEndlag || 0, CLASH_BREAK_ENDLAG);
+    loser._hitCancelFrom = null;   // a broken swing's recovery stays locked (stage 2 cancel)
     // One flourish per break, not one per side detecting it.
     if (loser._clashCd) return;
     loser._clashCd = CLASH_COOLDOWN;
@@ -2613,6 +2618,7 @@ class Fighter {
     // Re-commit cost, neither fighter gets a free instant re-swing.
     this.attackEndlag  = Math.max(this.attackEndlag  || 0, CLASH_ENDLAG);
     other.attackEndlag = Math.max(other.attackEndlag || 0, CLASH_ENDLAG);
+    this._hitCancelFrom = other._hitCancelFrom = null;   // clash recovery stays locked (stage 2 cancel)
     this._clashCd = other._clashCd = CLASH_COOLDOWN;
 
     // Streak bookkeeping. See _clashStreakOk().
@@ -3393,6 +3399,43 @@ class Fighter {
     if (!_mid) this._basicChainN = 0;
   }
 
+  // Stage 2 cancel: a landed string hit 1-3 (dealDamage sets _hitCancelFrom) lets Q or E cut the rest of
+  // that swing and its recovery. A miss, a block or the 4th hit never opens it.
+  _canHitCancel() {
+    return !this.isBoss && this._hitCancelFrom != null && this._hitCancelFrom === this._attackStartFrame &&
+           (this._basicChainN || 0) >= 1 && this._basicChainN < BASIC_CHAIN_MAX &&
+           (this.attackTimer > 0 || this.attackEndlag > 0) &&
+           // Stock bots aren't taught to cancel out of recovery except through botHitCancel (hard/expert,
+           // smb-bot-tactics.js). Q in a swing's active frames was always open to them. Own-brain fighters
+           // (Sovereign) get the plain rule.
+           !(this.isAI && !this._btCancelling && this.attackEndlag > 0 &&
+             (this.constructor === Fighter || this._storyFoe));
+  }
+
+  // End the cancelled swing so no hitbox stays live and no recovery is left over. Holds the target's stun
+  // until this fighter's Q reaches it (botMoveTime, smb-bot-tactics.js), capped at HIT_CANCEL_STUN_MAX.
+  _endSwingForCancel(kind) {
+    const t = this._hitCancelTarget;
+    this.attackTimer    = 0;
+    this.attackEndlag   = 0;
+    this.weaponHit      = true;   // the swing is spent: nothing more from it
+    this._swingFloorHit = false;
+    this._blockedEndlag = 0;
+    this._whiffGuardLock = 0;
+    this._hitCancelFrom   = null;
+    this._hitCancelTarget = null;
+    // Never on a boss, True Form or godmode target, and never inside a no-restun window (_stunGuardUntil).
+    const _fc = typeof frameCount !== 'undefined' ? frameCount : 0;
+    if (kind === 'q' && t && t.health > 0 && (t.stunTimer > 0) && !t.isBoss && !t.isTrueForm && !t.godmode &&
+        !((t._stunGuardUntil || -1) >= _fc) && typeof botMoveTime === 'function') {
+      const at = botMoveTime(this, 'q', t);
+      if (typeof at === 'number' && at >= 0) {
+        t.stunTimer = Math.max(t.stunTimer, Math.min(HIT_CANCEL_STUN_MAX, Math.ceil(at) + STRING_STUN_PAD));
+        if (t._stunOwner === this) t._stunOwnerUntil = Math.max(t._stunOwnerUntil || 0, _fc + t.stunTimer);
+      }
+    }
+  }
+
   ability(target) {
     if (isCinematic) return; // no abilities during cinematics or finishers
     if (this.backstageHiding) return;
@@ -3400,9 +3443,13 @@ class Fighter {
     if (this._comboSuper) return;     // no Q inside a Surge Strike Combo Strike (see attack())
     if (this.state === 'dead' || this.state === 'stunned' || this.state === 'ragdoll') return;
     if (this.abilityCooldown > 0 || this.health <= 0 || this.stunTimer > 0 || this.ragdollTimer > 0) return;
-    if (!this.isBoss && this.attackEndlag > 0) return; // can't ability during swing recovery
+    // No Q during swing recovery, unless a landed string hit 1-3 opened the cancel. A cancel from the
+    // swing's active frames ends the swing too, so its hitbox can't stay live under the Q.
+    const _hitCancel = !this.isBoss && this._canHitCancel();
+    if (!this.isBoss && this.attackEndlag > 0 && !_hitCancel) return;
     if (this.shielding) return;
     if (this._tacLegacy && typeof botTacVeto === 'function' && botTacVeto(this, 'q', target)) return;
+    if (_hitCancel) this._endSwingForCancel('q');
     // Abilities beat swings in a clash. See _clashTier().
     this._attackKindTier   = CLASH_TIER_ABILITY;
     this._resetBasicChainForMove();
@@ -3482,7 +3529,11 @@ class Fighter {
     if (typeof activeFinisher !== 'undefined' && activeFinisher) return;
     if (!this.superReady) return;
     if (this._storyNoSuper) return; // story progression, super not yet unlocked
+    // Same rule as Q: no super during swing recovery unless a landed string hit 1-3 opened the cancel.
+    const _hitCancel = !this.isBoss && this._canHitCancel();
+    if (!this.isBoss && this.attackEndlag > 0 && !_hitCancel) return;
     if (this._tacLegacy && typeof botTacVeto === 'function' && botTacVeto(this, 'e', target)) return;
+    if (_hitCancel) this._endSwingForCancel('e');
     this.activateSuper(target);
   }
 
@@ -3502,8 +3553,8 @@ class Fighter {
     if (!d) return false;
     const cfg = this.aiDiff === 'easy'   ? { combo: 4, chance: 0.25, delay: 16 }
               : this.aiDiff === 'medium' ? { combo: 3, chance: 0.45, delay: 11 }
-              : this.aiDiff === 'hard'   ? { combo: 2, chance: 0.65, delay: 7 }
-              :                            { combo: 2, chance: 0.85, delay: 4 };
+              : this.aiDiff === 'hard'   ? { combo: 3, chance: 0.5,  delay: 7 }
+              :                            { combo: 3, chance: 0.7,  delay: 4 };
     if (d.combo < cfg.combo) return false;
     if (this._burstRollFrame !== this._lastAttackerFrame) {
       this._burstRollFrame = this._lastAttackerFrame;
@@ -3533,17 +3584,31 @@ class Fighter {
       damageTexts.push(new DamageText(this.cx(), this.y - 30, '+' + _heal, '#44ff88'));
     }
     // Knockback only, no dealDamage(), so no damage, stun or i-frames on them.
+    // An attacker guarding inside the radius reads the burst: not pushed, and the burster is left open.
+    let _read = false;
     const _all = [...players, ...trainingDummies, ...minions];
     for (const f of _all) {
       if (!isHostileTarget(this, f) || f.godmode) continue;
       const _dx = f.cx() - this.cx(), _dy = f.cy() - this.cy();
       if (_dx * _dx + _dy * _dy > BURST_RADIUS * BURST_RADIUS) continue;
+      if (f.shielding && !f.isBoss) {
+        // Only the fighter whose combo this is reads it; a guarding bystander just isn't pushed.
+        if (f === this._lastAttacker || f === this._stunOwner) { _read = true; f._comboHitCount = 0; }
+        continue;
+      }
       const _dir = _dx === 0 ? -this.facing : Math.sign(_dx);
       f.vx = _dir * BURST_KB_X;
       f.vy = Math.min(f.vy || 0, -BURST_KB_Y);
       f._comboHitCount = 0; // their string is over; the next hit starts a new one
     }
     this.vy = Math.min(this.vy || 0, 0);
+    // Read: recovery, not stun. No attack, Q, super (attackEndlag) or guard (_whiffGuardLock) until it ends.
+    if (_read) {
+      this.attackEndlag    = Math.max(this.attackEndlag || 0, BURST_READ_RECOVERY);
+      this._whiffGuardLock = _nowF + BURST_READ_RECOVERY;
+      this._hitCancelFrom  = null;
+    }
+    if (settings.dmgNumbers) damageTexts.push(new DamageText(this.cx(), this.y - 38, 'BURST', this.color));
     if (!this.isAI) { _achStats.superCount++; if (_achStats.superCount >= 10) unlockAchievement('super_saver'); }
     screenShake = Math.max(screenShake, 14);
     spawnParticles(this.cx(), this.cy(), '#ffffff', 24);
