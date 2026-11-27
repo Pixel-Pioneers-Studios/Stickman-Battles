@@ -1196,6 +1196,8 @@ const Brain = (() => {
       sample(forward(L.net, L.obs, L.h), L.act, !!L.greedy);
       if (L.read) BrainRead.adjust(L.read, L.f, opp, L.act);
       if (L.play) turnAway(L.turn, L.act, L.t, L.play.turnAway, L.f, opp, L.play.turnDz);
+      // Lookahead (smb-sov-lookahead.js, off by default): may replace this decision's keys after simulating futures.
+      if (_liveSearch) { try { _liveSearch(L, opp); } catch (e) { _liveSearch = null; console.warn('[SovLookahead] off:', e && e.stack ? e.stack : e); } }
     }
     // The net never sees terrain and trained only on The Circuit. Anywhere else, the bots' platform
     // layer (btKeyNav, smb-bot-tactics.js) takes the legs to reach an opponent on another platform and
@@ -1226,6 +1228,8 @@ const Brain = (() => {
     L.navWas = !!(nav || haz || iai);
     if (decide) { const a = (nav || haz || iai) ? L.navAct : L.act; for (let k = 0; k < 4; k++) L.prev[k] = a[k]; }
   }
+  let _liveSearch = null;
+  function setLiveSearch(fn) { _liveSearch = typeof fn === 'function' ? fn : null; }
   function release() {
     const L = _live;
     if (!L) return;
@@ -1297,7 +1301,8 @@ const Brain = (() => {
   }
 
   return { REPEAT, HEADS, N_LOGITS, OBS_DIM, OBS_BASE, STAT_KEYS, HABITS, randomKit, resolveKit, hostilesOf, controlsFor, loadNet, newState, forward, sample,
-           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign, setSovereignDrive, setNav,
+           observe, applyKeys, rollout, possess, tickLive, release, takeOver, driveSovereign, setSovereignDrive, setNav, setLiveSearch,
+           get liveCkpt() { return _sovCkpt; },
            get nav() { return _navOn; },
            get sovereignDrive() { return _sovEnabled; },
            get live() { return _live; } };

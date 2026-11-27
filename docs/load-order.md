@@ -72,6 +72,8 @@ Script load order in `index.html` — files may only reference globals from earl
 61. `js/smb-adaptive-ai.js` — Real-time player profiling / adaptive AI
 62. `js/smb-smk2-data.js` — SovereignMK2 dialogue pools, action classifier, stage names
 63. `js/smb-smk2-class.js` — `SovereignMK2 extends AdaptiveAI` + debug API
+63a. `js/smb-brain.js` — `Brain` (neural Sovereign: rollout, live possession, `setLiveSearch`, `liveCkpt`); later in `index.html` than this list's neighbours, see the file
+63b. `js/smb-sov-lookahead.js` — `SovLookahead` (live future search over real-game forks; OFF by default, `?sovlook` or `SovLookahead.enable()`); after `smb-brain-read.js`
 64. `js/smb-trueform-ending-data.js` — TFEnding state vars, helpers, `startTFEnding`
 65. `js/smb-trueform-ending-update.js` — `updateTFEnding` state machine
 66. `js/smb-trueform-ending-draw.js` — `drawTFEnding`, utilities
