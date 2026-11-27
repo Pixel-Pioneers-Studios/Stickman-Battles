@@ -1114,6 +1114,7 @@
     light: { sky: '#ffb070', ground: '#3a1a08', hemi: 1.05, key: '#ffc890', keyI: 1.35 },
     ground: { top: '#8a5a30', backTop: '#7a4e28', face: ['#6a4020', '#5a3418', '#7a4a26', '#3a2010'], deep: '#4a2c14' },
     plat: { kind: 'block', top: '#a87040', lip: '#c88a50', body: '#6a4020', depth: [50, 90] },
+    platDress: piers({ style: 'column', color: '#a87448', cap: '#c08a58', r: 14 }),
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 160, size: 1.4, minEl: 0.35 });
       arcade(K, rnd, { stone: '#6a4428', hole: '#1a0a04', ledge: '#5a3820', col: '#8a5a34', cap: '#a06a3c', banner: '#a01a14', torch: true });
@@ -1290,6 +1291,7 @@
     fog: '#141a1c', fogNear: 200,
     light: { sky: '#b0d8d0', ground: '#1a2020', hemi: 1.2, key: '#e0fff0', keyI: 1.3 },
     ground: CONCRETE, plat: SLAB,
+    platDress: piers({ style: 'girder', color: '#5a6a68', cap: '#6a7a78', r: 10, brace: true }),
     dress(scene, K, rnd) {
       const panel = (g, w, h) => { g.fillStyle = '#2a3234'; g.fillRect(0, 0, w, h); g.strokeStyle = '#1a2022'; g.lineWidth = 3; g.strokeRect(2, 2, w - 4, h - 4); g.fillStyle = '#e0b020'; for (let x = -h; x < w; x += 24) { g.save(); g.beginPath(); g.rect(0, h - 18, w, 18); g.clip(); g.fillRect(x, h - 18, 12, 18); g.restore(); } };
       wall(K, { w: 4000, h: 700, x: 450, y: -480 + 350, z: -500, paint: panel, tw: 128, th: 128, rx: 31, ry: 5 });
@@ -1309,6 +1311,7 @@
     fog: '#1f2a36',
     light: { sky: '#a0b4d0', ground: '#1a1e26', hemi: 1.1, key: '#d8e4ff', keyI: 1.2 },
     ground: CONCRETE, plat: SLAB,
+    platDress: piers({ style: 'girder', color: '#5a6478', cap: '#6a7488', r: 9, brace: true }),
     dress(scene, K, rnd) {
       buildings(K, rnd, { colors: ['#121822', '#161e2a'], win: ['#ffd27a'], winP: 0.12, rows: [{ n: 20, x0: -2400, step: 280, z: -2200, zJ: 400, wMin: 180, wMax: 280, hMin: 300, hMax: 800, glow: 0.6 }] });
       const steel = '#3a4250';
@@ -1347,6 +1350,7 @@
     fog: '#2a2c32', fogNear: 200,
     light: { sky: '#d0d4e0', ground: '#2a2a30', hemi: 1.25, key: '#fff4e0', keyI: 1.35 },
     ground: CONCRETE, plat: SLAB,
+    platDress: piers({ style: 'block', color: '#8a8c96', cap: '#a0a2ac', r: 15 }),
     dress(scene, K, rnd) {
       columns(K, rnd, { color: '#4a4c54', capColor: '#5a5c64', rows: [{ n: 7, x0: -300, step: 250, z: -500, h: 1000, r: 34, lintel: true }] });
       box(K, K.toon('#33353c'), 450, -480, -700, 4000, 1200, 20);
@@ -1378,6 +1382,7 @@
     light: { sky: '#ffb080', ground: '#3a2010', hemi: 1.1, key: '#ffd0a0', keyI: 1.4 },
     ground: { top: '#5a4a3a', backTop: '#4a3c2e', face: ['#4a3a2a', '#3a2c20', '#5a4632', '#22180e'], deep: '#33261a' },
     plat: { kind: 'block', top: '#6a5a48', lip: '#8a7860', body: '#4a3c2e', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'post', color: '#6a5440', cap: '#7a6450', r: 9 }),
     dress(scene, K, rnd) {
       const bag = new T.SphereGeometry(1, 12, 8), bagM = K.toon('#8a7858');
       for (let i = 0; i < 40; i++) { const b = new T.Mesh(bag, bagM); b.scale.set(22, 11, 14); b.position.set(-100 + (i % 20) * 30 + (i >= 20 ? 15 : 0), -480 + 10 + (i >= 20 ? 18 : 0), -300); b.castShadow = true; scene.add(b); }
@@ -1420,6 +1425,7 @@
     fog: '#0a0a10', fogNear: 100,
     light: { sky: '#8088a8', ground: '#08080c', hemi: 0.9, key: '#d0d8ff', keyI: 1.1 },
     ground: CONCRETE, plat: SLAB,
+    platDress: piers({ style: 'column', color: '#4a4a5c', cap: '#5a5a6e', r: 13 }),
     dress(scene, K, rnd) {
       const arch = (g, w, h) => { g.fillStyle = '#121218'; g.fillRect(0, 0, w, h); g.fillStyle = '#050507'; g.beginPath(); g.moveTo(30, h); g.lineTo(30, h * 0.45); g.quadraticCurveTo(w / 2, -h * 0.05, w - 30, h * 0.45); g.lineTo(w - 30, h); g.fill(); };
       wall(K, { w: 4800, h: 900, x: 450, y: -480 + 450, z: -600, paint: arch, tw: 128, th: 256, rx: 24, ry: 1 });
@@ -1435,6 +1441,7 @@
     light: { sky: '#ffd8b0', ground: '#4a3020', hemi: 1.25, key: '#fff0d8', keyI: 1.6 },
     ground: { top: '#8a6a4a', backTop: '#7a5c40', face: ['#6a4c34', '#5a4028', '#7a5a3e', '#3a2818'], deep: '#4a3424' },
     plat: { kind: 'block', top: '#9a8060', lip: '#b89a78', body: '#6a5440', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'column', color: '#9a7e60', cap: '#b09474', r: 14 }),
     dress(scene, K, rnd) {
       columns(K, rnd, { color: '#a08868', capColor: '#b89c7c', broken: 0.5, rows: [{ n: 3, x0: 40, step: 120, z: -420, h: 480, r: 36 }, { n: 8, x0: -1400, step: 500, z: -1600, h: 900, r: 60 }] });
       const steel = K.toon('#8a94a0');
@@ -1470,6 +1477,7 @@
     light: { sky: '#90c0c0', ground: '#0a1414', hemi: 1.0, key: '#d0f0f0', keyI: 1.0 },
     ground: { top: '#2a3a3a', backTop: '#223030', face: ['#223030', '#182424', '#2a3838', '#0a1010'], deep: '#182424' },
     plat: { kind: 'block', top: '#4a5a5a', lip: '#6a7c7c', body: '#2a3838', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'post', color: '#4e6060', cap: '#5e7070', r: 8 }),
     dress(scene, K, rnd) {
       trees(K, rnd, { shape: 'dead', trunk: '#0e1a1a', rows: [{ n: 10, x0: -800, step: 300, z: -500, zJ: 300, s: 1.5, sJ: 0.6 }, { n: 12, x0: -1800, step: 380, z: -1400, zJ: 400, s: 2.4, sJ: 0.8 }] });
       const pole = K.toon('#1a2626'), wpts = [];
@@ -1488,6 +1496,7 @@
     sun: { dir: [0.2, 0.5, -1], color: '#f4f6ff', size: 300, glow: 'rgba(200,220,255,' },
     ground: { top: '#3a4048', backTop: '#30363e', face: ['#3a4048', '#2c3238', '#444a52', '#1a1e24'], deep: '#2c3238', back: false },
     plat: { kind: 'block', top: '#5a6068', lip: '#7a8088', body: '#3a4048', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'post', color: '#5a5450', cap: '#6a6460', r: 9 }),
     liquid: { y: 500, kind: 'water', color: '#0a1e40', veins: ['rgba(120,170,255,0.25)', 'rgba(0,10,30,0.4)'], flowX: 0.0002, flowZ: 0.0006 },
     dress(scene, K, rnd) {
       stars(K, rnd, { n: 300, size: 1.4, minEl: 0.3 });
@@ -1506,6 +1515,7 @@
     light: { sky: '#ffa060', ground: '#2a1006', hemi: 1.1, key: '#ffc890', keyI: 1.4 },
     ground: { top: '#6a4a30', backTop: '#5a3e28', face: ['#5a3e28', '#4a301e', '#6a4a30', '#2a180c'], deep: '#4a301e' },
     plat: { kind: 'block', top: '#7a5a3e', lip: '#9a7656', body: '#4a3424', depth: [50, 80], topH: 5 },
+    platDress: piers({ style: 'prism', color: '#6a4c36', cap: '#7c5c44', r: 14 }),
     dress(scene, K, rnd) {
       const tw = box(K, new T.MeshToonMaterial({ color: '#3a3a40', emissive: '#ffffff', emissiveMap: (() => { const t = K.canvasTex(64, 128, (g) => { g.fillStyle = '#000'; g.fillRect(0, 0, 64, 128); g.fillStyle = '#ffb860'; for (let y = 6; y < 120; y += 14) for (let x = 6; x < 60; x += 12) if ((x * y) % 7 < 3) g.fillRect(x, y, 6, 7); }); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(2, 4); return t; })() }), -150, -520, -700, 220, 700, 200, true);
       tw.rotation.z = 0.32;
