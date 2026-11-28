@@ -121,6 +121,22 @@ Hit-stop pauses physics via `hitStopFrames` counter in `gameLoop`.
   but doesn't read it); the burster still loses the meter and gets `BURST_READ_RECOVERY = 30`
   frames of recovery with no guard (recovery, not stun). Every burst shows a `BURST` damage-text label.
   Bot bursts start at combo 3 (hard 50%, expert 70%).
+- **Clash (Nov 27 2026):** two equal-tier melee swings clash only if they start within
+  `CLASH_WINDOW = 1` frame (was 3) and the two blades' arc samples come within `CLASH_BLADE_PAD = 14` px
+  (`Fighter._clashArcsMeet`). Stock bots no longer start a swing inside a reaction time of the
+  opponent's (`_btTooSoon`, `8 - 5*skill` frames, `smb-bot-tactics.js`); answering on the same frame
+  was why most exchanges clashed. The clash plays as a bind (`js/smb-clash-bind.js`): blades lock in
+  an X for `CLASH_BIND_LOCK = 14` frames, then both are thrown back `CLASH_BIND_DIST = 51` px (1.5 body
+  widths) over 12 frames. No damage, no vertical impulse; a third party's hit breaks the bind.
+- **Revive (Nov 27 2026):** a fighter with a life left comes back as its own body
+  (`js/smb-revive.js`, hooked from `Fighter.respawn()`), not as a second fighter at a spawn point.
+  `rise`: the corpse is removed and the fighter gets up where it lay, the dropped weapon flies back
+  to the hand, and a flare shoves enemies within 120 px back (velocity only). A slam finisher
+  (`slam: true` on the def, or the crater weapon finishers) leaves `_reviveFlat`: the body peels up
+  flat and pops back to size. `leap`: a fall below the kill plane, or a move finisher that ends with
+  the victim off the stage (`_koFell`), brings the fighter back by jumping in from past the camera
+  edge onto the usual safe spawn. A body on a hazard, a disabled boss floor or no platform also
+  leaps. Off for online, exploration checkpoints, bosses and the Mega Knight (who keeps his sky drop).
 
 ### Ability (Q key)
 - Each weapon has a unique `ability(user, target)` function

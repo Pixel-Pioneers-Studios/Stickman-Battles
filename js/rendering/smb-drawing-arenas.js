@@ -3293,7 +3293,7 @@ function _queueRespawnCountdown(p) {
     s = pickSafeSpawn(p.playerNum === 2 ? 'right' : 'left');
     if (s) p._queuedSpawn = { x: s.x, y: s.y, arena: currentArenaKey };
   }
-  respawnCountdowns.push({ color: p.color, x: s ? s.x : p.spawnX, y: (s ? s.y : p.spawnY) - 80, framesLeft: 66 });
+  respawnCountdowns.push({ color: p.color, x: s ? s.x : p.spawnX, y: (s ? s.y : p.spawnY) - 80, framesLeft: 66, f: p });
 }
 
 function addKillFeed(loser) {

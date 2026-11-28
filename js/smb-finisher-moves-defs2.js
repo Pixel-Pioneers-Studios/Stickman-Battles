@@ -1506,7 +1506,7 @@ mfDefine('lantern:e', {
 
 // Void Slam with someone under it: up off the floor, then through it.
 mfDefine('gauntlet:q', {
-  name: 'VOID SLAM', color: '#b060ff', len: 98,
+  name: 'VOID SLAM', color: '#b060ff', len: 98, slam: true,
   me: [
     { t: 0,  ...MS_STAND },
     { t: 12, e: 'out', r: 2.2, rl: 0.8, w: 2.2, l: 0.4, lean: 8, drop: 14, fr: 14, fl: -14 },

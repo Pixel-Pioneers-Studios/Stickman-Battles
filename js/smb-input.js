@@ -402,7 +402,7 @@ function processInput() {
     if (p._fusionAIOverride) return; // Paradox Fusion: AI handles movement, skip keyboard input
     // Inside a move scene (smb-move-scenes.js) the scene moves the body; a held
     // victim's one way out is the super key, handled on keydown.
-    if (p._msScene || p._msLock || p._msNetHold) { p.shielding = false; return; }
+    if (p._msScene || p._msLock || p._msNetHold || p._clashAnim || p._reviveAnim) { p.shielding = false; return; }
     // Guard burst (smb-combat.js): a fresh shield press 2+ hits into a stun breaks
     // it and raises the guard, then this frame's input runs as normal.
     const _burst = p.stunTimer > 0 && (keyHeldFrames[p.controls.shield] || 0) === 1 && guardBurst(p);

@@ -53,11 +53,35 @@ const SERVER_CONFIG = {
 
 const CHANGELOG = [
   {
+    version: '4.11.0',
+    title: 'CLEAN STEEL',
+    date: '2026-11-28',
+    flavor: 'Fights got cleaner and longer, blades lock when they meet, the fallen get back up, and the whole game has one look.',
+    isLatest: true,
+    changes: [
+      { cat: 'Combat',  text: 'Swings now have real recovery. Pressing during recovery buffers the next swing instead of being eaten, and a whiff is punishable. A blade that only clips the floor counts as a whiff' },
+      { cat: 'Combat',  text: 'Strings are 4 hits and the 4th launches. Landing hits 1 to 3 lets you cancel into Q or E; misses, blocks and the 4th hit stay locked' },
+      { cat: 'Combat',  text: 'Axe and Sword have keyed 2-hit strings and an air move. A missed swing gives a fixed recovery instead of a random stun' },
+      { cat: 'Combat',  text: 'Weapon clashes are a moment now: the blades lock in an X and grind, then both fighters are thrown apart. Clashes also happen less often, only when two swings really meet' },
+      { cat: 'Combat',  text: 'Losing a life: you get back up where you fell, your weapon flies back to your hand, and the flare pushes enemies away. Knocked out of the arena, you leap back in from off screen' },
+      { cat: 'Combat',  text: 'Hitting someone in the back lands as a counter-hit. Hits come in three weights, each with its own effect, and ordinary hits shake the screen less' },
+      { cat: 'Balance', text: 'Escaping the wall takes a full 5-hit string. A burst into a guarding attacker is read: the burster loses the meter and is left open' },
+      { cat: 'Balance', text: 'Versus, Ladder and online duels last longer: 2 lives in Versus by default and more health per life. Abilities recharge 25% faster' },
+      { cat: 'Weapon',  text: 'The Whip lash is a real rope that hangs, drags and settles. Frying Pan, Flail, Electric Staff and Glass Blade have new carries, and weapons no longer sink into the floor' },
+      { cat: 'UI',      text: 'One look across the game: new headings and body type, cleaner HUD panels, flat gold headings, drawn icons in place of emoji, and one clear button per screen' },
+      { cat: 'UI',      text: 'The first run goes straight into the story: 3 clicks from launch to chapter 1' },
+      { cat: 'Visual',  text: 'Arenas are easier to read: lit ledge edges, a calmer fight band, a violet night eruption on Volcano, light shafts in Forest and lamps in the Sewer' },
+      { cat: 'Audio',   text: 'Menu sounds, footsteps, sound that pans with position, and ambience for each arena' },
+      { cat: 'Visual',  text: 'Experimental 3D view: add ?3d to the game address to fight in 3D sets for every arena. Normal play is unchanged' },
+      { cat: 'Fix',     text: 'The achievement popup no longer covers Menu, tips no longer get stuck over the menus, and you get one notice per unlock' },
+    ],
+  },
+  {
     version: '4.10.0',
     title: 'THE ROAD BACK',
     date: '2026-11-18',
     flavor: 'The story opens up: rooms off the road, dungeons to clear, relics that open sealed seams in places you have already been, and a way back to them.',
-    isLatest: true,
+    isLatest: false,
     changes: [
       { cat: 'Story',   text: 'Side areas: every walkable chapter from 1 to 50 now has a door off the road. Cellars, vaults and folded pockets of the world, each with a puzzle, a guardian or both, and chests of tokens and EXP' },
       { cat: 'Story',   text: 'Dungeons: whole multi-room dungeons in the story, with stone blocks and pressure plates, levers, breakable walls, lifts, updrafts, swinging traps, ledges that give way and rooms you have to light yourself' },
@@ -1369,7 +1393,7 @@ let _publicRooms     = [];  // [{code, host, created}]: discovered public rooms
 let _isPublicRoom    = false; // whether current hosted room is public
 let _publicRoomCheckTimer = 0;
 
-const GAME_VERSION = '4.10.0';  // bump this when releasing; must match CHANGELOG[0].version
+const GAME_VERSION = '4.11.0';  // bump this when releasing; must match CHANGELOG[0].version
 console.log('[VERSION CHECK]', GAME_VERSION);
 
 let debugMode          = false;

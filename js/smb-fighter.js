@@ -1,17 +1,18 @@
 'use strict';
 
 // Two melee swings starting within CLASH_WINDOW frames cancel out.
-// Needs matching tiers, opposed facing, and both blades reaching.
+// Needs matching tiers, opposed facing, and the two blades crossing (CLASH_BLADE_PAD).
 // Mismatched tiers go to _resolveOverpower(). See Fighter._resolveClash().
-const CLASH_WINDOW    = 3;   // frames apart to still count as simultaneous
-const CLASH_REACH_PAD = 8;   // slack on the mutual-reach test, px
+const CLASH_WINDOW    = 1;   // frames apart to still count as simultaneous (was 3: clashes came too easily)
+const CLASH_REACH_PAD = 8;   // slack on the mutual-reach test, px (fallback when a blade has no samples)
+const CLASH_BLADE_PAD = 14;  // the two blades' samples must come this close, px
 // Fallback reach past the hand, for weapons with no WEAPON_SWINGS tipLen.
 const MELEE_TIP_LENS = { sword: 26, hammer: 30, axe: 23, spear: 40, gauntlet: 22, mkgauntlet: 30, whip: 50, flail: 28 };
 const MELEE_BLADE_STEP = 14; // max px between hit samples along the drawn blade
 const CLASH_KNOCKBACK = 6.5; // horizontal push applied to BOTH fighters
 const CLASH_ENDLAG    = 16;  // recovery before either may swing again
 const CLASH_COOLDOWN  = 20;  // re-clash guard, so a trade can't loop
-const CLASH_HITSTOP   = 8;   // freeze frames on the exchange
+const CLASH_HITSTOP   = 4;   // freeze frames on the exchange (the bind beat in smb-clash-bind.js holds the rest)
 const CLASH_STREAK_MAX   = 2;   // consecutive clashes allowed per pair
 const CLASH_STREAK_RESET = 120; // frames of no clashing that clears the streak
 // Attack tiers. Only equal tiers clash.
@@ -410,6 +411,10 @@ class Fighter {
   }
 
   respawn() {
+    // Revive (smb-revive.js): read where the body lies before this wipes the death.
+    if (this._reviveAnim) { this._reviveAnim = null; this._movePose = null; this._finSquash = null; this.backstageHiding = false; }
+    const _rv = typeof reviveCapture === 'function' ? reviveCapture(this) : null;
+    this._koFell = false; this._reviveFlat = false;
     if (!this.isAI && typeof SoundManager !== 'undefined' && SoundManager.respawn && typeof gameRunning !== 'undefined' && gameRunning) SoundManager.respawn();
     // Undo Axiom's resize. Must run before the spawn position is computed.
     if (typeof tfSizeTargets !== 'undefined' && tfSizeTargets.has(this)) {
@@ -456,6 +461,7 @@ class Fighter {
     }
     // Cancel any authored death performance before the body is reused
     if (typeof DeathAnim !== 'undefined') DeathAnim.clear(this);
+    if (this._clashAnim) { this._clashAnim = null; this._movePose = null; }
     this._hideWeapon = false;
     if (typeof animStrideReset === 'function') animStrideReset(this);
     this._smearPrev = null;
@@ -566,6 +572,7 @@ class Fighter {
       this.invincible = 200;
       SoundManager.megaknightFall && SoundManager.megaknightFall();
     }
+    if (_rv && typeof reviveBegin === 'function') reviveBegin(this, _rv);
     if (this.isAI) {
       this.target = null;
       this.aiState = 'chase';
@@ -587,7 +594,7 @@ class Fighter {
         ai._acquireAITarget();
       }
     }
-    spawnParticles(this.cx(), this.cy(), this.color, 22);
+    if (!this._reviveAnim) spawnParticles(this.cx(), this.cy(), this.color, 22);
     // Online: notify remote that we respawned
     if (onlineMode && !this.isRemote && NetworkManager.connected) {
       NetworkManager.sendGameEvent('respawn', { x: this.x, y: this.y });
@@ -605,6 +612,17 @@ class Fighter {
     // Held by a Battle Royale finisher: the finisher drives this body while the
     // rest of the match runs (smb-finisher-engine.js, _finTickWorld).
     if (this._finWorldLock) {
+      this.updateState();
+      return;
+    }
+    // Weapon clash bind (smb-clash-bind.js): bodies held while the blades are locked.
+    if (this._clashAnim && typeof clashBindTick === 'function' && clashBindTick(this)) {
+      this.updateState();
+      return;
+    }
+    // Revive (smb-revive.js): getting up off the floor, or jumping back in.
+    if (this._reviveAnim && typeof reviveTick === 'function' && reviveTick(this)) {
+      if (this.invincible > 0) this.invincible--;
       this.updateState();
       return;
     }
@@ -1846,7 +1864,7 @@ class Fighter {
     // Story arena lock: AI holds until _aiHoldUntil. Hitting it first ends the hold.
     if (this._aiHoldUntil && (this.hurtTimer > 0 || frameCount >= this._aiHoldUntil)) this._aiHoldUntil = 0;
     const _aiFree = this.isAI && !this._fusionAIOverride &&
-        !this._domainRising && !this._aiHoldUntil &&
+        !this._domainRising && !this._aiHoldUntil && !this._clashAnim && !this._reviveAnim &&
         !activeCinematic &&
         !(typeof isCutsceneActive === 'function' && isCutsceneActive()) &&
         !(typeof isCombatLocked === 'function' && isCombatLocked('ai'));
@@ -2066,7 +2084,7 @@ class Fighter {
     // Remote players skip this. Their own machine handles their death.
     if (!this.isRemote && this.y > dyY && this.health > 0) {
       if (this.isBoss) bossTeleport(this, true);
-      else if (!this.godmode && !this.isAbsoluteAxiom) this.health = 0; // Axiom flies back (_aaFallRecover)
+      else if (!this.godmode && !this.isAbsoluteAxiom) { this.health = 0; this._koFell = true; } // Axiom flies back (_aaFallRecover)
     }
 
     this.updateState();
@@ -2561,6 +2579,16 @@ class Fighter {
     if (typeof other._getMeleeArcPoints !== 'function') return false;
     const pts = other._getMeleeArcPoints();
     if (!pts || !pts.length) return false;
+    // The blades themselves must cross, not just reach the other body.
+    const mine = this._getMeleeArcPoints();
+    if (mine && mine.length) {
+      const bp2 = CLASH_BLADE_PAD * CLASH_BLADE_PAD;
+      for (const a of mine) for (const b of pts) {
+        const dx = a.x - b.x, dy = a.y - b.y;
+        if (dx * dx + dy * dy <= bp2) return true;
+      }
+      return false;
+    }
     const pad = CLASH_REACH_PAD;
     for (const pt of pts) {
       if (pt.x > this.x - pad && pt.x < this.x + this.w + pad &&
@@ -2628,23 +2656,28 @@ class Fighter {
     this._clashStreakWith  = other; this._clashStreakAt  = _cf;
     other._clashStreakWith = this;  other._clashStreakAt = _cf;
 
-    const d = Math.sign(this.cx() - other.cx()) || (this.facing ? -this.facing : 1);
-    this.vx  =  d * CLASH_KNOCKBACK;
-    other.vx = -d * CLASH_KNOCKBACK;
-
     const mx = (this.cx() + other.cx()) / 2;
     const my = (this.cy() + other.cy()) / 2;
+    // Blades lock, grind, then both are thrown back (smb-clash-bind.js). The bind owns the
+    // push and the release burst; the old instant shove is the fallback.
+    const _bound = typeof clashBindStart === 'function' && clashBindStart(this, other);
+    if (!_bound) {
+      const d = Math.sign(this.cx() - other.cx()) || (this.facing ? -this.facing : 1);
+      this.vx  =  d * CLASH_KNOCKBACK;
+      other.vx = -d * CLASH_KNOCKBACK;
+    }
     if (settings.particles) {
-      spawnParticles(mx, my, '#ffffff', 14);
-      spawnParticles(mx, my, '#ffee88', 10);
-      if (typeof spawnRing === 'function') spawnRing(mx, my);
+      spawnParticles(mx, my, '#ffffff', _bound ? 6 : 14);
+      spawnParticles(mx, my, '#ffee88', _bound ? 4 : 10);
+      if (!_bound && typeof spawnRing === 'function') spawnRing(mx, my);
     }
     if (typeof DamageText !== 'undefined' && typeof damageTexts !== 'undefined') {
-      damageTexts.push(new DamageText(mx, my - 18, 'CLASH', '#ffee88'));
+      damageTexts.push(new DamageText(mx, my - (_bound ? 92 : 18), 'CLASH', '#ffee88'));
     }
     hitStopFrames = Math.max(hitStopFrames, CLASH_HITSTOP);
-    if (settings.screenShake) screenShake = Math.max(screenShake, 11);
-    SoundManager.heavyHit && SoundManager.heavyHit();
+    if (settings.screenShake) screenShake = Math.max(screenShake, _bound ? 6 : 11);
+    if (_bound) { SoundManager.clang && SoundManager.clang(); }
+    else { SoundManager.heavyHit && SoundManager.heavyHit(); }
   }
 
   // Player state machine: idle | run | jump | fall | attack | stunned | ragdoll | dead

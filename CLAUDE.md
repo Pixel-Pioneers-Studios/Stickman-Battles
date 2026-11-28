@@ -52,7 +52,7 @@ Set a flag; trigger at frame start in `gameLoop`.
 
 ## How Claude Should Behave
 
-Also read `FABLE_BEHAVIOR_PROMPT.md` (repo root) and the memory index at `~/.claude/projects/-Users-aarushgupta-Developer-Personal-Stickman-Battles/memory/MEMORY.md` before working — both are treated as binding and cover communication style, when to act vs. report, and current project state.
+The memory index (`~/.claude/projects/-Users-aarushgupta-Developer-Personal-Stickman-Battles/memory/MEMORY.md`, loaded automatically) and the local `.claude/CLAUDE.md` (roles and working method: communication, when to act vs. report, delegation) are binding.
 
 Before making any change:
 1. **Read the relevant module** — understand what already exists

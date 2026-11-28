@@ -458,7 +458,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:52,fn(){ CinCam.slowMo(0.07); CinCam.zoomTo(1.62); CinCam.focusMidpoint(att,tgt); if (typeof SoundManager!=='undefined') SoundManager._cosmicSilenceTimer=12; }},
         {frame:62,fn(){
           // Overhead, straight down through them and into the floor
-          data.craterA=1; data.shockR=1; data.shockAlpha=1;
+          data.craterA=1; tgt._reviveFlat=true; data.shockR=1; data.shockAlpha=1;
           CinCam.slowMo(1.0); CinCam.shake(60);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
           if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();

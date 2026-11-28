@@ -195,11 +195,17 @@ function botHitCancel(f, t) {
   return f.abilityCooldown > 0 && !(cd0 > 0);
 }
 
+// No swing inside a human reaction time of theirs starting. Answering on the same frame
+// (both stepping into reach together) landed inside CLASH_WINDOW, so most exchanges clashed.
+function _btTooSoon(f, t) {
+  return !!(t && t.attackTimer > 0 && _btFc() - (t._attackStartFrame || -99) < Math.round(8 - 5 * botTacSkill(f)));
+}
+
 // Called by Fighter.ability() / useSuper() while the old brain is running:
 // its random casts only go through when the move can actually connect.
 function botTacVeto(f, kind, t) {
   if (!botTacSkill(f)) return false;
-  if (kind === 'a') return _btFc() < (f._btSwingAt || 0);
+  if (kind === 'a') return _btFc() < (f._btSwingAt || 0) || _btTooSoon(f, t || f.target);
   const tt = t || f.target;
   if (!tt) return false;
   const lock = Math.max(tt.stunTimer || 0, tt.ragdollTimer || 0, tt.attackEndlag || 0);
@@ -712,6 +718,7 @@ function _btSwing(f, t, dir, free) {
   if ((f.cooldown || 0) > 0 || f.attackEndlag > 0 || f.attackTimer > 0) return false;
   const fc = _btFc();
   if (!free && fc < (f._btSwingAt || 0)) return false;
+  if (_btTooSoon(f, t)) return false;
   f.facing = dir;
   f.attack(t);
   if (!(f.attackTimer > 0)) return false;
@@ -883,7 +890,9 @@ function botTacticsFrame(f) {
       f._btSwGuard = false;
       if (_btGuardUp(f, TAC_GUARD)) return;
     }
-    if (d <= R && _btSwing(f, t, dir)) return;            // trade
+    // Trade only after a human-scale reaction. Swinging on the frame the swing went live
+    // started both swings inside CLASH_WINDOW, so nearly every exchange was a clash.
+    if (d <= R && fc - f._btSwAt >= Math.round(8 - 5 * sk) && _btSwing(f, t, dir)) return;   // trade
     _btMove(f, -dir, spd);
     return;
   }

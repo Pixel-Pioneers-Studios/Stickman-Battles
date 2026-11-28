@@ -128,6 +128,8 @@ const MF_PROTO = {
     this.hold(o.hold === undefined ? 9 : o.hold);
     this.shake(o.shake || 24);
     this.sfx(o.sfx || 'heavyHit');
+    // Slammed flat: a revive peels them up flat and pops them back to size (smb-revive.js).
+    if (this.o && this.o.slam && this.tgt) this.tgt._reviveFlat = true;
   },
 
   // Camera for this frame (zoom, world focus). Without a call the shot frames both.
@@ -234,6 +236,9 @@ function _mfTick(s, timer) {
     if (s.my < -2) att.canDoubleJump = true;
     const ex = o.exit || [0, 0];
     tgt.vx = s.f * ex[0]; tgt.vy = ex[1];
+    // Finished off the stage (driven out of the sky, thrown past the edge): a revive leaps back in (smb-revive.js).
+    const _b = typeof _arenaSpawnBounds === 'function' ? _arenaSpawnBounds() : { left: 0, right: GAME_W };
+    if (tgt.y + tgt.h < -10 || tgt.y > GAME_H || tgt.cx() < _b.left - 20 || tgt.cx() > _b.right + 20) tgt._koFell = true;
   }
 }
 

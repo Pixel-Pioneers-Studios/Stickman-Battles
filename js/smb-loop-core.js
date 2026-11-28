@@ -1125,6 +1125,9 @@ function gameLoop(timestamp) {
   for (const cd of respawnCountdowns) {
     cd.framesLeft--;
     if (cd.framesLeft <= 0) continue;
+    // A body that will get up where it lies (smb-revive.js) carries its countdown.
+    const _cv = cd.f && !cd.f._koFell && cd.f._death && cd.f._death.corpse;
+    if (_cv && typeof verletRagdolls !== 'undefined' && verletRagdolls.includes(_cv)) { cd.x = _cv.head.x; cd.y = Math.min(_cv.head.y, _cv.lHip.y) - 46; }
     const num = Math.ceil(cd.framesLeft / 22);
     const a   = Math.min(1, cd.framesLeft / 18) * (1 - Math.max(0, (22 - cd.framesLeft % 22) / 22) * 0.3);
     ctx.save();

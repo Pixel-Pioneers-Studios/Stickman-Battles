@@ -38,6 +38,8 @@ const DeathAnim = {
       pose:   null,
       dropped: false,
       verlet: opts.verlet !== false && typeof VerletRagdoll !== 'undefined',
+      arena:  typeof currentArenaKey !== 'undefined' ? currentArenaKey : null,   // revive: same arena only
+      corpse: null,
       startPose: DeathAnim._snapshotPose(f),
     };
     f._death = rec;
@@ -429,6 +431,7 @@ const DeathAnim = {
       const topple = (fold >= 0 ? 1 : -1) * (1.2 + Math.min(2.5, rec.kb * 0.12));
       for (const pt of [vr.head, vr.neck, vr.lShoulder, vr.rShoulder]) pt.impulse(-topple, 0);
       if (typeof verletRagdolls !== 'undefined') verletRagdolls.push(vr);
+      rec.corpse = vr;   // smb-revive.js stands this body back up
     } catch (e) {
       rec.hidden = false;   // never leave an invisible body behind
       if (typeof PlayerRagdoll !== 'undefined') PlayerRagdoll.collapse(f);

@@ -537,7 +537,7 @@ Object.assign(WEAPON_FINISHERS, {
         {frame:64,fn(){ data.stoneUp=false; CinCam.zoomTo(1.45); CinCam.focusOn(tgt); }},
         {frame:74,fn(){
           // meteor crash + crater shockwave
-          data.craterA=1; data.shockR=1; data.shockAlpha=1;
+          data.craterA=1; data.shockR=1; data.shockAlpha=1; tgt._reviveFlat=true;
           CinCam.slowMo(1.0); CinCam.shake(60);
           if (typeof CinFX!=='undefined'&&CinFX.impactFrame) CinFX.impactFrame([att,tgt],{dur:3});
           if (typeof SoundManager!=='undefined'&&SoundManager.heavyHit) SoundManager.heavyHit();

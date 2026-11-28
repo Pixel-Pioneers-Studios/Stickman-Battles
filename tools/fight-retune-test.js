@@ -133,6 +133,13 @@ window.RT = {
     Object.defineProperty(B, '_wallEscape', { configurable: true, get() { return v; }, set(x) { if (x) w.n++; v = x; } });
     return w;
   },
+  // Revive checks: P2 on the widest safe platform, P1 out of shove range.
+  reviveStage(P1, P2) {
+    const pl = currentArena.platforms.filter(p => !p.isFloorDisabled && !p.isRockFill && !p.isBedrock && !(currentArena.hasLava && p.y >= (currentArena.lavaY || 442) - 30))
+      .sort((a, b) => b.w - a.w)[0];
+    P2.x = pl.x + pl.w / 2 - P2.w / 2; P2.y = pl.y - P2.h;
+    P1.x = P2.x - 200; P1.y = P2.y; P1.vx = P2.vx = P1.vy = P2.vy = 0;
+  },
   // A faces B with B against the right wall, in reach.
   corner(A, B) { B.x = 900 - B.w - 2; A.x = B.x - 40 - A.w / 2 + B.w / 2; A.facing = 1; B.facing = -1; A.vx = B.vx = 0; },
   // Bot A (difficulty diff) against a still dummy B kept in reach for n frames; counts A's Q cancels.
@@ -760,6 +767,152 @@ check('q_buffered_early_in_whiff', async () => {
   const e0 = frameCount;
   await RT.until(() => P1.abilityCooldown > 0, INPUT_BUFFER_FRAMES + 4);
   return { pass: P1.abilityCooldown > 0, detail: 'pressed ' + left + 'f before recovery ended; fired ' + (P1.abilityCooldown > 0 ? (frameCount - e0) + 'f after' : 'never') };
+}, 'page');
+
+// ── Clash bind (js/smb-clash-bind.js) ──
+// The bind locks both, then throws each back CLASH_BIND_DIST px. Measure the real distances.
+check('clash_bind_throwback', () => {
+  if (typeof clashBindStart !== 'function') return { pass: false, detail: 'smb-clash-bind.js not loaded' };
+  const { A, B } = RT.pair('sword', 'sword', 70);
+  A._clashCd = B._clashCd = 0;
+  A._resolveClash(B);
+  const bound = !!(A._clashAnim && B._clashAnim);
+  let lockGap = null, n = 0;
+  for (; n < 90 && (A._clashAnim || B._clashAnim); n++) {
+    BalanceSim.step(1);
+    if (A._clashAnim && A._clashAnim.t === CLASH_BIND_LOCK) lockGap = Math.abs(A.cx() - B.cx());
+  }
+  BalanceSim.step(20);
+  const endGap = Math.abs(A.cx() - B.cx());
+  const each = lockGap == null ? 0 : (endGap - lockGap) / 2;
+  const clean = !A._clashAnim && !B._clashAnim && !A._movePose && !B._movePose;
+  return { pass: bound && clean && each > 40 && each < 62,
+           detail: `bound ${bound}, lock gap ${lockGap && lockGap.toFixed(0)}, end gap ${endGap.toFixed(0)}, each thrown ${each.toFixed(1)}px (target 51), done in ${n}f, clean ${clean}` };
+});
+check('clash_bind_broken_by_hit', () => {
+  const { A, B } = RT.pair('sword', 'sword', 70);
+  A._clashCd = B._clashCd = 0;
+  A._resolveClash(B);
+  BalanceSim.step(3);
+  B.hurtTimer = 10;   // a third party hit B mid-lock
+  BalanceSim.step(2);
+  const freed = !B._clashAnim && !B._movePose;
+  // A skips straight to its throw-back and finishes on its own.
+  for (let i = 0; i < 40 && A._clashAnim; i++) BalanceSim.step(1);
+  return { pass: freed && !A._clashAnim && !A._movePose, detail: `B freed ${freed}, A done ${!A._clashAnim}` };
+});
+// A human proxy walking in and swinging when in reach, against a live bot: how many
+// exchanges where both swings were live and pointed at each other became clashes.
+check('clash_rate_vs_bot', (diff) => {
+  const { A, B } = RT.pair('sword', 'sword', 120);
+  B.isAI = true; B.aiDiff = diff || 'hard'; B.target = A;
+  let clashes = 0, meets = 0, swings = 0, next = 0;
+  const orig = Fighter.prototype._resolveClash;
+  const deltas = [];
+  Fighter.prototype._resolveClash = function (o) { if (!this._clashCd && !(o && o._clashCd)) { clashes++; deltas.push((A._attackStartFrame||0) - (B._attackStartFrame||0)); } return orig.call(this, o); };
+  let both = false; const meet = { y: 0, n: 0 };
+  const om = Fighter.prototype._clashArcsMeet;
+  Fighter.prototype._clashArcsMeet = function (o) { const r = om.call(this, o); if (r) meet.y++; else meet.n++; return r; };
+  try {
+    for (let i = 0; i < 9000; i++) {
+      const d = B.cx() - A.cx(), dir = Math.sign(d) || 1;
+      A.facing = dir;
+      if (!A._clashAnim && !(A.attackTimer > 0) && !(A.attackEndlag > 0)) A.vx = Math.abs(d) > 62 ? dir * 3.2 : 0;
+      if (i >= next && Math.abs(d) < 80) { const s0 = A._attackStartFrame; A.attack(B); if (A._attackStartFrame !== s0) { swings++; next = i + 16 + Math.floor(Math.random() * 26); } }
+      // An exchange: both swings live and facing each other at once.
+      const now = A.attackTimer > 0 && B.attackTimer > 0 && A.facing === -B.facing && Math.abs(d) < 110;
+      if (now && !both) meets++;
+      both = now;
+      BalanceSim.step(1);
+      A.health = A.maxHealth; B.health = B.maxHealth;
+      if (A.x < 120 || A.x > 760 || B.x < 120 || B.x > 760) { A.x = 330; B.x = 470; A.vx = B.vx = 0; }
+    }
+  } finally { Fighter.prototype._resolveClash = orig; Fighter.prototype._clashArcsMeet = om; }
+  return { pass: true, detail: `arcs meet ${meet.y} / rejected ${meet.n}; ${diff || 'hard'}: ${clashes} clashes / ${meets} two-swing exchanges / ${swings} swings; A-B start deltas ${deltas.join(',')}` };
+});
+
+
+// ── Revive (js/smb-revive.js): the body that fell is the one that gets up ──
+// Real match: KO P2 on the floor, then watch the respawn. Rise mode, near the body, one body.
+check('revive_rises_where_body_lies', async () => {
+  const { P1, P2 } = await RT.duel('sword');
+  await RT.until(() => !(P2.invincible > 0), 240);
+  P1.isAI = P2.isAI = false;
+  RT.reviveStage(P1, P2);
+  const lives0 = P2.lives;
+  P2.invincible = 0; P2.health = 0;
+  await RT.until(() => P2._reviveAnim, 200);
+  const c = P2._reviveAnim;
+  if (!c) return { pass: false, detail: 'no revive started; lives ' + lives0 + '->' + P2.lives };
+  const mode = c.mode, x0 = P2.cx();
+  const corpses = verletRagdolls.filter(v => v.color === P2.color).length;
+  const lyingInv = P2.invincible > 0;
+  await RT.until(() => !P2._reviveAnim, 120);
+  const done = !P2._reviveAnim && !P2._movePose && !P2._finSquash && !P2._hideWeapon;
+  return { pass: mode === 'rise' && corpses === 0 && lyingInv && done && P2.lives === lives0 - 1 && P2.health === P2.maxHealth,
+           detail: `mode ${mode}, corpses left ${corpses}, rose at x ${x0.toFixed(0)}, invincible while down ${lyingInv}, finished clean ${done}, lives ${lives0}->${P2.lives}` };
+}, 'page');
+check('revive_leaps_back_after_fall', async () => {
+  const { P1, P2 } = await RT.duel('sword');
+  await RT.until(() => !(P2.invincible > 0), 240);
+  P1.isAI = P2.isAI = false;
+  P2.invincible = 0; P2.y = GAME_H + 200; P2.vy = 4;   // under the kill plane: the fall KO
+  await RT.until(() => P2._reviveAnim, 260);
+  const c = P2._reviveAnim;
+  if (!c) return { pass: false, detail: 'no revive started' };
+  const mode = c.mode, sx = c.sx, lx = c.lx;
+  await RT.until(() => !P2._reviveAnim, 120);
+  const landed = Math.abs(P2.x - lx) < 2 && P2.health > 0 && !P2.backstageHiding;
+  return { pass: mode === 'leap' && landed, detail: `mode ${mode}, from x ${sx.toFixed(0)} to ${lx.toFixed(0)}, landed ${landed}` };
+}, 'page');
+check('revive_flat_after_slam', async () => {
+  const { P1, P2 } = await RT.duel('sword');
+  await RT.until(() => !(P2.invincible > 0), 240);
+  P1.isAI = P2.isAI = false;
+  RT.reviveStage(P1, P2);
+  P2._reviveFlat = true; P2.invincible = 0; P2.health = 0;
+  await RT.until(() => P2._reviveAnim, 200);
+  const c = P2._reviveAnim;
+  if (!c) return { pass: false, detail: 'no revive started' };
+  let minY = 9, maxY = 0;
+  await RT.until(() => { if (P2._finSquash) { minY = Math.min(minY, P2._finSquash.y, P2._finSquash.x); maxY = Math.max(maxY, P2._finSquash.y); } return !P2._reviveAnim; }, 120);
+  return { pass: c.flat && minY < 0.5 && maxY > 1.1 && !P2._finSquash, detail: `flat ${c.flat}, thinnest ${minY.toFixed(2)}, pop overshoot ${maxY.toFixed(2)}` };
+}, 'page');
+
+// End to end: a real PANCAKE (frying pan Q) kill with a life left, then the flat revive.
+check('revive_flat_after_pancake', async () => {
+  const { P1, P2 } = await RT.duel('fryingpan');
+  await RT.until(() => !(P2.invincible > 0), 240);
+  settings.finishers = true;
+  P1.isAI = P2.isAI = false;
+  RT.reviveStage(P1, P2);
+  P1.x = P2.x - 46; P1.facing = 1; P2.facing = -1;
+  P2.health = 1; P2.invincible = 0; P1.abilityCooldown = 0; P1.cooldown = 0; P1.attackEndlag = 0;
+  P1.ability(P2);
+  const fin = await RT.until(() => activeFinisher || P2.health <= 0, 120);
+  const name = activeFinisher && activeFinisher.def ? (activeFinisher.def.name || '?') : (activeFinisher ? 'on' : 'none');
+  await RT.until(() => P2._reviveAnim, 900);
+  const c = P2._reviveAnim;
+  return { pass: !!(c && c.flat), detail: `finisher ${name}, revive ${c ? c.mode : 'none'} flat ${c && c.flat}` };
+}, 'page');
+
+// HOLE IN ONE (frying pan E) drives them out of the sky: the revive should be the leap back in.
+check('revive_leap_after_hole_in_one', async () => {
+  const { P1, P2 } = await RT.duel('fryingpan');
+  await RT.until(() => !(P2.invincible > 0), 240);
+  settings.finishers = true;
+  P1.isAI = P2.isAI = false;
+  RT.reviveStage(P1, P2);
+  P1.x = P2.x - 46; P1.facing = 1; P2.facing = -1;
+  P2.health = 1; P2.invincible = 0; RT.fullMeter(P1); P1.cooldown = 0; P1.attackEndlag = 0;
+  P1.useSuper(P2);
+  await RT.until(() => activeFinisher || P2.health <= 0, 120);
+  const name = activeFinisher && activeFinisher.def ? (activeFinisher.def.name || '?') : (activeFinisher ? 'on' : 'none');
+  let seen = null;
+  await RT.until(() => { if (P2._death && !seen) seen = 1; return P2._reviveAnim; }, 900);
+  const c = P2._reviveAnim;
+  const where = `${P2.cx().toFixed(0)},${P2.y.toFixed(0)}`;
+  return { pass: !!(c && c.mode === 'leap'), detail: `finisher ${name}, revive ${c ? c.mode : 'none'} (body at ${where})` };
 }, 'page');
 
 // ─────────────────────────────────────────────────────────────────────────────

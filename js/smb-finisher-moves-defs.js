@@ -366,7 +366,7 @@ mfDefine('spear:q', {
 
 // Lance Charge: run them down on the point, hoist them on the shaft, drive into the floor.
 mfDefine('spear:e', {
-  name: 'LAST CHARGE', color: '#aaaaff', len: 108,
+  name: 'LAST CHARGE', color: '#aaaaff', len: 108, slam: true,
   me: [
     { t: 0,  r: 0.25, rl: 0.95, w: 0.0, l: 0.2, ll: 0.7, lean: 16, drop: 6, fr: 18, fl: -18 },
     { t: 34, e: 'lin', r: 0.2, rl: 1.0, w: -0.05, l: 0.15, ll: 0.7, lean: 18, drop: 7, fr: 20, fl: -20 },
@@ -586,7 +586,7 @@ mfDefine('scythe:e', {
 // FRYING PAN
 // Ground Pound from above.
 mfDefine('fryingpan:q', {
-  name: 'PANCAKE', color: '#ffdd66', len: 100,
+  name: 'PANCAKE', color: '#ffdd66', len: 100, slam: true,
   me: [
     { t: 0,  r: 1.2, w: 1.5, l: 1.7, lean: 11, drop: 13, fr: 14, fl: -14 },
     { t: 8,  e: 'out', r: 2.0, w: 2.2, l: 1.2, lean: 4, drop: 12, fr: 10, fl: -10 },
@@ -791,7 +791,7 @@ mfDefine('combat:q', {
 
 // Combo Strike: alternating fists, an uppercut, then an axe kick to the floor.
 mfDefine('combat:e', {
-  name: 'HUNDRED FISTS', color: '#ff4444', len: 112,
+  name: 'HUNDRED FISTS', color: '#ff4444', len: 112, slam: true,
   me: [
     { t: 0,  r: 1.6, l: 1.3, lean: 0, drop: 2, fr: 9, fl: -9 },
     { t: 6,  e: 'out', r: 0.0, rl: 1.2, l: 2.0, ll: 0.6, lean: 10, drop: 6, fr: 15, fl: -13 },
@@ -926,7 +926,7 @@ mfDefine('flail:e', {
 // WHIP
 // Lasso: yank them off their feet, swing overhead, slam them down behind the performer.
 mfDefine('whip:q', {
-  name: 'HOGTIED', color: '#cc8833', len: 108,
+  name: 'HOGTIED', color: '#cc8833', len: 108, slam: true,
   me: [
     { t: 0,  r: 0.3, rl: 1.1, w: 0.4, l: 2.2, lean: 12, drop: 6, fr: 16, fl: -12 },
     { t: 10, e: 'out', r: 2.3, rl: 0.8, w: 2.4, l: 0.3, ll: 1.0, lean: -12, drop: 9, fr: 15, fl: -13 },

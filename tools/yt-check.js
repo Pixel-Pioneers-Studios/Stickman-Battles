@@ -18,6 +18,9 @@ const path = require('path');
 const puppeteer = require('puppeteer-core');
 
 const N = Number((process.argv.find(a => a.startsWith('--n=')) || '--n=10').slice(4));
+const JSON_MODE = process.argv.includes('--json');
+const COLLECTION_TIMESTAMP = new Date().toISOString();
+const MEASUREMENT_PERIOD = 'Since published';
 
 // Creator rules of thumb for Shorts "Stayed to watch" (YouTube publishes no cutoffs).
 const PASS = 60, FAIL = 45;
@@ -81,6 +84,7 @@ async function readShortOnce(p, id) {
     stayed: split ? Number(split[1]) : null,
     engaged: engaged || null,
     avgDur: (e.match(/Average view duration\s*\n\s*([\d:]+)/) || [])[1] || null,
+    measurementPeriod: MEASUREMENT_PERIOD,
   };
 }
 
@@ -110,7 +114,33 @@ async function readShort(p, id) {
     for (const s of shorts.slice(0, N)) {
       const r = { ...s, ...(await readShort(p, s.id)) };
       rows.push(r);
-      console.log(`  ${String(r.stayed ?? '—').padStart(5)}% stayed  ${String(r.views ?? '?').padStart(6)} views  ${String(r.engaged ?? '-').padStart(5)} engaged  ${r.date}  ${r.title}`);
+      if (!JSON_MODE) {
+        console.log(`  ${String(r.stayed ?? '—').padStart(5)}% stayed  ${String(r.views ?? '?').padStart(6)} views  ${String(r.engaged ?? '-').padStart(5)} engaged  ${r.date}  ${r.title}`);
+      }
+    }
+
+    if (JSON_MODE) {
+      const output = {
+        schemaVersion: 1,
+        tool: 'yt-check',
+        measurementPeriod: MEASUREMENT_PERIOD,
+        collectionTimestamp: COLLECTION_TIMESTAMP,
+        videos: rows.map(r => ({
+          id: r.id,
+          title: r.title ?? null,
+          uploadDate: r.date || null,
+          views: r.views ?? null,
+          stayedToWatchPercentage: r.stayed ?? null,
+          engagedViews: r.engaged ?? null,
+          averageDuration: r.avgDur ?? null,
+          swipedAwayPercentage: r.stayed == null ? null : Number((100 - r.stayed).toFixed(3)),
+          swipedAwayPercentageDerived: true,
+          measurementPeriod: r.measurementPeriod || MEASUREMENT_PERIOD,
+          collectionTimestamp: COLLECTION_TIMESTAMP,
+        })),
+      };
+      process.stdout.write(JSON.stringify(output) + '\n');
+      return;
     }
 
     const [newest, ...rest] = rows;
